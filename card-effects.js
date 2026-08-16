@@ -192,3 +192,62 @@ ATTACK_EFFECTS['Starmie'] = {
     if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
   }
 };
+
+ATTACK_EFFECTS['Machop'] = {
+  'Low Kick': function (state, attacker, defender) { dealDamage(state, attacker, defender, 20); }
+};
+
+ATTACK_EFFECTS['Machoke'] = {
+  'Karate Chop': function (state, attacker, defender) {
+    var dmg = Math.max(0, 50 - 10 * (attacker.damage / 10));
+    dealDamage(state, attacker, defender, dmg);
+  },
+  'Submission': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 60);
+    attacker.damage += 20;
+  }
+};
+
+ATTACK_EFFECTS['Hitmonchan'] = {
+  'Jab': function (state, attacker, defender) { dealDamage(state, attacker, defender, 20); },
+  'Special Punch': function (state, attacker, defender) { dealDamage(state, attacker, defender, 40); }
+};
+
+ATTACK_EFFECTS['Onix'] = {
+  'Rock Throw': function (state, attacker, defender) { dealDamage(state, attacker, defender, 10); },
+  'Harden': function (state, attacker) {
+    attacker.shield = { untilTurn: state.turnCounter + 1, type: 'thresholdMax', thresholdMax: 30 };
+  }
+};
+
+ATTACK_EFFECTS['Sandshrew'] = {
+  'Sand-attack': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (defender) { defender.missChanceUntilTurn = state.turnCounter + 1; }
+  }
+};
+
+ATTACK_EFFECTS['Squirtle'] = {
+  'Bubble': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Withdraw': function (state, attacker) {
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  }
+};
+
+ATTACK_EFFECTS['Wartortle'] = {
+  'Withdraw': function (state, attacker) {
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  },
+  'Bite': function (state, attacker, defender) { dealDamage(state, attacker, defender, 40); }
+};
+
+ATTACK_EFFECTS["Farfetch'd"] = {
+  'Leek Slap': function (state, attacker, defender) {
+    attacker.lockedAttacks.push('Leek Slap');
+    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); }
+  },
+  'Pot Smash': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); }
+};

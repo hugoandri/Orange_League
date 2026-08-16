@@ -382,3 +382,58 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Leech Seed deals 20 to the defender', target7.damage, 20);
   check('Leech Seed heals 10 off Bulbasaur when damage lands', bulbasaur.damage, 10);
 })();
+
+(function testBlackoutAttackEffects() {
+  var state = createGame(function () { return 0.0; }); // always heads
+  var mkP = function (name, extra) {
+    var base = { id: 'y_' + name, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+    return Object.assign(base, extra || {});
+  };
+
+  // Machoke's Karate Chop: 50 minus 10 per own damage counter
+  var machoke = mkP('Machoke', { damage: 20 }); var t1 = mkP('Bulbasaur');
+  ATTACK_EFFECTS['Machoke']['Karate Chop'](state, machoke, t1);
+  check('Karate Chop with 2 counters deals 30', t1.damage, 30);
+
+  // Machoke's Submission: 60 to defender, 20 to self
+  var machoke2 = mkP('Machoke'); var t2 = mkP('Bulbasaur');
+  ATTACK_EFFECTS['Machoke']['Submission'](state, machoke2, t2);
+  check('Submission deals 60 to defender', t2.damage, 60);
+  check('Submission deals 20 to self', machoke2.damage, 20);
+
+  // Squirtle's Bubble: 10 dmg + coin flip paralyze
+  var squirtle = mkP('Squirtle'); var t3 = mkP('Machop');
+  ATTACK_EFFECTS['Squirtle']['Bubble'](state, squirtle, t3);
+  check('Bubble deals 10', t3.damage, 10);
+  checkTrue('Bubble paralyzes on heads', hasStatus(t3, 'Paralyzed'));
+
+  // Squirtle's Withdraw: coin-flip shield, no damage
+  var squirtle2 = mkP('Squirtle');
+  state.turnCounter = 2;
+  ATTACK_EFFECTS['Squirtle']['Withdraw'](state, squirtle2, null);
+  check('Withdraw sets a preventAll shield on heads', squirtle2.shield && squirtle2.shield.type, 'preventAll');
+
+  // Onix's Harden: always sets a thresholdMax(30) shield, no coin flip
+  var onix = mkP('Onix');
+  state.turnCounter = 7;
+  ATTACK_EFFECTS['Onix']['Harden'](state, onix, null);
+  check('Harden sets a thresholdMax shield', onix.shield && onix.shield.type, 'thresholdMax');
+  check('Harden threshold is 30', onix.shield.thresholdMax, 30);
+
+  // Sandshrew's Sand-attack: 10 dmg, sets a miss-chance debuff on the defender's next attack
+  var sandshrew = mkP('Sandshrew'); var t4 = mkP('Machop');
+  state.turnCounter = 9;
+  ATTACK_EFFECTS['Sandshrew']['Sand-attack'](state, sandshrew, t4);
+  check('Sand-attack deals 10', t4.damage, 10);
+  check('Sand-attack sets missChanceUntilTurn on the defender for the opponent\'s next turn', t4.missChanceUntilTurn, 10);
+
+  // Farfetch'd's Leek Slap: 30 dmg on heads, and locks itself regardless of outcome
+  var farfetchd = mkP("Farfetch'd"); var t5 = mkP('Machop');
+  ATTACK_EFFECTS["Farfetch'd"]['Leek Slap'](state, farfetchd, t5);
+  checkTrue('Leek Slap locks itself after use', farfetchd.lockedAttacks.indexOf('Leek Slap') !== -1);
+
+  // Hitmonchan's Special Punch: plain 40 damage, no text
+  var hitmonchan = mkP('Hitmonchan'); var t6 = mkP('Machop');
+  ATTACK_EFFECTS['Hitmonchan']['Special Punch'](state, hitmonchan, t6);
+  check('Special Punch deals 40', t6.damage, 40);
+})();
