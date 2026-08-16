@@ -87,10 +87,19 @@ ai → economy → ui (each later file depends only on earlier ones;
 - The exact 60-card decklists (which cards, what quantities) for
   Overgrowth and Blackout are sourced from their Bulbapedia articles
   (`Overgrowth_(TCG)`, `Blackout_(TCG)`), the same articles already
-  used to source deck box art and composition summaries. The
-  previously-gathered composition counts (Overgrowth: 23 Pokémon / 9
-  Trainer / 28 Energy; Blackout: 27 Pokémon / 5 Trainer / 28 Energy)
-  must match the freshly-fetched decklist as a consistency check.
+  used to source deck box art and composition summaries.
+  **Correction (post-verification):** an earlier composition summary
+  for Blackout said "27 Pokémon / 5 Trainer / 28 Energy" — this was
+  an arithmetic error in that earlier pass. The decklist has been
+  fetched and independently cross-checked twice (raw wikitext and
+  rendered page); the real, verified composition is **Overgrowth: 23
+  Pokémon / 9 Trainer / 28 Energy = 60**, **Blackout: 24 Pokémon / 8
+  Trainer / 28 Energy = 60**. Both decklists and every unique card's
+  full stats (attacks, HP, types, weakness, resistance, retreat cost,
+  verbatim Trainer effect text) are already fetched, verified against
+  the pokemontcg.io API, and committed as `data-decks.js` and
+  `data-cards.js` in this repo (commit `b62ab6d`) — the implementation
+  plan reads from those files directly rather than re-deriving them.
 - No card name, damage value, or effect text is to be invented from
   memory — anything not confidently sourced gets flagged rather than
   guessed, same standard used for the reference page.
@@ -132,13 +141,46 @@ turn (empty deck).
 **Special conditions:** Asleep / Confused / Paralyzed are mutually
 exclusive (applying one replaces any other of these three); Poisoned
 and Burned can stack with each other and with one of the above three.
-The engine implements the generic state machine for all five. Whether
-Overgrowth's or Blackout's actual attack texts inflict any of these
-is not yet confirmed (depends on the data fetched per §4) — see §10.
-If it turns out neither deck triggers any special condition in play,
-the mechanic still ships (tested via synthetic fixtures in
-`tests.js`) rather than being deleted, since it's needed the moment
-more cards are added in a later phase.
+The engine implements the generic state machine for all five.
+**Resolved (post-verification, see `data-cards.js`):** only **Poison**
+(Beedrill/Weedle Poison Sting, Ivysaur/Kakuna Poisonpowder) and
+**Paralysis** (Gyarados Bubblebeam, Squirtle Bubble, Starmie Star
+Freeze) are actually inflicted by these two decks' real attack texts.
+Asleep/Confused/Burned are implemented structurally but exercised only
+via synthetic fixtures in `tests.js` this phase, per the original
+design decision above.
+
+**Attack/effect primitives required by the real card texts** (these
+are engine-level hooks, not one-off logic buried in a single effect
+function, because more cards in later phases will reuse the same
+shapes):
+- **Coin-flip-gated effect** (e.g. Weedle's Poison Sting: 50% to
+  poison) and **multi-coin variable damage** (Beedrill's Twineedle:
+  flip 2 coins, 30 damage × heads).
+- **Damage-counter-scaled damage**, both upward (Magikarp's Flail: 10
+  × its own damage counters) and downward (Machoke's Karate Chop: 50
+  − 10 × its own damage counters).
+- **Self-damage** (Machoke's Submission: 20 to itself alongside the
+  normal hit).
+- **"Prevent all damage next opponent turn" shield** (Kakuna's
+  Stiffen, Onix's Harden — conditional, only damage ≤30 post-Weakness/
+  Resistance — Squirtle's and Wartortle's Withdraw): a flag on the
+  defending Pokémon consulted by the generic damage-application step
+  on the *next* incoming attack, then cleared.
+- **"Opponent's next attack has a miss chance" debuff** (Sandshrew's
+  Sand-attack: defender's opponent flips a coin before their next
+  attack resolves; tails = attack does nothing).
+- **One-time-per-card-in-play attack lock** (Farfetch'd's Leek Slap:
+  once used — hit or miss — unusable again by this exact card
+  instance for as long as it stays in play, tracked per-instance, not
+  per-species).
+- **Alternate/additional costs that discard energy** (Starmie's
+  Recover discards a Water Energy from itself as part of using the
+  attack; Super Potion/Super Energy Removal discard energy as their
+  Trainer-card cost) — the engine's "attach 1 energy per turn" limit
+  is about *attaching*, so discarding energy as a cost is unrelated
+  and always legal as long as the required energy is actually
+  attached.
 
 ## 6. Card effects registry
 
@@ -159,8 +201,10 @@ TRAINER_EFFECTS["Professor Oak"] = function(state, player) {
 The rules engine calls into these tables by name and never contains
 card-specific logic itself — this keeps the engine reusable for future
 decks without modification. Only the effects needed for Overgrowth's
-9 trainer-card slots and Blackout's 5 trainer-card slots, plus every
-distinct attack printed on the ~50 unique cards across both decks,
+9 trainer-card slots and Blackout's 8 trainer-card slots (9 distinct
+Trainer effects between them, since Gust of Wind appears in both),
+plus every distinct attack printed on the 29 unique cards across both
+decks (17 Pokémon + 9 Trainer + 3 basic Energy — see `data-cards.js`),
 are implemented this phase. Anything else stays out of the two decks
 by construction (the decklists only contain implemented cards), so
 there's no unimplemented-effect dead end during play.
@@ -233,12 +277,16 @@ the page. Minimum coverage before calling the engine done:
   without exceeding a reasonable turn cap (guards against infinite
   loops in the AI or engine).
 
-## 10. Open items carried into the implementation plan
+## 10. Open items — resolved
 
-- Fetching and cross-checking the exact Overgrowth/Blackout decklists
-  and full card stat blocks (§4's data sourcing) is real work with
-  real API/Bulbapedia calls — it happens during implementation, not
-  during this spec, and any card the sources can't confirm gets
-  flagged instead of guessed.
-- Whether Poison/Burn/etc. actually get exercised by these two decks'
-  real attack texts won't be known until that data is in hand (§5).
+Both items originally listed here are now resolved via the
+data-gathering pass described in §4 and §5:
+
+- Decklists and full card stat blocks are fetched, verified, and
+  committed (`data-decks.js`, `data-cards.js`, commit `b62ab6d`) —
+  the implementation plan reads real data, not placeholders.
+- The special-condition and effect-primitive surface actually needed
+  is enumerated in §5 (Poison, Paralysis, damage shields, coin-flip
+  variance, counter-scaled damage, self-damage, attack lockout,
+  miss-chance debuff, energy-discard costs) — no remaining unknowns
+  blocking plan-writing.
