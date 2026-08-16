@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Pokémon TCG Simulador · Overgrowth vs Blackout</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Pokémon TCG Simulador</h1>
+    <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
+    <nav class="tabs">
+      <button type="button" id="tabBtnPlay" class="active">Jugar</button>
+      <button type="button" id="tabBtnCollection">Colección</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="panelPlay" class="tab-panel active">
+      <div id="app">Cargando...</div>
+      <pre id="log"></pre>
+    </section>
+    <section id="panelCollection" class="tab-panel">
+      <div id="booster-shop"></div>
+      <div id="collection-view"></div>
+    </section>
+  </main>
+
+<script src="data-sets.js"></script>
+<script src="data-decks.js"></script>
+<script src="data-cards.js"></script>
+<script src="rules-engine.js"></script>
+<script src="card-effects.js"></script>
+<script src="ai.js"></script>
+<script src="economy.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
