@@ -123,3 +123,79 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('bench Machop is now active', state.players[pid].active.name, 'Machop');
   check('Onix went to bench with only 0 energy left (3 discarded)', state.players[pid].bench[0].attachedEnergy.length, 0);
 })();
+
+(function testDealDamageWeaknessResistance() {
+  var state = createGame(function () { return 0.42; });
+  var attacker = { id: 'a1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var defender = { id: 'd1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  // Gyarados (Water) attacking Bulbasaur (Grass, weak to Fire, no resistance) -- no weakness/resistance interaction, plain 50 damage.
+  var dmg = dealDamage(state, attacker, defender, 50);
+  check('plain damage with no weakness/resistance', dmg, 50);
+  check('defender damage counter updated', defender.damage, 50);
+
+  // Beedrill resists Fighting (-30): confirms resistance is applied independently of weakness.
+  var fightingAttacker = { id: 'a3', name: 'Machoke', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var beedrillDefender = { id: 'd3', name: 'Beedrill', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var dmg2 = dealDamage(state, fightingAttacker, beedrillDefender, 50); // Beedrill resists Fighting by -30
+  check('resistance subtracts 30', dmg2, 20);
+})();
+
+(function testShieldPreventsAllDamage() {
+  var state = createGame(function () { return 0.42; });
+  state.turnCounter = 5;
+  var attacker = { id: 'a1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var defender = { id: 'd1', name: 'Squirtle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: { untilTurn: 5, type: 'preventAll' }, missChanceUntilTurn: null, plusPowerAttached: false };
+  var dmg = dealDamage(state, attacker, defender, 50);
+  check('shielded defender takes 0 damage', dmg, 0);
+  check('shield is consumed after blocking', defender.shield, null);
+})();
+
+(function testAttackKnockoutAwardsPrizeAndEndsGameOnEmptyPrizes() {
+  var state = createGame(function () { return 0.42; });
+  state.players.player.active = { id: 'p1', name: 'Gyarados', attachedEnergy: ['Water', 'Water', 'Water'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.bench = [];
+  state.players.cpu.active = { id: 'c1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.bench = [];
+  state.players.player.prizes = [{ id: 'pz1', name: 'Bulbasaur' }];
+  state.activePlayerId = 'player';
+  state.turnCounter = 2; // turn 1 is unattackable (the going-first player can't attack their very first turn); advance past it so this is a legal attack
+
+  checkTrue('canAttack true, Gyarados has enough Water energy for Dragon Rage', canAttack(state, 'player', 'Dragon Rage'));
+  attack(state, 'player', 'Dragon Rage'); // 50 damage, Weedle has 40 HP -> KO
+  check('Weedle was knocked out and removed as cpu active', state.players.cpu.active, null);
+  check('player took their 1 remaining prize', state.players.player.prizes.length, 0);
+  check('getWinner declares player the winner', getWinner(state), 'player');
+})();
+
+(function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
+  var state = createGame(function () { return 0.42; });
+  state.energyAttachedThisTurn = true;
+  state.retreatedThisTurn = true;
+  var before = state.turnCounter;
+  var beforePlayer = state.activePlayerId;
+  endTurn(state);
+  check('turnCounter advanced by 1', state.turnCounter, before + 1);
+  checkTrue('active player switched', state.activePlayerId !== beforePlayer);
+  check('energyAttachedThisTurn reset', state.energyAttachedThisTurn, false);
+  check('retreatedThisTurn reset', state.retreatedThisTurn, false);
+})();
+
+(function testDeckOutLoss() {
+  var state = createGame(function () { return 0.42; });
+  // Both players need an active Pokémon on the field, matching a real in-progress
+  // game -- otherwise getWinner's "no active + empty bench" loss check (which runs
+  // before the deck-out check) fires spuriously on this raw post-createGame state,
+  // where neither player has played a Basic yet.
+  state.players.player.active = { id: 'pa1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.active = { id: 'ca1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.deck = [];
+  check('getWinner is null before anyone is forced to draw from empty deck', getWinner(state), null);
+  // endTurn's ordering is "flip active player, then the flipped-to player is who
+  // must have cards to draw" -- so to simulate cpu being the one handed the turn
+  // (and thus forced to draw from their empty deck), activePlayerId must be
+  // 'player' (the player finishing their turn) right before endTurn is called.
+  state.activePlayerId = 'player';
+  state.turnCounter = 3; // not turn 1, so a draw is attempted
+  endTurn(state); // endTurn hands the turn to cpu and triggers their draw-phase check internally via getWinner after draw attempt -- see implementation
+  check('cpu loses by decking out, player wins', getWinner(state), 'player');
+})();

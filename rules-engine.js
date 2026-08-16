@@ -195,3 +195,141 @@ function retreat(state, playerId, benchInstanceId) {
   state.retreatedThisTurn = true;
   logEvent(state, playerId + ' se retira a ' + p.active.name);
 }
+
+function hasStatus(instance, status) { return instance.statusConditions.indexOf(status) !== -1; }
+
+var EXCLUSIVE_STATUSES = ['Asleep', 'Confused', 'Paralyzed'];
+
+function addStatus(instance, status) {
+  if (EXCLUSIVE_STATUSES.indexOf(status) !== -1) {
+    instance.statusConditions = instance.statusConditions.filter(function (s) { return EXCLUSIVE_STATUSES.indexOf(s) === -1; });
+  }
+  if (!hasStatus(instance, status)) { instance.statusConditions.push(status); }
+}
+
+function typeHasMatch(list, types) {
+  return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
+}
+
+function dealDamage(state, attacker, defender, baseDamage) {
+  if (baseDamage <= 0) { return 0; }
+  var dmg = baseDamage;
+  var defStats = CARD_STATS[defender.name];
+  var atkTypes = CARD_STATS[attacker.name].types || [];
+  if (typeHasMatch(defStats.weaknesses, atkTypes)) { dmg *= 2; }
+  if (typeHasMatch(defStats.resistances, atkTypes)) { dmg = Math.max(0, dmg - 30); }
+  if (attacker.plusPowerAttached) { dmg += 10; }
+  if (defender.shield && defender.shield.untilTurn === state.turnCounter) {
+    if (defender.shield.type === 'preventAll') { dmg = 0; }
+    else if (defender.shield.type === 'thresholdMax' && dmg <= defender.shield.thresholdMax) { dmg = 0; }
+    defender.shield = null;
+  }
+  defender.damage += dmg;
+  return dmg;
+}
+
+function opponentOf(playerId) { return playerId === 'player' ? 'cpu' : 'player'; }
+
+function knockOutIfNeeded(state, ownerId, instance) {
+  var stats = CARD_STATS[instance.name];
+  if (instance.damage < stats.hp) { return; }
+  var owner = state.players[ownerId];
+  var attackerId = opponentOf(ownerId);
+  logEvent(state, instance.name + ' (' + ownerId + ') fue noqueado');
+  if (owner.active && owner.active.id === instance.id) {
+    owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
+  } else {
+    owner.bench = owner.bench.filter(function (b) { return b.id !== instance.id; });
+  }
+  owner.discard.push({ id: instance.id, name: instance.name });
+  var attackerPlayer = state.players[attackerId];
+  if (attackerPlayer.prizes.length > 0) {
+    var prize = attackerPlayer.prizes.shift();
+    attackerPlayer.hand.push(prize);
+    logEvent(state, attackerId + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
+  }
+}
+
+function canAttack(state, playerId, attackName) {
+  var p = state.players[playerId];
+  if (state.activePlayerId !== playerId || state.turnCounter === 1 || !p.active) { return false; }
+  if (hasStatus(p.active, 'Asleep') || hasStatus(p.active, 'Paralyzed')) { return false; }
+  if (p.active.lockedAttacks.indexOf(attackName) !== -1) { return false; }
+  var stats = CARD_STATS[p.active.name];
+  var atk = (stats.attacks || []).find(function (a) { return a.name === attackName; });
+  if (!atk) { return false; }
+  return canPayCost(p.active, atk.cost);
+}
+
+function attack(state, playerId, attackName) {
+  var p = state.players[playerId];
+  var opId = opponentOf(playerId);
+  var op = state.players[opId];
+  var attacker = p.active;
+  var stats = CARD_STATS[attacker.name];
+  var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
+
+  if (attacker.missChanceUntilTurn === state.turnCounter) {
+    attacker.missChanceUntilTurn = null;
+    if (coinFlip(state) === 'T') {
+      logEvent(state, attacker.name + ' falla el ataque (efecto de Sand-attack)');
+      endTurn(state);
+      return;
+    }
+  }
+
+  var defender = op.active;
+  var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
+  if (effectFn) {
+    effectFn(state, attacker, defender, atkDef);
+  } else {
+    var baseDamage = parseInt(atkDef.damage, 10) || 0;
+    if (defender) { dealDamage(state, attacker, defender, baseDamage); }
+  }
+
+  if (defender) { knockOutIfNeeded(state, opId, defender); }
+  endTurn(state);
+}
+
+function applyCheckupDamage(state, playerId) {
+  var p = state.players[playerId];
+  var all = p.active ? [p.active].concat(p.bench) : p.bench.slice();
+  all.forEach(function (instance) {
+    if (hasStatus(instance, 'Poisoned')) { instance.damage += 10; logEvent(state, instance.name + ' sufre daño por veneno'); }
+    if (hasStatus(instance, 'Burned')) {
+      instance.damage += 10;
+      if (coinFlip(state) === 'H') { instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Burned'; }); }
+    }
+    if (hasStatus(instance, 'Asleep') && coinFlip(state) === 'H') {
+      instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Asleep'; });
+    }
+  });
+  if (p.active) { knockOutIfNeeded(state, playerId, p.active); }
+  p.bench.slice().forEach(function (b) { knockOutIfNeeded(state, playerId, b); });
+}
+
+function endTurn(state) {
+  var justFinished = state.activePlayerId;
+  applyCheckupDamage(state, justFinished);
+  if (state.players[justFinished].active) {
+    state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
+  }
+  state.players[justFinished].active && (state.players[justFinished].active.plusPowerAttached = false);
+
+  state.turnCounter += 1;
+  state.activePlayerId = opponentOf(justFinished);
+  state.energyAttachedThisTurn = false;
+  state.retreatedThisTurn = false;
+
+  if (state.turnCounter > 1) { drawCard(state, state.activePlayerId, 1); }
+}
+
+function getWinner(state) {
+  if (state.players.player.prizes.length === 0) { return 'player'; }
+  if (state.players.cpu.prizes.length === 0) { return 'cpu'; }
+  if (!state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
+  if (!state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
+  if (state.activePlayerId === 'player' && state.players.player.deck.length === 0 && state.turnCounter > 1) { return 'cpu'; }
+  if (state.activePlayerId === 'cpu' && state.players.cpu.deck.length === 0 && state.turnCounter > 1) { return 'player'; }
+  return null;
+}
