@@ -20,7 +20,7 @@ function pokemonCardHtml(instance, isActive, ownerClass, big) {
   var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '');
   return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' +
     '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
-    '<br>Energía: ' + instance.attachedEnergy.join(',') + '</div>';
+    '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ') + '</div>';
 }
 
 function activeSlotHtml(activeInstance, ownerClass) {
