@@ -7,10 +7,42 @@ function renderCoinCount() {
 
 var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
 
+// Real card artwork, reused from the same catalog data that backs the
+// booster/collection feature (data-sets.js) -- every card in Overgrowth and
+// Blackout is a Base Set card, so this lookup covers the whole game.
+var CARD_IMAGE_BY_NAME = {};
+(CARD_CATALOG.base || []).forEach(function (c) { CARD_IMAGE_BY_NAME[c.n] = c.img; });
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, function (c) {
     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
   });
+}
+
+function cardImageTag(name, cls) {
+  var url = CARD_IMAGE_BY_NAME[name];
+  return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
+}
+
+// A small 🔍 control, separate from the card's own click target, so
+// enlarging a card never fires the game action (play/attach/target) that
+// clicking the rest of the card triggers. Wired with stopPropagation().
+function magnifyBtnHtml(name) {
+  if (!CARD_IMAGE_BY_NAME[name]) { return ''; }
+  return '<button type="button" class="magnify-btn" data-card-name="' + escapeHtml(name) + '" title="Ver carta">🔍</button>';
+}
+
+function openCardModal(name) {
+  var url = CARD_IMAGE_BY_NAME[name];
+  if (!url) { return; }
+  var img = document.getElementById('cardModalImg');
+  img.src = url;
+  img.alt = name;
+  document.getElementById('cardModal').classList.remove('hidden');
+}
+
+function closeCardModal() {
+  document.getElementById('cardModal').classList.add('hidden');
 }
 
 function pokemonCardHtml(instance, isActive, ownerClass, big) {
@@ -19,6 +51,7 @@ function pokemonCardHtml(instance, isActive, ownerClass, big) {
   var statusLine = instance.statusConditions.length ? ' [' + instance.statusConditions.map(translateStatus).join(', ') + ']' : '';
   var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '');
   return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' +
+    magnifyBtnHtml(instance.name) + cardImageTag(instance.name, 'card-thumb') +
     '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
     '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ') + '</div>';
 }
@@ -28,10 +61,16 @@ function activeSlotHtml(activeInstance, ownerClass) {
   return '<div class="active-row"><div class="bench-slot">Sin Activo</div></div>';
 }
 
-function benchSlotsHtml(bench) {
+function benchSlotsHtml(bench, ownerId) {
   var html = '<div class="bench-row">';
   for (var i = 0; i < 5; i++) {
-    html += bench[i] ? pokemonCardHtml(bench[i], false, '') : '<div class="bench-slot">Vacío</div>';
+    if (bench[i]) {
+      html += pokemonCardHtml(bench[i], false, '');
+    } else if (ownerId === 'player') {
+      html += '<div class="bench-slot bench-slot-empty" data-owner="player">Vacío</div>';
+    } else {
+      html += '<div class="bench-slot">Vacío</div>';
+    }
   }
   html += '</div>';
   return html;
@@ -44,12 +83,12 @@ function renderBoard() {
   var html = '';
   html += '<h3>CPU</h3>';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
-  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench);
+  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu');
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   html += '<h3>Tú</h3>';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
-  html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench);
+  html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
   html += '<p>Descarte: ' + p.discard.length + '</p>';
 
   html += '<h4>Mano</h4><div class="hand-row">';
@@ -57,7 +96,9 @@ function renderBoard() {
     // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
     // can't be used until the match actually starts.
     var disabled = s.phase === 'setup' && !isBasicPokemon(card.name);
-    html += '<button class="action-btn hand-card" data-hand-id="' + card.id + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(card.name) + '</button>';
+    html += '<div class="hand-card-wrap">' + magnifyBtnHtml(card.name) +
+      '<button class="action-btn hand-card" data-hand-id="' + card.id + '"' + (disabled ? ' disabled' : '') + '>' +
+      cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(card.name) + '</span></button></div>';
   });
   html += '</div>';
 
@@ -217,6 +258,32 @@ function wireBoardButtons() {
       renderBoard();
     });
   });
+
+  // Click an empty Bench slot to place the selected Basic there. Placement
+  // always lands in the next free slot (the bench has no meaningful "which
+  // exact position" beyond that), but letting the player pick the slot they
+  // click on -- instead of having to click their own Active as a stand-in
+  // target -- is the intuitive way to choose where a Basic goes.
+  document.querySelectorAll('.bench-slot-empty').forEach(function (el) {
+    el.addEventListener('click', function () {
+      if (!selectedHandId) { return; }
+      var p = gameState.players.player;
+      var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
+      if (!handCard) { return; }
+      if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
+        playBasic(gameState, 'player', selectedHandId);
+      }
+      selectedHandId = null;
+      renderBoard();
+    });
+  });
+
+  document.querySelectorAll('.magnify-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openCardModal(btn.getAttribute('data-card-name'));
+    });
+  });
 }
 
 function startNewMatch() {
@@ -266,6 +333,9 @@ document.addEventListener('DOMContentLoaded', function () {
   econState = loadEconomy();
   renderCoinCount();
   startNewMatch();
+
+  document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
+  document.querySelector('.card-modal-backdrop').addEventListener('click', closeCardModal);
 
   document.getElementById('tabBtnPlay').addEventListener('click', function () {
     document.getElementById('tabBtnPlay').classList.add('active');
