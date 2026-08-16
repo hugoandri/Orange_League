@@ -79,8 +79,10 @@ function createGame(rng) {
   });
 
   logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida');
-  state.energyAttachedThisTurn = false;
-  state.retreatedThisTurn = false;
+  state.players.player.energyAttachedThisTurn = false;
+  state.players.player.retreatedThisTurn = false;
+  state.players.cpu.energyAttachedThisTurn = false;
+  state.players.cpu.retreatedThisTurn = false;
   return state;
 }
 
@@ -93,6 +95,7 @@ function makeFreshInstance(id, name, turnCounter) {
 }
 
 function canPlayBasic(state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
   var card = p.hand.find(function (c) { return c.id === handId; });
   if (!card || !isBasicPokemon(card.name)) { return false; }
@@ -115,6 +118,7 @@ function findInstance(p, instanceId) {
 }
 
 function canEvolve(state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
   var card = p.hand.find(function (c) { return c.id === handId; });
   var target = findInstance(p, targetInstanceId);
@@ -156,11 +160,12 @@ var ENERGY_TYPE_BY_CARD_NAME = {
 };
 
 function canAttachEnergy(state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
   var card = p.hand.find(function (c) { return c.id === handId; });
   var target = findInstance(p, targetInstanceId);
   if (!card || !target || !ENERGY_TYPE_BY_CARD_NAME[card.name]) { return false; }
-  return !state.energyAttachedThisTurn;
+  return !p.energyAttachedThisTurn;
 }
 
 function attachEnergy(state, playerId, handId, targetInstanceId) {
@@ -169,13 +174,14 @@ function attachEnergy(state, playerId, handId, targetInstanceId) {
   var card = p.hand.splice(idx, 1)[0];
   var target = findInstance(p, targetInstanceId);
   target.attachedEnergy.push(ENERGY_TYPE_BY_CARD_NAME[card.name]);
-  state.energyAttachedThisTurn = true;
+  p.energyAttachedThisTurn = true;
   logEvent(state, playerId + ' pone ' + card.name + ' en ' + target.name);
 }
 
 function canRetreat(state, playerId, benchInstanceId) {
+  if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
-  if (!p.active || state.retreatedThisTurn) { return false; }
+  if (!p.active || p.retreatedThisTurn) { return false; }
   if (p.active.statusConditions.indexOf('Asleep') !== -1) { return false; }
   if (p.active.statusConditions.indexOf('Paralyzed') !== -1) { return false; }
   var bench = p.bench.find(function (b) { return b.id === benchInstanceId; });
@@ -187,12 +193,19 @@ function canRetreat(state, playerId, benchInstanceId) {
 function retreat(state, playerId, benchInstanceId) {
   var p = state.players[playerId];
   var cost = CARD_STATS[p.active.name].retreatCost;
-  p.active.attachedEnergy.splice(0, cost);
+  var discardedEnergy = p.active.attachedEnergy.splice(0, cost);
+  discardedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   var idx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
   var incoming = p.bench.splice(idx, 1)[0];
+  // Special Conditions (and shield/miss-chance debuffs, which are also
+  // active-only mechanics) are removed the instant a Pokémon leaves Active
+  // (1998-99 rules) -- only the Active Pokémon can ever carry them.
+  p.active.statusConditions = [];
+  p.active.shield = null;
+  p.active.missChanceUntilTurn = null;
   p.bench.push(p.active);
   p.active = incoming;
-  state.retreatedThisTurn = true;
+  p.retreatedThisTurn = true;
   logEvent(state, playerId + ' se retira a ' + p.active.name);
 }
 
@@ -219,16 +232,40 @@ function dealDamage(state, attacker, defender, baseDamage) {
   if (typeHasMatch(defStats.weaknesses, atkTypes)) { dmg *= 2; }
   if (typeHasMatch(defStats.resistances, atkTypes)) { dmg = Math.max(0, dmg - 30); }
   if (attacker.plusPowerAttached) { dmg += 10; }
-  if (defender.shield && defender.shield.untilTurn === state.turnCounter) {
-    if (defender.shield.type === 'preventAll') { dmg = 0; }
-    else if (defender.shield.type === 'thresholdMax' && dmg <= defender.shield.thresholdMax) { dmg = 0; }
-    defender.shield = null;
+  if (defender.shield) {
+    if (defender.shield.untilTurn < state.turnCounter) {
+      // The shield's window has already passed (stale) -- clear it even
+      // though it didn't block this particular hit.
+      defender.shield = null;
+    } else if (defender.shield.untilTurn === state.turnCounter) {
+      if (defender.shield.type === 'preventAll') {
+        dmg = 0;
+        defender.shield = null;
+      } else if (defender.shield.type === 'thresholdMax') {
+        if (dmg <= defender.shield.thresholdMax) {
+          dmg = 0;
+          defender.shield = null;
+        }
+        // Otherwise this hit exceeded the threshold and wasn't actually
+        // blocked -- keep the shield active so it can still block a
+        // later ≤threshold hit during the same window (e.g. Onix's
+        // Harden shouldn't be burned by the first hit that overwhelms it).
+      }
+    }
   }
   defender.damage += dmg;
   return dmg;
 }
 
 function opponentOf(playerId) { return playerId === 'player' ? 'cpu' : 'player'; }
+
+// A discarded Energy card (from a Pokémon's attachedEnergy, which only
+// stores the energy type as a string) needs to become a real card object
+// to land in p.discard -- id just needs to be unique-ish, it doesn't need
+// to trace back to a specific real deck card.
+function discardedEnergyCard(energyType) {
+  return { id: 'discarded-energy-' + Date.now() + '-' + Math.random(), name: energyType + ' Energy' };
+}
 
 function knockOutIfNeeded(state, ownerId, instance) {
   var stats = CARD_STATS[instance.name];
@@ -242,6 +279,7 @@ function knockOutIfNeeded(state, ownerId, instance) {
     owner.bench = owner.bench.filter(function (b) { return b.id !== instance.id; });
   }
   owner.discard.push({ id: instance.id, name: instance.name });
+  instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
   var attackerPlayer = state.players[attackerId];
   if (attackerPlayer.prizes.length > 0) {
     var prize = attackerPlayer.prizes.shift();
@@ -278,10 +316,27 @@ function attack(state, playerId, attackName) {
     }
   }
 
+  if (hasStatus(attacker, 'Confused')) {
+    if (coinFlip(state) === 'T') {
+      // Confusion doesn't block the attempt to attack (unlike Asleep/Paralyzed,
+      // which are checked in canAttack) -- it's resolved here: tails means the
+      // attack does nothing and the Confused Pokémon hits itself for 30
+      // instead, via direct damage (bypassing dealDamage/weakness/resistance,
+      // same pattern as Machoke's Submission self-damage). Confusion itself
+      // does NOT clear on this flip (unlike Sleep/Paralysis).
+      attacker.damage += 30;
+      logEvent(state, attacker.name + ' se hace daño por Confusión');
+      knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
+      endTurn(state);
+      return;
+    }
+  }
+
   var defender = op.active;
+  if (!defender) { endTurn(state); return; }
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
-    effectFn(state, attacker, defender, atkDef);
+    effectFn(state, attacker, defender, atkDef, playerId);
   } else {
     var baseDamage = parseInt(atkDef.damage, 10) || 0;
     if (defender) { dealDamage(state, attacker, defender, baseDamage); }
@@ -293,8 +348,12 @@ function attack(state, playerId, attackName) {
 
 function applyCheckupDamage(state, playerId) {
   var p = state.players[playerId];
-  var all = p.active ? [p.active].concat(p.bench) : p.bench.slice();
-  all.forEach(function (instance) {
+  // Special Conditions can only ever be carried by the Active Pokémon (see
+  // retreat/Switch/Gust of Wind, which strip them the instant a Pokémon
+  // leaves Active) -- so poison/burn/sleep checkup effects are scoped to
+  // p.active only, never the bench, even defensively.
+  if (p.active) {
+    var instance = p.active;
     if (hasStatus(instance, 'Poisoned')) { instance.damage += 10; logEvent(state, instance.name + ' sufre daño por veneno'); }
     if (hasStatus(instance, 'Burned')) {
       instance.damage += 10;
@@ -303,7 +362,10 @@ function applyCheckupDamage(state, playerId) {
     if (hasStatus(instance, 'Asleep') && coinFlip(state) === 'H') {
       instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Asleep'; });
     }
-  });
+  }
+  // The KO sweep still covers the whole bench (e.g. a future effect could
+  // knock out a benched Pokémon directly) even though status-condition
+  // damage itself is active-only.
   if (p.active) { knockOutIfNeeded(state, playerId, p.active); }
   p.bench.slice().forEach(function (b) { knockOutIfNeeded(state, playerId, b); });
 }
@@ -319,8 +381,8 @@ function endTurn(state) {
 
   state.turnCounter += 1;
   state.activePlayerId = opponentOf(justFinished);
-  state.energyAttachedThisTurn = false;
-  state.retreatedThisTurn = false;
+  state.players[justFinished].energyAttachedThisTurn = false;
+  state.players[justFinished].retreatedThisTurn = false;
 
   if (state.turnCounter > 1) {
     if (state.players[state.activePlayerId].deck.length === 0) {

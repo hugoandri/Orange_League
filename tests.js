@@ -124,6 +124,32 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Onix went to bench with only 0 energy left (3 discarded)', state.players[pid].bench[0].attachedEnergy.length, 0);
 })();
 
+(function testStatusConditionsClearedOnLeavingActive() {
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Poisoned', 'Paralyzed'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [{ id: 'b1', name: 'Ivysaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  retreat(state, pid, 'b1');
+  check('retreating Pokemon loses its status conditions when benched', p.bench.filter(function(b){return b.id==='a1';})[0].statusConditions, []);
+
+  var state2 = createGame(function () { return 0.42; });
+  var p2 = state2.players.player;
+  p2.active = { id: 'a2', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p2.bench = [];
+  state2.activePlayerId = 'player';
+  endTurn(state2);
+  check('a benched Pokemon (none here, but active poisoned) still ticks normally when it stays active', p2.active.damage, 10);
+
+  var state3 = createGame(function () { return 0.42; });
+  var p3 = state3.players.player;
+  p3.active = { id: 'a3', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p3.bench = [{ id: 'b3', name: 'Ivysaur', attachedEnergy: [], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  state3.activePlayerId = 'player';
+  endTurn(state3);
+  check('a benched Pokemon with (illegally set) Poisoned status does NOT take checkup damage, since only active is checked', p3.bench[0].damage, 0);
+})();
+
 (function testDealDamageWeaknessResistance() {
   var state = createGame(function () { return 0.42; });
   var attacker = { id: 'a1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
@@ -150,6 +176,32 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('shield is consumed after blocking', defender.shield, null);
 })();
 
+(function testThresholdMaxShieldSurvivesAnOverThresholdHit() {
+  // Onix's Harden (thresholdMax: 30) should keep blocking every <=30 hit
+  // during its window, not be burned by the first hit regardless of
+  // whether that hit actually got blocked.
+  var state = createGame(function () { return 0.42; });
+  state.turnCounter = 5;
+  var attacker = { id: 'a1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var defender = { id: 'd1', name: 'Onix', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: { untilTurn: 5, type: 'thresholdMax', thresholdMax: 30 }, missChanceUntilTurn: null, plusPowerAttached: false };
+  var dmg1 = dealDamage(state, attacker, defender, 50); // exceeds threshold, not blocked
+  check('a hit exceeding the threshold is not blocked', dmg1, 50);
+  check('the shield survives a hit it did not block', defender.shield && defender.shield.type, 'thresholdMax');
+  var dmg2 = dealDamage(state, attacker, defender, 20); // within threshold, blocked
+  check('a later <=30 hit in the same window is still blocked', dmg2, 0);
+  check('the shield is consumed only once it actually blocks a hit', defender.shield, null);
+})();
+
+(function testStaleShieldIsClearedOnceItsWindowExpires() {
+  var state = createGame(function () { return 0.42; });
+  state.turnCounter = 6; // shield's window (turn 5) has already passed
+  var attacker = { id: 'a1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var defender = { id: 'd1', name: 'Onix', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: { untilTurn: 5, type: 'thresholdMax', thresholdMax: 30 }, missChanceUntilTurn: null, plusPowerAttached: false };
+  var dmg = dealDamage(state, attacker, defender, 10);
+  check('a stale, expired shield no longer blocks damage', dmg, 10);
+  check('a stale, expired shield is cleared', defender.shield, null);
+})();
+
 (function testAttackKnockoutAwardsPrizeAndEndsGameOnEmptyPrizes() {
   var state = createGame(function () { return 0.42; });
   state.players.player.active = { id: 'p1', name: 'Gyarados', attachedEnergy: ['Water', 'Water', 'Water'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
@@ -169,15 +221,15 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 
 (function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
   var state = createGame(function () { return 0.42; });
-  state.energyAttachedThisTurn = true;
-  state.retreatedThisTurn = true;
-  var before = state.turnCounter;
   var beforePlayer = state.activePlayerId;
+  state.players[beforePlayer].energyAttachedThisTurn = true;
+  state.players[beforePlayer].retreatedThisTurn = true;
+  var before = state.turnCounter;
   endTurn(state);
   check('turnCounter advanced by 1', state.turnCounter, before + 1);
   checkTrue('active player switched', state.activePlayerId !== beforePlayer);
-  check('energyAttachedThisTurn reset', state.energyAttachedThisTurn, false);
-  check('retreatedThisTurn reset', state.retreatedThisTurn, false);
+  check('energyAttachedThisTurn reset', state.players[beforePlayer].energyAttachedThisTurn, false);
+  check('retreatedThisTurn reset', state.players[beforePlayer].retreatedThisTurn, false);
 })();
 
 (function testDeckOutLoss() {
@@ -240,6 +292,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var res = TRAINER_EFFECTS['Bill'](state, pid, 'h1');
   checkTrue('Bill is legal', res.legal);
   check('Bill draws 2 cards', p.deck.length, beforeDeck - 2);
+  check('Bill card itself lands in the discard pile after being played', p.discard.map(function (c) { return c.name; }), ['Bill']);
 
   // Potion: remove up to 2 damage counters (20 HP) from one Pokémon
   p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 30, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
@@ -294,6 +347,16 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   p.hand = [{ id: 'h9', name: 'PlusPower' }];
   TRAINER_EFFECTS['PlusPower'](state, pid, 'h9', p.active.id);
   checkTrue('PlusPower attaches to active', p.active.plusPowerAttached);
+
+  // Every played Trainer card above (Bill, Potion, Super Potion, Switch,
+  // Professor Oak, Gust of Wind, Energy Removal, Super Energy Removal,
+  // PlusPower = 9 cards) plus the energy discarded as a cost/effect along
+  // the way (Super Potion's 1, Energy Removal's 1, Super Energy Removal's
+  // 1 own + up to 2 opponent's) should all have landed in a discard pile.
+  var playerDiscardNames = p.discard.map(function (c) { return c.name; });
+  check('all 9 played Trainer cards ended up in the discard pile', playerDiscardNames.filter(function (n) {
+    return ['Bill', 'Potion', 'Super Potion', 'Switch', 'Professor Oak', 'Gust of Wind', 'Energy Removal', 'Super Energy Removal', 'PlusPower'].indexOf(n) !== -1;
+  }).length, 9);
 })();
 
 (function testTrainerEffectsInvalidHandId() {
@@ -493,6 +556,51 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   state.players.player.active = null;
   state.players.player.bench = [];
   check('a real wipeout (had an active, now has none) still correctly loses', getWinner(state), 'cpu');
+})();
+
+(function testBurnedDamageAndCoinFlipHeal() {
+  var state = createGame(function () { return 0.0; }); // heads = burn heals
+  var p = state.players.player;
+  p.active = { id: 'burn1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Burned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.activePlayerId = 'player';
+  endTurn(state);
+  check('Burned deals 10 damage at checkup', p.active.damage, 10);
+  checkTrue('Burned heals on a heads coin flip', p.active.statusConditions.indexOf('Burned') === -1);
+})();
+
+(function testAsleepWakesOnHeads() {
+  var state = createGame(function () { return 0.0; }); // heads = wakes up
+  var p = state.players.player;
+  p.active = { id: 'sleep1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Asleep'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.activePlayerId = 'player';
+  endTurn(state);
+  checkTrue('Asleep wakes up on a heads coin flip', p.active.statusConditions.indexOf('Asleep') === -1);
+})();
+
+(function testAddStatusExclusivity() {
+  var instance = { id: 'x1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  addStatus(instance, 'Asleep');
+  addStatus(instance, 'Paralyzed');
+  check('Asleep and Paralyzed are mutually exclusive, only the latest remains', instance.statusConditions, ['Paralyzed']);
+  addStatus(instance, 'Poisoned');
+  check('Poisoned stacks alongside an exclusive status', instance.statusConditions.sort(), ['Paralyzed', 'Poisoned']);
+})();
+
+(function testConfusedAttackSelfDamageOnTails() {
+  // 0.99 (not the literal 1.0) -- rng()===1.0 exactly hits a pre-existing,
+  // out-of-scope edge case in shuffle()'s Fisher-Yates (Math.floor(1.0*(i+1))
+  // goes one index past the end of the array during createGame's initial
+  // deck shuffle). 0.99 still deterministically resolves the coin flip to
+  // tails (rng() < 0.5 is false) without tripping that unrelated bug.
+  var state = createGame(function () { return 0.99; }); // tails
+  var p = state.players.player;
+  p.active = { id: 'conf1', name: 'Bulbasaur', attachedEnergy: ['Grass', 'Grass'], damage: 0, statusConditions: ['Confused'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.active = { id: 'target1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.activePlayerId = 'player';
+  state.turnCounter = 2;
+  attack(state, 'player', 'Leech Seed');
+  check('Confused attack on tails deals 30 self-damage instead of the normal attack', p.active.damage, 30);
+  check('Confused attack on tails does not damage the defender', state.players.cpu.active.damage, 0);
 })();
 
 (function testScriptedCpuVsCpuStabilityRun() {

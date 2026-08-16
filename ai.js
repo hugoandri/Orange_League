@@ -28,7 +28,7 @@ function aiTryPlayBasic(state, playerId) {
 
 function aiTryAttachEnergy(state, playerId) {
   var p = state.players[playerId];
-  if (!p.active || state.energyAttachedThisTurn) { return false; }
+  if (!p.active || p.energyAttachedThisTurn) { return false; }
   var handCard = p.hand.find(function (c) { return canAttachEnergy(state, playerId, c.id, p.active.id); });
   if (handCard) { attachEnergy(state, playerId, handCard.id, p.active.id); return true; }
   return false;

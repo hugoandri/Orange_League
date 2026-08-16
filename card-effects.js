@@ -1,58 +1,74 @@
 var TRAINER_EFFECTS = {};
 
 TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
   drawCard(state, playerId, 2);
   logEvent(state, playerId + ' juega Bill (roba 2)');
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Potion'] = function (state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
   if (!target) { return { legal: false, reason: 'no target' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
   target.damage = Math.max(0, target.damage - 20);
   logEvent(state, playerId + ' usa Potion en ' + target.name);
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
   if (!target || target.attachedEnergy.length === 0) { return { legal: false, reason: 'no energy to discard' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
-  target.attachedEnergy.splice(0, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var removedEnergy = target.attachedEnergy.splice(0, 1);
+  removedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   target.damage = Math.max(0, target.damage - 40);
   logEvent(state, playerId + ' usa Super Potion en ' + target.name);
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
   var benchIdx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
   if (benchIdx === -1) { return { legal: false, reason: 'no such bench Pokémon' }; }
-  p.hand.splice(idx, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
   var incoming = p.bench.splice(benchIdx, 1)[0];
-  if (p.active) { p.bench.push(p.active); }
+  if (p.active) {
+    p.active.statusConditions = [];
+    p.active.shield = null;
+    p.active.missChanceUntilTurn = null;
+    p.bench.push(p.active);
+  }
   p.active = incoming;
   logEvent(state, playerId + ' usa Switch');
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Professor Oak'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
+  p.discard = p.discard.concat(p.hand);
   p.hand = [];
   drawCard(state, playerId, 7);
   logEvent(state, playerId + ' juega Professor Oak (descarta mano, roba 7)');
@@ -60,6 +76,7 @@ TRAINER_EFFECTS['Professor Oak'] = function (state, playerId, handId) {
 };
 
 TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBenchInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -67,15 +84,22 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
   if (idx === -1) { return { legal: false, reason: 'no such opponent bench Pokémon' }; }
   var handIdx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (handIdx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(handIdx, 1);
+  var card = p.hand.splice(handIdx, 1)[0];
+  p.discard.push(card);
   var incoming = op.bench.splice(idx, 1)[0];
-  if (op.active) { op.bench.push(op.active); }
+  if (op.active) {
+    op.active.statusConditions = [];
+    op.active.shield = null;
+    op.active.missChanceUntilTurn = null;
+    op.bench.push(op.active);
+  }
   op.active = incoming;
   logEvent(state, playerId + ' usa Gust of Wind');
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var opId = opponentOf(playerId);
   var op = state.players[opId];
   var target = findInstance(op, opponentInstanceId);
@@ -83,13 +107,16 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
-  target.attachedEnergy.splice(0, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var removedEnergy = target.attachedEnergy.splice(0, 1);
+  removedEnergy.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
   logEvent(state, playerId + ' usa Energy Removal en ' + target.name);
   return { legal: true };
 };
 
 TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var own = findInstance(p, ownInstanceId);
   if (!own || own.attachedEnergy.length === 0) { return { legal: false, reason: 'no own energy to discard as cost' }; }
@@ -99,20 +126,25 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   if (!target) { return { legal: false, reason: 'no opponent target' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
-  own.attachedEnergy.splice(0, 1);
-  target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var ownRemoved = own.attachedEnergy.splice(0, 1);
+  ownRemoved.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
+  var oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
+  oppRemoved.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
   logEvent(state, playerId + ' usa Super Energy Removal en ' + target.name);
   return { legal: true };
 };
 
 TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'not your turn' }; }
   var p = state.players[playerId];
   var target = findInstance(p, ownInstanceId);
   if (!target || target !== p.active) { return { legal: false, reason: 'PlusPower can only attach to your Active Pokémon' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'card not in hand' }; }
-  p.hand.splice(idx, 1);
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
   target.plusPowerAttached = true;
   logEvent(state, playerId + ' adjunta PlusPower a ' + target.name);
   return { legal: true };
@@ -183,9 +215,13 @@ ATTACK_EFFECTS['Staryu'] = {
 };
 
 ATTACK_EFFECTS['Starmie'] = {
-  'Recover': function (state, attacker) {
+  'Recover': function (state, attacker, defender, atkDef, playerId) {
     var idx = attacker.attachedEnergy.indexOf('Water');
-    if (idx !== -1) { attacker.attachedEnergy.splice(idx, 1); attacker.damage = 0; }
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      attacker.damage = 0;
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Water')); }
+    }
   },
   'Star Freeze': function (state, attacker, defender) {
     dealDamage(state, attacker, defender, 20);
