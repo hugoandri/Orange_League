@@ -118,7 +118,7 @@ function attacksPanelHtml(s) {
 function setupPanelHtml(s) {
   if (s.phase !== 'setup') { return ''; }
   var p = s.players.player;
-  return '<div class="attacks-panel setup-panel"><p>Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.</p>' +
+  return '<div class="attacks-panel setup-panel">' +
     '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
 }
 
@@ -137,10 +137,16 @@ function renderBoard() {
   html += '</div>' + prizeColumnHtml(s, 'cpu') + '</div>';
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
+  // Fixed 3-column row (left slot / Active / right slot) so the Active
+  // Pokémon always sits dead center -- the left slot (start-match button)
+  // and right slot (attacks) each reserve their column's space even when
+  // empty, so neither one appearing/disappearing shifts the Active card.
   html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
-  html += '<div class="active-with-attacks"><div>';
-  html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
-  html += '</div>' + (s.phase === 'setup' ? setupPanelHtml(s) : attacksPanelHtml(s)) + '</div>';
+  html += '<div class="active-with-attacks">';
+  html += '<div class="side-slot">' + setupPanelHtml(s) + '</div>';
+  html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
+  html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
+  html += '</div>';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
   html += '</div>' + prizeColumnHtml(s, 'player') + '</div>';
   html += '<p>Descarte: ' + p.discard.length + '</p>';
@@ -349,6 +355,7 @@ function wireBoardButtons() {
 function startNewMatch() {
   gameState = createGame(Math.random);
   aiSetupBoard(gameState, 'cpu');
+  logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
   renderBoard();
 }
 
