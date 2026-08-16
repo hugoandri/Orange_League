@@ -47,8 +47,17 @@ button.action-btn{margin:2px;padding:6px 10px;border-radius:6px;border:1px solid
 button.action-btn:hover{border-color:var(--focus);}
 .hand-row{display:flex;gap:6px;flex-wrap:wrap;}
 
-.active-label,.bench-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;
+.side-row{display:flex;gap:18px;align-items:flex-start;}
+.side-board{flex:1;min-width:0;}
+.active-label,.bench-label,.prize-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;
   color:var(--ink-soft);margin:0 0 4px;}
+.prize-column{flex:0 0 auto;padding-left:14px;border-left:1px solid var(--border);}
+.prize-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;width:96px;}
+.prize-card{border-radius:4px;overflow:hidden;border:1px solid var(--border);}
+.prize-card img{width:100%;display:block;}
+.prize-card.prize-choosable{cursor:pointer;border-color:var(--accent-player);
+  box-shadow:0 0 0 2px rgba(63,143,79,0.25);}
+.prize-card.prize-choosable:hover{box-shadow:0 0 0 2px var(--accent-player);transform:scale(1.04);}
 .active-row{display:flex;justify-content:center;margin-bottom:10px;}
 .bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
 .bench-slot{width:110px;min-height:64px;border:1px dashed var(--border);border-radius:8px;

@@ -64,6 +64,7 @@ function createGame(rng) {
     turnCounter: 1,
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
     phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
+    pendingPrizeChoice: null, // { playerId: 'player', count: N } while the player must pick prize card(s)
     rng: rng,
     log: [],
     players: {
@@ -298,9 +299,36 @@ function knockOutIfNeeded(state, ownerId, instance) {
   instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
   var attackerPlayer = state.players[attackerId];
   if (attackerPlayer.prizes.length > 0) {
-    var prize = attackerPlayer.prizes.shift();
-    attackerPlayer.hand.push(prize);
-    logEvent(state, attackerId + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
+    if (attackerId === 'player') {
+      // The player's own prizes are specific, already-determined cards (set
+      // aside face down in createGame) -- let them pick which face-down slot
+      // to flip rather than auto-taking the first one. take Prize() resolves
+      // this once the UI collects the player's choice.
+      if (!state.pendingPrizeChoice || state.pendingPrizeChoice.playerId !== 'player') {
+        state.pendingPrizeChoice = { playerId: 'player', count: 0 };
+      }
+      state.pendingPrizeChoice.count += 1;
+      logEvent(state, 'player debe elegir una carta de premio');
+    } else {
+      var prize = attackerPlayer.prizes.shift();
+      attackerPlayer.hand.push(prize);
+      logEvent(state, attackerId + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
+    }
+  }
+}
+
+// Resolves one of the player's pending prize choices: moves the specific
+// face-down prize card at prizeIndex into their hand. Decrements (and
+// eventually clears) state.pendingPrizeChoice as choices are resolved.
+function takePrize(state, playerId, prizeIndex) {
+  var p = state.players[playerId];
+  if (prizeIndex < 0 || prizeIndex >= p.prizes.length) { return; }
+  var card = p.prizes.splice(prizeIndex, 1)[0];
+  p.hand.push(card);
+  logEvent(state, playerId + ' toma un premio (' + p.prizes.length + ' restantes)');
+  if (state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === playerId) {
+    state.pendingPrizeChoice.count -= 1;
+    if (state.pendingPrizeChoice.count <= 0) { state.pendingPrizeChoice = null; }
   }
 }
 

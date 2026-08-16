@@ -7,6 +7,10 @@ function renderCoinCount() {
 
 var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
 
+// Real Base Set-era card back, sourced from Bulbapedia (archives.bulbagarden.net),
+// verified reachable (HTTP 200) before use.
+var CARD_BACK_URL = 'https://archives.bulbagarden.net/media/upload/1/17/Cardback.jpg';
+
 // Real card artwork, reused from the same catalog data that backs the
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
 // Blackout is a Base Set card, so this lookup covers the whole game.
@@ -76,20 +80,49 @@ function benchSlotsHtml(bench, ownerId) {
   return html;
 }
 
+// Each prize is a specific, already-determined face-down card (set aside in
+// createGame). When the player has a pending choice (rules-engine.js's
+// state.pendingPrizeChoice), their own prize cards become clickable so they
+// pick which one to flip -- instead of it being auto-resolved.
+function prizeColumnHtml(state, ownerId) {
+  var p = state.players[ownerId];
+  var choosable = ownerId === 'player' && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
+  var html = '<div class="prize-column"><p class="prize-label">Premios (' + p.prizes.length + ')</p><div class="prize-grid">';
+  for (var i = 0; i < p.prizes.length; i++) {
+    var cls = 'prize-card' + (choosable ? ' prize-choosable' : '');
+    html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
+      '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo" loading="lazy"></div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
 function renderBoard() {
   var s = gameState;
   var p = s.players.player;
   var c = s.players.cpu;
   var html = '';
-  html += '<h3>CPU</h3>';
+  html += '<h3>CPU</h3><div class="side-row"><div class="side-board">';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu');
+  html += '</div>' + prizeColumnHtml(s, 'cpu') + '</div>';
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
-  html += '<h3>Tú</h3>';
+  html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
+  html += '</div>' + prizeColumnHtml(s, 'player') + '</div>';
   html += '<p>Descarte: ' + p.discard.length + '</p>';
+
+  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+
+  if (pendingPlayerPrize) {
+    html += '<div class="setup-panel"><p>¡Noqueaste un Pokémon! Elegí una de tus cartas de premio (boca abajo, arriba) para tomarla.</p></div>';
+    document.getElementById('app').innerHTML = html;
+    document.getElementById('log').textContent = s.log.slice(-30).join('\n');
+    wireBoardButtons();
+    return;
+  }
 
   html += '<h4>Mano</h4><div class="hand-row">';
   p.hand.forEach(function (card) {
@@ -138,8 +171,6 @@ function renderBoard() {
     }
   }
 
-  html += '<p>Premios restantes — Tú: ' + p.prizes.length + ' · CPU: ' + c.prizes.length + '</p>';
-
   document.getElementById('app').innerHTML = html;
   document.getElementById('log').textContent = s.log.slice(-30).join('\n');
   wireBoardButtons();
@@ -151,6 +182,12 @@ function afterPlayerAction() {
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); return; }
+  // Don't let the CPU take its turn while the player still has a prize card
+  // to pick -- render the choice prompt first and wait for it to resolve.
+  if (gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player') {
+    renderBoard();
+    return;
+  }
   if (gameState.activePlayerId === 'cpu') {
     cpuTakeTurn(gameState);
     var winner2 = getWinner(gameState);
@@ -282,6 +319,14 @@ function wireBoardButtons() {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       openCardModal(btn.getAttribute('data-card-name'));
+    });
+  });
+
+  document.querySelectorAll('.prize-choosable').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var index = parseInt(el.getAttribute('data-prize-index'), 10);
+      takePrize(gameState, 'player', index);
+      afterPlayerAction();
     });
   });
 }

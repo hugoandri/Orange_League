@@ -229,7 +229,11 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('canAttack true, Gyarados has enough Water energy for Dragon Rage', canAttack(state, 'player', 'Dragon Rage'));
   attack(state, 'player', 'Dragon Rage'); // 50 damage, Weedle has 40 HP -> KO
   check('Weedle was knocked out and removed as cpu active', state.players.cpu.active, null);
-  check('player took their 1 remaining prize', state.players.player.prizes.length, 0);
+  checkTrue('KO defers the prize to a pending player choice instead of auto-taking', !!state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player');
+  check('prize not yet taken until the choice is resolved', state.players.player.prizes.length, 1);
+  takePrize(state, 'player', 0);
+  check('player took their 1 remaining prize once resolved', state.players.player.prizes.length, 0);
+  check('pendingPrizeChoice clears once resolved', state.pendingPrizeChoice, null);
   check('getWinner declares player the winner', getWinner(state), 'player');
 })();
 
@@ -634,6 +638,10 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
     var winner = null;
     while (!winner && turns < TURN_CAP) {
       cpuTakeTurn(state);
+      // The player's own prizes are a choice in real play (see takePrize());
+      // this fully-automated simulation just always takes the first one, the
+      // same way the CPU's own prizes are auto-taken with no real choice.
+      while (state.pendingPrizeChoice) { takePrize(state, state.pendingPrizeChoice.playerId, 0); }
       winner = getWinner(state);
       turns++;
     }
