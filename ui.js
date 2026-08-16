@@ -54,39 +54,47 @@ function renderBoard() {
 
   html += '<h4>Mano</h4><div class="hand-row">';
   p.hand.forEach(function (card) {
-    html += '<button class="action-btn hand-card" data-hand-id="' + card.id + '">' + card.name + '</button>';
+    // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
+    // can't be used until the match actually starts.
+    var disabled = s.phase === 'setup' && !isBasicPokemon(card.name);
+    html += '<button class="action-btn hand-card" data-hand-id="' + card.id + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(card.name) + '</button>';
   });
   html += '</div>';
 
-  if (p.active) {
-    html += '<h4>Ataques</h4>';
-    (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
-      var can = canAttack(s, 'player', atk.name);
-      var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
-      html += '<div class="attack-option">';
-      html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
-        escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
-      if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
-      html += '</div>';
-    });
-  }
+  if (s.phase === 'setup') {
+    html += '<div class="setup-panel"><p>Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.</p>';
+    html += '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
+  } else {
+    if (p.active) {
+      html += '<h4>Ataques</h4>';
+      (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
+        var can = canAttack(s, 'player', atk.name);
+        var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
+        html += '<div class="attack-option">';
+        html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
+          escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
+        if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
+        html += '</div>';
+      });
+    }
 
-  if (p.bench.length > 0) {
-    html += '<h4>Retirarse</h4>';
-    p.bench.forEach(function (b) {
-      var canRet = canRetreat(s, 'player', b.id);
-      html += '<button class="action-btn retreat-btn" data-bench-id="' + b.id + '"' + (canRet ? '' : ' disabled') + '>Retirar a ' + b.name + '</button>';
-    });
-  }
+    if (p.bench.length > 0) {
+      html += '<h4>Retirarse</h4>';
+      p.bench.forEach(function (b) {
+        var canRet = canRetreat(s, 'player', b.id);
+        html += '<button class="action-btn retreat-btn" data-bench-id="' + b.id + '"' + (canRet ? '' : ' disabled') + '>Retirar a ' + b.name + '</button>';
+      });
+    }
 
-  // Attacking is the only built-in way rules-engine.js advances the turn.
-  // On the very first turn of the match, attacking is always illegal
-  // (canAttack forbids turnCounter === 1), so without an explicit way to
-  // end the turn the player going first would be stuck forever. Also cover
-  // any turn where the player simply has no attack they want to (or can)
-  // use — mirrors cpuTakeTurn()'s own unconditional endTurn() fallback.
-  if (s.activePlayerId === 'player') {
-    html += '<button class="action-btn" id="endTurnBtn">Pasar turno</button>';
+    // Attacking is the only built-in way rules-engine.js advances the turn.
+    // On the very first turn of the match, attacking is always illegal
+    // (canAttack forbids turnCounter === 1), so without an explicit way to
+    // end the turn the player going first would be stuck forever. Also cover
+    // any turn where the player simply has no attack they want to (or can)
+    // use — mirrors cpuTakeTurn()'s own unconditional endTurn() fallback.
+    if (s.activePlayerId === 'player') {
+      html += '<button class="action-btn" id="endTurnBtn">Pasar turno</button>';
+    }
   }
 
   html += '<p>Premios restantes — Tú: ' + p.prizes.length + ' · CPU: ' + c.prizes.length + '</p>';
@@ -163,6 +171,16 @@ function wireBoardButtons() {
     });
   });
 
+  var startMatchBtn = document.getElementById('startMatchBtn');
+  if (startMatchBtn) {
+    startMatchBtn.addEventListener('click', function () {
+      if (gameState.phase === 'setup' && gameState.players.player.active) {
+        startMatch(gameState);
+        afterPlayerAction();
+      }
+    });
+  }
+
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
@@ -203,8 +221,8 @@ function wireBoardButtons() {
 
 function startNewMatch() {
   gameState = createGame(Math.random);
+  aiSetupBoard(gameState, 'cpu');
   renderBoard();
-  if (gameState.activePlayerId === 'cpu') { afterPlayerAction(); }
 }
 
 function renderCollection() {

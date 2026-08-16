@@ -62,15 +62,15 @@ function createGame(rng) {
   rng = rng || Math.random;
   var state = {
     turnCounter: 1,
-    activePlayerId: 'player', // placeholder, replaced below once state exists
+    activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
+    phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
     rng: rng,
     log: [],
     players: {
-      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false },
-      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false }
+      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false },
+      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false }
     }
   };
-  state.activePlayerId = state.rng() < 0.5 ? 'player' : 'cpu';
 
   var playerMulligans = dealOpeningHand(state, 'player');
   var cpuMulligans = dealOpeningHand(state, 'cpu');
@@ -82,12 +82,18 @@ function createGame(rng) {
     for (var i = 0; i < 6; i++) { p.prizes.push(p.deck.shift()); }
   });
 
-  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida');
-  state.players.player.energyAttachedThisTurn = false;
-  state.players.player.retreatedThisTurn = false;
-  state.players.cpu.energyAttachedThisTurn = false;
-  state.players.cpu.retreatedThisTurn = false;
   return state;
+}
+
+// Called once both players have placed their opening Basic Pokémon (Active +
+// Bench) during the 'setup' phase. Flips a coin to decide who takes the
+// first turn -- heads the player, tails the CPU -- and switches the game
+// into 'playing'. Turn 1 begins immediately after for whoever won the flip.
+function startMatch(state) {
+  state.phase = 'playing';
+  state.turnCounter = 1;
+  state.activePlayerId = coinFlip(state) === 'H' ? 'player' : 'cpu';
+  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida');
 }
 
 function makeFreshInstance(id, name, turnCounter) {
@@ -99,7 +105,10 @@ function makeFreshInstance(id, name, turnCounter) {
 }
 
 function canPlayBasic(state, playerId, handId) {
-  if (state.activePlayerId !== playerId) { return false; }
+  // During setup, either player may place Basics at any time (there is no
+  // "current turn" yet -- both sides set up simultaneously, in real terms).
+  // Once the match is playing, only the active player may play a Basic.
+  if (state.phase !== 'setup' && state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
   var card = p.hand.find(function (c) { return c.id === handId; });
   if (!card || !isBasicPokemon(card.name)) { return false; }

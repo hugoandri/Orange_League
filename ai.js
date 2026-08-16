@@ -26,6 +26,12 @@ function aiTryPlayBasic(state, playerId) {
   return false;
 }
 
+// Called once during the 'setup' phase to place the CPU's opening Active
+// and fill its Bench (up to 5) from its opening hand, before the coin flip.
+function aiSetupBoard(state, playerId) {
+  while (aiTryPlayBasic(state, playerId)) {}
+}
+
 function aiTryAttachEnergy(state, playerId) {
   var p = state.players[playerId];
   if (!p.active || p.energyAttachedThisTurn) { return false; }

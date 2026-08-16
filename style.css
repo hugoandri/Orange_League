@@ -39,3 +39,6 @@ button.action-btn:hover{border-color:var(--focus);}
 .pokemon-card.active-cpu{border-width:2px;box-shadow:0 0 0 2px rgba(138,31,31,0.18);}
 .attack-option{margin-bottom:6px;}
 .attack-effect-text{font-size:0.72rem;color:var(--ink-soft);margin:2px 0 4px 4px;max-width:480px;}
+.setup-panel{background:var(--accent-player-soft,#eef7f0);border:1px solid var(--border);
+  border-radius:8px;padding:10px 12px;margin-top:8px;}
+.setup-panel p{margin:0 0 8px;font-size:0.85rem;color:var(--ink-soft);}

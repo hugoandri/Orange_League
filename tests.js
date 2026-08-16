@@ -46,7 +46,8 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var rng = function () { return 0.999; }; // never triggers a mulligan-forcing shuffle order by luck alone; see note below
   var state = createGame(rng);
   check('turnCounter starts at 1', state.turnCounter, 1);
-  checkTrue('activePlayerId is player or cpu', state.activePlayerId === 'player' || state.activePlayerId === 'cpu');
+  check('phase starts as setup', state.phase, 'setup');
+  check('activePlayerId is null until startMatch() flips the coin', state.activePlayerId, null);
   check('player prizes has 6 cards', state.players.player.prizes.length, 6);
   check('cpu prizes has 6 cards', state.players.cpu.prizes.length, 6);
   check('player hand has at least 7 cards', state.players.player.hand.length >= 7, true);
@@ -59,6 +60,16 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('player total cards still 60 after setup', totalPlayerCards, 60);
   var totalCpuCards = state.players.cpu.deck.length + state.players.cpu.hand.length + state.players.cpu.prizes.length;
   check('cpu total cards still 60 after setup', totalCpuCards, 60);
+})();
+
+(function testStartMatchFlipsCoinAndBeginsPlay() {
+  var state = createGame(function () { return 0.42; });
+  checkTrue('canPlayBasic works during setup regardless of (null) activePlayerId', canPlayBasic(state, 'player', state.players.player.hand.filter(function (c) { return isBasicPokemon(c.name); })[0].id));
+  startMatch(state);
+  check('phase is playing after startMatch', state.phase, 'playing');
+  checkTrue('activePlayerId is player or cpu after startMatch', state.activePlayerId === 'player' || state.activePlayerId === 'cpu');
+  check('turnCounter is 1 after startMatch', state.turnCounter, 1);
+  checkTrue('canPlayBasic now requires activePlayerId to match once playing', !canPlayBasic(state, opponentOf(state.activePlayerId), state.players[opponentOf(state.activePlayerId)].hand[0] ? state.players[opponentOf(state.activePlayerId)].hand[0].id : 'nope'));
 })();
 
 (function testMulliganRedrawsUntilBasicPresent() {
@@ -80,6 +91,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 (function testPlayBasicAndEvolve() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
+  state.activePlayerId = pid;
   var p = state.players[pid];
   // Force a known hand: Bulbasaur in hand, nothing active yet.
   p.hand = [{ id: 'x1', name: 'Bulbasaur' }];
@@ -101,6 +113,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 (function testAttachEnergyOncePerTurn() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
+  state.activePlayerId = pid;
   var p = state.players[pid];
   p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
   p.hand = [{ id: 'e1', name: 'Grass Energy' }, { id: 'e2', name: 'Grass Energy' }];
@@ -114,6 +127,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 (function testRetreat() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
+  state.activePlayerId = pid;
   var p = state.players[pid];
   p.active = { id: 'a1', name: 'Onix', attachedEnergy: ['Fighting', 'Fighting', 'Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
   p.bench = [{ id: 'b1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
@@ -221,6 +235,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 
 (function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
   var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
   var beforePlayer = state.activePlayerId;
   state.players[beforePlayer].energyAttachedThisTurn = true;
   state.players[beforePlayer].retreatedThisTurn = true;
@@ -284,6 +299,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 (function testTrainerEffects() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
+  state.activePlayerId = pid;
   var p = state.players[pid];
 
   // Bill: draw 2
@@ -611,6 +627,9 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
     var seed = g;
     var rng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
     var state = createGame(rng);
+    aiSetupBoard(state, 'player');
+    aiSetupBoard(state, 'cpu');
+    startMatch(state);
     var turns = 0;
     var winner = null;
     while (!winner && turns < TURN_CAP) {
