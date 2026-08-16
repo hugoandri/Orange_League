@@ -24,11 +24,13 @@ function renderBoard() {
   if (c.active) { html += pokemonCardHtml(c.active, true, 'active-cpu'); }
   c.bench.forEach(function (b) { html += pokemonCardHtml(b, false, ''); });
   html += '</div>';
+  html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   html += '<h3>Tú</h3><div class="board-row">';
   if (p.active) { html += pokemonCardHtml(p.active, true, 'active-player'); }
   p.bench.forEach(function (b) { html += pokemonCardHtml(b, false, ''); });
   html += '</div>';
+  html += '<p>Descarte: ' + p.discard.length + '</p>';
 
   html += '<h4>Mano</h4><div class="hand-row">';
   p.hand.forEach(function (card) {
@@ -41,6 +43,14 @@ function renderBoard() {
     (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
       var can = canAttack(s, 'player', atk.name);
       html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' + atk.name + ' (' + atk.damage + ')</button>';
+    });
+  }
+
+  if (p.bench.length > 0) {
+    html += '<h4>Retirarse</h4>';
+    p.bench.forEach(function (b) {
+      var canRet = canRetreat(s, 'player', b.id);
+      html += '<button class="action-btn retreat-btn" data-bench-id="' + b.id + '"' + (canRet ? '' : ' disabled') + '>Retirar a ' + b.name + '</button>';
     });
   }
 
@@ -92,12 +102,25 @@ function wireBoardButtons() {
       var handId = btn.getAttribute('data-hand-id');
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === handId; });
+      if (!handCard) { return; }
+
+      // Bill and Professor Oak ignore their target argument entirely (they
+      // don't need one) -- dispatch them immediately instead of waiting for
+      // a board-Pokémon click, since the board can even be completely empty.
+      if (handCard.name === 'Bill' || handCard.name === 'Professor Oak') {
+        var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
+        if (result && !result.legal) { logEvent(gameState, result.reason); }
+        selectedHandId = null;
+        renderBoard();
+        return;
+      }
+
       // Placing your very first Basic Pokémon into an empty Active spot needs
       // no target (playBasic() ignores the target instance in that case) —
       // and when the board is completely empty (true game start), there is
       // no .pokemon-card element on the page to click as a target anyway.
       // So complete the play immediately instead of waiting for a target click.
-      if (handCard && p.active === null && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
+      if (p.active === null && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
         playBasic(gameState, 'player', handId);
         selectedHandId = null;
         renderBoard();
@@ -122,6 +145,14 @@ function wireBoardButtons() {
     });
   }
 
+  var retreatButtons = document.querySelectorAll('.retreat-btn');
+  retreatButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var benchId = btn.getAttribute('data-bench-id');
+      if (canRetreat(gameState, 'player', benchId)) { retreat(gameState, 'player', benchId); afterPlayerAction(); }
+    });
+  });
+
   document.querySelectorAll('.pokemon-card').forEach(function (el) {
     el.addEventListener('click', function () {
       if (!selectedHandId) { return; }
@@ -136,7 +167,8 @@ function wireBoardButtons() {
       } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
         attachEnergy(gameState, 'player', selectedHandId, instanceId);
       } else if (TRAINER_EFFECTS[handCard.name]) {
-        TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
+        var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
+        if (result && !result.legal) { logEvent(gameState, result.reason); }
       }
       selectedHandId = null;
       renderBoard();
