@@ -62,24 +62,14 @@ function renderBoard() {
 }
 
 function afterPlayerAction() {
-  // getWinner()'s "no active Pokémon and an empty bench" checks are only
-  // meaningful once BOTH players have had the chance to place their opening
-  // Basic Pokémon. Right at match start (and immediately after either
-  // side's very first turn resolves), the other side legitimately still has
-  // no active/bench yet — that's normal setup, not a loss. A real knockout-
-  // or deck-out-based win also cannot mechanically occur this early (turn 1
-  // never allows an attack, and turn 2 allows at most one). So we only ever
-  // consult getWinner() once turnCounter > 2, i.e. once both players' first
-  // turns have fully resolved — this is checked both before letting the CPU
-  // take a turn and again right after, since either point can be reached
-  // while one side hasn't finished setting up yet (e.g. the CPU-goes-first
-  // bootstrap call from startNewMatch, or right after the CPU's very first
-  // turn when the human hasn't acted yet).
-  var winner = gameState.turnCounter > 2 ? getWinner(gameState) : null;
+  // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
+  // so it correctly returns null before either side has placed their
+  // opening Basic Pokémon — no UI-side workaround needed here anymore.
+  var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); return; }
   if (gameState.activePlayerId === 'cpu') {
     cpuTakeTurn(gameState);
-    var winner2 = gameState.turnCounter > 2 ? getWinner(gameState) : null;
+    var winner2 = getWinner(gameState);
     if (winner2) { finishMatch(winner2); return; }
   }
   renderBoard();

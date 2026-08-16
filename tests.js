@@ -474,3 +474,23 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var poorEcon = { coins: 10, collection: {} };
   check('buyBooster returns null when coins are insufficient', buyBooster(poorEcon, 'base', rng), null);
 })();
+
+(function testGetWinnerNullAtGameStart() {
+  var state = createGame(function () { return 0.42; });
+  check('no false winner before either player has placed a Pokémon', getWinner(state), null);
+})();
+
+(function testGetWinnerNullAfterOnlyOneSideHasMoved() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  cpuTakeTurn(state); // cpu places its own active and ends its turn; player has not acted yet
+  check('no false winner when only one side has had a turn (Task 11\'s exact call pattern)', getWinner(state), null);
+})();
+
+(function testGetWinnerStillDetectsRealWipeout() {
+  var state = createGame(function () { return 0.42; });
+  state.players.player.hasHadActive = true;
+  state.players.player.active = null;
+  state.players.player.bench = [];
+  check('a real wipeout (had an active, now has none) still correctly loses', getWinner(state), 'cpu');
+})();

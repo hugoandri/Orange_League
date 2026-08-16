@@ -62,8 +62,8 @@ function createGame(rng) {
     rng: rng,
     log: [],
     players: {
-      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [] },
-      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [] }
+      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false },
+      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false }
     }
   };
   state.activePlayerId = state.rng() < 0.5 ? 'player' : 'cpu';
@@ -105,7 +105,7 @@ function playBasic(state, playerId, handId) {
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   var card = p.hand.splice(idx, 1)[0];
   var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
-  if (p.active === null) { p.active = instance; } else { p.bench.push(instance); }
+  if (p.active === null) { p.active = instance; p.hasHadActive = true; } else { p.bench.push(instance); }
   logEvent(state, playerId + ' juega ' + card.name + ' de básico');
 }
 
@@ -334,8 +334,8 @@ function endTurn(state) {
 function getWinner(state) {
   if (state.players.player.prizes.length === 0) { return 'player'; }
   if (state.players.cpu.prizes.length === 0) { return 'cpu'; }
-  if (!state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
-  if (!state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
+  if (state.players.player.hasHadActive && !state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
+  if (state.players.cpu.hasHadActive && !state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
   if (state.deckedOut === 'player') { return 'cpu'; }
   if (state.deckedOut === 'cpu') { return 'player'; }
   return null;
