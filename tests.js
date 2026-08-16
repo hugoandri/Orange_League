@@ -228,3 +228,70 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   endTurn(state);
   check('poison on the opponent\'s active ticks at the same checkup, not a turn late', state.players.cpu.active.damage, 10);
 })();
+
+(function testTrainerEffects() {
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+
+  // Bill: draw 2
+  p.hand = [{ id: 'h1', name: 'Bill' }];
+  var beforeDeck = p.deck.length;
+  var res = TRAINER_EFFECTS['Bill'](state, pid, 'h1');
+  checkTrue('Bill is legal', res.legal);
+  check('Bill draws 2 cards', p.deck.length, beforeDeck - 2);
+
+  // Potion: remove up to 2 damage counters (20 HP) from one Pokémon
+  p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 30, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.hand = [{ id: 'h2', name: 'Potion' }];
+  TRAINER_EFFECTS['Potion'](state, pid, 'h2', 'a1');
+  check('Potion removes up to 20 damage', p.active.damage, 10);
+
+  // Super Potion: discard 1 energy from own Pokémon, remove up to 4 counters (40 HP)
+  p.active.damage = 50;
+  p.active.attachedEnergy = ['Grass'];
+  p.hand = [{ id: 'h3', name: 'Super Potion' }];
+  var superRes = TRAINER_EFFECTS['Super Potion'](state, pid, 'h3', 'a1');
+  checkTrue('Super Potion legal when energy is attached', superRes.legal);
+  check('Super Potion removes up to 40 damage', p.active.damage, 10);
+  check('Super Potion discarded the energy', p.active.attachedEnergy.length, 0);
+
+  // Switch: swap active with a bench Pokémon
+  p.bench = [{ id: 'b1', name: 'Ivysaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  p.hand = [{ id: 'h4', name: 'Switch' }];
+  TRAINER_EFFECTS['Switch'](state, pid, 'h4', 'b1');
+  check('Switch makes Ivysaur active', p.active.name, 'Ivysaur');
+
+  // Professor Oak: discard hand, draw 7
+  p.hand = [{ id: 'h5', name: 'Professor Oak' }, { id: 'junk1', name: 'Grass Energy' }];
+  var deckBefore = p.deck.length;
+  TRAINER_EFFECTS['Professor Oak'](state, pid, 'h5');
+  check('Professor Oak leaves exactly 7 cards in hand', p.hand.length, 7);
+
+  // Gust of Wind: force opponent's bench Pokémon to become their active
+  var cpu = state.players.cpu;
+  cpu.active = { id: 'ca1', name: 'Hitmonchan', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  cpu.bench = [{ id: 'cb1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  p.hand = [{ id: 'h6', name: 'Gust of Wind' }];
+  TRAINER_EFFECTS['Gust of Wind'](state, pid, 'h6', 'cb1');
+  check('Gust of Wind forces Machop to become cpu active', cpu.active.name, 'Machop');
+
+  // Energy Removal: discard 1 energy from opponent's chosen Pokémon
+  cpu.active.attachedEnergy = ['Fighting'];
+  p.hand = [{ id: 'h7', name: 'Energy Removal' }];
+  TRAINER_EFFECTS['Energy Removal'](state, pid, 'h7', cpu.active.id);
+  check('Energy Removal discards opponent energy', cpu.active.attachedEnergy.length, 0);
+
+  // Super Energy Removal: discard 1 of own energy to discard up to 2 of opponent's
+  p.active.attachedEnergy = ['Grass'];
+  cpu.active.attachedEnergy = ['Fighting', 'Fighting'];
+  p.hand = [{ id: 'h8', name: 'Super Energy Removal' }];
+  TRAINER_EFFECTS['Super Energy Removal'](state, pid, 'h8', p.active.id, cpu.active.id);
+  check('Super Energy Removal discards own energy', p.active.attachedEnergy.length, 0);
+  check('Super Energy Removal discards up to 2 opponent energy', cpu.active.attachedEnergy.length, 0);
+
+  // PlusPower: attaches, marks plusPowerAttached
+  p.hand = [{ id: 'h9', name: 'PlusPower' }];
+  TRAINER_EFFECTS['PlusPower'](state, pid, 'h9', p.active.id);
+  checkTrue('PlusPower attaches to active', p.active.plusPowerAttached);
+})();
