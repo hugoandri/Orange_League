@@ -97,19 +97,43 @@ function prizeColumnHtml(state, ownerId) {
   return html;
 }
 
+function attacksPanelHtml(s) {
+  var p = s.players.player;
+  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  if (s.phase === 'setup' || pendingPlayerPrize || !p.active) { return ''; }
+  var html = '<div class="attacks-panel"><h4>Ataques</h4>';
+  (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
+    var can = canAttack(s, 'player', atk.name);
+    var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
+    html += '<div class="attack-option">';
+    html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
+      escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
+    if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function renderBoard() {
   var s = gameState;
   var p = s.players.player;
   var c = s.players.cpu;
   var html = '';
+  // The CPU's side runs Bench-then-Active (top to bottom) while the
+  // player's runs Active-then-Bench, so the two Actives meet in the middle
+  // like facing across a real table, instead of both sides reading the
+  // same top-to-bottom order as if looking the same direction.
   html += '<h3>CPU</h3><div class="side-row"><div class="side-board">';
-  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu');
+  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
   html += '</div>' + prizeColumnHtml(s, 'cpu') + '</div>';
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
+  html += '<div class="active-with-attacks"><div>';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
+  html += '</div>' + attacksPanelHtml(s) + '</div>';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
   html += '</div>' + prizeColumnHtml(s, 'player') + '</div>';
   html += '<p>Descarte: ' + p.discard.length + '</p>';
@@ -139,19 +163,6 @@ function renderBoard() {
     html += '<div class="setup-panel"><p>Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.</p>';
     html += '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
   } else {
-    if (p.active) {
-      html += '<h4>Ataques</h4>';
-      (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
-        var can = canAttack(s, 'player', atk.name);
-        var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
-        html += '<div class="attack-option">';
-        html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
-          escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
-        if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
-        html += '</div>';
-      });
-    }
-
     if (p.bench.length > 0) {
       html += '<h4>Retirarse</h4>';
       p.bench.forEach(function (b) {

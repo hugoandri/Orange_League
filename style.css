@@ -58,7 +58,11 @@ button.action-btn:hover{border-color:var(--focus);}
 .prize-card.prize-choosable{cursor:pointer;border-color:var(--accent-player);
   box-shadow:0 0 0 2px rgba(63,143,79,0.25);}
 .prize-card.prize-choosable:hover{box-shadow:0 0 0 2px var(--accent-player);transform:scale(1.04);}
-.active-row{display:flex;justify-content:center;margin-bottom:10px;}
+.active-with-attacks{display:flex;gap:16px;align-items:flex-start;justify-content:center;
+  flex-wrap:wrap;margin-bottom:10px;}
+.attacks-panel{flex:0 1 320px;min-width:220px;}
+.attacks-panel h4{margin:2px 0 6px;}
+.active-row{display:flex;justify-content:center;margin-bottom:0;}
 .bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
 .bench-slot{width:110px;min-height:64px;border:1px dashed var(--border);border-radius:8px;
   display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.7rem;}
