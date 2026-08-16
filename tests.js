@@ -437,3 +437,11 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   ATTACK_EFFECTS['Hitmonchan']['Special Punch'](state, hitmonchan, t6);
   check('Special Punch deals 40', t6.damage, 40);
 })();
+
+(function testCpuTakesALegalTurnWithoutThrowing() {
+  var state = createGame(function () { return 0.37; });
+  state.activePlayerId = 'cpu';
+  var beforeTurn = state.turnCounter;
+  cpuTakeTurn(state);
+  checkTrue('cpuTakeTurn advances the turn (attacked or explicitly ended turn)', state.turnCounter > beforeTurn);
+})();
