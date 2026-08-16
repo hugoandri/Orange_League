@@ -76,3 +76,50 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var cpuHasBasic = state.players.cpu.hand.some(function (c) { return isBasicPokemon(c.name); });
   checkTrue('after setup, cpu hand always has a Basic (mulligan loop holds)', cpuHasBasic);
 })();
+
+(function testPlayBasicAndEvolve() {
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  // Force a known hand: Bulbasaur in hand, nothing active yet.
+  p.hand = [{ id: 'x1', name: 'Bulbasaur' }];
+  p.active = null; p.bench = [];
+
+  checkTrue('canPlayBasic true for Bulbasaur with empty active', canPlayBasic(state, pid, 'x1'));
+  playBasic(state, pid, 'x1');
+  check('active is now Bulbasaur', state.players[pid].active.name, 'Bulbasaur');
+  check('hand no longer has x1', state.players[pid].hand.length, 0);
+
+  p.hand = [{ id: 'x2', name: 'Ivysaur' }];
+  checkTrue('canEvolve is false same turn Bulbasaur entered play', !canEvolve(state, pid, 'x2', state.players[pid].active.id));
+  state.turnCounter += 1;
+  checkTrue('canEvolve is true on a later turn', canEvolve(state, pid, 'x2', state.players[pid].active.id));
+  evolve(state, pid, 'x2', state.players[pid].active.id);
+  check('active evolved into Ivysaur, same instance id', state.players[pid].active.name, 'Ivysaur');
+})();
+
+(function testAttachEnergyOncePerTurn() {
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.hand = [{ id: 'e1', name: 'Grass Energy' }, { id: 'e2', name: 'Grass Energy' }];
+
+  checkTrue('canAttachEnergy true the first time', canAttachEnergy(state, pid, 'e1', 'a1'));
+  attachEnergy(state, pid, 'e1', 'a1');
+  check('active has 1 attached energy', state.players[pid].active.attachedEnergy.length, 1);
+  checkTrue('canAttachEnergy false a second time same turn', !canAttachEnergy(state, pid, 'e2', 'a1'));
+})();
+
+(function testRetreat() {
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  p.active = { id: 'a1', name: 'Onix', attachedEnergy: ['Fighting', 'Fighting', 'Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [{ id: 'b1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+
+  checkTrue('canRetreat true, Onix retreat cost 3 and has 3 energy', canRetreat(state, pid, 'b1'));
+  retreat(state, pid, 'b1');
+  check('bench Machop is now active', state.players[pid].active.name, 'Machop');
+  check('Onix went to bench with only 0 energy left (3 discarded)', state.players[pid].bench[0].attachedEnergy.length, 0);
+})();
