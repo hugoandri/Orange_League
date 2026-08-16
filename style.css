@@ -27,3 +27,15 @@ button.action-btn{margin:2px;padding:6px 10px;border-radius:6px;border:1px solid
   background:#fff;cursor:pointer;font-size:0.8rem;}
 button.action-btn:hover{border-color:var(--focus);}
 .hand-row{display:flex;gap:6px;flex-wrap:wrap;}
+
+.active-label,.bench-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;
+  color:var(--ink-soft);margin:0 0 4px;}
+.active-row{display:flex;justify-content:center;margin-bottom:10px;}
+.bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+.bench-slot{width:110px;min-height:64px;border:1px dashed var(--border);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.7rem;}
+.pokemon-card.active-card{min-width:170px;padding:14px;font-size:0.9rem;}
+.pokemon-card.active-player{border-width:2px;box-shadow:0 0 0 2px rgba(63,143,79,0.18);}
+.pokemon-card.active-cpu{border-width:2px;box-shadow:0 0 0 2px rgba(138,31,31,0.18);}
+.attack-option{margin-bottom:6px;}
+.attack-effect-text{font-size:0.72rem;color:var(--ink-soft);margin:2px 0 4px 4px;max-width:480px;}

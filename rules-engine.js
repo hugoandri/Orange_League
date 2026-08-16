@@ -28,7 +28,11 @@ function expandDecklist(decklist) {
 
 function logEvent(state, msg) { state.log.push(msg); }
 
-function coinFlip(state) { return state.rng() < 0.5 ? 'H' : 'T'; }
+function coinFlip(state) {
+  var result = state.rng() < 0.5 ? 'H' : 'T';
+  logEvent(state, 'Moneda: ' + (result === 'H' ? 'Cara' : 'Sello'));
+  return result;
+}
 
 function drawCard(state, playerId, n) {
   n = n || 1;
@@ -220,6 +224,9 @@ function addStatus(instance, status) {
   if (!hasStatus(instance, status)) { instance.statusConditions.push(status); }
 }
 
+var STATUS_LABELS_ES = { Poisoned: 'Envenenado', Burned: 'Quemado', Asleep: 'Dormido', Confused: 'Confundido', Paralyzed: 'Paralizado' };
+function translateStatus(status) { return STATUS_LABELS_ES[status] || status; }
+
 function typeHasMatch(list, types) {
   return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
 }
@@ -307,6 +314,8 @@ function attack(state, playerId, attackName) {
   var stats = CARD_STATS[attacker.name];
   var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
 
+  logEvent(state, attacker.name + ' usa ' + attackName);
+
   if (attacker.missChanceUntilTurn === state.turnCounter) {
     attacker.missChanceUntilTurn = null;
     if (coinFlip(state) === 'T') {
@@ -334,6 +343,8 @@ function attack(state, playerId, attackName) {
 
   var defender = op.active;
   if (!defender) { endTurn(state); return; }
+  var beforeDamage = defender.damage;
+  var beforeStatus = defender.statusConditions.slice();
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId);
@@ -341,6 +352,11 @@ function attack(state, playerId, attackName) {
     var baseDamage = parseInt(atkDef.damage, 10) || 0;
     if (defender) { dealDamage(state, attacker, defender, baseDamage); }
   }
+
+  var damageDealt = defender.damage - beforeDamage;
+  if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño'); }
+  var newStatuses = defender.statusConditions.filter(function (s) { return beforeStatus.indexOf(s) === -1; });
+  newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s)); });
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
   endTurn(state);

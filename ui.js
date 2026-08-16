@@ -5,14 +5,36 @@ function renderCoinCount() {
   document.getElementById('coin-count').textContent = econState.coins;
 }
 
-function pokemonCardHtml(instance, isActive, ownerClass) {
+var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+  });
+}
+
+function pokemonCardHtml(instance, isActive, ownerClass, big) {
   var stats = CARD_STATS[instance.name];
   var hpLine = (stats.hp - instance.damage) + '/' + stats.hp + ' HP';
-  var statusLine = instance.statusConditions.length ? ' [' + instance.statusConditions.join(', ') + ']' : '';
-  var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '');
+  var statusLine = instance.statusConditions.length ? ' [' + instance.statusConditions.map(translateStatus).join(', ') + ']' : '';
+  var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '');
   return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' +
     '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
     '<br>Energía: ' + instance.attachedEnergy.join(',') + '</div>';
+}
+
+function activeSlotHtml(activeInstance, ownerClass) {
+  if (activeInstance) { return '<div class="active-row">' + pokemonCardHtml(activeInstance, true, ownerClass, true) + '</div>'; }
+  return '<div class="active-row"><div class="bench-slot">Sin Activo</div></div>';
+}
+
+function benchSlotsHtml(bench) {
+  var html = '<div class="bench-row">';
+  for (var i = 0; i < 5; i++) {
+    html += bench[i] ? pokemonCardHtml(bench[i], false, '') : '<div class="bench-slot">Vacío</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderBoard() {
@@ -20,16 +42,14 @@ function renderBoard() {
   var p = s.players.player;
   var c = s.players.cpu;
   var html = '';
-  html += '<h3>CPU</h3><div class="board-row">';
-  if (c.active) { html += pokemonCardHtml(c.active, true, 'active-cpu'); }
-  c.bench.forEach(function (b) { html += pokemonCardHtml(b, false, ''); });
-  html += '</div>';
+  html += '<h3>CPU</h3>';
+  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
+  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench);
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
-  html += '<h3>Tú</h3><div class="board-row">';
-  if (p.active) { html += pokemonCardHtml(p.active, true, 'active-player'); }
-  p.bench.forEach(function (b) { html += pokemonCardHtml(b, false, ''); });
-  html += '</div>';
+  html += '<h3>Tú</h3>';
+  html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
+  html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench);
   html += '<p>Descarte: ' + p.discard.length + '</p>';
 
   html += '<h4>Mano</h4><div class="hand-row">';
@@ -42,7 +62,12 @@ function renderBoard() {
     html += '<h4>Ataques</h4>';
     (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
       var can = canAttack(s, 'player', atk.name);
-      html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' + atk.name + ' (' + atk.damage + ')</button>';
+      var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
+      html += '<div class="attack-option">';
+      html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
+        escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
+      if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
+      html += '</div>';
     });
   }
 
