@@ -295,3 +295,30 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   TRAINER_EFFECTS['PlusPower'](state, pid, 'h9', p.active.id);
   checkTrue('PlusPower attaches to active', p.active.plusPowerAttached);
 })();
+
+(function testTrainerEffectsInvalidHandId() {
+  // Test that invalid handId fails cleanly without corrupting hand
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  p.hand = [{ id: 'h1', name: 'Grass Energy' }, { id: 'h2', name: 'Grass Energy' }];
+  var handLengthBefore = p.hand.length;
+  var res = TRAINER_EFFECTS['Bill'](state, pid, 'bogus-id-not-in-hand');
+  checkTrue('Bill with invalid handId is not legal', !res.legal);
+  check('Bill with invalid handId did not remove any card', p.hand.length, handLengthBefore);
+})();
+
+(function testPlusPowerMustTargetActive() {
+  // Test that PlusPower can only target the Active Pokémon, not bench
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  var p = state.players[pid];
+  p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [{ id: 'b1', name: 'Ivysaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  p.hand = [{ id: 'h1', name: 'PlusPower' }];
+  var benchBefore = p.bench[0].plusPowerAttached;
+  var res = TRAINER_EFFECTS['PlusPower'](state, pid, 'h1', p.bench[0].id);
+  checkTrue('PlusPower targeting bench is not legal', !res.legal);
+  check('PlusPower card still in hand', p.hand.length, 1);
+  check('bench Pokémon not affected by failed PlusPower', p.bench[0].plusPowerAttached, false);
+})();
