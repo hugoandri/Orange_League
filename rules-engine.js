@@ -39,21 +39,19 @@ function drawCard(state, playerId, n) {
   }
 }
 
-function dealOpeningHandWithMulligans(state, playerId, opponentId) {
+function dealOpeningHand(state, playerId) {
   var p = state.players[playerId];
   var mulligans = 0;
   while (true) {
-    p.hand = [];
     p.deck = shuffle(p.deck.concat(p.hand), state.rng);
+    p.hand = [];
     drawCard(state, playerId, 7);
     var hasBasic = p.hand.some(function (c) { return isBasicPokemon(c.name); });
     if (hasBasic) { break; }
     mulligans++;
-    p.deck = shuffle(p.deck.concat(p.hand), state.rng);
-    p.hand = [];
   }
-  if (mulligans > 0) { drawCard(state, opponentId, mulligans); }
   logEvent(state, playerId + ' drew opening hand after ' + mulligans + ' mulligan(s)');
+  return mulligans;
 }
 
 function createGame(rng) {
@@ -70,8 +68,10 @@ function createGame(rng) {
   };
   state.activePlayerId = state.rng() < 0.5 ? 'player' : 'cpu';
 
-  dealOpeningHandWithMulligans(state, 'player', 'cpu');
-  dealOpeningHandWithMulligans(state, 'cpu', 'player');
+  var playerMulligans = dealOpeningHand(state, 'player');
+  var cpuMulligans = dealOpeningHand(state, 'cpu');
+  if (playerMulligans > 0) { drawCard(state, 'cpu', playerMulligans); }
+  if (cpuMulligans > 0) { drawCard(state, 'player', cpuMulligans); }
 
   ['player', 'cpu'].forEach(function (pid) {
     var p = state.players[pid];

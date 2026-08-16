@@ -57,6 +57,8 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('cpu opening hand contains a Basic Pokémon', cpuHasBasic);
   var totalPlayerCards = state.players.player.deck.length + state.players.player.hand.length + state.players.player.prizes.length;
   check('player total cards still 60 after setup', totalPlayerCards, 60);
+  var totalCpuCards = state.players.cpu.deck.length + state.players.cpu.hand.length + state.players.cpu.prizes.length;
+  check('cpu total cards still 60 after setup', totalCpuCards, 60);
 })();
 
 (function testMulliganRedrawsUntilBasicPresent() {
