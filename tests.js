@@ -199,3 +199,32 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   endTurn(state); // endTurn hands the turn to cpu and triggers their draw-phase check internally via getWinner after draw attempt -- see implementation
   check('cpu loses by decking out, player wins', getWinner(state), 'player');
 })();
+
+(function testDeckOutOnlyTriggersWhenForcedToDrawWithEmptyDeck() {
+  var state = createGame(function () { return 0.42; });
+  // Both players need an active Pokémon (see testDeckOutLoss above) so the
+  // "no active + empty bench" loss check doesn't fire spuriously on this raw
+  // post-createGame state.
+  state.players.player.active = { id: 'pa1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.active = { id: 'ca1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.deck = [{ id: 'lastcard', name: 'Grass Energy' }];
+  // For player to be the one who draws (and thus the one whose deck this test
+  // is about), endTurn's "flip active player, then the flipped-to player draws"
+  // ordering means cpu must be the one finishing their turn beforehand -- see
+  // the same reasoning documented in testDeckOutLoss above.
+  state.activePlayerId = 'cpu';
+  state.turnCounter = 3;
+  endTurn(state); // player successfully draws their last card, deck now empty
+  check('successfully drawing the last card does not cause a loss', getWinner(state), null);
+})();
+
+(function testCheckupAppliesToOpponentsPoisonedActiveSameTurn() {
+  var state = createGame(function () { return 0.42; });
+  state.players.cpu.active = { id: 'cp1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.bench = [];
+  state.players.player.active = { id: 'pp1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.bench = [];
+  state.activePlayerId = 'player';
+  endTurn(state);
+  check('poison on the opponent\'s active ticks at the same checkup, not a turn late', state.players.cpu.active.damage, 10);
+})();

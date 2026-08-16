@@ -310,7 +310,8 @@ function applyCheckupDamage(state, playerId) {
 
 function endTurn(state) {
   var justFinished = state.activePlayerId;
-  applyCheckupDamage(state, justFinished);
+  applyCheckupDamage(state, 'player');
+  applyCheckupDamage(state, 'cpu');
   if (state.players[justFinished].active) {
     state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
   }
@@ -321,7 +322,13 @@ function endTurn(state) {
   state.energyAttachedThisTurn = false;
   state.retreatedThisTurn = false;
 
-  if (state.turnCounter > 1) { drawCard(state, state.activePlayerId, 1); }
+  if (state.turnCounter > 1) {
+    if (state.players[state.activePlayerId].deck.length === 0) {
+      state.deckedOut = state.activePlayerId;
+    } else {
+      drawCard(state, state.activePlayerId, 1);
+    }
+  }
 }
 
 function getWinner(state) {
@@ -329,7 +336,7 @@ function getWinner(state) {
   if (state.players.cpu.prizes.length === 0) { return 'cpu'; }
   if (!state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
   if (!state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
-  if (state.activePlayerId === 'player' && state.players.player.deck.length === 0 && state.turnCounter > 1) { return 'cpu'; }
-  if (state.activePlayerId === 'cpu' && state.players.cpu.deck.length === 0 && state.turnCounter > 1) { return 'player'; }
+  if (state.deckedOut === 'player') { return 'cpu'; }
+  if (state.deckedOut === 'cpu') { return 'player'; }
   return null;
 }
