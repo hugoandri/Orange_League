@@ -115,6 +115,13 @@ function attacksPanelHtml(s) {
   return html;
 }
 
+function setupPanelHtml(s) {
+  if (s.phase !== 'setup') { return ''; }
+  var p = s.players.player;
+  return '<div class="attacks-panel setup-panel"><p>Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.</p>' +
+    '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
+}
+
 function renderBoard() {
   var s = gameState;
   var p = s.players.player;
@@ -133,7 +140,7 @@ function renderBoard() {
   html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks"><div>';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player');
-  html += '</div>' + attacksPanelHtml(s) + '</div>';
+  html += '</div>' + (s.phase === 'setup' ? setupPanelHtml(s) : attacksPanelHtml(s)) + '</div>';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
   html += '</div>' + prizeColumnHtml(s, 'player') + '</div>';
   html += '<p>Descarte: ' + p.discard.length + '</p>';
@@ -159,10 +166,7 @@ function renderBoard() {
   });
   html += '</div>';
 
-  if (s.phase === 'setup') {
-    html += '<div class="setup-panel"><p>Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.</p>';
-    html += '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
-  } else {
+  if (s.phase !== 'setup') {
     if (p.bench.length > 0) {
       html += '<h4>Retirarse</h4>';
       p.bench.forEach(function (b) {
