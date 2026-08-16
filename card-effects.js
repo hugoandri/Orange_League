@@ -119,3 +119,76 @@ TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId)
 };
 
 var ATTACK_EFFECTS = {};
+
+ATTACK_EFFECTS['Weedle'] = {
+  'Poison Sting': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Poisoned'); }
+  }
+};
+
+ATTACK_EFFECTS['Bulbasaur'] = {
+  'Leech Seed': function (state, attacker, defender) {
+    var dealt = dealDamage(state, attacker, defender, 20);
+    if (dealt > 0) { attacker.damage = Math.max(0, attacker.damage - 10); }
+  }
+};
+
+ATTACK_EFFECTS['Ivysaur'] = {
+  'Vine Whip': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); },
+  'Poisonpowder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    addStatus(defender, 'Poisoned');
+  }
+};
+
+ATTACK_EFFECTS['Kakuna'] = {
+  'Stiffen': function (state, attacker) {
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  },
+  'Poisonpowder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Poisoned'); }
+  }
+};
+
+ATTACK_EFFECTS['Beedrill'] = {
+  'Twineedle': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  },
+  'Poison Sting': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 40);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Poisoned'); }
+  }
+};
+
+ATTACK_EFFECTS['Magikarp'] = {
+  'Tackle': function (state, attacker, defender) { dealDamage(state, attacker, defender, 10); },
+  'Flail': function (state, attacker, defender) { dealDamage(state, attacker, defender, 10 * (attacker.damage / 10)); }
+};
+
+ATTACK_EFFECTS['Gyarados'] = {
+  'Dragon Rage': function (state, attacker, defender) { dealDamage(state, attacker, defender, 50); },
+  'Bubblebeam': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 40);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Staryu'] = {
+  'Slap': function (state, attacker, defender) { dealDamage(state, attacker, defender, 20); }
+};
+
+ATTACK_EFFECTS['Starmie'] = {
+  'Recover': function (state, attacker) {
+    var idx = attacker.attachedEnergy.indexOf('Water');
+    if (idx !== -1) { attacker.attachedEnergy.splice(idx, 1); attacker.damage = 0; }
+  },
+  'Star Freeze': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};

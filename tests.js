@@ -322,3 +322,63 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('PlusPower card still in hand', p.hand.length, 1);
   check('bench Pokémon not affected by failed PlusPower', p.bench[0].plusPowerAttached, false);
 })();
+
+(function testOvergrowthAttackEffects() {
+  var state = createGame(function () { return 0.0; }); // rng()=0 => coinFlip always 'H' (heads)
+  var mkP = function (name, extra) {
+    var base = { id: 'x_' + name, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+    return Object.assign(base, extra || {});
+  };
+
+  // Weedle's Poison Sting: 10 dmg, coin flip to poison (heads => poisoned, since rng()=0 always heads)
+  var weedle = mkP('Weedle'); var target1 = mkP('Bulbasaur');
+  ATTACK_EFFECTS['Weedle']['Poison Sting'](state, weedle, target1);
+  check('Weedle Poison Sting deals 10', target1.damage, 10);
+  checkTrue('Weedle Poison Sting poisons on heads', hasStatus(target1, 'Poisoned'));
+
+  // Ivysaur's Poisonpowder: always poisons (no coin flip in the text), 20 dmg
+  var ivysaur = mkP('Ivysaur'); var target2 = mkP('Machop');
+  ATTACK_EFFECTS['Ivysaur']['Poisonpowder'](state, ivysaur, target2);
+  check('Ivysaur Poisonpowder deals 20', target2.damage, 20);
+  checkTrue('Ivysaur Poisonpowder always poisons', hasStatus(target2, 'Poisoned'));
+
+  // Gyarados Bubblebeam: 40 dmg, coin flip to paralyze
+  var gyarados = mkP('Gyarados'); var target3 = mkP('Onix');
+  ATTACK_EFFECTS['Gyarados']['Bubblebeam'](state, gyarados, target3);
+  check('Gyarados Bubblebeam deals 40', target3.damage, 40);
+  checkTrue('Gyarados Bubblebeam paralyzes on heads', hasStatus(target3, 'Paralyzed'));
+
+  // Magikarp's Flail: 10 x its own damage counters
+  var magikarp = mkP('Magikarp', { damage: 20 }); var target4 = mkP('Squirtle');
+  ATTACK_EFFECTS['Magikarp']['Flail'](state, magikarp, target4);
+  check('Flail deals 10 per damage counter (2 counters = 20)', target4.damage, 20);
+
+  // Beedrill's Twineedle: flip 2 coins, 30 x heads -- rng always 0 => both heads => 60
+  var beedrill = mkP('Beedrill'); var target5 = mkP('Squirtle');
+  ATTACK_EFFECTS['Beedrill']['Twineedle'](state, beedrill, target5);
+  check('Twineedle with both coins heads deals 60', target5.damage, 60);
+
+  // Kakuna's Stiffen: coin flip shield, no damage
+  var kakuna = mkP('Kakuna');
+  state.turnCounter = 4;
+  ATTACK_EFFECTS['Kakuna']['Stiffen'](state, kakuna, null);
+  check('Stiffen sets a preventAll shield on heads', kakuna.shield && kakuna.shield.type, 'preventAll');
+  check('Stiffen shield applies to the attacker\'s own next-defended turn', kakuna.shield.untilTurn, 5);
+
+  // Starmie's Recover: discards a Water Energy from itself, heals fully
+  var starmie = mkP('Starmie', { attachedEnergy: ['Water', 'Water'], damage: 30 });
+  ATTACK_EFFECTS['Starmie']['Recover'](state, starmie, null);
+  check('Recover heals all damage', starmie.damage, 0);
+  check('Recover discards 1 Water Energy', starmie.attachedEnergy.length, 1);
+
+  // Staryu's Slap: plain 20 damage
+  var staryu = mkP('Staryu'); var target6 = mkP('Machop');
+  ATTACK_EFFECTS['Staryu']['Slap'](state, staryu, target6);
+  check('Slap deals 20', target6.damage, 20);
+
+  // Bulbasaur's Leech Seed: 20 dmg, heals 1 damage counter (10) off itself when damage lands
+  var bulbasaur = mkP('Bulbasaur', { damage: 20 }); var target7 = mkP('Machop');
+  ATTACK_EFFECTS['Bulbasaur']['Leech Seed'](state, bulbasaur, target7);
+  check('Leech Seed deals 20 to the defender', target7.damage, 20);
+  check('Leech Seed heals 10 off Bulbasaur when damage lands', bulbasaur.damage, 10);
+})();
