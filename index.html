@@ -10,16 +10,22 @@
   <header class="top">
     <h1>Pokémon TCG Simulador</h1>
     <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
+    <button type="button" id="musicToggle" class="action-btn">🔈 Música</button>
     <nav class="tabs">
       <button type="button" id="tabBtnPlay" class="active">Jugar</button>
       <button type="button" id="tabBtnCollection">Colección</button>
     </nav>
   </header>
 
+  <audio id="bgMusic" src="Songs/YGO-Free%20Duel.mp3" loop preload="none"></audio>
+
   <main>
-    <section id="panelPlay" class="tab-panel active">
+    <section id="panelPlay" class="tab-panel active play-layout">
+      <aside id="log-panel">
+        <h4>Registro</h4>
+        <pre id="log"></pre>
+      </aside>
       <div id="app">Cargando...</div>
-      <pre id="log"></pre>
     </section>
     <section id="panelCollection" class="tab-panel">
       <div id="booster-shop"></div>

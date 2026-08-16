@@ -337,6 +337,19 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
   document.querySelector('.card-modal-backdrop').addEventListener('click', closeCardModal);
 
+  // Browsers block audio autoplay before a user gesture, so the music only
+  // starts/stops from this explicit toggle rather than trying to autoplay.
+  document.getElementById('musicToggle').addEventListener('click', function () {
+    var audio = document.getElementById('bgMusic');
+    if (audio.paused) {
+      audio.play();
+      this.textContent = '🔊 Música';
+    } else {
+      audio.pause();
+      this.textContent = '🔈 Música';
+    }
+  });
+
   document.getElementById('tabBtnPlay').addEventListener('click', function () {
     document.getElementById('tabBtnPlay').classList.add('active');
     document.getElementById('tabBtnCollection').classList.remove('active');
