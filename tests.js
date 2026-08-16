@@ -494,3 +494,24 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   state.players.player.bench = [];
   check('a real wipeout (had an active, now has none) still correctly loses', getWinner(state), 'cpu');
 })();
+
+(function testScriptedCpuVsCpuStabilityRun() {
+  var GAMES = 20;
+  var TURN_CAP = 400;
+  var completed = 0;
+  for (var g = 0; g < GAMES; g++) {
+    var seed = g;
+    var rng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
+    var state = createGame(rng);
+    var turns = 0;
+    var winner = null;
+    while (!winner && turns < TURN_CAP) {
+      cpuTakeTurn(state);
+      winner = getWinner(state);
+      turns++;
+    }
+    checkTrue('game ' + g + ' finished within ' + TURN_CAP + ' turns', turns < TURN_CAP);
+    if (winner) { completed++; }
+  }
+  check('all scripted games reached a winner', completed, GAMES);
+})();
