@@ -500,6 +500,7 @@ function endTurn(state) {
       state.deckedOut = state.activePlayerId;
     } else {
       drawCard(state, state.activePlayerId, 1);
+      logEvent(state, (state.activePlayerId === 'player' ? 'Tu Turno - Robas 1 Carta' : 'Turno del Rival - Roba 1 Carta'), state.activePlayerId);
     }
   }
 }
