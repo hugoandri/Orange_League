@@ -130,9 +130,9 @@ function setupPanelHtml(s) {
 
 // Left-slot controls during normal play: Retirar (above) then Terminar
 // turno (below) -- Retirar starts a "pick a Bench target" mode (see
-// wireBoardButtons' retreatMode), Terminar turno both ends the player's own
-// turn (if it's their turn) and lets the CPU actually take its turn (if
-// it's already the CPU's turn but hasn't moved yet) -- see afterPlayerAction.
+// wireBoardButtons' retreatMode); Terminar turno is only ever the player
+// handing their own turn to the rival -- see afterPlayerAction for how the
+// CPU's own turn then runs automatically.
 function playControlsHtml(s) {
   if (s.phase !== 'playing') { return ''; }
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
@@ -153,7 +153,7 @@ function renderBoard() {
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
   // same top-to-bottom order as if looking the same direction.
-  html += '<h3>CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
+  html += '<h3 class="side-heading side-heading-cpu">CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
@@ -163,7 +163,7 @@ function renderBoard() {
   // Pokémon always sits dead center -- the left slot (start-match button)
   // and right slot (attacks) each reserve their column's space even when
   // empty, so neither one appearing/disappearing shifts the Active card.
-  html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
+  html += '<h3 class="side-heading side-heading-player">Tú</h3><div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks">';
   html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
   html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
@@ -199,19 +199,23 @@ function renderBoard() {
   wireBoardButtons();
 }
 
-// Deliberately does NOT auto-run the CPU's turn anymore. Whatever the
-// player just did (attack, retreat, play a Trainer...) may already have
-// ended their turn engine-side (attack() calls endTurn() internally), but
-// the CPU only actually moves once the player clicks "Terminar turno" --
-// see wireBoardButtons' endTurnBtn handler. This lets the player review
-// the result of their own action (damage dealt, effects applied, etc. in
-// the log) before the board changes again.
+// "Terminar turno" is only ever how the PLAYER hands their own turn to the
+// rival (see wireBoardButtons' endTurnBtn handler). Once it's the CPU's
+// turn -- whether because the player clicked that button, or because their
+// action (e.g. attack()) ended their turn internally -- the CPU moves on
+// its own here, with no extra click required.
 function afterPlayerAction() {
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); return; }
+  var pendingPlayerPrize = gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player';
+  if (gameState.activePlayerId === 'cpu' && !pendingPlayerPrize) {
+    cpuTakeTurn(gameState);
+    winner = getWinner(gameState);
+    if (winner) { finishMatch(winner); return; }
+  }
   renderBoard();
 }
 
@@ -288,11 +292,7 @@ function wireBoardButtons() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
-      if (gameState.activePlayerId === 'player') {
-        endTurn(gameState);
-      } else if (gameState.activePlayerId === 'cpu') {
-        cpuTakeTurn(gameState);
-      }
+      if (gameState.activePlayerId === 'player') { endTurn(gameState); }
       afterPlayerAction();
     });
   }
