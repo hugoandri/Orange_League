@@ -500,7 +500,16 @@ function endTurn(state) {
       state.deckedOut = state.activePlayerId;
     } else {
       drawCard(state, state.activePlayerId, 1);
-      logEvent(state, (state.activePlayerId === 'player' ? 'Tu Turno - Robas 1 Carta' : 'Turno del Rival - Roba 1 Carta'), state.activePlayerId);
+      // The player's own turn always starts the moment endTurn() flips to
+      // them, so log it right here. The CPU's turn-start line is logged
+      // separately, at the top of cpuTakeTurn() (ai.js) instead of here --
+      // endTurn() can flip activePlayerId to 'cpu' well before the CPU
+      // actually acts (e.g. right when the player attacks, which ends
+      // their turn internally but waits for an explicit "Terminar turno"
+      // click before the CPU moves -- see ui.js's afterPlayerAction). Logging
+      // it here would leak "Turno del Rival" into the log before the CPU
+      // has done anything.
+      if (state.activePlayerId === 'player') { logEvent(state, 'Tu Turno - Robas 1 Carta', 'player'); }
     }
   }
 }

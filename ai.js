@@ -55,6 +55,12 @@ function aiTryUseTrainer(state, playerId) {
 
 function cpuTakeTurn(state) {
   var playerId = state.activePlayerId;
+  // Logged here (rather than in endTurn(), which flips activePlayerId to
+  // 'cpu' as soon as the player's turn ends -- including immediately on
+  // attack(), well before the player clicks "Terminar turno") so the line
+  // only appears once the CPU's turn is actually being played out, matching
+  // the same turnCounter > 1 gating endTurn() uses for the draw itself.
+  if (state.turnCounter > 1) { logEvent(state, 'Turno del Rival - Roba 1 Carta', 'cpu'); }
   var guard = 0;
   while (guard < 20) {
     guard++;
