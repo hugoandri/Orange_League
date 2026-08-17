@@ -84,6 +84,8 @@ button.action-btn:hover{border-color:var(--focus);}
 .setup-panel p{margin:0 0 8px;font-size:0.85rem;color:var(--ink-soft);}
 
 .card-thumb{width:100%;max-width:110px;height:auto;display:block;margin:0 auto 6px;border-radius:5px;}
+.pokemon-card.flipped .card-thumb{margin:6px auto 0;}
+.card-thumb-flipped{transform:rotate(180deg);}
 .card-thumb-hand{width:52px;height:auto;display:block;margin:0 auto 3px;border-radius:4px;}
 .hand-card-wrap{position:relative;display:inline-block;}
 .hand-card-wrap .hand-card span{display:block;font-size:0.72rem;}

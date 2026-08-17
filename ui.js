@@ -49,27 +49,31 @@ function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
 }
 
-function pokemonCardHtml(instance, isActive, ownerClass, big) {
+// `flipped` renders the CPU's cards as if facing the player across a table:
+// name/HP/energy above the art (instead of below), and the art itself
+// rotated 180° -- text stays upright/readable, only the illustration flips.
+function pokemonCardHtml(instance, isActive, ownerClass, big, flipped) {
   var stats = CARD_STATS[instance.name];
   var hpLine = (stats.hp - instance.damage) + '/' + stats.hp + ' HP';
   var statusLine = instance.statusConditions.length ? ' [' + instance.statusConditions.map(translateStatus).join(', ') + ']' : '';
-  var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '');
-  return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' +
-    magnifyBtnHtml(instance.name) + cardImageTag(instance.name, 'card-thumb') +
-    '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
-    '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ') + '</div>';
+  var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '') + (flipped ? ' flipped' : '');
+  var infoHtml = '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
+    '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ');
+  var imgHtml = cardImageTag(instance.name, 'card-thumb' + (flipped ? ' card-thumb-flipped' : ''));
+  var body = flipped ? (infoHtml + imgHtml) : (imgHtml + infoHtml);
+  return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' + magnifyBtnHtml(instance.name) + body + '</div>';
 }
 
-function activeSlotHtml(activeInstance, ownerClass) {
-  if (activeInstance) { return '<div class="active-row">' + pokemonCardHtml(activeInstance, true, ownerClass, true) + '</div>'; }
+function activeSlotHtml(activeInstance, ownerClass, flipped) {
+  if (activeInstance) { return '<div class="active-row">' + pokemonCardHtml(activeInstance, true, ownerClass, true, flipped) + '</div>'; }
   return '<div class="active-row"><div class="bench-slot">Sin Activo</div></div>';
 }
 
-function benchSlotsHtml(bench, ownerId) {
+function benchSlotsHtml(bench, ownerId, flipped) {
   var html = '<div class="bench-row">';
   for (var i = 0; i < 5; i++) {
     if (bench[i]) {
-      html += pokemonCardHtml(bench[i], false, '');
+      html += pokemonCardHtml(bench[i], false, '', false, flipped);
     } else if (ownerId === 'player') {
       html += '<div class="bench-slot bench-slot-empty" data-owner="player">Vacío</div>';
     } else {
@@ -131,11 +135,11 @@ function renderBoard() {
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
   // same top-to-bottom order as if looking the same direction.
-  html += '<h3>CPU</h3><div class="side-row"><div class="side-board">';
-  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu');
-  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu');
+  html += '<h3>CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
+  html += '<div class="side-row"><div class="side-board">';
+  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
+  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
   html += '</div>' + prizeColumnHtml(s, 'cpu') + '</div>';
-  html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   // Fixed 3-column row (left slot / Active / right slot) so the Active
   // Pokémon always sits dead center -- the left slot (start-match button)
