@@ -19,6 +19,9 @@ nav.tabs button.active{background:var(--focus);color:#fff;}
 .match-result:empty{display:none;}
 .match-result-win{background:rgba(62,207,94,0.18);color:#3ecf5e;}
 .match-result-loss{background:rgba(224,69,63,0.18);color:#e0453f;}
+.match-end-text{font-size:1.4rem;font-weight:700;margin:0;}
+.match-end-text.win{color:#2f9a48;}
+.match-end-text.loss{color:#c73a35;}
 /* App-shell layout: the page itself never scrolls -- header stays put and
    each panel below manages its own internal scroll region, so nothing
    requires scrolling the whole page up and down on any screen size. */

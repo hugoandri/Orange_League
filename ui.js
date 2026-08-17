@@ -361,6 +361,11 @@ function finishMatch(winner) {
   saveEconomy(econState);
   renderCoinCount();
   renderBoard(); // shows the final board state (last action's results); also syncs the header via updateHeaderControls()
+  var textEl = document.getElementById('matchEndText');
+  textEl.textContent = winner === 'player' ? 'Has Ganado' : 'Has Perdido';
+  textEl.classList.remove('win', 'loss');
+  textEl.classList.add(winner === 'player' ? 'win' : 'loss');
+  document.getElementById('matchEndModal').classList.remove('hidden');
 }
 
 function wireBoardButtons() {
@@ -545,6 +550,7 @@ function wireBoardButtons() {
 
 function startNewMatch() {
   matchWinner = null;
+  document.getElementById('matchEndModal').classList.add('hidden');
   gameState = createGame(Math.random);
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
@@ -622,6 +628,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var onConfirm = s.onConfirm;
     closeEnergyDiscardModal();
     onConfirm(indices);
+  });
+
+  // "Volver a jugar" starts a fresh match (same as the header's Jugar
+  // button); "Cancelar" just dismisses the modal for now, no other function.
+  document.getElementById('matchEndReplayBtn').addEventListener('click', function () {
+    document.getElementById('matchEndModal').classList.add('hidden');
+    startNewMatch();
+  });
+  document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
+    document.getElementById('matchEndModal').classList.add('hidden');
+  });
+  document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('matchEndModal').classList.add('hidden');
   });
 
   // Browsers block audio autoplay before a user gesture, so the music only

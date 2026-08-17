@@ -25,7 +25,7 @@
     <section id="panelPlay" class="tab-panel active play-layout">
       <aside id="card-viewer-panel">
         <div id="cardViewer" class="card-viewer">
-          <p class="card-viewer-placeholder">Tocá la 🔍 de una carta para verla acá.</p>
+          <p class="card-viewer-placeholder">Tocá una carta para verla acá.</p>
         </div>
       </aside>
       <div id="app">Cargando...</div>
@@ -67,6 +67,17 @@
       <div>
         <button type="button" id="energyDiscardConfirm" class="action-btn" disabled>OK</button>
         <button type="button" id="energyDiscardCancel" class="action-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="matchEndModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <p id="matchEndText" class="match-end-text"></p>
+      <div>
+        <button type="button" id="matchEndReplayBtn" class="action-btn">Volver a jugar</button>
+        <button type="button" id="matchEndCancelBtn" class="action-btn">Cancelar</button>
       </div>
     </div>
   </div>
