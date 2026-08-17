@@ -1,7 +1,7 @@
 var TRAINER_EFFECTS = {};
 
 TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
@@ -13,7 +13,7 @@ TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
 };
 
 TRAINER_EFFECTS['Potion'] = function (state, playerId, handId, targetInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
   if (!target) { return { legal: false, reason: 'sin objetivo válido' }; }
@@ -27,7 +27,7 @@ TRAINER_EFFECTS['Potion'] = function (state, playerId, handId, targetInstanceId)
 };
 
 TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
   if (!target || target.attachedEnergy.length === 0) { return { legal: false, reason: 'no hay energía para descartar' }; }
@@ -43,7 +43,7 @@ TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInsta
 };
 
 TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
@@ -64,7 +64,7 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
 };
 
 TRAINER_EFFECTS['Professor Oak'] = function (state, playerId, handId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
@@ -76,7 +76,7 @@ TRAINER_EFFECTS['Professor Oak'] = function (state, playerId, handId) {
 };
 
 TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBenchInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -99,7 +99,7 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
 };
 
 TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var opId = opponentOf(playerId);
   var op = state.players[opId];
   var target = findInstance(op, opponentInstanceId);
@@ -116,7 +116,7 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
 };
 
 TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var own = findInstance(p, ownInstanceId);
   if (!own || own.attachedEnergy.length === 0) { return { legal: false, reason: 'no tienes energía propia para descartar como costo' }; }
@@ -137,7 +137,7 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
 };
 
 TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId) {
-  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'no es tu turno' }; }
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var target = findInstance(p, ownInstanceId);
   if (!target || target !== p.active) { return { legal: false, reason: 'Más Potencia solo se puede adjuntar a tu Pokémon Activo' }; }
