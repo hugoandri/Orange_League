@@ -55,12 +55,14 @@ function aiTryUseTrainer(state, playerId) {
 
 function cpuTakeTurn(state) {
   var playerId = state.activePlayerId;
-  // Logged here (rather than in endTurn(), which flips activePlayerId to
-  // 'cpu' as soon as the player's turn ends -- including immediately on
-  // attack(), well before the player clicks "Terminar turno") so the line
-  // only appears once the CPU's turn is actually being played out, matching
-  // the same turnCounter > 1 gating endTurn() uses for the draw itself.
-  if (state.turnCounter > 1) { logEvent(state, 'Turno del Rival - Roba 1 Carta', 'cpu'); }
+  // Logged here (rather than in drawForTurnStart(), which can run well
+  // before the CPU actually acts -- e.g. right when the player attacks,
+  // which ends their turn internally but waits for an explicit "Terminar
+  // turno" click before the CPU moves) so the line only appears once the
+  // CPU's turn is actually being played out. state.turnDrewCard (set by
+  // drawForTurnStart(), rules-engine.js) tells us whether this turn actually
+  // had a card to draw, vs. the deck being empty.
+  if (state.turnDrewCard) { logEvent(state, 'Turno del Rival - Roba 1 Carta', 'cpu'); }
   var guard = 0;
   while (guard < 20) {
     guard++;

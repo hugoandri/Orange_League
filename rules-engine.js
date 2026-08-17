@@ -45,6 +45,23 @@ function drawCard(state, playerId, n) {
   }
 }
 
+// Shared by startMatch() (turn 1) and endTurn() (turn 2+) -- house rule for
+// this era (Base/Jungle/Fossil), unlike later official tournament rules:
+// whoever goes first still draws (and can attack, see canAttack) on turn 1.
+// Sets state.turnDrewCard so the turn-start log line (logged here for the
+// player, or deferred to cpuTakeTurn() for the CPU -- see ai.js) knows
+// whether a card was actually drawn, vs. the deck being empty.
+function drawForTurnStart(state, playerId) {
+  if (state.players[playerId].deck.length === 0) {
+    state.deckedOut = playerId;
+    state.turnDrewCard = false;
+    return;
+  }
+  drawCard(state, playerId, 1);
+  state.turnDrewCard = true;
+  if (playerId === 'player') { logEvent(state, 'Tu Turno - Robas 1 Carta', 'player'); }
+}
+
 function dealOpeningHand(state, playerId) {
   var p = state.players[playerId];
   var mulligans = 0;
@@ -97,6 +114,7 @@ function startMatch(state) {
   state.turnCounter = 1;
   state.activePlayerId = coinFlip(state) === 'H' ? 'player' : 'cpu';
   logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida', state.activePlayerId);
+  drawForTurnStart(state, state.activePlayerId);
 }
 
 function makeFreshInstance(id, name, turnCounter) {
@@ -392,7 +410,10 @@ function takePrize(state, playerId, prizeIndex) {
 
 function canAttack(state, playerId, attackName) {
   var p = state.players[playerId];
-  if (state.activePlayerId !== playerId || state.turnCounter === 1 || !p.active) { return false; }
+  // House rule for this era (Base/Jungle/Fossil): unlike later official
+  // tournament rules, whoever goes first can still attack on turn 1 (see
+  // drawForTurnStart -- they draw on turn 1 too).
+  if (state.activePlayerId !== playerId || !p.active) { return false; }
   if (hasStatus(p.active, 'Asleep') || hasStatus(p.active, 'Paralyzed')) { return false; }
   if (p.active.lockedAttacks.indexOf(attackName) !== -1) { return false; }
   var stats = CARD_STATS[p.active.name];
@@ -495,23 +516,14 @@ function endTurn(state) {
   state.players[justFinished].energyAttachedThisTurn = false;
   state.players[justFinished].retreatedThisTurn = false;
 
-  if (state.turnCounter > 1) {
-    if (state.players[state.activePlayerId].deck.length === 0) {
-      state.deckedOut = state.activePlayerId;
-    } else {
-      drawCard(state, state.activePlayerId, 1);
-      // The player's own turn always starts the moment endTurn() flips to
-      // them, so log it right here. The CPU's turn-start line is logged
-      // separately, at the top of cpuTakeTurn() (ai.js) instead of here --
-      // endTurn() can flip activePlayerId to 'cpu' well before the CPU
-      // actually acts (e.g. right when the player attacks, which ends
-      // their turn internally but waits for an explicit "Terminar turno"
-      // click before the CPU moves -- see ui.js's afterPlayerAction). Logging
-      // it here would leak "Turno del Rival" into the log before the CPU
-      // has done anything.
-      if (state.activePlayerId === 'player') { logEvent(state, 'Tu Turno - Robas 1 Carta', 'player'); }
-    }
-  }
+  // drawForTurnStart logs immediately for the player; the CPU's turn-start
+  // line is logged separately, at the top of cpuTakeTurn() (ai.js) instead
+  // of here -- endTurn() can flip activePlayerId to 'cpu' well before the
+  // CPU actually acts (e.g. right when the player attacks, which ends their
+  // turn internally but waits for an explicit "Terminar turno" click before
+  // the CPU moves -- see ui.js's afterPlayerAction). Logging it here would
+  // leak "Turno del Rival" into the log before the CPU has done anything.
+  if (state.turnCounter > 1) { drawForTurnStart(state, state.activePlayerId); }
 }
 
 function getWinner(state) {
