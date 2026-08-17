@@ -344,7 +344,14 @@ function renderBoard() {
     prizeColumnHtml(s, 'player') + '</div></div>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
-  html += '</div></div>';
+  // Every other row (this side's Active, Mano, and the CPU's own Bench) has
+  // a same-width right-side sibling (prize-column-wrap or deck-discard-wrap,
+  // both 111px) that narrows its side-board by the same amount -- without
+  // one here, this row's side-board was 111px+gap wider than the rest,
+  // shifting the Bench's centered content out of alignment with the
+  // (narrower, centered) Active row above it. This invisible spacer just
+  // reserves that same width so the centering matches.
+  html += '</div><div class="side-spacer"></div></div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
 

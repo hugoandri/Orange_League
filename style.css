@@ -91,6 +91,11 @@ main{flex:1 1 auto;min-height:0;max-width:1640px;margin:0 auto;padding:16px;
    so Mazo/Descarte read as part of the same family of face-down piles. */
 .deck-discard-wrap{flex:0 0 auto;display:flex;gap:5px;padding-left:14px;
   border-left:1px solid var(--border);align-self:flex-start;}
+/* Invisible placeholder matching prize-column-wrap/deck-discard-wrap's
+   width (111px) for rows that have no real right-side content -- keeps
+   that row's side-board the same width as the others, so centered content
+   (e.g. my own Bench) lines up with the Active row above/below it. */
+.side-spacer{flex:0 0 111px;}
 .deck-discard-pile{width:45.5px;text-align:center;}
 .deck-discard-pile img{width:100%;display:block;border-radius:4px;border:1px solid var(--border);}
 .deck-discard-pile.discard-pile-clickable{cursor:pointer;}
