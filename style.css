@@ -87,16 +87,18 @@ main{flex:1 1 auto;min-height:0;max-width:1640px;margin:0 auto;padding:16px;
    Bench sits before their Active+Premios row). Both piles show a generic
    face-down back; only the Discard pile is clickable (see
    openDiscardPileModal) to actually see what's in it. */
-.deck-discard-wrap{flex:0 0 auto;display:flex;gap:10px;padding-left:14px;
+/* Sized to match .prize-card (45.5px, from .prize-grid's 96px/2 columns)
+   so Mazo/Descarte read as part of the same family of face-down piles. */
+.deck-discard-wrap{flex:0 0 auto;display:flex;gap:5px;padding-left:14px;
   border-left:1px solid var(--border);align-self:flex-start;}
-.deck-discard-pile{width:64px;text-align:center;}
-.deck-discard-pile img{width:100%;border-radius:6px;display:block;}
+.deck-discard-pile{width:45.5px;text-align:center;}
+.deck-discard-pile img{width:100%;display:block;border-radius:4px;border:1px solid var(--border);}
 .deck-discard-pile.discard-pile-clickable{cursor:pointer;}
 .deck-discard-pile.discard-pile-clickable img{transition:box-shadow 0.1s;}
 .deck-discard-pile.discard-pile-clickable:hover img{box-shadow:0 0 0 2px var(--focus);}
-.pile-label{font-size:0.66rem;color:var(--ink-soft);margin:3px 0 0;}
+.pile-label{font-size:0.62rem;color:var(--ink-soft);margin:3px 0 0;}
 .pile-empty{width:100%;aspect-ratio:245/342;border:1px dashed var(--border);
-  border-radius:6px;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;display:flex;align-items:center;justify-content:center;
   font-size:0.62rem;color:var(--ink-soft);}
 .board-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .pokemon-card{position:relative;border:1px solid var(--border);border-radius:8px;padding:8px;
