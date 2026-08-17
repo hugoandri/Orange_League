@@ -83,7 +83,8 @@ function magnifyBtnHtml(name) {
   return '<button type="button" class="magnify-btn" data-card-name="' + escapeHtml(name) + '" title="Ver carta">🔍</button>';
 }
 
-// Attacks list for the quick-reference card viewer (log-panel) -- same
+// Attacks list for the quick-reference card viewer (its own white panel,
+// #card-viewer-panel, to the left of the dark Registro log) -- same
 // translated name/text/energy-cost display as attacksPanelHtml, but with no
 // canAttack/disabled state, since this is just a reference, not an action.
 function cardQuickRefAttacksHtml(name) {
@@ -102,7 +103,7 @@ function cardQuickRefAttacksHtml(name) {
   return html;
 }
 
-// Fills the log-panel's quick-reference viewer with a card's illustration
+// Fills the quick-reference card viewer with a card's illustration
 // plus (for Pokémon) its attacks -- what the 🔍 buttons open instead of the
 // full-screen modal, so cards can be checked without covering the board.
 function showCardInViewer(name) {
