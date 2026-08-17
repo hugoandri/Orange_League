@@ -39,9 +39,11 @@ main{flex:1 1 auto;min-height:0;max-width:1300px;margin:0 auto;padding:16px;
 /* CPU sits slightly higher than the player's own "Tú" heading below it --
    a smaller top margin pulls it closer to the panel's top edge, since it's
    facing the player from across the table. */
-.side-heading{margin-bottom:6px;}
+.side-heading{margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .side-heading-cpu{margin-top:0;}
 .side-heading-player{margin-top:18px;}
+.profile-photo{width:28px;height:28px;border-radius:50%;object-fit:cover;
+  border:1px solid var(--border);flex:0 0 auto;}
 .board-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .pokemon-card{position:relative;border:1px solid var(--border);border-radius:8px;padding:8px;
   background:#fafaf6;min-width:120px;font-size:0.8rem;cursor:pointer;}

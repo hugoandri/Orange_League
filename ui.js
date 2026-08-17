@@ -7,6 +7,10 @@ function renderCoinCount() {
 
 var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
 
+// Profile photos supplied by the user (Perfil/), matched to each side by
+// filename: Jugador.jpg is the player, Rival.jpg is the CPU.
+var PROFILE_PHOTO_URL = { player: 'Perfil/Jugador.jpg', cpu: 'Perfil/Rival.jpg' };
+
 // Real Base Set-era card back, sourced from Bulbapedia (archives.bulbagarden.net),
 // verified reachable (HTTP 200) before use.
 var CARD_BACK_URL = 'https://archives.bulbagarden.net/media/upload/1/17/Cardback.jpg';
@@ -153,7 +157,7 @@ function renderBoard() {
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
   // same top-to-bottom order as if looking the same direction.
-  html += '<h3 class="side-heading side-heading-cpu">CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
+  html += '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
@@ -163,7 +167,7 @@ function renderBoard() {
   // Pokémon always sits dead center -- the left slot (start-match button)
   // and right slot (attacks) each reserve their column's space even when
   // empty, so neither one appearing/disappearing shifts the Active card.
-  html += '<h3 class="side-heading side-heading-player">Tú</h3><div class="side-row"><div class="side-board">';
+  html += '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú</h3><div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks">';
   html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
   html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
