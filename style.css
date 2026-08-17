@@ -44,6 +44,12 @@ main{flex:1 1 auto;min-height:0;max-width:1300px;margin:0 auto;padding:16px;
 .side-heading{margin:0 0 8px;display:flex;align-items:center;gap:8px;}
 .profile-photo{width:28px;height:28px;border-radius:50%;object-fit:cover;
   border:1px solid var(--border);flex:0 0 auto;}
+/* Turn indicator next to each heading -- green means it's that side's
+   turn right now, red means it's waiting. */
+.turn-light{width:11px;height:11px;border-radius:50%;flex:0 0 auto;
+  display:inline-block;border:1px solid rgba(0,0,0,0.15);}
+.turn-light-on{background:#3ecf5e;box-shadow:0 0 5px rgba(62,207,94,0.7);}
+.turn-light-off{background:#e0453f;}
 /* Name + photo sit above the Premios column, at the right of the board --
    both grouped in their own vertical strip alongside that side's Active
    row (a separate flex row from the Bench), so the rival's remaining

@@ -38,6 +38,15 @@ function logHtml(s) {
   }).join('');
 }
 
+// Small turn indicator next to each heading -- green when it's that side's
+// turn, red otherwise (including during setup, before startMatch() picks
+// who goes first: activePlayerId is null then, so neither side lights up).
+function turnLightHtml(s, ownerId) {
+  var on = s.activePlayerId === ownerId;
+  return '<span class="turn-light ' + (on ? 'turn-light-on' : 'turn-light-off') + '" title="' +
+    (on ? 'Su turno' : 'No es su turno') + '"></span>';
+}
+
 function cardImageTag(name, cls) {
   var url = CARD_IMAGE_BY_NAME[name];
   return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
@@ -178,7 +187,7 @@ function renderBoard() {
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
   html += '</div><div class="prize-column-wrap">' +
-    '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU</h3>' +
+    '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU' + turnLightHtml(s, 'cpu') + '</h3>' +
     prizeColumnHtml(s, 'cpu') + '</div></div>';
   html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
@@ -192,7 +201,7 @@ function renderBoard() {
   html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
   html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
   html += '</div></div><div class="prize-column-wrap">' +
-    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú</h3>' +
+    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú' + turnLightHtml(s, 'player') + '</h3>' +
     prizeColumnHtml(s, 'player') + '</div></div>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
