@@ -301,6 +301,11 @@ function wireBoardButtons() {
     startMatchBtn.addEventListener('click', function () {
       if (gameState.phase === 'setup' && gameState.players.player.active) {
         startMatch(gameState);
+        // If the coin flip hands the CPU the opening turn, there's no turn
+        // of mine being cut short here to review -- so, same as ending my
+        // own turn, let it play immediately instead of sitting idle until
+        // a click.
+        if (gameState.activePlayerId === 'cpu') { cpuTakeTurn(gameState); }
         afterPlayerAction();
       }
     });
@@ -311,14 +316,16 @@ function wireBoardButtons() {
   // but they haven't moved yet -- see afterPlayerAction's comment) it lets
   // them actually take it (cpuTakeTurn). Same button, same label, either
   // way the player has to click it before the game state advances again.
+  // The two checks are sequential (not else-if) so a single click always
+  // fully hands the turn to the CPU and plays it out immediately -- ending
+  // my own turn here (if it was still mine) makes activePlayerId 'cpu'
+  // right away, and the very same click already covers that case below,
+  // instead of requiring a second press just for the CPU to actually move.
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
-      if (gameState.activePlayerId === 'player') {
-        endTurn(gameState);
-      } else if (gameState.activePlayerId === 'cpu') {
-        cpuTakeTurn(gameState);
-      }
+      if (gameState.activePlayerId === 'player') { endTurn(gameState); }
+      if (gameState.activePlayerId === 'cpu') { cpuTakeTurn(gameState); }
       afterPlayerAction();
     });
   }
