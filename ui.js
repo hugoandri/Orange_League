@@ -208,7 +208,7 @@ function pokemonCardHtml(instance, isActive, ownerClass, big, flipped) {
 
 function activeSlotHtml(activeInstance, ownerClass, flipped) {
   if (activeInstance) { return '<div class="active-row">' + pokemonCardHtml(activeInstance, true, ownerClass, true, flipped) + '</div>'; }
-  return '<div class="active-row"><div class="bench-slot">Sin Activo</div></div>';
+  return '<div class="active-row"><div class="bench-slot active-slot-empty">Sin Activo</div></div>';
 }
 
 function benchSlotsHtml(bench, ownerId, flipped) {
@@ -287,7 +287,7 @@ function attacksPanelHtml(s) {
 function setupPanelHtml(s) {
   if (s.phase !== 'setup') { return ''; }
   var p = s.players.player;
-  return '<div class="attacks-panel setup-panel">' +
+  return '<div class="attacks-panel setup-panel coin-flip-panel">' +
     '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
 }
 

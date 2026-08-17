@@ -134,10 +134,18 @@ button.action-btn:hover{border-color:var(--focus);}
 .attacks-panel h4{margin:2px 0 6px;}
 .active-row{display:flex;justify-content:center;margin-bottom:0;}
 .bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
-.bench-slot{width:90px;min-height:64px;border:1px dashed var(--border);border-radius:8px;
+/* Fixed at a real filled bench card's height (measured: 90x161px) instead
+   of a shorter min-height -- align-items:stretch already matched empty
+   slots to a filled sibling's height when one existed in the same row, but
+   an all-empty Bench (no Pokémon placed yet) had nothing to stretch
+   against and collapsed to a much shorter box. */
+.bench-slot{width:90px;height:161px;border:1px dashed var(--border);border-radius:8px;
   display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.65rem;text-align:center;}
 .bench-slot-empty{cursor:pointer;}
 .bench-slot-empty:hover{border-color:var(--focus);background:rgba(63,111,217,0.06);color:var(--focus);}
+/* "Sin Activo" placeholder, sized to match a real Active card (measured:
+   170x240px) instead of reusing bench-slot's smaller size. */
+.active-slot-empty{width:170px;height:240px;font-size:0.8rem;}
 /* Bench Pokémon smaller than the Active card but still easy to read --
    bigger than Premios/Mazo/Descarte (45.5px), which was too cramped to
    read name/HP/energy at a glance. */
@@ -152,6 +160,11 @@ button.action-btn:hover{border-color:var(--focus);}
 .setup-panel{background:var(--accent-player-soft,#eef7f0);border:1px solid var(--border);
   border-radius:8px;padding:10px 12px;margin-top:8px;}
 .setup-panel p{margin:0 0 8px;font-size:0.85rem;color:var(--ink-soft);}
+/* Smaller than the shared .setup-panel base -- just wraps one button, so
+   it doesn't need the same padding as playControlsHtml's Retirar/Terminar
+   turno panel (which also uses .setup-panel). */
+.coin-flip-panel{min-width:0;padding:5px 6px;display:inline-block;}
+.coin-flip-panel #startMatchBtn{font-size:0.72rem;padding:4px 7px;}
 
 .card-thumb{width:100%;max-width:110px;height:auto;display:block;margin:0 auto 6px;border-radius:5px;}
 .pokemon-card.flipped .card-thumb{margin:6px auto 0;}
