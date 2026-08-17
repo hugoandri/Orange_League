@@ -133,11 +133,17 @@ button.action-btn:hover{border-color:var(--focus);}
 .attacks-panel{min-width:220px;}
 .attacks-panel h4{margin:2px 0 6px;}
 .active-row{display:flex;justify-content:center;margin-bottom:0;}
-.bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
-.bench-slot{width:110px;min-height:64px;border:1px dashed var(--border);border-radius:8px;
-  display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.7rem;}
+.bench-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+.bench-slot{width:45.5px;min-height:64px;border:1px dashed var(--border);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.55rem;text-align:center;}
 .bench-slot-empty{cursor:pointer;}
 .bench-slot-empty:hover{border-color:var(--focus);background:rgba(63,111,217,0.06);color:var(--focus);}
+/* Bench Pokémon sized to match Premios/Mazo/Descarte (45.5px) instead of
+   the wider card box used for the Active Pokémon -- keeps the bench row
+   compact and visually part of the same family of small board piles. */
+.pokemon-card:not(.active-card){width:45.5px;min-width:45.5px;padding:3px;font-size:0.5rem;}
+.pokemon-card:not(.active-card) .card-thumb{margin:0 auto 2px;}
+.pokemon-card:not(.active-card).flipped .card-thumb{margin:2px auto 0;}
 .pokemon-card.active-card{min-width:170px;padding:14px;font-size:0.9rem;}
 .pokemon-card.active-player{border-width:2px;box-shadow:0 0 0 2px rgba(63,143,79,0.18);}
 .pokemon-card.active-cpu{border-width:2px;box-shadow:0 0 0 2px rgba(138,31,31,0.18);}
