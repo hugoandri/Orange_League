@@ -167,7 +167,7 @@ function closeEnergyDiscardModal() {
 function renderEnergyDiscardModal() {
   var s = energyDiscardState;
   document.getElementById('energyDiscardPrompt').textContent =
-    'Elegí ' + s.count + (s.count === 1 ? ' energía para descartar' : ' energías para descartar') +
+    'Elige ' + s.count + (s.count === 1 ? ' energía para descartar' : ' energías para descartar') +
     ' (' + s.selected.length + '/' + s.count + ')';
   var grid = document.getElementById('energyDiscardGrid');
   grid.innerHTML = s.energyTypes.map(function (type, i) {
@@ -349,7 +349,7 @@ function renderBoard() {
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
 
   if (pendingPlayerPrize) {
-    html += '<div class="setup-panel"><p>¡Noqueaste un Pokémon! Elegí una de tus cartas de premio (boca abajo, arriba) para tomarla.</p></div>';
+    html += '<div class="setup-panel"><p>¡Noqueaste un Pokémon! Elige una de tus cartas de premio (boca abajo, arriba) para tomarla.</p></div>';
     document.getElementById('app').innerHTML = html;
     document.getElementById('log').innerHTML = logHtml(s);
     wireBoardButtons();
