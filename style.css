@@ -33,6 +33,21 @@ main{flex:1 1 auto;min-height:0;max-width:1300px;margin:0 auto;padding:16px;
   padding:12px;overflow:hidden;display:flex;flex-direction:column;}
 #log-panel h4{margin:0 0 8px;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;
   color:#a9adbb;flex:0 0 auto;}
+/* Quick-reference card viewer, above the log -- clicking any card's 🔍
+   fills this in instead of opening the modal, so cards can be checked
+   without covering the board. Its own scroll region + a capped max-height
+   keep it from crowding out the log below when a card has several attacks. */
+.card-viewer{flex:0 1 auto;max-height:55%;overflow-y:auto;margin-bottom:10px;
+  padding-bottom:10px;border-bottom:1px solid #383d4a;}
+.card-viewer-placeholder{color:#a9adbb;font-size:0.76rem;font-style:italic;margin:0;}
+/* Capped at 150px wide (vs. the full 260px column) so the image stays a
+   readable thumbnail instead of pushing the attacks list below out of
+   view -- the whole card is still one scroll away either way. */
+.card-viewer-img{display:block;width:100%;max-width:150px;margin:0 auto 6px;border-radius:8px;}
+.card-viewer-name{color:#fff;font-weight:700;font-size:0.85rem;margin-bottom:6px;}
+.card-viewer .attack-option{margin-bottom:8px;}
+.card-viewer .attack-option strong{color:#fff;}
+.card-viewer .attack-effect-text{color:#a9adbb;max-width:none;}
 #log{background:transparent;color:#d7dae0;padding:0;border-radius:0;
   overflow-y:auto;font-size:0.76rem;white-space:pre-wrap;margin:0;flex:1 1 auto;min-height:0;}
 /* Log lines colored by whose side they're about -- yellow for the player,

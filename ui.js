@@ -83,6 +83,37 @@ function magnifyBtnHtml(name) {
   return '<button type="button" class="magnify-btn" data-card-name="' + escapeHtml(name) + '" title="Ver carta">🔍</button>';
 }
 
+// Attacks list for the quick-reference card viewer (log-panel) -- same
+// translated name/text/energy-cost display as attacksPanelHtml, but with no
+// canAttack/disabled state, since this is just a reference, not an action.
+function cardQuickRefAttacksHtml(name) {
+  var stats = CARD_STATS[name];
+  if (!stats || stats.supertype !== 'Pokémon' || !stats.attacks || !stats.attacks.length) { return ''; }
+  var html = '';
+  stats.attacks.forEach(function (atk) {
+    var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
+    var nameEs = translateAttackName(atk.name);
+    var textEs = translateAttackText(name, atk.name);
+    html += '<div class="attack-option">';
+    html += '<div><strong>' + escapeHtml(nameEs) + '</strong> [' + costLabel + '] · ' + (atk.damage || '0') + ' de daño</div>';
+    if (textEs) { html += '<div class="attack-effect-text">' + escapeHtml(textEs) + '</div>'; }
+    html += '</div>';
+  });
+  return html;
+}
+
+// Fills the log-panel's quick-reference viewer with a card's illustration
+// plus (for Pokémon) its attacks -- what the 🔍 buttons open instead of the
+// full-screen modal, so cards can be checked without covering the board.
+function showCardInViewer(name) {
+  var url = CARD_IMAGE_BY_NAME[name];
+  if (!url) { return; }
+  document.getElementById('cardViewer').innerHTML =
+    '<img class="card-viewer-img" src="' + url + '" alt="' + escapeHtml(name) + '">' +
+    '<div class="card-viewer-name">' + escapeHtml(translateCardName(name)) + '</div>' +
+    cardQuickRefAttacksHtml(name);
+}
+
 function openCardModal(name) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
@@ -505,7 +536,7 @@ function wireBoardButtons() {
   document.querySelectorAll('.magnify-btn').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
-      openCardModal(btn.getAttribute('data-card-name'));
+      showCardInViewer(btn.getAttribute('data-card-name'));
     });
   });
 
