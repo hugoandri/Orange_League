@@ -75,14 +75,6 @@ function cardImageTag(name, cls) {
   return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
 }
 
-// A small 🔍 control, separate from the card's own click target, so
-// enlarging a card never fires the game action (play/attach/target) that
-// clicking the rest of the card triggers. Wired with stopPropagation().
-function magnifyBtnHtml(name) {
-  if (!CARD_IMAGE_BY_NAME[name]) { return ''; }
-  return '<button type="button" class="magnify-btn" data-card-name="' + escapeHtml(name) + '" title="Ver carta">🔍</button>';
-}
-
 // Attacks list for the quick-reference card viewer (its own white panel,
 // #card-viewer-panel, to the left of the dark Registro log) -- same
 // translated name/text/energy-cost display as attacksPanelHtml, but with no
@@ -103,9 +95,10 @@ function cardQuickRefAttacksHtml(name) {
   return html;
 }
 
-// Fills the quick-reference card viewer with a card's illustration
-// plus (for Pokémon) its attacks -- what the 🔍 buttons open instead of the
-// full-screen modal, so cards can be checked without covering the board.
+// Fills the quick-reference card viewer with a card's illustration plus
+// (for Pokémon) its attacks -- shown by clicking the card itself (hand or
+// board), instead of a separate magnify button/modal that would cover the
+// board.
 function showCardInViewer(name) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
@@ -191,7 +184,7 @@ function pokemonCardHtml(instance, isActive, ownerClass, big, flipped) {
     '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ');
   var imgHtml = cardImageTag(instance.name, 'card-thumb' + (flipped ? ' card-thumb-flipped' : ''));
   var body = flipped ? (infoHtml + imgHtml) : (imgHtml + infoHtml);
-  return '<div class="' + cls + '" data-instance-id="' + instance.id + '">' + magnifyBtnHtml(instance.name) + body + '</div>';
+  return '<div class="' + cls + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' + body + '</div>';
 }
 
 function activeSlotHtml(activeInstance, ownerClass, flipped) {
@@ -330,8 +323,8 @@ function renderBoard() {
     // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
     // can't be used until the match actually starts.
     var disabled = s.phase === 'setup' && !isBasicPokemon(card.name);
-    html += '<div class="hand-card-wrap">' + magnifyBtnHtml(card.name) +
-      '<button class="action-btn hand-card" data-hand-id="' + card.id + '"' + (disabled ? ' disabled' : '') + '>' +
+    html += '<div class="hand-card-wrap">' +
+      '<button class="action-btn hand-card" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
       cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button></div>';
   });
   html += '</div>';
@@ -376,6 +369,7 @@ function wireBoardButtons() {
   var retreatMode = false;
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
+      showCardInViewer(btn.getAttribute('data-card-name'));
       retreatMode = false;
       var handId = btn.getAttribute('data-hand-id');
       var p = gameState.players.player;
@@ -463,6 +457,7 @@ function wireBoardButtons() {
 
   document.querySelectorAll('.pokemon-card').forEach(function (el) {
     el.addEventListener('click', function () {
+      showCardInViewer(el.getAttribute('data-card-name'));
       var instanceId = el.getAttribute('data-instance-id');
       if (retreatMode) {
         retreatMode = false;
@@ -531,13 +526,6 @@ function wireBoardButtons() {
       }
       selectedHandId = null;
       renderBoard();
-    });
-  });
-
-  document.querySelectorAll('.magnify-btn').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      showCardInViewer(btn.getAttribute('data-card-name'));
     });
   });
 

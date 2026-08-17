@@ -130,12 +130,8 @@ button.action-btn:hover{border-color:var(--focus);}
 .pokemon-card.flipped .card-thumb{margin:6px auto 0;}
 .card-thumb-flipped{transform:rotate(180deg);}
 .card-thumb-hand{width:52px;height:auto;display:block;margin:0 auto 3px;border-radius:4px;}
-.hand-card-wrap{position:relative;display:inline-block;}
+.hand-card-wrap{display:inline-block;}
 .hand-card-wrap .hand-card span{display:block;font-size:0.72rem;}
-.magnify-btn{position:absolute;top:-6px;right:-6px;z-index:2;width:22px;height:22px;
-  border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;
-  font-size:0.75rem;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;}
-.magnify-btn:hover{border-color:var(--focus);}
 
 .card-modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;}
 .card-modal.hidden{display:none;}
