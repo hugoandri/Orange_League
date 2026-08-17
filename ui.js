@@ -245,9 +245,10 @@ function prizeColumnHtml(state, ownerId) {
 
 // Deck (always face-down, just a count) and Discard pile (face-down too --
 // only the count matters at a glance; the discard's actual cards are one
-// click away, see openDiscardPileModal) sitting beside that side's Bench
-// row: below my own Premios (my Bench comes after my Active+Premios row)
-// and above the CPU's (their Bench comes before their Active+Premios row).
+// click away, see openDiscardPileModal). The CPU's sits beside its Bench
+// row (above its Active+Premios row); mine sits beside my own Mano row
+// instead (at hand height, below my Active+Premios row), both called from
+// renderBoard.
 function deckDiscardHtml(state, ownerId) {
   var p = state.players[ownerId];
   var discardCount = p.discard.length;
@@ -343,7 +344,7 @@ function renderBoard() {
     prizeColumnHtml(s, 'player') + '</div></div>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
-  html += '</div>' + deckDiscardHtml(s, 'player') + '</div>';
+  html += '</div></div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
 
@@ -355,6 +356,7 @@ function renderBoard() {
     return;
   }
 
+  html += '<div class="side-row"><div class="side-board">';
   html += '<h4>Mano</h4><div class="hand-row">';
   p.hand.forEach(function (card) {
     // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
@@ -364,7 +366,7 @@ function renderBoard() {
       '<button class="action-btn hand-card" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
       cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button></div>';
   });
-  html += '</div>';
+  html += '</div></div>' + deckDiscardHtml(s, 'player') + '</div>';
 
   document.getElementById('app').innerHTML = html;
   document.getElementById('log').innerHTML = logHtml(s);
