@@ -1,8 +1,31 @@
 var gameState = null;
 var econState = null;
 
+// Tracked separately from getWinner(gameState) because a surrender ends the
+// match without the underlying game state actually reaching a real win
+// condition (prizes emptied, etc.) -- this is the source of truth the
+// header result text and the Rendirse button's visibility read from.
+var matchWinner = null;
+
 function renderCoinCount() {
   document.getElementById('coin-count').textContent = econState.coins;
+}
+
+// Syncs the header's result text ("Ganaste"/"Perdiste") and the Rendirse
+// button's visibility to matchWinner -- called on every board render plus
+// right after finishMatch() sets it, so both stay consistent everywhere.
+function updateHeaderControls() {
+  var resultEl = document.getElementById('matchResult');
+  var surrenderBtn = document.getElementById('surrenderBtn');
+  resultEl.classList.remove('match-result-win', 'match-result-loss');
+  if (matchWinner) {
+    resultEl.textContent = matchWinner === 'player' ? 'Ganaste' : 'Perdiste';
+    resultEl.classList.add(matchWinner === 'player' ? 'match-result-win' : 'match-result-loss');
+    surrenderBtn.classList.add('hidden');
+  } else {
+    resultEl.textContent = '';
+    surrenderBtn.classList.remove('hidden');
+  }
 }
 
 var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
@@ -173,6 +196,7 @@ function renderBoard() {
   var p = s.players.player;
   var c = s.players.cpu;
   var html = '';
+  updateHeaderControls();
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
@@ -250,13 +274,17 @@ function afterPlayerAction() {
   renderBoard();
 }
 
+// winner is 'player' or 'cpu' -- called both when getWinner(gameState)
+// finds a real win condition and when the player surrenders (see
+// surrenderConfirmBtn's handler), so it doesn't re-derive the winner from
+// game state itself. "Nueva partida" now lives in the header's Jugar
+// button (see tabBtnPlay's handler) instead of a button rendered here.
 function finishMatch(winner) {
+  matchWinner = winner;
   econState = winner === 'player' ? awardWin(econState) : awardLoss(econState);
   saveEconomy(econState);
   renderCoinCount();
-  document.getElementById('app').innerHTML += '<p><strong>' + (winner === 'player' ? 'Ganaste' : 'Perdiste') + '</strong></p>' +
-    '<button class="action-btn" id="newMatchBtn">Nueva partida</button>';
-  document.getElementById('newMatchBtn').addEventListener('click', startNewMatch);
+  renderBoard(); // shows the final board state (last action's results); also syncs the header via updateHeaderControls()
 }
 
 function wireBoardButtons() {
@@ -414,6 +442,7 @@ function wireBoardButtons() {
 }
 
 function startNewMatch() {
+  matchWinner = null;
   gameState = createGame(Math.random);
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
@@ -463,7 +492,24 @@ document.addEventListener('DOMContentLoaded', function () {
   startNewMatch();
 
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
-  document.querySelector('.card-modal-backdrop').addEventListener('click', closeCardModal);
+  document.querySelector('#cardModal .card-modal-backdrop').addEventListener('click', closeCardModal);
+
+  // Rendirse asks for confirmation (it hands the rival the win) instead of
+  // ending the match on a single misclick -- Jugar (below) covers the
+  // "start over, no questions asked" case.
+  document.getElementById('surrenderBtn').addEventListener('click', function () {
+    document.getElementById('surrenderModal').classList.remove('hidden');
+  });
+  document.getElementById('surrenderCancelBtn').addEventListener('click', function () {
+    document.getElementById('surrenderModal').classList.add('hidden');
+  });
+  document.querySelector('#surrenderModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('surrenderModal').classList.add('hidden');
+  });
+  document.getElementById('surrenderConfirmBtn').addEventListener('click', function () {
+    document.getElementById('surrenderModal').classList.add('hidden');
+    finishMatch('cpu');
+  });
 
   // Browsers block audio autoplay before a user gesture, so the music only
   // starts/stops from this explicit toggle rather than trying to autoplay.
@@ -478,11 +524,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Jugar doubles as "Nueva partida": every click starts a fresh match (in
+  // addition to switching to the Play tab) -- Rendirse, with its
+  // confirmation, is the deliberate way to end an in-progress match instead.
   document.getElementById('tabBtnPlay').addEventListener('click', function () {
     document.getElementById('tabBtnPlay').classList.add('active');
     document.getElementById('tabBtnCollection').classList.remove('active');
     document.getElementById('panelPlay').classList.add('active');
     document.getElementById('panelCollection').classList.remove('active');
+    startNewMatch();
   });
   document.getElementById('tabBtnCollection').addEventListener('click', function () {
     document.getElementById('tabBtnCollection').classList.add('active');

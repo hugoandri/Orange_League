@@ -9,10 +9,12 @@
 <body>
   <header class="top">
     <h1>Pokémon TCG Simulador</h1>
+    <span id="matchResult" class="match-result"></span>
     <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
     <button type="button" id="musicToggle" class="action-btn">🔈 Música</button>
     <nav class="tabs">
       <button type="button" id="tabBtnPlay" class="active">Jugar</button>
+      <button type="button" id="surrenderBtn" class="action-btn">Rendirse</button>
       <button type="button" id="tabBtnCollection">Colección</button>
     </nav>
   </header>
@@ -38,6 +40,17 @@
     <div class="card-modal-content">
       <img id="cardModalImg" src="" alt="">
       <button type="button" id="cardModalClose" class="action-btn">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="surrenderModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <p>¿Seguro que querés rendirte? Esto le dará la victoria al rival.</p>
+      <div>
+        <button type="button" id="surrenderConfirmBtn" class="action-btn">Sí</button>
+        <button type="button" id="surrenderCancelBtn" class="action-btn">No</button>
+      </div>
     </div>
   </div>
 

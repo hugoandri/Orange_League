@@ -13,6 +13,12 @@ header.top h1{font-size:1.1rem;margin:0;flex:1;}
 nav.tabs button{border:none;background:transparent;color:#a9adbb;font-weight:600;
   padding:8px 14px;border-radius:8px;cursor:pointer;}
 nav.tabs button.active{background:var(--focus);color:#fff;}
+#surrenderBtn{background:#5c2323;color:#fff;}
+#surrenderBtn.hidden{display:none;}
+.match-result{font-weight:700;padding:4px 10px;border-radius:6px;}
+.match-result:empty{display:none;}
+.match-result-win{background:rgba(62,207,94,0.18);color:#3ecf5e;}
+.match-result-loss{background:rgba(224,69,63,0.18);color:#e0453f;}
 /* App-shell layout: the page itself never scrolls -- header stays put and
    each panel below manages its own internal scroll region, so nothing
    requires scrolling the whole page up and down on any screen size. */
