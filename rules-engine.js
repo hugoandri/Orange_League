@@ -224,10 +224,18 @@ function canRetreat(state, playerId, benchInstanceId) {
   return p.active.attachedEnergy.length >= cost;
 }
 
-function retreat(state, playerId, benchInstanceId) {
+// energyIndices (optional): specific attachedEnergy indices the player chose
+// to pay the retreat cost with (see ui.js's energy-discard modal). Falls
+// back to the first `cost` many when omitted, e.g. for the AI (ai.js) and
+// tests, which don't care which specific energy is discarded.
+function retreat(state, playerId, benchInstanceId, energyIndices) {
   var p = state.players[playerId];
   var cost = CARD_STATS[p.active.name].retreatCost;
-  var discardedEnergy = p.active.attachedEnergy.splice(0, cost);
+  var indices = energyIndices || p.active.attachedEnergy.map(function (_, i) { return i; }).slice(0, cost);
+  // Splice from the highest index down so earlier removals don't shift the
+  // indices of the ones still to come.
+  var discardedEnergy = indices.slice().sort(function (a, b) { return b - a; })
+    .map(function (i) { return p.active.attachedEnergy.splice(i, 1)[0]; });
   discardedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   var idx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
   var incoming = p.bench.splice(idx, 1)[0];

@@ -96,6 +96,57 @@ function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
 }
 
+// Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
+// stores just the type ('Water'), but the discard-choice modal needs the
+// real card name to look up its illustration.
+var ENERGY_CARD_NAME_BY_TYPE = {
+  Grass: 'Grass Energy', Fire: 'Fire Energy', Water: 'Water Energy',
+  Lightning: 'Lightning Energy', Psychic: 'Psychic Energy', Fighting: 'Fighting Energy'
+};
+
+// Holds the in-progress choice while the energy-discard modal is open:
+// which energy types are offered, how many must be picked, and what to do
+// with the chosen indices once confirmed. null when the modal is closed.
+var energyDiscardState = null;
+
+function openEnergyDiscardModal(energyTypes, count, onConfirm) {
+  energyDiscardState = { energyTypes: energyTypes, count: count, selected: [], onConfirm: onConfirm };
+  renderEnergyDiscardModal();
+  document.getElementById('energyDiscardModal').classList.remove('hidden');
+}
+
+function closeEnergyDiscardModal() {
+  document.getElementById('energyDiscardModal').classList.add('hidden');
+  energyDiscardState = null;
+}
+
+function renderEnergyDiscardModal() {
+  var s = energyDiscardState;
+  document.getElementById('energyDiscardPrompt').textContent =
+    'Elegí ' + s.count + (s.count === 1 ? ' energía para descartar' : ' energías para descartar') +
+    ' (' + s.selected.length + '/' + s.count + ')';
+  var grid = document.getElementById('energyDiscardGrid');
+  grid.innerHTML = s.energyTypes.map(function (type, i) {
+    var cardName = ENERGY_CARD_NAME_BY_TYPE[type] || type;
+    var selected = s.selected.indexOf(i) !== -1;
+    return '<div class="energy-discard-option' + (selected ? ' selected' : '') + '" data-energy-index="' + i + '">' +
+      cardImageTag(cardName, '') + '<span>' + escapeHtml(translateCardName(cardName)) + '</span></div>';
+  }).join('');
+  grid.querySelectorAll('.energy-discard-option').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var i = parseInt(el.getAttribute('data-energy-index'), 10);
+      var pos = s.selected.indexOf(i);
+      if (pos !== -1) {
+        s.selected.splice(pos, 1);
+      } else if (s.selected.length < s.count) {
+        s.selected.push(i);
+      }
+      renderEnergyDiscardModal();
+    });
+  });
+  document.getElementById('energyDiscardConfirm').disabled = s.selected.length !== s.count;
+}
+
 // `flipped` renders the CPU's cards as if facing the player across a table:
 // name/HP/energy above the art (instead of below), and the art itself
 // rotated 180° -- text stays upright/readable, only the illustration flips.
@@ -382,21 +433,47 @@ function wireBoardButtons() {
     el.addEventListener('click', function () {
       var instanceId = el.getAttribute('data-instance-id');
       if (retreatMode) {
-        if (canRetreat(gameState, 'player', instanceId)) { retreat(gameState, 'player', instanceId); }
         retreatMode = false;
-        renderBoard();
+        if (canRetreat(gameState, 'player', instanceId)) {
+          var activePokemon = gameState.players.player.active;
+          var retreatCostNow = CARD_STATS[activePokemon.name].retreatCost;
+          if (retreatCostNow === 0) {
+            retreat(gameState, 'player', instanceId);
+            renderBoard();
+          } else {
+            openEnergyDiscardModal(activePokemon.attachedEnergy.slice(), retreatCostNow, function (indices) {
+              retreat(gameState, 'player', instanceId, indices);
+              renderBoard();
+            });
+          }
+        } else {
+          renderBoard();
+        }
         return;
       }
       if (!selectedHandId) { return; }
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
+      var superPotionTarget = handCard.name === 'Super Potion' ? findInstance(p, instanceId) : null;
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
         playBasic(gameState, 'player', selectedHandId);
       } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
         evolve(gameState, 'player', selectedHandId, instanceId);
       } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
         attachEnergy(gameState, 'player', selectedHandId, instanceId);
+      } else if (superPotionTarget && superPotionTarget.attachedEnergy.length > 0) {
+        // Which energy to discard is the player's choice -- pick it in the
+        // modal, then apply the effect with that specific index (see
+        // TRAINER_EFFECTS['Super Potion']'s optional energyIndex param).
+        var superPotionHandId = selectedHandId;
+        selectedHandId = null;
+        openEnergyDiscardModal(superPotionTarget.attachedEnergy.slice(), 1, function (indices) {
+          var result = TRAINER_EFFECTS['Super Potion'](gameState, 'player', superPotionHandId, instanceId, indices[0]);
+          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+          renderBoard();
+        });
+        return;
       } else if (TRAINER_EFFECTS[handCard.name]) {
         var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
         if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
@@ -435,8 +512,13 @@ function wireBoardButtons() {
   document.querySelectorAll('.prize-choosable').forEach(function (el) {
     el.addEventListener('click', function () {
       var index = parseInt(el.getAttribute('data-prize-index'), 10);
+      var wonCard = gameState.players.player.prizes[index];
+      var wonCardName = wonCard && wonCard.name;
       takePrize(gameState, 'player', index);
       afterPlayerAction();
+      // Zoom the card just taken so it's clear which prize was won -- reuses
+      // the same enlarge modal as the hand's 🔍 buttons.
+      if (wonCardName) { openCardModal(wonCardName); }
     });
   });
 }
@@ -509,6 +591,17 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('surrenderConfirmBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
     finishMatch('cpu');
+  });
+
+  document.getElementById('energyDiscardCancel').addEventListener('click', closeEnergyDiscardModal);
+  document.querySelector('#energyDiscardModal .card-modal-backdrop').addEventListener('click', closeEnergyDiscardModal);
+  document.getElementById('energyDiscardConfirm').addEventListener('click', function () {
+    var s = energyDiscardState;
+    if (!s || s.selected.length !== s.count) { return; }
+    var indices = s.selected.slice();
+    var onConfirm = s.onConfirm;
+    closeEnergyDiscardModal();
+    onConfirm(indices);
   });
 
   // Browsers block audio autoplay before a user gesture, so the music only

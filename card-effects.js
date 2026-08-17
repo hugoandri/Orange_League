@@ -26,7 +26,9 @@ TRAINER_EFFECTS['Potion'] = function (state, playerId, handId, targetInstanceId)
   return { legal: true };
 };
 
-TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInstanceId) {
+// energyIndex (optional): which attachedEnergy index the player chose to
+// discard (see ui.js's energy-discard modal). Defaults to the first one.
+TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInstanceId, energyIndex) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
@@ -35,7 +37,7 @@ TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInsta
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
-  var removedEnergy = target.attachedEnergy.splice(0, 1);
+  var removedEnergy = target.attachedEnergy.splice(energyIndex || 0, 1);
   removedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   target.damage = Math.max(0, target.damage - 40);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Potion') + ' en ' + target.name, playerId);
