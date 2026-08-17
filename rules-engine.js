@@ -54,7 +54,7 @@ function dealOpeningHand(state, playerId) {
     if (hasBasic) { break; }
     mulligans++;
   }
-  logEvent(state, playerId + ' drew opening hand after ' + mulligans + ' mulligan(s)');
+  logEvent(state, translatePlayer(playerId) + ' roba su mano inicial (mulligans: ' + mulligans + ')');
   return mulligans;
 }
 
@@ -123,7 +123,7 @@ function playBasic(state, playerId, handId) {
   var card = p.hand.splice(idx, 1)[0];
   var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
   if (p.active === null) { p.active = instance; p.hasHadActive = true; } else { p.bench.push(instance); }
-  logEvent(state, playerId + ' juega ' + card.name + ' de básico');
+  logEvent(state, translatePlayer(playerId) + ' juega ' + card.name + ' de básico');
 }
 
 function findInstance(p, instanceId) {
@@ -150,7 +150,7 @@ function evolve(state, playerId, handId, targetInstanceId) {
   var target = findInstance(p, targetInstanceId);
   target.name = card.name;
   target.turnEnteredCurrentForm = state.turnCounter;
-  logEvent(state, playerId + ' evoluciona a ' + card.name);
+  logEvent(state, translatePlayer(playerId) + ' evoluciona a ' + card.name);
 }
 
 function canPayCost(instance, cost) {
@@ -189,7 +189,7 @@ function attachEnergy(state, playerId, handId, targetInstanceId) {
   var target = findInstance(p, targetInstanceId);
   target.attachedEnergy.push(ENERGY_TYPE_BY_CARD_NAME[card.name]);
   p.energyAttachedThisTurn = true;
-  logEvent(state, playerId + ' pone ' + card.name + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' pone ' + translateCardName(card.name) + ' en ' + target.name);
 }
 
 function canRetreat(state, playerId, benchInstanceId) {
@@ -220,7 +220,7 @@ function retreat(state, playerId, benchInstanceId) {
   p.bench.push(p.active);
   p.active = incoming;
   p.retreatedThisTurn = true;
-  logEvent(state, playerId + ' se retira a ' + p.active.name);
+  logEvent(state, translatePlayer(playerId) + ' se retira a ' + p.active.name);
 }
 
 function hasStatus(instance, status) { return instance.statusConditions.indexOf(status) !== -1; }
@@ -236,6 +236,62 @@ function addStatus(instance, status) {
 
 var STATUS_LABELS_ES = { Poisoned: 'Envenenado', Burned: 'Quemado', Asleep: 'Dormido', Confused: 'Confundido', Paralyzed: 'Paralizado' };
 function translateStatus(status) { return STATUS_LABELS_ES[status] || status; }
+
+function translatePlayer(playerId) { return playerId === 'player' ? 'Jugador' : 'CPU'; }
+
+// Display-only Spanish translations for Trainer/Energy card names and
+// attack names/effect text. CARD_STATS itself stays untouched (it's the
+// verified pokemontcg.io-sourced data) -- these are separate lookups used
+// only when rendering UI text or log lines. Pokémon species names are
+// never translated (Nintendo keeps them identical in Spanish and English).
+var TRAINER_NAME_ES = {
+  'Potion': 'Poción', 'Super Potion': 'Súper Poción', 'Switch': 'Cambio',
+  'Professor Oak': 'Profesor Oak', 'Gust of Wind': 'Ráfaga de Viento',
+  'Energy Removal': 'Retirar Energía', 'Super Energy Removal': 'Súper Retirar Energía',
+  'PlusPower': 'Más Potencia', 'Water Energy': 'Energía Agua',
+  'Grass Energy': 'Energía Planta', 'Fighting Energy': 'Energía Lucha',
+  'Fire Energy': 'Energía Fuego', 'Lightning Energy': 'Energía Rayo',
+  'Psychic Energy': 'Energía Psíquica'
+};
+function translateCardName(name) { return TRAINER_NAME_ES[name] || name; }
+
+var ATTACK_NAME_ES = {
+  'Twineedle': 'Doble Aguijón', 'Poison Sting': 'Picadura Venenosa', 'Leech Seed': 'Semilla Drenadora',
+  'Leek Slap': 'Golpe de Puerro', 'Pot Smash': 'Golpe Contundente', 'Dragon Rage': 'Furia Dragón',
+  'Bubblebeam': 'Rayo Burbuja', 'Jab': 'Golpe Rápido', 'Special Punch': 'Puñetazo Especial',
+  'Vine Whip': 'Látigo Cepa', 'Poisonpowder': 'Polvo Veneno', 'Stiffen': 'Endurecer',
+  'Karate Chop': 'Golpe Kárate', 'Submission': 'Sumisión', 'Low Kick': 'Patada Baja',
+  'Tackle': 'Placaje', 'Flail': 'Coletazo', 'Rock Throw': 'Lanzarrocas', 'Harden': 'Fortaleza',
+  'Sand-attack': 'Ataque Arena', 'Bubble': 'Burbuja', 'Withdraw': 'Refugio',
+  'Recover': 'Recuperación', 'Star Freeze': 'Congelación Estelar', 'Slap': 'Bofetón', 'Bite': 'Mordisco'
+};
+function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
+
+var ATTACK_TEXT_ES = {
+  'Twineedle': 'Lanza 2 monedas. Este ataque hace 30 de daño por cada cara.',
+  'Poison Sting': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Envenenado.',
+  'Leech Seed': 'A menos que todo el daño de este ataque sea evitado, puedes quitar 1 ficha de daño de este Pokémon.',
+  'Leek Slap': 'Lanza una moneda. Si es cruz, este ataque no hace nada. De cualquier forma, no puedes volver a usar este ataque mientras este Pokémon siga en juego.',
+  'Bubblebeam': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Poisonpowder': 'El Pokémon Defensor queda Envenenado.',
+  'Ivysaur|Poisonpowder': 'El Pokémon Defensor queda Envenenado.',
+  'Kakuna|Poisonpowder': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Envenenado.',
+  'Stiffen': 'Lanza una moneda. Si es cara, evita todo el daño hecho a este Pokémon durante el próximo turno de tu rival.',
+  'Karate Chop': 'Hace 50 de daño menos 10 de daño por cada ficha de daño en este Pokémon.',
+  'Submission': 'Este Pokémon se hace 20 de daño a sí mismo.',
+  'Flail': 'Hace 10 de daño por cada ficha de daño en este Pokémon.',
+  'Harden': 'Durante el próximo turno de tu rival, siempre que se le haga 30 de daño o menos a este Pokémon (tras aplicar Debilidad y Resistencia), evita ese daño.',
+  'Sand-attack': 'Si el Pokémon Defensor intenta atacar durante el próximo turno de tu rival, tu rival lanza una moneda. Si es cruz, ese ataque no hace nada.',
+  'Bubble': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Withdraw': 'Lanza una moneda. Si es cara, evita todo el daño que se le haga a este Pokémon durante el próximo turno de tu rival.',
+  'Recover': 'Descarta 1 carta de Energía Agua adjunta a este Pokémon para usar este ataque. Quita todas las fichas de daño de este Pokémon.',
+  'Star Freeze': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.'
+};
+function translateAttackText(pokemonName, attackName) {
+  var key = pokemonName + '|' + attackName;
+  if (ATTACK_TEXT_ES.hasOwnProperty(key)) { return ATTACK_TEXT_ES[key]; }
+  return ATTACK_TEXT_ES.hasOwnProperty(attackName) ? ATTACK_TEXT_ES[attackName] : '';
+}
 
 function typeHasMatch(list, types) {
   return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
@@ -289,7 +345,7 @@ function knockOutIfNeeded(state, ownerId, instance) {
   if (instance.damage < stats.hp) { return; }
   var owner = state.players[ownerId];
   var attackerId = opponentOf(ownerId);
-  logEvent(state, instance.name + ' (' + ownerId + ') fue noqueado');
+  logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado');
   if (owner.active && owner.active.id === instance.id) {
     owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
   } else {
@@ -308,11 +364,11 @@ function knockOutIfNeeded(state, ownerId, instance) {
         state.pendingPrizeChoice = { playerId: 'player', count: 0 };
       }
       state.pendingPrizeChoice.count += 1;
-      logEvent(state, 'player debe elegir una carta de premio');
+      logEvent(state, 'Jugador debe elegir una carta de premio');
     } else {
       var prize = attackerPlayer.prizes.shift();
       attackerPlayer.hand.push(prize);
-      logEvent(state, attackerId + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
+      logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
     }
   }
 }
@@ -325,7 +381,7 @@ function takePrize(state, playerId, prizeIndex) {
   if (prizeIndex < 0 || prizeIndex >= p.prizes.length) { return; }
   var card = p.prizes.splice(prizeIndex, 1)[0];
   p.hand.push(card);
-  logEvent(state, playerId + ' toma un premio (' + p.prizes.length + ' restantes)');
+  logEvent(state, translatePlayer(playerId) + ' toma un premio (' + p.prizes.length + ' restantes)');
   if (state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === playerId) {
     state.pendingPrizeChoice.count -= 1;
     if (state.pendingPrizeChoice.count <= 0) { state.pendingPrizeChoice = null; }
@@ -351,12 +407,12 @@ function attack(state, playerId, attackName) {
   var stats = CARD_STATS[attacker.name];
   var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
 
-  logEvent(state, attacker.name + ' usa ' + attackName);
+  logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName));
 
   if (attacker.missChanceUntilTurn === state.turnCounter) {
     attacker.missChanceUntilTurn = null;
     if (coinFlip(state) === 'T') {
-      logEvent(state, attacker.name + ' falla el ataque (efecto de Sand-attack)');
+      logEvent(state, attacker.name + ' falla el ataque (efecto de ' + translateAttackName('Sand-attack') + ')');
       endTurn(state);
       return;
     }

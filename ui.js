@@ -109,10 +109,12 @@ function attacksPanelHtml(s) {
   (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
     var can = canAttack(s, 'player', atk.name);
     var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
+    var nameEs = translateAttackName(atk.name);
+    var textEs = translateAttackText(p.active.name, atk.name);
     html += '<div class="attack-option">';
     html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
-      escapeHtml(atk.name) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' dmg</button>';
-    if (atk.text) { html += '<div class="attack-effect-text">' + escapeHtml(atk.text) + '</div>'; }
+      escapeHtml(nameEs) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' de daño</button>';
+    if (textEs) { html += '<div class="attack-effect-text">' + escapeHtml(textEs) + '</div>'; }
     html += '</div>';
   });
   html += '</div>';
@@ -124,6 +126,22 @@ function setupPanelHtml(s) {
   var p = s.players.player;
   return '<div class="attacks-panel setup-panel">' +
     '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
+}
+
+// Left-slot controls during normal play: Retirar (above) then Terminar
+// turno (below) -- Retirar starts a "pick a Bench target" mode (see
+// wireBoardButtons' retreatMode), Terminar turno both ends the player's own
+// turn (if it's their turn) and lets the CPU actually take its turn (if
+// it's already the CPU's turn but hasn't moved yet) -- see afterPlayerAction.
+function playControlsHtml(s) {
+  if (s.phase !== 'playing') { return ''; }
+  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  if (pendingPlayerPrize) { return ''; }
+  var p = s.players.player;
+  var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
+  return '<div class="attacks-panel setup-panel">' +
+    '<button class="action-btn" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>Retirar</button><br>' +
+    '<button class="action-btn" id="endTurnBtn">Terminar turno</button></div>';
 }
 
 function renderBoard() {
@@ -147,7 +165,7 @@ function renderBoard() {
   // empty, so neither one appearing/disappearing shifts the Active card.
   html += '<h3>Tú</h3><div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks">';
-  html += '<div class="side-slot">' + setupPanelHtml(s) + '</div>';
+  html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
   html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
   html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
   html += '</div>';
@@ -172,52 +190,28 @@ function renderBoard() {
     var disabled = s.phase === 'setup' && !isBasicPokemon(card.name);
     html += '<div class="hand-card-wrap">' + magnifyBtnHtml(card.name) +
       '<button class="action-btn hand-card" data-hand-id="' + card.id + '"' + (disabled ? ' disabled' : '') + '>' +
-      cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(card.name) + '</span></button></div>';
+      cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button></div>';
   });
   html += '</div>';
-
-  if (s.phase !== 'setup') {
-    if (p.bench.length > 0) {
-      html += '<h4>Retirarse</h4>';
-      p.bench.forEach(function (b) {
-        var canRet = canRetreat(s, 'player', b.id);
-        html += '<button class="action-btn retreat-btn" data-bench-id="' + b.id + '"' + (canRet ? '' : ' disabled') + '>Retirar a ' + b.name + '</button>';
-      });
-    }
-
-    // Attacking is the only built-in way rules-engine.js advances the turn.
-    // On the very first turn of the match, attacking is always illegal
-    // (canAttack forbids turnCounter === 1), so without an explicit way to
-    // end the turn the player going first would be stuck forever. Also cover
-    // any turn where the player simply has no attack they want to (or can)
-    // use — mirrors cpuTakeTurn()'s own unconditional endTurn() fallback.
-    if (s.activePlayerId === 'player') {
-      html += '<button class="action-btn" id="endTurnBtn">Pasar turno</button>';
-    }
-  }
 
   document.getElementById('app').innerHTML = html;
   document.getElementById('log').textContent = s.log.slice(-30).join('\n');
   wireBoardButtons();
 }
 
+// Deliberately does NOT auto-run the CPU's turn anymore. Whatever the
+// player just did (attack, retreat, play a Trainer...) may already have
+// ended their turn engine-side (attack() calls endTurn() internally), but
+// the CPU only actually moves once the player clicks "Terminar turno" --
+// see wireBoardButtons' endTurnBtn handler. This lets the player review
+// the result of their own action (damage dealt, effects applied, etc. in
+// the log) before the board changes again.
 function afterPlayerAction() {
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); return; }
-  // Don't let the CPU take its turn while the player still has a prize card
-  // to pick -- render the choice prompt first and wait for it to resolve.
-  if (gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player') {
-    renderBoard();
-    return;
-  }
-  if (gameState.activePlayerId === 'cpu') {
-    cpuTakeTurn(gameState);
-    var winner2 = getWinner(gameState);
-    if (winner2) { finishMatch(winner2); return; }
-  }
   renderBoard();
 }
 
@@ -233,8 +227,10 @@ function finishMatch(winner) {
 function wireBoardButtons() {
   var handButtons = document.querySelectorAll('.hand-card');
   var selectedHandId = null;
+  var retreatMode = false;
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
+      retreatMode = false;
       var handId = btn.getAttribute('data-hand-id');
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === handId; });
@@ -284,25 +280,44 @@ function wireBoardButtons() {
     });
   }
 
+  // "Terminar turno" is context-aware: if it's still the player's turn it
+  // ends it (endTurn); if it's already the CPU's turn (their turn started
+  // but they haven't moved yet -- see afterPlayerAction's comment) it lets
+  // them actually take it (cpuTakeTurn). Same button, same label, either
+  // way the player has to click it before the game state advances again.
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
-      if (gameState.activePlayerId === 'player') { endTurn(gameState); afterPlayerAction(); }
+      if (gameState.activePlayerId === 'player') {
+        endTurn(gameState);
+      } else if (gameState.activePlayerId === 'cpu') {
+        cpuTakeTurn(gameState);
+      }
+      afterPlayerAction();
     });
   }
 
-  var retreatButtons = document.querySelectorAll('.retreat-btn');
-  retreatButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var benchId = btn.getAttribute('data-bench-id');
-      if (canRetreat(gameState, 'player', benchId)) { retreat(gameState, 'player', benchId); afterPlayerAction(); }
+  // "Retirar" starts a target-selection mode instead of listing one button
+  // per Bench Pokémon: click Retirar, then click the Bench Pokémon (below)
+  // you want to swap in -- handled by the shared .pokemon-card handler.
+  var retreatBtn = document.getElementById('retreatBtn');
+  if (retreatBtn) {
+    retreatBtn.addEventListener('click', function () {
+      selectedHandId = null;
+      retreatMode = true;
     });
-  });
+  }
 
   document.querySelectorAll('.pokemon-card').forEach(function (el) {
     el.addEventListener('click', function () {
-      if (!selectedHandId) { return; }
       var instanceId = el.getAttribute('data-instance-id');
+      if (retreatMode) {
+        if (canRetreat(gameState, 'player', instanceId)) { retreat(gameState, 'player', instanceId); }
+        retreatMode = false;
+        renderBoard();
+        return;
+      }
+      if (!selectedHandId) { return; }
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
