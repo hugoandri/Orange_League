@@ -8,7 +8,7 @@ TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   drawCard(state, playerId, 2);
-  logEvent(state, translatePlayer(playerId) + ' juega Bill (roba 2)');
+  logEvent(state, translatePlayer(playerId) + ' juega Bill (roba 2)', playerId);
   return { legal: true };
 };
 
@@ -22,7 +22,7 @@ TRAINER_EFFECTS['Potion'] = function (state, playerId, handId, targetInstanceId)
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   target.damage = Math.max(0, target.damage - 20);
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Potion') + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Potion') + ' en ' + target.name, playerId);
   return { legal: true };
 };
 
@@ -38,7 +38,7 @@ TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInsta
   var removedEnergy = target.attachedEnergy.splice(0, 1);
   removedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   target.damage = Math.max(0, target.damage - 40);
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Potion') + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Potion') + ' en ' + target.name, playerId);
   return { legal: true };
 };
 
@@ -59,7 +59,7 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
     p.bench.push(p.active);
   }
   p.active = incoming;
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Switch'));
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Switch'), playerId);
   return { legal: true };
 };
 
@@ -71,7 +71,7 @@ TRAINER_EFFECTS['Professor Oak'] = function (state, playerId, handId) {
   p.discard = p.discard.concat(p.hand);
   p.hand = [];
   drawCard(state, playerId, 7);
-  logEvent(state, translatePlayer(playerId) + ' juega ' + translateCardName('Professor Oak') + ' (descarta mano, roba 7)');
+  logEvent(state, translatePlayer(playerId) + ' juega ' + translateCardName('Professor Oak') + ' (descarta mano, roba 7)', playerId);
   return { legal: true };
 };
 
@@ -94,7 +94,7 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
     op.bench.push(op.active);
   }
   op.active = incoming;
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Gust of Wind'));
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Gust of Wind'), playerId);
   return { legal: true };
 };
 
@@ -111,7 +111,7 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
   p.discard.push(card);
   var removedEnergy = target.attachedEnergy.splice(0, 1);
   removedEnergy.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Energy Removal') + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };
 };
 
@@ -132,7 +132,7 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   ownRemoved.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   var oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
   oppRemoved.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Energy Removal') + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };
 };
 
@@ -146,7 +146,7 @@ TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId)
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   target.plusPowerAttached = true;
-  logEvent(state, translatePlayer(playerId) + ' adjunta ' + translateCardName('PlusPower') + ' a ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' adjunta ' + translateCardName('PlusPower') + ' a ' + target.name, playerId);
   return { legal: true };
 };
 

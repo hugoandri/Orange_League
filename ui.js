@@ -27,6 +27,17 @@ function escapeHtml(s) {
   });
 }
 
+// Colors each log line by whose side it's about -- yellow for the player,
+// orange for the CPU -- using the ownerId logEvent tagged it with
+// (rules-engine.js). Lines with no owner (coin flips, setup instructions)
+// render in the log panel's default color.
+function logHtml(s) {
+  return s.log.slice(-30).map(function (entry) {
+    var cls = entry.ownerId === 'player' ? 'log-line-player' : entry.ownerId === 'cpu' ? 'log-line-cpu' : 'log-line-neutral';
+    return '<div class="' + cls + '">' + escapeHtml(entry.msg) + '</div>';
+  }).join('');
+}
+
 function cardImageTag(name, cls) {
   var url = CARD_IMAGE_BY_NAME[name];
   return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
@@ -134,9 +145,9 @@ function setupPanelHtml(s) {
 
 // Left-slot controls during normal play: Retirar (above) then Terminar
 // turno (below) -- Retirar starts a "pick a Bench target" mode (see
-// wireBoardButtons' retreatMode); Terminar turno is only ever the player
-// handing their own turn to the rival -- see afterPlayerAction for how the
-// CPU's own turn then runs automatically.
+// wireBoardButtons' retreatMode), Terminar turno both ends the player's own
+// turn (if it's their turn) and lets the CPU actually take its turn (if
+// it's already the CPU's turn but hasn't moved yet) -- see afterPlayerAction.
 function playControlsHtml(s) {
   if (s.phase !== 'playing') { return ''; }
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
@@ -156,25 +167,36 @@ function renderBoard() {
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
-  // same top-to-bottom order as if looking the same direction.
-  html += '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU</h3><p>Descarte CPU: ' + c.discard.length + '</p>';
+  // same top-to-bottom order as if looking the same direction. The name
+  // photo and Premios column sit on the right of the board, at the height
+  // of that side's own Active row (a separate flex row from the Bench) so
+  // the rival's remaining prizes are always level with mine, easy to
+  // compare at a glance instead of sitting up by their Bench.
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
+  html += '</div></div>';
+  html += '<div class="side-row"><div class="side-board">';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
-  html += '</div>' + prizeColumnHtml(s, 'cpu') + '</div>';
+  html += '</div><div class="prize-column-wrap">' +
+    '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU</h3>' +
+    prizeColumnHtml(s, 'cpu') + '</div></div>';
+  html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   // Fixed 3-column row (left slot / Active / right slot) so the Active
   // Pokémon always sits dead center -- the left slot (start-match button)
   // and right slot (attacks) each reserve their column's space even when
   // empty, so neither one appearing/disappearing shifts the Active card.
-  html += '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú</h3><div class="side-row"><div class="side-board">';
+  html += '<div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks">';
   html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
   html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
   html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
-  html += '</div>';
+  html += '</div></div><div class="prize-column-wrap">' +
+    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú</h3>' +
+    prizeColumnHtml(s, 'player') + '</div></div>';
+  html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
-  html += '</div>' + prizeColumnHtml(s, 'player') + '</div>';
+  html += '</div></div>';
   html += '<p>Descarte: ' + p.discard.length + '</p>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
@@ -182,7 +204,7 @@ function renderBoard() {
   if (pendingPlayerPrize) {
     html += '<div class="setup-panel"><p>¡Noqueaste un Pokémon! Elegí una de tus cartas de premio (boca abajo, arriba) para tomarla.</p></div>';
     document.getElementById('app').innerHTML = html;
-    document.getElementById('log').textContent = s.log.slice(-30).join('\n');
+    document.getElementById('log').innerHTML = logHtml(s);
     wireBoardButtons();
     return;
   }
@@ -199,27 +221,23 @@ function renderBoard() {
   html += '</div>';
 
   document.getElementById('app').innerHTML = html;
-  document.getElementById('log').textContent = s.log.slice(-30).join('\n');
+  document.getElementById('log').innerHTML = logHtml(s);
   wireBoardButtons();
 }
 
-// "Terminar turno" is only ever how the PLAYER hands their own turn to the
-// rival (see wireBoardButtons' endTurnBtn handler). Once it's the CPU's
-// turn -- whether because the player clicked that button, or because their
-// action (e.g. attack()) ended their turn internally -- the CPU moves on
-// its own here, with no extra click required.
+// Deliberately does NOT auto-run the CPU's turn. Whatever the player just
+// did (attack, retreat, play a Trainer...) may already have ended their
+// turn engine-side (attack() calls endTurn() internally), but the CPU only
+// actually moves once the player clicks "Terminar turno" -- see
+// wireBoardButtons' endTurnBtn handler. This lets the player review the
+// result of their own action (damage dealt, effects applied, etc. in the
+// log) before the board changes again.
 function afterPlayerAction() {
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); return; }
-  var pendingPlayerPrize = gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player';
-  if (gameState.activePlayerId === 'cpu' && !pendingPlayerPrize) {
-    cpuTakeTurn(gameState);
-    winner = getWinner(gameState);
-    if (winner) { finishMatch(winner); return; }
-  }
   renderBoard();
 }
 
@@ -249,7 +267,7 @@ function wireBoardButtons() {
       // a board-Pokémon click, since the board can even be completely empty.
       if (handCard.name === 'Bill' || handCard.name === 'Professor Oak') {
         var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
-        if (result && !result.legal) { logEvent(gameState, result.reason); }
+        if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
         selectedHandId = null;
         renderBoard();
         return;
@@ -296,7 +314,11 @@ function wireBoardButtons() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
-      if (gameState.activePlayerId === 'player') { endTurn(gameState); }
+      if (gameState.activePlayerId === 'player') {
+        endTurn(gameState);
+      } else if (gameState.activePlayerId === 'cpu') {
+        cpuTakeTurn(gameState);
+      }
       afterPlayerAction();
     });
   }
@@ -333,7 +355,7 @@ function wireBoardButtons() {
         attachEnergy(gameState, 'player', selectedHandId, instanceId);
       } else if (TRAINER_EFFECTS[handCard.name]) {
         var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
-        if (result && !result.legal) { logEvent(gameState, result.reason); }
+        if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
       }
       selectedHandId = null;
       renderBoard();

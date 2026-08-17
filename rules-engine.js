@@ -26,7 +26,9 @@ function expandDecklist(decklist) {
   return out;
 }
 
-function logEvent(state, msg) { state.log.push(msg); }
+// ownerId ('player' | 'cpu' | omitted for neutral/system lines) drives the
+// log line's color in the UI -- see ui.js's log rendering.
+function logEvent(state, msg, ownerId) { state.log.push({ msg: msg, ownerId: ownerId || null }); }
 
 function coinFlip(state) {
   var result = state.rng() < 0.5 ? 'H' : 'T';
@@ -54,7 +56,7 @@ function dealOpeningHand(state, playerId) {
     if (hasBasic) { break; }
     mulligans++;
   }
-  logEvent(state, translatePlayer(playerId) + ' roba su mano inicial (mulligans: ' + mulligans + ')');
+  logEvent(state, translatePlayer(playerId) + ' roba su mano inicial (mulligans: ' + mulligans + ')', playerId);
   return mulligans;
 }
 
@@ -94,7 +96,7 @@ function startMatch(state) {
   state.phase = 'playing';
   state.turnCounter = 1;
   state.activePlayerId = coinFlip(state) === 'H' ? 'player' : 'cpu';
-  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida');
+  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida', state.activePlayerId);
 }
 
 function makeFreshInstance(id, name, turnCounter) {
@@ -123,7 +125,7 @@ function playBasic(state, playerId, handId) {
   var card = p.hand.splice(idx, 1)[0];
   var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
   if (p.active === null) { p.active = instance; p.hasHadActive = true; } else { p.bench.push(instance); }
-  logEvent(state, translatePlayer(playerId) + ' juega ' + card.name + ' de básico');
+  logEvent(state, translatePlayer(playerId) + ' juega ' + card.name + ' de básico', playerId);
 }
 
 function findInstance(p, instanceId) {
@@ -150,7 +152,7 @@ function evolve(state, playerId, handId, targetInstanceId) {
   var target = findInstance(p, targetInstanceId);
   target.name = card.name;
   target.turnEnteredCurrentForm = state.turnCounter;
-  logEvent(state, translatePlayer(playerId) + ' evoluciona a ' + card.name);
+  logEvent(state, translatePlayer(playerId) + ' evoluciona a ' + card.name, playerId);
 }
 
 function canPayCost(instance, cost) {
@@ -189,7 +191,7 @@ function attachEnergy(state, playerId, handId, targetInstanceId) {
   var target = findInstance(p, targetInstanceId);
   target.attachedEnergy.push(ENERGY_TYPE_BY_CARD_NAME[card.name]);
   p.energyAttachedThisTurn = true;
-  logEvent(state, translatePlayer(playerId) + ' pone ' + translateCardName(card.name) + ' en ' + target.name);
+  logEvent(state, translatePlayer(playerId) + ' pone ' + translateCardName(card.name) + ' en ' + target.name, playerId);
 }
 
 function canRetreat(state, playerId, benchInstanceId) {
@@ -220,7 +222,7 @@ function retreat(state, playerId, benchInstanceId) {
   p.bench.push(p.active);
   p.active = incoming;
   p.retreatedThisTurn = true;
-  logEvent(state, translatePlayer(playerId) + ' se retira a ' + p.active.name);
+  logEvent(state, translatePlayer(playerId) + ' se retira a ' + p.active.name, playerId);
 }
 
 function hasStatus(instance, status) { return instance.statusConditions.indexOf(status) !== -1; }
@@ -345,7 +347,7 @@ function knockOutIfNeeded(state, ownerId, instance) {
   if (instance.damage < stats.hp) { return; }
   var owner = state.players[ownerId];
   var attackerId = opponentOf(ownerId);
-  logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado');
+  logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado', ownerId);
   if (owner.active && owner.active.id === instance.id) {
     owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
   } else {
@@ -364,11 +366,11 @@ function knockOutIfNeeded(state, ownerId, instance) {
         state.pendingPrizeChoice = { playerId: 'player', count: 0 };
       }
       state.pendingPrizeChoice.count += 1;
-      logEvent(state, 'Jugador debe elegir una carta de premio');
+      logEvent(state, 'Jugador debe elegir una carta de premio', 'player');
     } else {
       var prize = attackerPlayer.prizes.shift();
       attackerPlayer.hand.push(prize);
-      logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)');
+      logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)', attackerId);
     }
   }
 }
@@ -381,7 +383,7 @@ function takePrize(state, playerId, prizeIndex) {
   if (prizeIndex < 0 || prizeIndex >= p.prizes.length) { return; }
   var card = p.prizes.splice(prizeIndex, 1)[0];
   p.hand.push(card);
-  logEvent(state, translatePlayer(playerId) + ' toma un premio (' + p.prizes.length + ' restantes)');
+  logEvent(state, translatePlayer(playerId) + ' toma un premio (' + p.prizes.length + ' restantes)', playerId);
   if (state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === playerId) {
     state.pendingPrizeChoice.count -= 1;
     if (state.pendingPrizeChoice.count <= 0) { state.pendingPrizeChoice = null; }
@@ -407,12 +409,12 @@ function attack(state, playerId, attackName) {
   var stats = CARD_STATS[attacker.name];
   var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
 
-  logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName));
+  logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName), playerId);
 
   if (attacker.missChanceUntilTurn === state.turnCounter) {
     attacker.missChanceUntilTurn = null;
     if (coinFlip(state) === 'T') {
-      logEvent(state, attacker.name + ' falla el ataque (efecto de ' + translateAttackName('Sand-attack') + ')');
+      logEvent(state, attacker.name + ' falla el ataque (efecto de ' + translateAttackName('Sand-attack') + ')', playerId);
       endTurn(state);
       return;
     }
@@ -427,7 +429,7 @@ function attack(state, playerId, attackName) {
       // same pattern as Machoke's Submission self-damage). Confusion itself
       // does NOT clear on this flip (unlike Sleep/Paralysis).
       attacker.damage += 30;
-      logEvent(state, attacker.name + ' se hace daño por Confusión');
+      logEvent(state, attacker.name + ' se hace daño por Confusión', playerId);
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
       endTurn(state);
       return;
@@ -447,9 +449,9 @@ function attack(state, playerId, attackName) {
   }
 
   var damageDealt = defender.damage - beforeDamage;
-  if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño'); }
+  if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId); }
   var newStatuses = defender.statusConditions.filter(function (s) { return beforeStatus.indexOf(s) === -1; });
-  newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s)); });
+  newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
   endTurn(state);
@@ -463,7 +465,7 @@ function applyCheckupDamage(state, playerId) {
   // p.active only, never the bench, even defensively.
   if (p.active) {
     var instance = p.active;
-    if (hasStatus(instance, 'Poisoned')) { instance.damage += 10; logEvent(state, instance.name + ' sufre daño por veneno'); }
+    if (hasStatus(instance, 'Poisoned')) { instance.damage += 10; logEvent(state, instance.name + ' sufre daño por veneno', playerId); }
     if (hasStatus(instance, 'Burned')) {
       instance.damage += 10;
       if (coinFlip(state) === 'H') { instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Burned'; }); }
