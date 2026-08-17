@@ -121,6 +121,25 @@ function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
 }
 
+// Every card actually discarded this duel, face-up -- opened by clicking
+// the Discard pile (see deckDiscardHtml), only ever shown when non-empty.
+function openDiscardPileModal(ownerId) {
+  var p = gameState.players[ownerId];
+  document.getElementById('discardPileTitle').textContent =
+    (ownerId === 'player' ? 'Tu descarte' : 'Descarte del rival') + ' (' + p.discard.length + ')';
+  document.getElementById('discardPileGrid').innerHTML = p.discard.map(function (card) {
+    var url = CARD_IMAGE_BY_NAME[card.name];
+    if (!url) { return ''; }
+    return '<div class="discard-pile-card"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
+      '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
+  }).join('');
+  document.getElementById('discardPileModal').classList.remove('hidden');
+}
+
+function closeDiscardPileModal() {
+  document.getElementById('discardPileModal').classList.add('hidden');
+}
+
 // Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
 // stores just the type ('Water'), but the discard-choice modal needs the
 // real card name to look up its illustration.
@@ -224,6 +243,26 @@ function prizeColumnHtml(state, ownerId) {
   return html;
 }
 
+// Deck (always face-down, just a count) and Discard pile (face-down too --
+// only the count matters at a glance; the discard's actual cards are one
+// click away, see openDiscardPileModal) sitting beside that side's Bench
+// row: below my own Premios (my Bench comes after my Active+Premios row)
+// and above the CPU's (their Bench comes before their Active+Premios row).
+function deckDiscardHtml(state, ownerId) {
+  var p = state.players[ownerId];
+  var discardCount = p.discard.length;
+  var html = '<div class="deck-discard-wrap">';
+  html += '<div class="deck-discard-pile" title="Mazo">' +
+    '<img src="' + CARD_BACK_URL + '" alt="Mazo" loading="lazy">' +
+    '<p class="pile-label">Mazo (' + p.deck.length + ')</p></div>';
+  html += '<div class="deck-discard-pile' + (discardCount > 0 ? ' discard-pile-clickable' : '') + '"' +
+    (discardCount > 0 ? ' data-discard-owner="' + ownerId + '" title="Ver descarte"' : '') + '>' +
+    (discardCount > 0 ? '<img src="' + CARD_BACK_URL + '" alt="Descarte" loading="lazy">' : '<div class="pile-empty">Vacío</div>') +
+    '<p class="pile-label">Descarte (' + discardCount + ')</p></div>';
+  html += '</div>';
+  return html;
+}
+
 function attacksPanelHtml(s) {
   var p = s.players.player;
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
@@ -283,13 +322,12 @@ function renderBoard() {
   // compare at a glance instead of sitting up by their Bench.
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
-  html += '</div></div>';
+  html += '</div>' + deckDiscardHtml(s, 'cpu') + '</div>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
   html += '</div><div class="prize-column-wrap">' +
     '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU' + turnLightHtml(s, 'cpu') + '</h3>' +
     prizeColumnHtml(s, 'cpu') + '</div></div>';
-  html += '<p>Descarte CPU: ' + c.discard.length + '</p>';
 
   // Fixed 3-column row (left slot / Active / right slot) so the Active
   // Pokémon always sits dead center -- the left slot (start-match button)
@@ -305,8 +343,7 @@ function renderBoard() {
     prizeColumnHtml(s, 'player') + '</div></div>';
   html += '<div class="side-row"><div class="side-board">';
   html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
-  html += '</div></div>';
-  html += '<p>Descarte: ' + p.discard.length + '</p>';
+  html += '</div>' + deckDiscardHtml(s, 'player') + '</div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
 
@@ -546,6 +583,12 @@ function wireBoardButtons() {
       if (wonCardName) { openCardModal(wonCardName); }
     });
   });
+
+  document.querySelectorAll('.discard-pile-clickable').forEach(function (el) {
+    el.addEventListener('click', function () {
+      openDiscardPileModal(el.getAttribute('data-discard-owner'));
+    });
+  });
 }
 
 function startNewMatch() {
@@ -601,6 +644,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
   document.querySelector('#cardModal .card-modal-backdrop').addEventListener('click', closeCardModal);
+
+  document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
+  document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
 
   // Rendirse asks for confirmation (it hands the rival the win) instead of
   // ending the match on a single misclick -- Jugar (below) covers the
