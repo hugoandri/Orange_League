@@ -102,6 +102,7 @@
       if (user) {
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
+        if (unsubscribeEconomy) { unsubscribeEconomy(); }
         unsubscribeEconomy = initEconomyListener(user.uid);
       } else {
         if (unsubscribeEconomy) {

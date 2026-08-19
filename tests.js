@@ -531,35 +531,6 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('cpuTakeTurn advances the turn (attacked or explicitly ended turn)', state.turnCounter > beforeTurn);
 })();
 
-(function testEconomyPureFunctions() {
-  var econ = defaultEconomy();
-  check('starting coins is 150', econ.coins, 150);
-  check('starting collection is empty', Object.keys(econ.collection).length, 0);
-
-  econ = awardWin(econ);
-  check('win awards 75 coins', econ.coins, 225);
-
-  econ = awardLoss(econ);
-  check('loss awards 0 coins', econ.coins, 225);
-
-  var rng = function () { return 0.1; }; // deterministic picks
-  var result = buyBooster(econ, 'base', rng);
-  checkTrue('buyBooster succeeds with enough coins', result !== null);
-  check('buyBooster deducts 100 coins', result.economy.coins, 125);
-  check('buyBooster returns 11 cards', result.cards.length, 11);
-  var rarities = result.cards.map(function (c) { return c.r; });
-  var rareCount = rarities.filter(function (r) { return r === 'Rare' || r === 'Rare Holo'; }).length;
-  var uncommonCount = rarities.filter(function (r) { return r === 'Uncommon'; }).length;
-  var commonCount = rarities.filter(function (r) { return r === 'Common'; }).length;
-  check('booster has 1 rare/rare holo', rareCount, 1);
-  check('booster has 3 uncommon', uncommonCount, 3);
-  check('booster has 7 common', commonCount, 7);
-  check('buyBooster records the cards in the collection', Object.keys(result.economy.collection).length > 0, true);
-
-  var poorEcon = { coins: 10, collection: {} };
-  check('buyBooster returns null when coins are insufficient', buyBooster(poorEcon, 'base', rng), null);
-})();
-
 (function testGetWinnerNullAtGameStart() {
   var state = createGame(function () { return 0.42; });
   check('no false winner before either player has placed a Pokémon', getWinner(state), null);

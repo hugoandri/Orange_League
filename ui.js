@@ -26,6 +26,7 @@ var econState = null;
 var matchWinner = null;
 
 function renderCoinCount() {
+  if (!econState) { return; }
   var val = econState.coins;
   document.getElementById('coin-count').textContent = val;
   var floatEl = document.getElementById('coin-count-float');
@@ -678,6 +679,7 @@ var BOOSTER_PACK_NAMES = {
 var boosterSelectState = null;
 
 function renderShop() {
+  if (!econState) { document.getElementById('shopStats').innerHTML = '<div>Cargando…</div>'; return; }
   var total = 0;
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
     total += CARD_CATALOG[setKey].length;
@@ -717,6 +719,7 @@ function renderShopPlaceholder(title) {
 }
 
 function renderCollection() {
+  if (!econState) { document.getElementById('collectionStats').innerHTML = '<div>Cargando…</div>'; return; }
   var total = 0, owned = 0;
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
     CARD_CATALOG[setKey].forEach(function (c) {

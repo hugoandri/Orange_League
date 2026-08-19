@@ -1,6 +1,7 @@
 const { initializeApp } = require('firebase/app');
 const { getAuth, connectAuthEmulator, signInWithEmailAndPassword } = require('firebase/auth');
 const { getFunctions, connectFunctionsEmulator, httpsCallable } = require('firebase/functions');
+const { getFirestore, connectFirestoreEmulator, doc, getDoc } = require('firebase/firestore');
 const assert = require('assert');
 
 const app = initializeApp({ projectId: 'demo-test', apiKey: 'demo-key' });
@@ -8,6 +9,8 @@ const auth = getAuth(app);
 connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 const functions = getFunctions(app);
 connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+const db = getFirestore(app);
+connectFirestoreEmulator(db, '127.0.0.1', 8080);
 
 async function testCreateAccount() {
   const createAccount = httpsCallable(functions, 'createAccount');
@@ -78,6 +81,25 @@ async function testOpenBooster() {
   const res = await openBooster({ setKey: 'base' });
   assert.strictEqual(res.data.cards.length, 11, 'a booster has 11 cards');
   console.log('PASS: openBooster returns 11 cards');
+
+  const userDocRef = doc(db, 'users', auth.currentUser.uid);
+  const snapAfterFirst = await getDoc(userDocRef);
+  assert.strictEqual(snapAfterFirst.data().coins, 125, '225 starting - 100 for the booster = 125');
+  assert.ok(Object.keys(snapAfterFirst.data().collection).length > 0, 'the drawn cards were recorded in the collection');
+  console.log('PASS: openBooster deducts 100 coins and records the cards in the collection');
+
+  const res2 = await openBooster({ setKey: 'base' });
+  assert.strictEqual(res2.data.cards.length, 11, 'a second booster also has 11 cards');
+  const snapAfterSecond = await getDoc(userDocRef);
+  assert.strictEqual(snapAfterSecond.data().coins, 25, '125 - 100 = 25, not enough for a third booster');
+
+  try {
+    await openBooster({ setKey: 'base' });
+    assert.fail('expected insufficient coins to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: opening a booster with insufficient coins is rejected');
+  }
 
   try {
     await openBooster({ setKey: 'not-a-real-set' });

@@ -8,6 +8,8 @@ function initEconomyListener(uid) {
       if (!data) { return; }
       econState = { coins: data.coins, collection: data.collection || {} };
       renderCoinCount();
+    }, function (err) {
+      console.error('No se pudo escuchar los datos de la cuenta', err);
     });
 }
 

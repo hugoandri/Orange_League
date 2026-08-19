@@ -21,7 +21,9 @@
       "PROGRESS.md",
       "tests.html",
       "tests.js",
-      "run-tests.js"
+      "run-tests.js",
+      "firestore.rules",
+      "firestore.indexes.json"
     ]
   },
   "emulators": {

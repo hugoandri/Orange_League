@@ -37,7 +37,7 @@ exports.createAccount = onCall(async (request) => {
   try {
     userRecord = await admin.auth().createUser({ email: email, password: password });
   } catch (e) {
-    await usernameRef.delete();
+    await usernameRef.delete().catch(function () {});
     if (e.code === 'auth/email-already-exists') {
       throw new HttpsError('already-exists', 'Ese email ya está registrado.');
     }
@@ -54,7 +54,13 @@ exports.createAccount = onCall(async (request) => {
     collection: {},
     createdAt: FieldValue.serverTimestamp()
   });
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (e) {
+    await admin.auth().deleteUser(uid).catch(function () {});
+    await usernameRef.delete().catch(function () {});
+    throw new HttpsError('internal', 'No se pudo crear la cuenta.');
+  }
 
   return { uid: uid };
 });
@@ -107,7 +113,7 @@ exports.openBooster = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
   }
   const setKey = (request.data || {}).setKey;
-  if (!CARD_CATALOG[setKey]) {
+  if (!Object.prototype.hasOwnProperty.call(CARD_CATALOG, setKey)) {
     throw new HttpsError('invalid-argument', 'Set inválido.');
   }
 
