@@ -6,8 +6,12 @@ against a CPU opponent playing **Blackout**.
 
 ## How to play
 
-No install, no build step, no server. Just open `index.html` in a browser
-(double-click it, or `open index.html` on macOS).
+Needs a Firebase account now (see "Accounts & cloud economy" below) —
+double-clicking `index.html` directly no longer works because Firebase
+Auth requires the page to be served over http(s), not `file://`. For
+local development, run `firebase emulators:start` and open
+`http://127.0.0.1:5000`; the live version is hosted at
+https://pokemon-tcg-simulador.web.app.
 
 - **Jugar** tab: play a match against the CPU. Play Basics to your bench,
   evolve, attach one Energy per turn, play Trainer cards, retreat, and
@@ -35,10 +39,53 @@ ways:
 - A booster pack costs **100 coins** and contains **11 cards** (1
   Rare/Rare Holo + 3 Uncommon + 7 Common) drawn from whichever set you
   pick (Base, Jungle, or Fossil).
-- Coins and your collection persist across sessions in the browser's
-  `localStorage`, under the key `tcg_economy`. In-progress matches are
-  *not* persisted — starting the page fresh always starts a new match,
-  but keeps your coins/collection.
+- Coins and your collection persist per-account in the cloud (see below) —
+  they follow you across devices/browsers, not just one browser's
+  `localStorage`. In-progress matches are *not* persisted — starting the
+  page fresh always starts a new match, but keeps your coins/collection.
+
+## Accounts & cloud economy
+
+Coins and collection live per-account in Firestore — login is required to
+play. Accounts, purchases, and match rewards are all served by Firebase
+Cloud Functions, so the client never writes coins/collection directly. See
+`docs/superpowers/specs/2026-08-18-cuentas-firebase-design.md` for the full
+design (data model, Cloud Functions, security rules) and
+`docs/superpowers/plans/2026-08-18-cuentas-firebase.md` for how it was
+built.
+
+To develop locally against the Firebase Emulator Suite instead of the real
+project, uncomment the three `useEmulator(...)` lines in `firebase-init.js`,
+then run `firebase emulators:start --project demo-test` and open
+`http://127.0.0.1:5000`.
+
+Tests:
+- `node run-tests.js` — the game's own test suite (unchanged).
+- `node functions/test/pureEconomy.test.js` — pure reward/booster-draw logic.
+- `firebase emulators:exec --project demo-test --only firestore "node functions/test/rules.test.js"` — Firestore security rules.
+- `firebase emulators:exec --project demo-test --only auth,firestore,functions "node functions/test/callable.test.js"` — the 4 Cloud Functions end-to-end.
+- `firebase emulators:exec --project demo-test --only auth,firestore,functions "node functions/test/rateLimit.test.js"` — the `resolveLoginEmail` rate limit (run separately from `callable.test.js` — both call `resolveLoginEmail` and would exhaust a shared rate-limit bucket if run against the same emulator session).
+
+Deploy: `firebase deploy --project default`.
+
+## Card images
+
+All 228 Base Set/Jungle/Fossil card images live locally in `Cartas/`
+(mirroring `images.pokemontcg.io`'s own path structure), and the card back
+lives in `Cartas/Cardback.jpg` — both were originally hotlinked from
+external hosts, then downloaded after a content blocker was found to
+silently strip the card-back image for some players. `data-sets.js` is the
+source of truth for card image paths; `functions/lib/cardCatalog.js` is a
+deliberate duplicate of it for the Cloud Functions side (no bundler on the
+client, Node on the server) — if `data-sets.js` ever changes, re-sync it:
+
+```bash
+node -e "
+const fs = require('fs');
+const src = fs.readFileSync('data-sets.js', 'utf8');
+fs.writeFileSync('functions/lib/cardCatalog.js', src + '\nmodule.exports = CARD_CATALOG;\n');
+"
+```
 
 ## Architecture
 
@@ -50,9 +97,16 @@ data-*.js       static card/deck/set data
 rules-engine.js game state + pure action functions (DOM-free)
 card-effects.js attack-name -> effect fn, trainer-name -> effect fn
 ai.js           CPU heuristic decision logic
-economy.js      coins, booster purchase, collection (localStorage)
+firebase-init.js initializes the Firebase app (client SDK config)
+economy.js      Firestore listener + Cloud Function callers (coins, collection)
+auth-ui.js      login/signup/forgot-password flow + auth gating
 ui.js           the only file that touches the DOM
+functions/      Cloud Functions: createAccount, resolveLoginEmail,
+                awardMatchResult, openBooster — the only code allowed to
+                write coins/collection
 ```
 
-This is a personal local project, not a published package — no `npm`,
-no CI, no external dependencies.
+This started as a personal local project with no `npm`/CI/external
+dependencies for the game itself — that's still true for everything above.
+`functions/` is the one part of the repo with its own `package.json` and
+`node_modules` (Cloud Functions require Node.js).
