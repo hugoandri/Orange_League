@@ -65,9 +65,11 @@ function statusBadgeHtml(instance, flipped) {
 // filename: Jugador.jpg is the player, Rival.jpg is the CPU.
 var PROFILE_PHOTO_URL = { player: 'Perfil/Jugador.jpg', cpu: 'Perfil/Rival.jpg' };
 
-// Real Base Set-era card back, sourced from Bulbapedia (archives.bulbagarden.net),
-// verified reachable (HTTP 200) before use.
-var CARD_BACK_URL = 'https://archives.bulbagarden.net/media/upload/1/17/Cardback.jpg';
+// Real Base Set-era card back. Originally hotlinked from Bulbapedia
+// (archives.bulbagarden.net) -- moved to a local copy (Cartas/Cardback.jpg)
+// because ad blockers commonly filter that domain, leaving the card back
+// invisible for a meaningful share of players.
+var CARD_BACK_URL = 'Cartas/Cardback.jpg';
 
 // Real card artwork, reused from the same catalog data that backs the
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
