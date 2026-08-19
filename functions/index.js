@@ -56,3 +56,23 @@ exports.createAccount = onCall(async (request) => {
 
   return { uid: uid };
 });
+
+exports.resolveLoginEmail = onCall(async (request) => {
+  const username = (((request.data || {}).username) || '').trim().toLowerCase();
+  if (!username) {
+    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
+  }
+
+  const snap = await admin.firestore().collection('usernames').doc(username).get();
+  const uid = snap.exists ? snap.data().uid : null;
+  if (!uid || uid === 'pending') {
+    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
+  }
+
+  try {
+    const userRecord = await admin.auth().getUser(uid);
+    return { email: userRecord.email };
+  } catch (e) {
+    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
+  }
+});

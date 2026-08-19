@@ -33,8 +33,25 @@ async function testCreateAccount() {
   }
 }
 
+async function testResolveLoginEmail() {
+  const resolveLoginEmail = httpsCallable(functions, 'resolveLoginEmail');
+
+  const res = await resolveLoginEmail({ username: 'testuser1' });
+  assert.strictEqual(res.data.email, 'testuser1@example.com');
+  console.log('PASS: resolveLoginEmail finds the email for an existing username');
+
+  try {
+    await resolveLoginEmail({ username: 'nosuchuser' });
+    assert.fail('expected unknown username to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/not-found');
+    console.log('PASS: unknown username returns not-found');
+  }
+}
+
 async function main() {
   await testCreateAccount();
+  await testResolveLoginEmail();
   console.log('ALL CALLABLE TESTS PASSED');
   process.exit(0);
 }
