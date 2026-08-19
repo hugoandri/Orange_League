@@ -22,6 +22,19 @@
     return 'No se pudo crear la cuenta. Intentá de nuevo.';
   }
 
+  function friendlyProfileSaveError(err) {
+    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+      return 'La contraseña actual es incorrecta.';
+    }
+    if (err.code === 'auth/weak-password') {
+      return 'La contraseña nueva es muy débil.';
+    }
+    if (err.code === 'functions/already-exists' || err.code === 'functions/invalid-argument') {
+      return err.message;
+    }
+    return err.message || 'No se pudo guardar el perfil.';
+  }
+
   // Reads an image file, downscales it to at most maxSize px on its longest
   // side, and re-encodes as JPEG -- keeps the resulting data URL well under
   // updateProfile's server-side size cap without needing Firebase Storage.
@@ -127,6 +140,8 @@
       document.getElementById('editProfilePreviewImg').src = playerPhotoUrl();
       document.getElementById('editProfileUsername').value = (profileState && profileState.username) || '';
       document.getElementById('editProfilePhotoInput').value = '';
+      document.getElementById('editProfileCurrentPassword').value = '';
+      document.getElementById('editProfileNewPassword').value = '';
       document.getElementById('editProfileModal').classList.remove('hidden');
     });
 
@@ -149,27 +164,55 @@
     document.getElementById('editProfileSave').addEventListener('click', function () {
       var errorEl = document.getElementById('editProfileError');
       errorEl.textContent = '';
+
       var newUsername = document.getElementById('editProfileUsername').value.trim().toLowerCase();
       var currentUsername = (profileState && profileState.username) || '';
-      var payload = {};
-      if (newUsername && newUsername !== currentUsername) { payload.username = newUsername; }
-      if (pendingPhoto) { payload.photo = pendingPhoto; }
+      var currentPassword = document.getElementById('editProfileCurrentPassword').value;
+      var newPassword = document.getElementById('editProfileNewPassword').value;
 
-      if (!payload.username && !payload.photo) {
+      var profilePayload = {};
+      if (newUsername && newUsername !== currentUsername) { profilePayload.username = newUsername; }
+      if (pendingPhoto) { profilePayload.photo = pendingPhoto; }
+      var hasProfileChanges = !!(profilePayload.username || profilePayload.photo);
+
+      if (newPassword && newPassword.length < 6) {
+        errorEl.textContent = 'La contraseña nueva debe tener al menos 6 caracteres.';
+        return;
+      }
+      if (newPassword && !currentPassword) {
+        errorEl.textContent = 'Ingresá tu contraseña actual para cambiarla.';
+        return;
+      }
+      if (!hasProfileChanges && !newPassword) {
         document.getElementById('editProfileModal').classList.add('hidden');
         return;
       }
 
       var btn = document.getElementById('editProfileSave');
       btn.disabled = true;
-      updateProfileCloud(payload)
+
+      var chain = Promise.resolve();
+      if (newPassword) {
+        var user = firebase.auth().currentUser;
+        var credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+        chain = chain
+          .then(function () { return user.reauthenticateWithCredential(credential); })
+          .then(function () { return user.updatePassword(newPassword); });
+      }
+      if (hasProfileChanges) {
+        chain = chain.then(function () { return updateProfileCloud(profilePayload); });
+      }
+
+      chain
         .then(function () {
           btn.disabled = false;
+          document.getElementById('editProfileCurrentPassword').value = '';
+          document.getElementById('editProfileNewPassword').value = '';
           document.getElementById('editProfileModal').classList.add('hidden');
         })
         .catch(function (err) {
           btn.disabled = false;
-          errorEl.textContent = err.message || 'No se pudo guardar el perfil.';
+          errorEl.textContent = friendlyProfileSaveError(err);
         });
     });
 
