@@ -91,6 +91,77 @@
     </div>
   </div>
 
+  <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
+  <div id="authScreen">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img class="auth-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+      </div>
+
+      <form id="authLoginForm" class="auth-panel">
+        <h2 class="auth-title">Iniciar sesión</h2>
+        <label class="auth-label">Usuario
+          <input type="text" id="authLoginUsername" class="auth-input" autocomplete="username" required>
+        </label>
+        <label class="auth-label">Contraseña
+          <input type="password" id="authLoginPassword" class="auth-input" autocomplete="current-password" required>
+        </label>
+        <p class="auth-error" id="authLoginError"></p>
+        <button type="submit" class="auth-submit" id="authLoginSubmit">Entrar</button>
+        <div class="auth-links">
+          <a href="#" id="authShowForgot">Olvidé mi contraseña</a>
+          <a href="#" id="authShowSignup">Crear cuenta</a>
+        </div>
+      </form>
+
+      <form id="authSignupForm" class="auth-panel hidden">
+        <h2 class="auth-title">Crear cuenta</h2>
+        <label class="auth-label">Usuario
+          <input type="text" id="authSignupUsername" class="auth-input" autocomplete="username" required>
+        </label>
+        <label class="auth-label">Email
+          <input type="email" id="authSignupEmail" class="auth-input" autocomplete="email" required>
+        </label>
+        <label class="auth-label">Contraseña
+          <input type="password" id="authSignupPassword" class="auth-input" autocomplete="new-password" required>
+        </label>
+        <p class="auth-error" id="authSignupError"></p>
+        <button type="submit" class="auth-submit" id="authSignupSubmit">Crear cuenta</button>
+        <div class="auth-links">
+          <a href="#" id="authShowLoginFromSignup">Ya tengo cuenta</a>
+        </div>
+      </form>
+
+      <form id="authForgotForm" class="auth-panel hidden">
+        <h2 class="auth-title">Olvidé mi contraseña</h2>
+        <label class="auth-label">Usuario
+          <input type="text" id="authForgotUsername" class="auth-input" autocomplete="username" required>
+        </label>
+        <p class="auth-error" id="authForgotError"></p>
+        <p class="auth-message" id="authForgotMessage"></p>
+        <button type="submit" class="auth-submit" id="authForgotSubmit">Enviar mail de recuperación</button>
+        <div class="auth-links">
+          <a href="#" id="authShowLoginFromForgot">Volver a iniciar sesión</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="menuScreen" class="hidden">
+    <div class="menu-container">
+      <h2 class="menu-title">Menú Principal</h2>
+      <nav class="menu-nav">
+        <button type="button" class="menu-nav-btn">Jugar</button>
+        <button type="button" class="menu-nav-btn">Mi colección</button>
+        <button type="button" class="menu-nav-btn">Configuración</button>
+      </nav>
+    </div>
+    <footer class="menu-footer">
+      <span class="menu-version">v1.0 · Overgrowth vs Blackout · Base Set 1998</span>
+      <button type="button" class="menu-footer-btn" id="menuLogoutBtn">Cerrar sesión</button>
+    </footer>
+  </div>
+
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>

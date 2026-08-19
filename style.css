@@ -200,3 +200,31 @@ button.action-btn:hover{border-color:var(--focus);}
   gap:8px;max-height:60vh;overflow-y:auto;width:100%;}
 .discard-pile-card{text-align:center;font-size:0.65rem;}
 .discard-pile-card img{width:100%;border-radius:6px;display:block;margin-bottom:2px;}
+
+/* ===================== AUTH SCREEN ===================== */
+#authScreen{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  background:#0b1120;}
+#authScreen.hidden{display:none;}
+.auth-card{width:340px;max-width:90vw;background:rgba(20,25,40,0.9);border:1px solid rgba(201,168,76,0.2);
+  border-radius:12px;padding:28px 24px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+.auth-logo{display:flex;justify-content:center;margin-bottom:20px;}
+.auth-logo-img{height:56px;width:auto;object-fit:contain;filter:brightness(1.1);}
+.auth-panel.hidden{display:none;}
+.auth-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.1rem;color:#e8dcc0;
+  margin:0 0 18px;text-align:center;}
+.auth-label{display:flex;flex-direction:column;gap:4px;font-size:0.78rem;color:#8a7d5a;
+  font-weight:600;margin-bottom:14px;}
+.auth-input{padding:10px 12px;border:1px solid rgba(201,168,76,0.2);border-radius:6px;
+  background:rgba(11,17,32,0.6);color:#e8dcc0;font-size:0.9rem;}
+.auth-input:focus{outline:none;border-color:#c9a84c;}
+.auth-submit{width:100%;padding:12px;border:none;border-radius:8px;background:#c9a84c;
+  color:#0b1120;font-weight:700;font-size:0.9rem;cursor:pointer;transition:background 0.15s;}
+.auth-submit:hover{background:#ddbf66;}
+.auth-submit:disabled{background:#4a4328;color:#8a7d5a;cursor:default;}
+.auth-links{display:flex;justify-content:space-between;margin-top:14px;font-size:0.75rem;}
+.auth-links a{color:#8a7d5a;text-decoration:none;}
+.auth-links a:hover{color:#c9a84c;}
+.auth-error{color:#e05656;font-size:0.78rem;margin:-6px 0 12px;}
+.auth-error:empty{display:none;}
+.auth-message{color:#7fd88f;font-size:0.78rem;margin:-6px 0 12px;}
+.auth-message:empty{display:none;}
