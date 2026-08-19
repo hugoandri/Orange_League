@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { computeMatchReward } = require('./lib/pureEconomy');
 admin.initializeApp();
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -75,4 +76,27 @@ exports.resolveLoginEmail = onCall(async (request) => {
   } catch (e) {
     throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
   }
+});
+
+exports.awardMatchResult = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+  }
+  const result = (request.data || {}).result;
+  if (result !== 'win' && result !== 'loss') {
+    throw new HttpsError('invalid-argument', 'Resultado inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const delta = computeMatchReward(result);
+
+  const newCoins = await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const current = snap.exists ? snap.data().coins : 0;
+    const updated = current + delta;
+    tx.update(userRef, { coins: updated });
+    return updated;
+  });
+
+  return { coins: newCoins };
 });

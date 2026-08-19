@@ -1,5 +1,5 @@
 const { initializeApp } = require('firebase/app');
-const { getAuth, connectAuthEmulator } = require('firebase/auth');
+const { getAuth, connectAuthEmulator, signInWithEmailAndPassword } = require('firebase/auth');
 const { getFunctions, connectFunctionsEmulator, httpsCallable } = require('firebase/functions');
 const assert = require('assert');
 
@@ -49,9 +49,32 @@ async function testResolveLoginEmail() {
   }
 }
 
+async function testAwardMatchResult() {
+  await signInWithEmailAndPassword(auth, 'testuser1@example.com', 'password123');
+  const awardMatchResult = httpsCallable(functions, 'awardMatchResult');
+
+  const winRes = await awardMatchResult({ result: 'win' });
+  assert.strictEqual(winRes.data.coins, 225, '150 starting + 75 for a win');
+  console.log('PASS: a win pays 75 coins on top of the starting balance');
+
+  const lossRes = await awardMatchResult({ result: 'loss' });
+  assert.strictEqual(lossRes.data.coins, 225, 'a loss pays 0, balance unchanged');
+  console.log('PASS: a loss does not change the balance');
+
+  await auth.signOut();
+  try {
+    await awardMatchResult({ result: 'win' });
+    assert.fail('expected unauthenticated call to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/unauthenticated');
+    console.log('PASS: awardMatchResult requires auth');
+  }
+}
+
 async function main() {
   await testCreateAccount();
   await testResolveLoginEmail();
+  await testAwardMatchResult();
   console.log('ALL CALLABLE TESTS PASSED');
   process.exit(0);
 }
