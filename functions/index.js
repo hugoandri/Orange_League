@@ -1,7 +1,8 @@
 const admin = require('firebase-admin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { computeMatchReward } = require('./lib/pureEconomy');
+const { computeMatchReward, BOOSTER_COST, drawBoosterCards } = require('./lib/pureEconomy');
+const CARD_CATALOG = require('./lib/cardCatalog');
 admin.initializeApp();
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -99,4 +100,34 @@ exports.awardMatchResult = onCall(async (request) => {
   });
 
   return { coins: newCoins };
+});
+
+exports.openBooster = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+  }
+  const setKey = (request.data || {}).setKey;
+  if (!CARD_CATALOG[setKey]) {
+    throw new HttpsError('invalid-argument', 'Set inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+
+  const cards = await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? snap.data() : null;
+    if (!data || data.coins < BOOSTER_COST) {
+      throw new HttpsError('failed-precondition', 'No tenés suficientes monedas.');
+    }
+    const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random);
+    const newCollection = Object.assign({}, data.collection);
+    drawn.forEach(function (c) {
+      const key = setKey + '-' + c.num;
+      newCollection[key] = (newCollection[key] || 0) + 1;
+    });
+    tx.update(userRef, { coins: data.coins - BOOSTER_COST, collection: newCollection });
+    return drawn;
+  });
+
+  return { cards: cards };
 });

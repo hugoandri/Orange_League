@@ -71,10 +71,37 @@ async function testAwardMatchResult() {
   }
 }
 
+async function testOpenBooster() {
+  await signInWithEmailAndPassword(auth, 'testuser1@example.com', 'password123');
+  const openBooster = httpsCallable(functions, 'openBooster');
+
+  const res = await openBooster({ setKey: 'base' });
+  assert.strictEqual(res.data.cards.length, 11, 'a booster has 11 cards');
+  console.log('PASS: openBooster returns 11 cards');
+
+  try {
+    await openBooster({ setKey: 'not-a-real-set' });
+    assert.fail('expected an invalid set to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/invalid-argument');
+    console.log('PASS: an unknown setKey is rejected');
+  }
+
+  await auth.signOut();
+  try {
+    await openBooster({ setKey: 'base' });
+    assert.fail('expected unauthenticated call to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/unauthenticated');
+    console.log('PASS: openBooster requires auth');
+  }
+}
+
 async function main() {
   await testCreateAccount();
   await testResolveLoginEmail();
   await testAwardMatchResult();
+  await testOpenBooster();
   console.log('ALL CALLABLE TESTS PASSED');
   process.exit(0);
 }
