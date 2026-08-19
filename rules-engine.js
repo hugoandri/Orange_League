@@ -159,7 +159,7 @@ function canEvolve(state, playerId, handId, targetInstanceId) {
   if (!card || !target) { return false; }
   var stats = CARD_STATS[card.name];
   if (!stats || stats.supertype !== 'Pokémon' || stats.evolvesFrom !== target.name) { return false; }
-  if (state.turnCounter === 1) { return false; }
+  if (state.turnCounter <= 2 && target.turnEnteredCurrentForm <= 1) { return false; }
   return target.turnEnteredCurrentForm < state.turnCounter;
 }
 

@@ -7,89 +7,6 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="top">
-    <h1>Pokémon TCG Simulador</h1>
-    <span id="matchResult" class="match-result"></span>
-    <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
-    <button type="button" id="musicToggle" class="action-btn">🔈 Música</button>
-    <nav class="tabs">
-      <button type="button" id="tabBtnPlay" class="active">Jugar</button>
-      <button type="button" id="surrenderBtn" class="action-btn">Rendirse</button>
-      <button type="button" id="tabBtnCollection">Colección</button>
-    </nav>
-  </header>
-
-  <audio id="bgMusic" src="Songs/YGO-Free%20Duel.mp3" loop preload="none"></audio>
-
-  <main>
-    <section id="panelPlay" class="tab-panel active play-layout">
-      <aside id="card-viewer-panel">
-        <div id="cardViewer" class="card-viewer">
-          <p class="card-viewer-placeholder">Toca una carta para verla aquí.</p>
-        </div>
-      </aside>
-      <div id="app">Cargando...</div>
-      <aside id="log-panel">
-        <h4>Registro</h4>
-        <pre id="log"></pre>
-      </aside>
-    </section>
-    <section id="panelCollection" class="tab-panel">
-      <div id="booster-shop"></div>
-      <div id="collection-view"></div>
-    </section>
-  </main>
-
-  <div id="cardModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <img id="cardModalImg" src="" alt="">
-      <button type="button" id="cardModalClose" class="action-btn">Cerrar</button>
-    </div>
-  </div>
-
-  <div id="surrenderModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p>¿Seguro que quieres rendirte? Esto le dará la victoria al rival.</p>
-      <div>
-        <button type="button" id="surrenderConfirmBtn" class="action-btn">Sí</button>
-        <button type="button" id="surrenderCancelBtn" class="action-btn">No</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="energyDiscardModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p id="energyDiscardPrompt"></p>
-      <div id="energyDiscardGrid" class="energy-discard-grid"></div>
-      <div>
-        <button type="button" id="energyDiscardConfirm" class="action-btn" disabled>OK</button>
-        <button type="button" id="energyDiscardCancel" class="action-btn">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="matchEndModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p id="matchEndText" class="match-end-text"></p>
-      <div>
-        <button type="button" id="matchEndReplayBtn" class="action-btn">Volver a jugar</button>
-        <button type="button" id="matchEndCancelBtn" class="action-btn">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="discardPileModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content discard-pile-content">
-      <p id="discardPileTitle" class="discard-pile-title"></p>
-      <div id="discardPileGrid" class="discard-pile-grid"></div>
-      <button type="button" id="discardPileClose" class="action-btn">Cerrar</button>
-    </div>
-  </div>
 
   <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
   <div id="authScreen">
@@ -147,19 +64,303 @@
     </div>
   </div>
 
+  <!-- ===== MAIN MENU (PTCGO Style) ===== -->
   <div id="menuScreen" class="hidden">
-    <div class="menu-container">
-      <h2 class="menu-title">Menú Principal</h2>
+    <div class="menu-bg-art">
+      <div class="menu-bg-overlay"></div>
+    </div>
+    <header class="menu-header">
+      <div class="menu-logo">
+        <img class="menu-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+      </div>
+    </header>
+    <div class="menu-body">
       <nav class="menu-nav">
-        <button type="button" class="menu-nav-btn">Jugar</button>
-        <button type="button" class="menu-nav-btn">Mi colección</button>
-        <button type="button" class="menu-nav-btn">Configuración</button>
+        <button type="button" class="menu-nav-btn" id="menuPlay">
+          <span class="mnb-icon">⚔️</span>
+          <div class="mnb-text">
+            <span class="mnb-title">Jugar</span>
+            <span class="mnb-sub">Duelo contra la CPU</span>
+          </div>
+          <span class="mnb-arrow">›</span>
+        </button>
+        <button type="button" class="menu-nav-btn" id="menuShop">
+          <span class="mnb-icon">🛒</span>
+          <div class="mnb-text">
+            <span class="mnb-title">Tienda</span>
+            <span class="mnb-sub">Sobres y boosters</span>
+          </div>
+          <span class="mnb-arrow">›</span>
+        </button>
+        <button type="button" class="menu-nav-btn" id="menuCollection">
+          <span class="mnb-icon">📚</span>
+          <div class="mnb-text">
+            <span class="mnb-title">Mi Colección</span>
+            <span class="mnb-sub">Cartas obtenidas</span>
+          </div>
+          <span class="mnb-arrow">›</span>
+        </button>
+        <button type="button" class="menu-nav-btn" id="menuConfig">
+          <span class="mnb-icon">⚙️</span>
+          <div class="mnb-text">
+            <span class="mnb-title">Configuración</span>
+            <span class="mnb-sub">Opciones del juego</span>
+          </div>
+          <span class="mnb-arrow">›</span>
+        </button>
       </nav>
     </div>
     <footer class="menu-footer">
       <span class="menu-version">v1.0 · Overgrowth vs Blackout · Base Set 1998</span>
       <button type="button" class="menu-footer-btn" id="menuLogoutBtn">Cerrar sesión</button>
     </footer>
+  </div>
+
+  <!-- ===== HEADER (game) ===== -->
+  <header class="top">
+    <h1>Pokémon TCG Simulador</h1>
+    <span id="matchResult" class="match-result"></span>
+    <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
+    <button type="button" id="themeToggle" class="action-btn">🌙</button>
+    <button type="button" id="musicToggle" class="action-btn">🔈 Música</button>
+    <nav class="tabs">
+      <button type="button" id="tabBtnMenu" class="action-btn">Menú</button>
+      <button type="button" id="tabBtnPlay" class="active">Jugar</button>
+      <button type="button" id="tabBtnShop">Tienda</button>
+      <button type="button" id="tabBtnCollection">Colección</button>
+      <button type="button" id="surrenderBtn" class="action-btn">Rendirse</button>
+    </nav>
+  </header>
+
+  <audio id="bgMusic" src="Songs/YGO-Free%20Duel.mp3" loop preload="none"></audio>
+
+  <div id="coinFloat" class="coin-float" style="display:none;">
+    <img class="coin-float-photo" src="Perfil/Jugador.jpg" alt="">
+    <span class="coin-float-name">Jugador</span>
+    <span class="coin-float-coins">Monedas: <span id="coin-count-float">--</span></span>
+  </div>
+
+  <main>
+    <section id="panelPlay" class="tab-panel active play-layout">
+      <aside id="card-viewer-panel">
+        <div id="cardViewer" class="card-viewer">
+          <p class="card-viewer-placeholder">Toca una carta para verla aquí.</p>
+        </div>
+      </aside>
+      <div id="app">Cargando...</div>
+      <aside id="log-panel">
+        <h4>Registro</h4>
+        <pre id="log"></pre>
+      </aside>
+    </section>
+    <section id="panelShop" class="tab-panel">
+      <div class="collection-layout">
+        <aside class="collection-sidebar">
+          <h4>Tienda</h4>
+          <button type="button" class="collection-nav active" id="shopNavBoosters">Sobres</button>
+          <button type="button" class="collection-nav" id="shopNavDecks">Mazos</button>
+          <button type="button" class="collection-nav" id="shopNavSpecial">Ediciones especiales</button>
+          <button type="button" class="collection-nav collection-nav-exit" id="shopNavExit">Volver al menú</button>
+          <div class="collection-profile">
+            <img class="collection-profile-photo" src="Perfil/Jugador.jpg" alt="">
+            <span class="collection-profile-name">Jugador</span>
+          </div>
+          <div class="collection-stats" id="shopStats"></div>
+        </aside>
+        <div id="shop-content" class="collection-content"></div>
+      </div>
+    </section>
+    <section id="panelCollection" class="tab-panel">
+      <div class="collection-layout">
+        <aside class="collection-sidebar">
+          <h4>Mi Colección</h4>
+          <button type="button" class="collection-nav active" id="navOwned">Mis Cartas</button>
+          <button type="button" class="collection-nav" id="navAll">Colección Completa</button>
+          <button type="button" class="collection-nav collection-nav-exit" id="navExit">Volver al menú</button>
+          <div class="collection-profile">
+            <img class="collection-profile-photo" src="Perfil/Jugador.jpg" alt="">
+            <span class="collection-profile-name">Jugador</span>
+          </div>
+          <div id="collectionStats" class="collection-stats"></div>
+        </aside>
+        <div id="collection-content" class="collection-content"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="cardModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <img id="cardModalImg" src="" alt="">
+      <button type="button" id="cardModalClose" class="action-btn">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="surrenderModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <p>¿Seguro que quieres rendirte? Esto le dará la victoria al rival.</p>
+      <div>
+        <button type="button" id="surrenderConfirmBtn" class="action-btn">Sí</button>
+        <button type="button" id="surrenderCancelBtn" class="action-btn">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="energyDiscardModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <p id="energyDiscardPrompt"></p>
+      <div id="energyDiscardGrid" class="energy-discard-grid"></div>
+      <div>
+        <button type="button" id="energyDiscardConfirm" class="action-btn" disabled>OK</button>
+        <button type="button" id="energyDiscardCancel" class="action-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="matchEndModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <p id="matchEndText" class="match-end-text"></p>
+      <div>
+        <button type="button" id="matchEndReplayBtn" class="action-btn">Volver a jugar</button>
+        <button type="button" id="matchEndCancelBtn" class="action-btn">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="discardPileModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content discard-pile-content">
+      <p id="discardPileTitle" class="discard-pile-title"></p>
+      <div id="discardPileGrid" class="discard-pile-grid"></div>
+      <button type="button" id="discardPileClose" class="action-btn">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="pauseModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content pause-modal-content">
+      <h3 class="pause-title">Pausa</h3>
+      <div class="pause-buttons">
+        <button type="button" class="pause-btn" id="pauseResume">▶️ Reanudar</button>
+        <button type="button" class="pause-btn" id="pauseConfig">⚙️ Configuración</button>
+        <button type="button" class="pause-btn" id="pauseSurrender">🏳️ Rendirse</button>
+        <button type="button" class="pause-btn" id="pauseMusic">🔈 Música</button>
+        <button type="button" class="pause-btn pause-exit" id="pauseExit">🏠 Salir al Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="configModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content config-modal-content">
+      <div id="configMenu">
+        <h3 class="config-title">⚙️ Configuración</h3>
+        <div class="config-actions">
+          <button type="button" class="pause-btn" id="configBgBtn">🖼️ Configurar Portada</button>
+          <button type="button" class="pause-btn" id="configThemeToggle">🌙 Modo Oscuro</button>
+          <button type="button" class="pause-btn pause-exit" id="configCloseMenu">← Volver al Menú</button>
+        </div>
+      </div>
+      <div id="configBgPanel" class="config-hidden">
+        <h3 class="config-title">🖼️ Configurar Portada</h3>
+        <div class="config-section">
+          <p class="config-desc">Elegí una imagen, ajustá el tamaño y la posición</p>
+          <div class="config-preview" id="configPreview">
+            <img id="configPreviewImg" src="" alt="">
+            <div class="config-preview-placeholder">Sin imagen</div>
+          </div>
+          <div class="config-controls">
+            <label class="config-label">
+              Seleccionar imagen
+              <input type="file" id="configFileInput" accept="image/*" class="config-file-input">
+            </label>
+            <div class="config-slider-row">
+              <label>Ancho: <span id="configWidthVal">100</span>%</label>
+              <input type="range" id="configWidth" min="10" max="200" value="100" class="config-slider">
+            </div>
+            <div class="config-slider-row">
+              <label>Alto: <span id="configHeightVal">100</span>%</label>
+              <input type="range" id="configHeight" min="10" max="200" value="100" class="config-slider">
+            </div>
+            <div class="config-slider-row">
+              <label>Posición X: <span id="configXVal">50</span>%</label>
+              <input type="range" id="configX" min="0" max="100" value="50" class="config-slider">
+            </div>
+            <div class="config-slider-row">
+              <label>Posición Y: <span id="configYVal">50</span>%</label>
+              <input type="range" id="configY" min="0" max="100" value="50" class="config-slider">
+            </div>
+          </div>
+        </div>
+        <div class="config-divider"></div>
+        <div class="config-section">
+          <h4>Logo y Menú</h4>
+          <div class="config-toggle-row">
+            <label class="config-toggle-label">Mostrar logo</label>
+            <button type="button" class="config-toggle" id="configLogoToggle">ON</button>
+          </div>
+          <div class="config-position-btns">
+            <button type="button" class="pause-btn config-pos-btn" id="configMoveBoth">🏷️ Mover Logo y Opciones</button>
+          </div>
+          <button type="button" class="pause-btn" id="configResetPositions">📍 Restaurar posiciones</button>
+        </div>
+        <div class="config-actions">
+          <button type="button" class="pause-btn" id="configSave">💾 Guardar</button>
+          <button type="button" class="pause-btn" id="configReset">🔄 Restaurar por defecto</button>
+          <button type="button" class="pause-btn pause-exit" id="configBack">← Volver</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="positionModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content position-modal-content">
+      <h3 class="config-title">Posicionar Logo y Opciones</h3>
+      <p class="config-desc">Arrastrá el logo y las opciones a donde quieras</p>
+      <div class="position-preview" id="positionPreview">
+        <div class="pos-logo" id="posDragLogo">POKÉMON TCG</div>
+        <div class="pos-nav" id="posDragNav">
+          <div class="pos-nav-btn">⚔️ Jugar</div>
+          <div class="pos-nav-btn">🛒 Tienda</div>
+          <div class="pos-nav-btn">📚 Colección</div>
+          <div class="pos-nav-btn">⚙️ Config</div>
+        </div>
+      </div>
+      <div class="config-actions">
+        <button type="button" class="pause-btn" id="posSave">💾 Guardar</button>
+        <button type="button" class="pause-btn pause-exit" id="posCancel">← Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="boosterSelectModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <div class="booster-modal-header">
+        <h3 id="boosterModalTitle">Sobre</h3>
+        <span class="booster-modal-price">100 monedas</span>
+        <button type="button" id="boosterModalClose" class="booster-modal-close">✕</button>
+      </div>
+      <p id="boosterModalSubtitle" class="booster-modal-subtitle">Elige la ilustración del sobre</p>
+      <div id="boosterModalGrid" class="booster-variant-grid"></div>
+      <div class="booster-modal-footer">
+        <span class="bm-selected-info">Toca un sobre para seleccionarlo</span>
+        <button type="button" id="boosterOpenBtn" class="bm-open-btn" disabled>Abrir Sobre</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="boosterResultModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content booster-result-content">
+      <h3 class="booster-result-title">¡Sobre abierto!</h3>
+      <div id="boosterResultGrid" class="booster-result-grid"></div>
+      <button type="button" id="boosterResultClose" class="bm-open-btn">OK</button>
+    </div>
   </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>

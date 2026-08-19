@@ -1,6 +1,24 @@
 var gameState = null;
 var econState = null;
 
+// Force clear broken portada positions and old backgrounds
+(function () {
+  try {
+    var bg = localStorage.getItem('tcg_menu_bg');
+    if (bg && (bg.indexOf('portada.png') !== -1 || bg.indexOf('.html') !== -1)) {
+      localStorage.removeItem('tcg_menu_bg');
+    }
+    var pos = JSON.parse(localStorage.getItem('tcg_menu_pos'));
+    var isOldFormat = pos && ((pos.nav && pos.nav.dx === undefined) || (pos.logo && pos.logo.dx === undefined));
+    var isOutOfBounds = pos && ((pos.nav && (pos.nav.y > 800 || pos.nav.y < -100 || pos.nav.x > 1200 || pos.nav.x < -300)) ||
+        (pos.logo && (pos.logo.y > 800 || pos.logo.y < -100 || pos.logo.x > 1200 || pos.logo.x < -300)));
+    if (pos && (isOldFormat || isOutOfBounds)) {
+      localStorage.removeItem('tcg_menu_pos');
+      localStorage.removeItem('tcg_menu_logo');
+    }
+  } catch (e) {}
+})();
+
 // Tracked separately from getWinner(gameState) because a surrender ends the
 // match without the underlying game state actually reaching a real win
 // condition (prizes emptied, etc.) -- this is the source of truth the
@@ -8,7 +26,10 @@ var econState = null;
 var matchWinner = null;
 
 function renderCoinCount() {
-  document.getElementById('coin-count').textContent = econState.coins;
+  var val = econState.coins;
+  document.getElementById('coin-count').textContent = val;
+  var floatEl = document.getElementById('coin-count-float');
+  if (floatEl) { floatEl.textContent = val; }
 }
 
 // Syncs the header's result text ("Ganaste"/"Perdiste") and the Rendirse
@@ -30,6 +51,15 @@ function updateHeaderControls() {
 
 var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
 
+var STATUS_EMOJI = { Asleep: '😴', Paralyzed: '⛓️', Poisoned: '☠️', Burned: '🔥', Confused: '😵' };
+
+function statusBadgeHtml(instance, flipped) {
+  if (!instance.statusConditions.length) { return ''; }
+  var cls = 'status-badge' + (flipped ? ' status-badge-bottom' : '');
+  return '<span class="' + cls + '" title="' + instance.statusConditions.map(translateStatus).join(', ') + '">' +
+    instance.statusConditions.map(function (s) { return STATUS_EMOJI[s] || ''; }).join('') + '</span>';
+}
+
 // Profile photos supplied by the user (Perfil/), matched to each side by
 // filename: Jugador.jpg is the player, Rival.jpg is the CPU.
 var PROFILE_PHOTO_URL = { player: 'Perfil/Jugador.jpg', cpu: 'Perfil/Rival.jpg' };
@@ -42,7 +72,9 @@ var CARD_BACK_URL = 'https://archives.bulbagarden.net/media/upload/1/17/Cardback
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
 // Blackout is a Base Set card, so this lookup covers the whole game.
 var CARD_IMAGE_BY_NAME = {};
-(CARD_CATALOG.base || []).forEach(function (c) { CARD_IMAGE_BY_NAME[c.n] = c.img; });
+['base', 'jungle', 'fossil'].forEach(function (setKey) {
+  (CARD_CATALOG[setKey] || []).forEach(function (c) { CARD_IMAGE_BY_NAME[c.n] = c.img; });
+});
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, function (c) {
@@ -203,7 +235,7 @@ function pokemonCardHtml(instance, isActive, ownerClass, big, flipped) {
     '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ');
   var imgHtml = cardImageTag(instance.name, 'card-thumb' + (flipped ? ' card-thumb-flipped' : ''));
   var body = flipped ? (infoHtml + imgHtml) : (imgHtml + infoHtml);
-  return '<div class="' + cls + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' + body + '</div>';
+  return '<div class="' + cls + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' + statusBadgeHtml(instance, flipped) + body + '</div>';
 }
 
 function activeSlotHtml(activeInstance, ownerClass, flipped) {
@@ -233,11 +265,16 @@ function benchSlotsHtml(bench, ownerId, flipped) {
 function prizeColumnHtml(state, ownerId) {
   var p = state.players[ownerId];
   var choosable = ownerId === 'player' && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
+  var totalSlots = 6;
   var html = '<div class="prize-column"><p class="prize-label">Premios (' + p.prizes.length + ')</p><div class="prize-grid">';
-  for (var i = 0; i < p.prizes.length; i++) {
-    var cls = 'prize-card' + (choosable ? ' prize-choosable' : '');
-    html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
-      '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo" loading="lazy"></div>';
+  for (var i = 0; i < totalSlots; i++) {
+    if (i < p.prizes.length) {
+      var cls = 'prize-card' + (choosable ? ' prize-choosable' : '');
+      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
+        '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo" loading="lazy"></div>';
+    } else {
+      html += '<div class="prize-card prize-empty"></div>';
+    }
   }
   html += '</div></div>';
   return html;
@@ -303,7 +340,7 @@ function playControlsHtml(s) {
   var p = s.players.player;
   var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
   return '<div class="attacks-panel setup-panel">' +
-    '<button class="action-btn" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>Retirar</button><br>' +
+    '<button class="action-btn" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>Cambiar Pokémon</button><br>' +
     '<button class="action-btn" id="endTurnBtn">Terminar turno</button></div>';
 }
 
@@ -321,36 +358,41 @@ function renderBoard() {
   // of that side's own Active row (a separate flex row from the Bench) so
   // the rival's remaining prizes are always level with mine, easy to
   // compare at a glance instead of sitting up by their Bench.
+  // CPU sidebar: deck/discard → prizes → profile/name (stacked vertically)
   html += '<div class="side-row"><div class="side-board">';
-  html += '<p class="bench-label">Banca (' + c.bench.length + '/5)</p>' + benchSlotsHtml(c.bench, 'cpu', true);
-  html += '</div>' + deckDiscardHtml(s, 'cpu') + '</div>';
-  html += '<div class="side-row"><div class="side-board">';
-  html += '<p class="active-label">Activo</p>' + activeSlotHtml(c.active, 'active-cpu', true);
-  html += '</div><div class="prize-column-wrap">' +
+  html += '<div class="cpu-hand-row">';
+  for (var i = 0; i < c.hand.length; i++) {
+    html += '<div class="cpu-hand-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo" loading="lazy"></div>';
+  }
+  html += '</div>';
+  html += benchSlotsHtml(c.bench, 'cpu', true);
+  html += activeSlotHtml(c.active, 'active-cpu', true);
+  html += '</div><div class="cpu-sidebar">' +
+    deckDiscardHtml(s, 'cpu') +
+    '<div class="cpu-sidebar-gap"></div>' +
+    prizeColumnHtml(s, 'cpu') +
+    '<div class="cpu-sidebar-gap"></div>' +
     '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU' + turnLightHtml(s, 'cpu') + '</h3>' +
-    prizeColumnHtml(s, 'cpu') + '</div></div>';
+    '</div></div>';
 
-  // Fixed 3-column row (left slot / Active / right slot) so the Active
-  // Pokémon always sits dead center -- the left slot (start-match button)
-  // and right slot (attacks) each reserve their column's space even when
-  // empty, so neither one appearing/disappearing shifts the Active card.
+  // Player Active + attacks
   html += '<div class="side-row"><div class="side-board">';
   html += '<div class="active-with-attacks">';
   html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
-  html += '<div class="active-slot"><p class="active-label">Activo</p>' + activeSlotHtml(p.active, 'active-player') + '</div>';
+  html += '<div class="active-slot">' + activeSlotHtml(p.active, 'active-player') + '</div>';
   html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
-  html += '</div></div><div class="prize-column-wrap">' +
+  html += '</div></div>';
+  // Player sidebar: profile/name → prizes → deck/discard
+  html += '<div class="cpu-sidebar">' +
     '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú' + turnLightHtml(s, 'player') + '</h3>' +
-    prizeColumnHtml(s, 'player') + '</div></div>';
-  html += '<div class="side-row"><div class="side-board">';
-  html += '<p class="bench-label">Banca (' + p.bench.length + '/5)</p>' + benchSlotsHtml(p.bench, 'player');
-  // Every other row (this side's Active, Mano, and the CPU's own Bench) has
-  // a same-width right-side sibling (prize-column-wrap or deck-discard-wrap,
-  // both 111px) that narrows its side-board by the same amount -- without
-  // one here, this row's side-board was 111px+gap wider than the rest,
-  // shifting the Bench's centered content out of alignment with the
-  // (narrower, centered) Active row above it. This invisible spacer just
-  // reserves that same width so the centering matches.
+    '<div class="cpu-sidebar-gap"></div>' +
+    prizeColumnHtml(s, 'player') +
+    '<div class="cpu-sidebar-gap"></div>' +
+    deckDiscardHtml(s, 'player') +
+    '</div></div>';
+  // Player Bench (below active)
+  html += '<div class="side-row player-bench-row"><div class="side-board">';
+  html += benchSlotsHtml(p.bench, 'player');
   html += '</div><div class="side-spacer"></div></div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
@@ -373,7 +415,7 @@ function renderBoard() {
       '<button class="action-btn hand-card" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
       cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button></div>';
   });
-  html += '</div></div>' + deckDiscardHtml(s, 'player') + '</div>';
+  html += '</div></div></div>';
 
   document.getElementById('app').innerHTML = html;
   document.getElementById('log').innerHTML = logHtml(s);
@@ -609,57 +651,636 @@ function startNewMatch() {
   renderBoard();
 }
 
-function renderCollection() {
-  var html = '<h3>Comprar sobre</h3>';
+var BOOSTER_PACKS = {
+  base: [
+    'Sobres/base.webp',
+    'Sobres/base-blastoise.webp',
+    'Sobres/base-venusaur.webp'
+  ],
+  jungle: [
+    'Sobres/jungle.webp',
+    'Sobres/jungle-flareon.webp',
+    'Sobres/jungle-wigglytuff.webp'
+  ],
+  fossil: [
+    'Sobres/fossil.webp',
+    'Sobres/fossil-aerodactyl.webp',
+    'Sobres/fossil-zapdos.webp'
+  ]
+};
+var BOOSTER_NAMES = { base: 'Base Set', jungle: 'Jungle', fossil: 'Fossil' };
+
+var BOOSTER_PACK_NAMES = {
+  base: { 'base.webp': 'Charizard', 'base-blastoise.webp': 'Blastoise', 'base-venusaur.webp': 'Venusaur' },
+  jungle: { 'jungle.webp': 'Scyther', 'jungle-flareon.webp': 'Flareon', 'jungle-wigglytuff.webp': 'Wigglytuff' },
+  fossil: { 'fossil.webp': 'Lapras', 'fossil-aerodactyl.webp': 'Aerodactyl', 'fossil-zapdos.webp': 'Zapdos' }
+};
+
+var boosterSelectState = null;
+
+function renderShop() {
+  var total = 0;
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-    html += '<button class="action-btn buy-booster-btn" data-set="' + setKey + '">Comprar sobre (' + setKey + ') — 100 monedas</button>';
+    total += CARD_CATALOG[setKey].length;
   });
-  document.getElementById('booster-shop').innerHTML = html;
-  document.querySelectorAll('.buy-booster-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var result = buyBooster(econState, btn.getAttribute('data-set'), Math.random);
-      if (!result) { alert('No tienes suficientes monedas.'); return; }
-      econState = result.economy;
-      saveEconomy(econState);
-      renderCoinCount();
-      renderCollectionGrid();
-    });
-  });
-  renderCollectionGrid();
+  document.getElementById('shopStats').innerHTML =
+    '<div>Monedas: <strong>' + econState.coins + '</strong></div>';
+  renderShopBoosters();
 }
 
-function renderCollectionGrid() {
-  var total = 0, owned = 0;
-  var html = '';
+function renderShopBoosters() {
+  var html = '<h3 style="font-family:Sora,sans-serif;font-weight:700;margin:0 0 16px;">Sobres de boosters</h3>';
+  html += '<div class="booster-shop-grid">';
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-    html += '<h4>' + setKey + '</h4><div class="board-row">';
+    var total = CARD_CATALOG[setKey].length;
+    var packs = BOOSTER_PACKS[setKey];
+    var randomPack = packs[Math.floor(Math.random() * packs.length)];
+    html += '<div class="booster-pack" data-set="' + setKey + '">' +
+      '<img src="' + randomPack + '" alt="' + BOOSTER_NAMES[setKey] + '">' +
+      '<div class="booster-pack-name">' + BOOSTER_NAMES[setKey] + '</div>' +
+      '<div class="booster-pack-price">100 monedas · 11 cartas</div>' +
+      '<div class="booster-pack-count">' + total + ' cartas</div>' +
+      '</div>';
+  });
+  html += '</div>';
+  document.getElementById('shop-content').innerHTML = html;
+
+  document.querySelectorAll('.booster-pack').forEach(function (el) {
+    el.addEventListener('click', function () {
+      openBoosterSelectModal(el.getAttribute('data-set'));
+    });
+  });
+}
+
+function renderShopPlaceholder(title) {
+  document.getElementById('shop-content').innerHTML =
+    '<p style="color:var(--ink-soft);padding:40px 20px;text-align:center;">Próximamente: ' + title + '</p>';
+}
+
+function renderCollection() {
+  var total = 0, owned = 0;
+  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
     CARD_CATALOG[setKey].forEach(function (c) {
       total++;
       var key = setKey + '-' + c.num;
+      if ((econState.collection[key] || 0) > 0) { owned++; }
+    });
+  });
+  document.getElementById('collectionStats').innerHTML =
+    '<div>' + owned + ' / ' + total + ' cartas</div>' +
+    '<div>' + Math.round(owned / total * 100) + '% completado</div>';
+  renderCollectionOwned();
+}
+
+function openBoosterSelectModal(setKey) {
+  var packs = BOOSTER_PACKS[setKey];
+  var names = BOOSTER_PACK_NAMES[setKey];
+  var html = '';
+  packs.forEach(function (src, i) {
+    var fileName = src.split('/').pop();
+    var name = names[fileName] || BOOSTER_NAMES[setKey];
+    html += '<div class="booster-variant" data-index="' + i + '">' +
+      '<img src="' + src + '" alt="' + name + '">' +
+      '<div class="bv-name">' + name + '</div>' +
+      '</div>';
+  });
+  document.getElementById('boosterModalTitle').textContent = 'Sobre ' + BOOSTER_NAMES[setKey];
+  document.getElementById('boosterModalGrid').innerHTML = html;
+  document.getElementById('boosterOpenBtn').disabled = true;
+  document.querySelector('#boosterSelectModal .bm-selected-info').textContent = 'Toca un sobre para seleccionarlo';
+  boosterSelectState = { setKey: setKey, selectedPack: null };
+
+  document.querySelectorAll('.booster-variant').forEach(function (el) {
+    el.addEventListener('click', function () {
+      document.querySelectorAll('.booster-variant').forEach(function (v) { v.classList.remove('selected'); });
+      el.classList.add('selected');
+      boosterSelectState.selectedPack = parseInt(el.getAttribute('data-index'), 10);
+      document.getElementById('boosterOpenBtn').disabled = false;
+      var fileName = packs[boosterSelectState.selectedPack].split('/').pop();
+      var chosenName = names[fileName] || BOOSTER_NAMES[setKey];
+      document.querySelector('#boosterSelectModal .bm-selected-info').innerHTML =
+        'Seleccionado: <strong>' + chosenName + '</strong>';
+    });
+  });
+
+  document.getElementById('boosterSelectModal').classList.remove('hidden');
+}
+
+function closeBoosterSelectModal() {
+  document.getElementById('boosterSelectModal').classList.add('hidden');
+  boosterSelectState = null;
+}
+
+function openBoosterAndPurchase() {
+  if (!boosterSelectState || boosterSelectState.selectedPack === null) { return; }
+  var result = buyBooster(econState, boosterSelectState.setKey, Math.random);
+  if (!result) {
+    alert('No tienes suficientes monedas.');
+    closeBoosterSelectModal();
+    return;
+  }
+  econState = result.economy;
+  saveEconomy(econState);
+  renderCoinCount();
+  closeBoosterSelectModal();
+  showBoosterResult(result.cards);
+}
+
+function showBoosterResult(cards) {
+  var html = '';
+  cards.forEach(function (c) {
+    var url = CARD_IMAGE_BY_NAME[c.n] || '';
+    var isRare = c.r === 'Rare' || c.r === 'Rare Holo';
+    html += '<div class="booster-result-card' + (isRare ? ' rare' : '') + '" data-card-name="' + escapeHtml(c.n) + '">' +
+      (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
+      '<div class="brc-name">' + escapeHtml(translateCardName(c.n)) + '</div>' +
+      '</div>';
+  });
+  document.getElementById('boosterResultGrid').innerHTML = html;
+  document.getElementById('boosterResultModal').classList.remove('hidden');
+
+  document.querySelectorAll('.booster-result-card').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      if (name) { openCardModal(name); }
+    });
+  });
+}
+
+function renderCollectionCards(filter) {
+  var html = '';
+  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+    var cards = [];
+    CARD_CATALOG[setKey].forEach(function (c) {
+      var key = setKey + '-' + c.num;
       var count = econState.collection[key] || 0;
-      if (count > 0) { owned++; }
-      html += '<div class="pokemon-card">' + c.n + '<br>x' + count + '</div>';
+      if (filter === 'owned' && count === 0) { return; }
+      cards.push({ c: c, count: count });
+    });
+    if (cards.length === 0 && filter === 'owned') { return; }
+    html += '<h4>' + setKey.charAt(0).toUpperCase() + setKey.slice(1) + ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.75rem;">(' + cards.length + ')</span></h4><div class="collection-grid">';
+    cards.forEach(function (item) {
+      var url = item.c.img || '';
+      var countCls = item.count > 0 ? '' : ' zero';
+      html += '<div class="collection-card" data-card-name="' + escapeHtml(item.c.n) + '">' +
+        (url ? '<img src="' + url + '" alt="' + escapeHtml(item.c.n) + '" loading="lazy">' : '') +
+        '<div class="collection-card-name">' + escapeHtml(translateCardName(item.c.n)) + '</div>' +
+        '<div class="collection-card-count' + countCls + '">x' + item.count + '</div>' +
+        '</div>';
     });
     html += '</div>';
   });
-  html = '<p>' + owned + ' / ' + total + ' cartas distintas</p>' + html;
-  document.getElementById('collection-view').innerHTML = html;
+  if (!html) {
+    html = '<p style="color:var(--ink-soft);padding:20px;text-align:center;">Aún no tenés cartas. ¡Comprá sobres en la Tienda!</p>';
+  }
+  document.getElementById('collection-content').innerHTML = html;
+
+  document.querySelectorAll('#collection-content .collection-card').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      if (name) { openCardModal(name); }
+    });
+  });
+}
+
+function renderCollectionOwned() { renderCollectionCards('owned'); }
+function renderCollectionAll() { renderCollectionCards('all'); }
+
+// ── Theme ──────────────────────────────────────────────────────────
+function applyTheme(dark) {
+  document.body.classList.toggle('light', !dark);
+  var icon = dark ? '🌙' : '☀️';
+  var t1 = document.getElementById('themeToggle');
+  if (t1) { t1.textContent = icon; }
+  var t2 = document.getElementById('configThemeToggle');
+  if (t2) { t2.textContent = icon + (dark ? ' Modo Oscuro' : ' Modo Claro'); }
+  try { localStorage.setItem('tcg_theme', dark ? 'dark' : 'light'); } catch (e) {}
+}
+function toggleTheme() {
+  var isDark = !document.body.classList.contains('light');
+  applyTheme(!isDark);
+}
+
+// ── Menu ───────────────────────────────────────────────────────────
+function showMenu() {
+  document.getElementById('menuScreen').classList.remove('hidden');
+}
+function hideMenu() {
+  document.getElementById('menuScreen').classList.add('hidden');
+}
+
+function initMenuParticles() {
+  var container = document.getElementById('menuParticles');
+  if (!container) { return; }
+  container.innerHTML = '';
+  for (var i = 0; i < 30; i++) {
+    var dot = document.createElement('div');
+    dot.style.cssText = 'position:absolute;width:2px;height:2px;background:rgba(201,168,76,0.3);border-radius:50%;' +
+      'left:' + Math.random() * 100 + '%;top:' + Math.random() * 100 + '%;' +
+      'animation:particleFade ' + (3 + Math.random() * 4) + 's ease-in-out infinite;' +
+      'animation-delay:' + Math.random() * 5 + 's;';
+    container.appendChild(dot);
+  }
+}
+
+var MENU_BG_DEFAULT = (function () {
+  try {
+    var base = window.location.href.replace(/\/[^\/]*$/, '/');
+    return base + 'Perfil/Portada_Oficial.jpeg';
+  } catch (e) { return 'Perfil/Portada_Oficial.jpeg'; }
+})();
+
+function applyMenuBackground() {
+  var el = document.getElementById('menuScreen');
+  if (!el) { return; }
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
+  if (saved && saved.img) {
+    el.style.backgroundImage = 'url(' + saved.img + ')';
+    el.style.backgroundSize = saved.w + '% auto';
+    el.style.backgroundPosition = saved.x + '% ' + saved.y + '%';
+    el.style.backgroundRepeat = 'no-repeat';
+  } else {
+    el.style.backgroundImage = 'url(' + MENU_BG_DEFAULT + ')';
+    el.style.backgroundSize = '100% auto';
+    el.style.backgroundPosition = '50% 50%';
+    el.style.backgroundRepeat = 'no-repeat';
+  }
+}
+
+// Default logo placement (no saved custom position yet): 50px lower than
+// its natural flex position, options unaffected.
+var MENU_LOGO_DEFAULT = { dx: 0, dy: 85 };
+var MENU_NAV_DEFAULT = { dx: 0, dy: 0 };
+
+function applyMenuPositions() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem('tcg_menu_pos')); } catch (e) {}
+  var header = document.querySelector('.menu-header');
+  var nav = document.querySelector('.menu-nav');
+  // saved.logo/nav store a relative dx/dy (how far it was dragged from its
+  // own natural flex position), not an absolute coordinate -- translate()
+  // is always relative to that natural position regardless of where it is,
+  // so no guess about the real layout's starting point is needed here.
+  var logoPos = (saved && saved.logo) ? saved.logo : MENU_LOGO_DEFAULT;
+  var navPos = (saved && saved.nav) ? saved.nav : MENU_NAV_DEFAULT;
+  if (header) { header.style.transform = 'translate(' + logoPos.dx + 'px, ' + logoPos.dy + 'px)'; }
+  if (nav) { nav.style.transform = 'translate(' + navPos.dx + 'px, ' + navPos.dy + 'px)'; }
+}
+
+function applyMenuLogo() {
+  var show = true;
+  try { show = localStorage.getItem('tcg_menu_logo') !== 'hidden'; } catch (e) {}
+  var header = document.querySelector('.menu-header');
+  if (header) { header.style.display = show ? '' : 'none'; }
+}
+
+function makeDraggable(el) {
+  var startX, startY, origX, origY;
+  el.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    startX = e.clientX;
+    startY = e.clientY;
+    origX = el.offsetLeft;
+    origY = el.offsetTop;
+    el.classList.add('dragging');
+    function onMove(ev) {
+      el.style.left = (origX + ev.clientX - startX) + 'px';
+      el.style.top = (origY + ev.clientY - startY) + 'px';
+      el.style.transform = 'none';
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      el.classList.remove('dragging');
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function openPositionModal() {
+  var modal = document.getElementById('positionModal');
+  var preview = document.getElementById('positionPreview');
+  var logo = document.getElementById('posDragLogo');
+  var nav = document.getElementById('posDragNav');
+  var realHeader = document.querySelector('.menu-header');
+  var realNav = document.querySelector('.menu-nav');
+
+  // Show the modal first -- offsetWidth/offsetHeight below read as 0 on a
+  // display:none element, which would silently zero out every position.
+  modal.classList.remove('hidden');
+
+  logo.style.transform = 'none';
+  nav.style.transform = 'none';
+
+  // Anchor each preview handle to where the real element actually sits on
+  // screen right now (ignoring any translate already applied to it), scaled
+  // into preview space -- a guessed/hardcoded starting point (e.g.
+  // "centered") misrepresents the real layout (the header/nav sit near the
+  // left edge, not centered), so a small drag in the preview mapped to a
+  // huge, wrong jump on the real screen.
+  var scaleToPreviewX = preview.offsetWidth / window.innerWidth;
+  var scaleToPreviewY = preview.offsetHeight / window.innerHeight;
+  var headerRect = getUntransformedRect(realHeader);
+  var navRect = getUntransformedRect(realNav);
+  var logoBaseLeft = headerRect.left * scaleToPreviewX;
+  var logoBaseTop = headerRect.top * scaleToPreviewY;
+  var navBaseLeft = navRect.left * scaleToPreviewX;
+  var navBaseTop = navRect.top * scaleToPreviewY;
+  logo.dataset.baseLeft = logoBaseLeft;
+  logo.dataset.baseTop = logoBaseTop;
+  nav.dataset.baseLeft = navBaseLeft;
+  nav.dataset.baseTop = navBaseTop;
+
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem('tcg_menu_pos')); } catch (e) {}
+
+  var logoPos = (saved && saved.logo) ? saved.logo : MENU_LOGO_DEFAULT;
+  var navPos = (saved && saved.nav) ? saved.nav : MENU_NAV_DEFAULT;
+  logo.style.left = (logoBaseLeft + logoPos.dx * scaleToPreviewX) + 'px';
+  logo.style.top = (logoBaseTop + logoPos.dy * scaleToPreviewY) + 'px';
+  nav.style.left = (navBaseLeft + navPos.dx * scaleToPreviewX) + 'px';
+  nav.style.top = (navBaseTop + navPos.dy * scaleToPreviewY) + 'px';
+
+  // Enable dragging in the preview
+  makeDraggable(logo);
+  makeDraggable(nav);
+}
+
+function getUntransformedRect(el) {
+  var prevTransform = el.style.transform;
+  el.style.transform = '';
+  var rect = el.getBoundingClientRect();
+  el.style.transform = prevTransform;
+  return rect;
+}
+
+function closePositionModal() {
+  document.getElementById('positionModal').classList.add('hidden');
+}
+
+function savePositionFromModal() {
+  var preview = document.getElementById('positionPreview');
+  var logo = document.getElementById('posDragLogo');
+  var nav = document.getElementById('posDragNav');
+  var scaleX = window.innerWidth / preview.offsetWidth;
+  var scaleY = window.innerHeight / preview.offsetHeight;
+  var pos = {
+    logo: {
+      dx: Math.round((logo.offsetLeft - parseFloat(logo.dataset.baseLeft)) * scaleX),
+      dy: Math.round((logo.offsetTop - parseFloat(logo.dataset.baseTop)) * scaleY)
+    },
+    nav: {
+      dx: Math.round((nav.offsetLeft - parseFloat(nav.dataset.baseLeft)) * scaleX),
+      dy: Math.round((nav.offsetTop - parseFloat(nav.dataset.baseTop)) * scaleY)
+    }
+  };
+  localStorage.setItem('tcg_menu_pos', JSON.stringify(pos));
+  applyMenuPositions();
+  closePositionModal();
+}
+function openConfigModal() {
+  document.getElementById('configMenu').classList.remove('config-hidden');
+  document.getElementById('configBgPanel').classList.add('config-hidden');
+  document.getElementById('configModal').classList.remove('hidden');
+  var logoToggle = document.getElementById('configLogoToggle');
+  var isHidden = localStorage.getItem('tcg_menu_logo') === 'hidden';
+  logoToggle.classList.toggle('off', isHidden);
+  logoToggle.textContent = isHidden ? 'OFF' : 'ON';
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').classList.add('hidden');
+}
+
+function showConfigBg() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
+  var w = saved ? saved.w : 100, h = saved ? saved.h : 100, x = saved ? saved.x : 50, y = saved ? saved.y : 50;
+  document.getElementById('configWidth').value = w;
+  document.getElementById('configHeight').value = h;
+  document.getElementById('configX').value = x;
+  document.getElementById('configY').value = y;
+  document.getElementById('configWidthVal').textContent = w;
+  document.getElementById('configHeightVal').textContent = h;
+  document.getElementById('configXVal').textContent = x;
+  document.getElementById('configYVal').textContent = y;
+  var preview = document.getElementById('configPreview');
+  var placeholder = document.querySelector('.config-preview-placeholder');
+  if (saved && saved.img) {
+    document.getElementById('configPreviewImg').src = saved.img;
+    preview.style.backgroundImage = 'url(' + saved.img + ')';
+    preview.style.backgroundSize = w + '% ' + h + '%';
+    preview.style.backgroundPosition = x + '% ' + y + '%';
+    placeholder.style.display = 'none';
+  } else {
+    preview.style.backgroundImage = 'none';
+    placeholder.style.display = 'flex';
+  }
+  document.getElementById('configMenu').classList.add('config-hidden');
+  document.getElementById('configBgPanel').classList.remove('config-hidden');
+}
+
+function updateConfigPreview() {
+  var img = document.getElementById('configPreviewImg');
+  var preview = document.getElementById('configPreview');
+  var placeholder = document.querySelector('.config-preview-placeholder');
+  var src = img.src;
+  if (!src || src === window.location.href) {
+    placeholder.style.display = 'flex';
+    preview.style.backgroundImage = 'none';
+    return;
+  }
+  placeholder.style.display = 'none';
+  var w = document.getElementById('configWidth').value;
+  var h = document.getElementById('configHeight').value;
+  var x = document.getElementById('configX').value;
+  var y = document.getElementById('configY').value;
+  preview.style.backgroundImage = 'url(' + src + ')';
+  preview.style.backgroundSize = w + '% ' + h + '%';
+  preview.style.backgroundPosition = x + '% ' + y + '%';
+  preview.style.backgroundRepeat = 'no-repeat';
+  document.getElementById('configWidthVal').textContent = w;
+  document.getElementById('configHeightVal').textContent = h;
+  document.getElementById('configXVal').textContent = x;
+  document.getElementById('configYVal').textContent = y;
+}
+function openPauseMenu() {
+  document.getElementById('pauseModal').classList.remove('hidden');
+}
+function closePauseMenu() {
+  document.getElementById('pauseModal').classList.add('hidden');
+}
+function setActiveShopNav(el) {
+  document.querySelectorAll('#panelShop .collection-nav').forEach(function (n) { n.classList.remove('active'); });
+  el.classList.add('active');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  // Theme init
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem('tcg_theme'); } catch (e) {}
+  applyTheme(savedTheme !== 'light');
+
   econState = loadEconomy();
   renderCoinCount();
-  startNewMatch();
+  applyMenuBackground();
+  applyMenuPositions();
+  applyMenuLogo();
 
+  // Menu buttons
+  document.getElementById('menuPlay').addEventListener('click', function () {
+    hideMenu();
+    switchTab('play');
+  });
+  document.getElementById('menuShop').addEventListener('click', function () {
+    hideMenu();
+    switchTab('shop');
+  });
+  document.getElementById('menuCollection').addEventListener('click', function () {
+    hideMenu();
+    switchTab('collection');
+  });
+  document.getElementById('menuConfig').addEventListener('click', function () {
+    openConfigModal();
+  });
+  // Config modal
+  document.getElementById('configBgBtn').addEventListener('click', showConfigBg);
+  document.getElementById('configBack').addEventListener('click', function () {
+    document.getElementById('configBgPanel').classList.add('config-hidden');
+    document.getElementById('configMenu').classList.remove('config-hidden');
+  });
+  document.getElementById('configCloseMenu').addEventListener('click', function () {
+    closeConfigModal();
+  });
+  document.querySelector('#configModal .card-modal-backdrop').addEventListener('click', function () {
+    closeConfigModal();
+  });
+
+  // Logo toggle
+  var logoToggle = document.getElementById('configLogoToggle');
+  logoToggle.addEventListener('click', function () {
+    var isOn = !logoToggle.classList.contains('off');
+    logoToggle.classList.toggle('off');
+    logoToggle.textContent = isOn ? 'OFF' : 'ON';
+    localStorage.setItem('tcg_menu_logo', isOn ? 'hidden' : 'visible');
+    applyMenuLogo();
+  });
+
+  // Position modal
+  document.getElementById('configMoveBoth').addEventListener('click', openPositionModal);
+  document.getElementById('posSave').addEventListener('click', savePositionFromModal);
+  document.getElementById('posCancel').addEventListener('click', closePositionModal);
+  document.querySelector('#positionModal .card-modal-backdrop').addEventListener('click', closePositionModal);
+
+  // Reset positions
+  document.getElementById('configResetPositions').addEventListener('click', function () {
+    localStorage.removeItem('tcg_menu_pos');
+    applyMenuPositions();
+  });
+
+  // Enable drag when config opens
+  document.getElementById('configFileInput').addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) { return; }
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      document.getElementById('configPreviewImg').src = ev.target.result;
+      updateConfigPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  ['configWidth', 'configHeight', 'configX', 'configY'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', updateConfigPreview);
+  });
+  document.getElementById('configSave').addEventListener('click', function () {
+    var img = document.getElementById('configPreviewImg');
+    if (!img.src || img.src === window.location.href) { return; }
+    var data = {
+      img: img.src,
+      w: parseInt(document.getElementById('configWidth').value),
+      h: parseInt(document.getElementById('configHeight').value),
+      x: parseInt(document.getElementById('configX').value),
+      y: parseInt(document.getElementById('configY').value)
+    };
+    localStorage.setItem('tcg_menu_bg', JSON.stringify(data));
+    applyMenuBackground();
+    closeConfigModal();
+  });
+  document.getElementById('configReset').addEventListener('click', function () {
+    localStorage.removeItem('tcg_menu_bg');
+    var el = document.getElementById('menuScreen');
+    if (el) {
+      el.style.backgroundImage = 'url(' + MENU_BG_DEFAULT + ')';
+      el.style.backgroundSize = '100% auto';
+      el.style.backgroundPosition = '50% 50%';
+      el.style.backgroundRepeat = 'no-repeat';
+    }
+    document.getElementById('configPreviewImg').src = '';
+    document.getElementById('configPreview').style.backgroundImage = 'none';
+    document.querySelector('.config-preview-placeholder').style.display = 'flex';
+    document.getElementById('configWidth').value = 100;
+    document.getElementById('configHeight').value = 100;
+    document.getElementById('configX').value = 50;
+    document.getElementById('configY').value = 50;
+    document.getElementById('configWidthVal').textContent = '100';
+    document.getElementById('configHeightVal').textContent = '100';
+    document.getElementById('configXVal').textContent = '50';
+    document.getElementById('configYVal').textContent = '50';
+  });
+  document.querySelector('#configModal .card-modal-backdrop').addEventListener('click', closeConfigModal);
+  document.getElementById('configThemeToggle').addEventListener('click', function () {
+    toggleTheme();
+    this.textContent = document.body.classList.contains('light') ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+  });
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+  // Collection sidebar
+  document.getElementById('navOwned').addEventListener('click', function () {
+    document.getElementById('navOwned').classList.add('active');
+    document.getElementById('navAll').classList.remove('active');
+    renderCollectionOwned();
+  });
+  document.getElementById('navAll').addEventListener('click', function () {
+    document.getElementById('navAll').classList.add('active');
+    document.getElementById('navOwned').classList.remove('active');
+    renderCollectionAll();
+  });
+  document.getElementById('navExit').addEventListener('click', function () {
+    showMenu();
+  });
+
+  // Shop sidebar
+  document.getElementById('shopNavBoosters').addEventListener('click', function () {
+    setActiveShopNav(this);
+    renderShopBoosters();
+  });
+  document.getElementById('shopNavDecks').addEventListener('click', function () {
+    setActiveShopNav(this);
+    renderShopPlaceholder('Mazos');
+  });
+  document.getElementById('shopNavSpecial').addEventListener('click', function () {
+    setActiveShopNav(this);
+    renderShopPlaceholder('Ediciones especiales');
+  });
+  document.getElementById('shopNavExit').addEventListener('click', function () {
+    showMenu();
+  });
+
+  // Tab buttons
+  document.getElementById('tabBtnMenu').addEventListener('click', showMenu);
+  document.getElementById('tabBtnPlay').addEventListener('click', function () { switchTab('play'); });
+  document.getElementById('tabBtnShop').addEventListener('click', function () { switchTab('shop'); });
+  document.getElementById('tabBtnCollection').addEventListener('click', function () { switchTab('collection'); });
+
+  // ── Modals ───────────────────────────────────────────────────────
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
   document.querySelector('#cardModal .card-modal-backdrop').addEventListener('click', closeCardModal);
 
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
 
-  // Rendirse asks for confirmation (it hands the rival the win) instead of
-  // ending the match on a single misclick -- Jugar (below) covers the
-  // "start over, no questions asked" case.
   document.getElementById('surrenderBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.remove('hidden');
   });
@@ -685,21 +1306,35 @@ document.addEventListener('DOMContentLoaded', function () {
     onConfirm(indices);
   });
 
-  // "Volver a jugar" starts a fresh match (same as the header's Jugar
-  // button); "Cancelar" just dismisses the modal for now, no other function.
   document.getElementById('matchEndReplayBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
     startNewMatch();
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
+    switchTab('collection');
+    showMenu();
   });
   document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
   });
 
-  // Browsers block audio autoplay before a user gesture, so the music only
-  // starts/stops from this explicit toggle rather than trying to autoplay.
+  // Booster select modal
+  document.getElementById('boosterModalClose').addEventListener('click', closeBoosterSelectModal);
+  document.querySelector('#boosterSelectModal .card-modal-backdrop').addEventListener('click', closeBoosterSelectModal);
+  document.getElementById('boosterOpenBtn').addEventListener('click', openBoosterAndPurchase);
+
+  // Booster result modal
+  document.getElementById('boosterResultClose').addEventListener('click', function () {
+    document.getElementById('boosterResultModal').classList.add('hidden');
+    renderCollection();
+  });
+  document.querySelector('#boosterResultModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('boosterResultModal').classList.add('hidden');
+    renderCollection();
+  });
+
+  // Music
   document.getElementById('musicToggle').addEventListener('click', function () {
     var audio = document.getElementById('bgMusic');
     if (audio.paused) {
@@ -711,21 +1346,60 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Jugar doubles as "Nueva partida": every click starts a fresh match (in
-  // addition to switching to the Play tab) -- Rendirse, with its
-  // confirmation, is the deliberate way to end an in-progress match instead.
-  document.getElementById('tabBtnPlay').addEventListener('click', function () {
-    document.getElementById('tabBtnPlay').classList.add('active');
-    document.getElementById('tabBtnCollection').classList.remove('active');
-    document.getElementById('panelPlay').classList.add('active');
-    document.getElementById('panelCollection').classList.remove('active');
-    startNewMatch();
+  // Pause menu (ESC)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var panelPlay = document.getElementById('panelPlay');
+      if (!panelPlay.classList.contains('active')) { return; }
+      if (!document.getElementById('pauseModal').classList.contains('hidden')) {
+        closePauseMenu();
+      } else {
+        openPauseMenu();
+      }
+    }
   });
-  document.getElementById('tabBtnCollection').addEventListener('click', function () {
-    document.getElementById('tabBtnCollection').classList.add('active');
-    document.getElementById('tabBtnPlay').classList.remove('active');
-    document.getElementById('panelCollection').classList.add('active');
-    document.getElementById('panelPlay').classList.remove('active');
-    renderCollection();
+  document.getElementById('pauseResume').addEventListener('click', closePauseMenu);
+  document.getElementById('pauseConfig').addEventListener('click', function () {
+    closePauseMenu();
+    openConfigModal();
+  });
+  document.getElementById('pauseSurrender').addEventListener('click', function () {
+    closePauseMenu();
+    document.getElementById('surrenderModal').classList.remove('hidden');
+  });
+  document.getElementById('pauseMusic').addEventListener('click', function () {
+    var audio = document.getElementById('bgMusic');
+    if (audio.paused) {
+      audio.play();
+      this.textContent = '🔊 Música';
+    } else {
+      audio.pause();
+      this.textContent = '🔈 Música';
+    }
+  });
+  document.getElementById('pauseExit').addEventListener('click', function () {
+    closePauseMenu();
+    switchTab('collection');
+    showMenu();
   });
 });
+
+function switchTab(tab) {
+  var tabs = { play: 'tabBtnPlay', shop: 'tabBtnShop', collection: 'tabBtnCollection' };
+  var panels = { play: 'panelPlay', shop: 'panelShop', collection: 'panelCollection' };
+  Object.keys(tabs).forEach(function (key) {
+    document.getElementById(tabs[key]).classList.toggle('active', key === tab);
+    document.getElementById(panels[key]).classList.toggle('active', key === tab);
+  });
+  var header = document.querySelector('header.top');
+  var coinFloat = document.getElementById('coinFloat');
+  header.style.display = 'none';
+  if (tab === 'play') {
+    if (coinFloat) { coinFloat.style.display = ''; }
+    startNewMatch();
+  } else {
+    if (coinFloat) { coinFloat.style.display = 'none'; }
+  }
+  if (tab === 'shop') { renderShop(); }
+  if (tab === 'collection') { renderCollection(); }
+}

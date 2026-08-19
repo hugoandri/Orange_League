@@ -105,7 +105,9 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   p.hand = [{ id: 'x2', name: 'Ivysaur' }];
   checkTrue('canEvolve is false same turn Bulbasaur entered play', !canEvolve(state, pid, 'x2', state.players[pid].active.id));
   state.turnCounter += 1;
-  checkTrue('canEvolve is true on a later turn', canEvolve(state, pid, 'x2', state.players[pid].active.id));
+  checkTrue('canEvolve is still false on turn 2 for setup-placed Pokémon', !canEvolve(state, pid, 'x2', state.players[pid].active.id));
+  state.turnCounter += 1;
+  checkTrue('canEvolve is true on turn 3', canEvolve(state, pid, 'x2', state.players[pid].active.id));
   evolve(state, pid, 'x2', state.players[pid].active.id);
   check('active evolved into Ivysaur, same instance id', state.players[pid].active.name, 'Ivysaur');
 })();

@@ -1,64 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+
 :root{
-  --bg:#f4f1ea; --panel:#ffffff; --ink:#1f2430; --ink-soft:#5b6270;
-  --border:#e2ddd0; --accent-player:#3f8f4f; --accent-cpu:#8a1f1f;
-  --focus:#3f6fd9;
+  /* ChampionsLab dark theme (default) */
+  --bg:#03080f; --panel:#070e16; --panel-glass:#0e1528c7;
+  --ink:#d9dfe5; --ink-soft:#738292; --ink-muted:#4a5565;
+  --border:#18232d; --border-hover:#273552;
+  --primary:#516eff; --primary-soft:rgba(81,110,255,0.15);
+  --accent-player:#22c55e; --accent-cpu:#ef4444;
+  --focus:#516eff; --destructive:#d40924;
+  --card-bg:#070e16; --muted:#0b121a;
+  --glass-border:rgba(148,163,184,0.08);
+  --glass-shadow:0 1px 3px rgba(0,0,0,0.4);
+  --scrollbar-thumb:rgba(148,163,184,0.15);
+  --scrollbar-hover:rgba(148,163,184,0.28);
+}
+.light{
+  --bg:#f9fafb; --panel:#fff; --panel-glass:rgba(255,255,255,0.85);
+  --ink:#07090d; --ink-soft:#575e69; --ink-muted:#99a1af;
+  --border:#d4d8de; --border-hover:#b8c5d5;
+  --primary:#445def; --primary-soft:rgba(68,93,239,0.1);
+  --accent-player:#16a34a; --accent-cpu:#dc2626;
+  --focus:#445def; --destructive:#df202e;
+  --card-bg:#fff; --muted:#f0f2f5;
+  --glass-border:rgba(0,0,0,0.08);
+  --glass-shadow:0 1px 3px rgba(0,0,0,0.08);
+  --scrollbar-thumb:rgba(0,0,0,0.12);
+  --scrollbar-hover:rgba(0,0,0,0.2);
 }
 *{box-sizing:border-box;}
 html,body{height:100%;margin:0;overflow:hidden;}
 body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:14px 20px;
-  background:#20232c;color:#fff;flex-wrap:wrap;}
-header.top h1{font-size:1.1rem;margin:0;flex:1;}
-nav.tabs button{border:none;background:transparent;color:#a9adbb;font-weight:600;
-  padding:8px 14px;border-radius:8px;cursor:pointer;}
-nav.tabs button.active{background:var(--focus);color:#fff;}
-#surrenderBtn{background:#5c2323;color:#fff;}
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  background-image:radial-gradient(80% 50% at 50% -20%,rgba(124,58,237,0.04),transparent),
+    radial-gradient(60% 40% at 80% 80%,rgba(59,130,246,0.03),transparent);}
+body::-webkit-scrollbar{width:6px;}
+body::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px;}
+body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
+
+/* ===================== MAIN MENU (PTCGO Style) ===================== */
+#menuScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#menuScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
+/* Background art */
+/* Background set via JS on #menuScreen */
+.menu-bg-art{display:none;}
+
+/* Header */
+.menu-header{position:relative;z-index:2;padding:16px 32px 0;flex:0 0 auto;
+  display:flex;justify-content:flex-start;}
+.menu-logo{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-left:55px;}
+.menu-logo-img{height:70px;width:auto;object-fit:contain;filter:brightness(1.1);margin-left:25px;}
+
+/* Body — nav left */
+.menu-body{position:relative;z-index:2;flex:1 1 auto;display:flex;align-items:flex-start;
+  justify-content:flex-start;padding:0 32px;min-height:0;margin-top:-8px;}
+
+/* Nav buttons */
+.menu-nav{display:flex;flex-direction:column;gap:8px;width:320px;max-width:90vw;margin-top:110px;}
+.menu-nav-btn:first-of-type{margin-top:15px;}
+.menu-nav-btn{display:flex;align-items:center;gap:14px;width:100%;
+  padding:16px 20px;border:1px solid rgba(201,168,76,0.15);border-radius:10px;
+  background:rgba(20,25,40,0.8);backdrop-filter:blur(8px);
+  color:#d4c89a;cursor:pointer;text-align:left;
+  transition:all 0.2s ease;position:relative;overflow:hidden;}
+.menu-nav-btn::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:#c9a84c;transform:scaleY(0);transition:transform 0.2s;}
+.menu-nav-btn:hover{border-color:rgba(201,168,76,0.4);background:rgba(30,35,55,0.9);
+  box-shadow:0 4px 20px rgba(0,0,0,0.3),inset 0 1px 0 rgba(201,168,76,0.1);
+  transform:translateX(4px);}
+.menu-nav-btn:hover::after{transform:scaleY(1);}
+.mnb-icon{font-size:1.5rem;width:40px;height:40px;display:flex;align-items:center;
+  justify-content:center;background:rgba(201,168,76,0.08);border-radius:8px;
+  border:1px solid rgba(201,168,76,0.12);flex:0 0 auto;}
+.mnb-text{flex:1;display:flex;flex-direction:column;gap:1px;}
+.mnb-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1rem;color:#e8dcc0;}
+.mnb-sub{font-size:0.72rem;color:#6d6340;}
+.mnb-arrow{font-size:1.4rem;color:#4a4328;transition:color 0.2s,transform 0.2s;}
+.menu-nav-btn:hover .mnb-arrow{color:#c9a84c;transform:translateX(3px);}
+
+/* Footer */
+.menu-footer{position:relative;z-index:2;padding:16px 32px;display:flex;
+  align-items:center;justify-content:space-between;border-top:1px solid rgba(201,168,76,0.1);}
+.menu-footer-btn{border:1px solid rgba(201,168,76,0.15);border-radius:6px;
+  background:rgba(20,25,40,0.6);color:#8a7d5a;padding:6px 14px;font-size:0.75rem;
+  cursor:pointer;transition:all 0.2s;}
+.menu-footer-btn:hover{border-color:#c9a84c;color:#c9a84c;}
+.menu-version{font-size:0.65rem;color:#4a4328;letter-spacing:0.03em;}
+
+/* Light mode */
+.light #menuScreen{background:#f0ede4;}
+.light .menu-bg-art{background-color:#f0ede4;}
+.light .menu-nav-btn{border-color:rgba(139,105,20,0.15);background:rgba(255,255,255,0.7);}
+.light .menu-nav-btn:hover{border-color:rgba(139,105,20,0.4);background:rgba(255,255,255,0.9);}
+.light .mnb-title{color:#1a1510;}
+.light .mnb-sub{color:#8a7d5a;}
+.light .menu-footer{border-top-color:rgba(139,105,20,0.1);}
+.light .menu-footer-btn{border-color:rgba(139,105,20,0.15);background:rgba(255,255,255,0.6);color:#6d6340;}
+.light .menu-version{color:#8a7d5a;}
+.light .menu-art-card{border-color:rgba(139,105,20,0.3);}
+
+/* ===================== HEADER ===================== */
+header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:12px 20px;
+  background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+header.top.hidden-header{display:none !important;}
+header.top h1{font-family:'Sora',sans-serif;font-size:1.05rem;margin:0;flex:1;font-weight:700;
+  background:linear-gradient(135deg,var(--primary),#a78bfa);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;}
+nav.tabs{display:flex;gap:4px;}
+nav.tabs button{border:1px solid transparent;background:transparent;color:var(--ink-soft);
+  font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:0.8rem;
+  transition:all 0.15s ease;}
+nav.tabs button:hover{color:var(--ink);background:var(--primary-soft);}
+nav.tabs button.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+#surrenderBtn{background:rgba(212,9,36,0.15);color:var(--destructive);border-color:rgba(212,9,36,0.2);}
+#surrenderBtn:hover{background:rgba(212,9,36,0.25);}
 #surrenderBtn.hidden{display:none;}
-.match-result{font-weight:700;padding:4px 10px;border-radius:6px;}
+#coin-display{font-size:0.8rem;color:var(--ink-soft);font-weight:600;
+  background:var(--primary-soft);padding:4px 10px;border-radius:8px;}
+#coin-display span{color:var(--primary);font-weight:700;}
+.match-result{font-weight:700;padding:4px 10px;border-radius:6px;font-size:0.8rem;}
 .match-result:empty{display:none;}
-.match-result-win{background:rgba(62,207,94,0.18);color:#3ecf5e;}
-.match-result-loss{background:rgba(224,69,63,0.18);color:#e0453f;}
-.match-end-text{font-size:1.4rem;font-weight:700;margin:0;}
-.match-end-text.win{color:#2f9a48;}
-.match-end-text.loss{color:#c73a35;}
-/* App-shell layout: the page itself never scrolls -- header stays put and
-   each panel below manages its own internal scroll region, so nothing
-   requires scrolling the whole page up and down on any screen size. */
-/* max-width covers three columns now (card-viewer-panel + log-panel + app)
-   -- wider than before on purpose, so the new white card-viewer-panel gets
-   real column space instead of just sitting in leftover page margin. */
-main{flex:1 1 auto;min-height:0;max-width:1640px;margin:0 auto;padding:16px;
+.match-result-win{background:rgba(34,197,94,0.15);color:#22c55e;}
+.match-result-loss{background:rgba(239,68,68,0.15);color:#ef4444;}
+.match-end-text{font-family:'Sora',sans-serif;font-size:1.4rem;font-weight:700;margin:0;}
+.match-end-text.win{color:#22c55e;}
+.match-end-text.loss{color:#ef4444;}
+
+/* Theme toggle in header */
+#themeToggle{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);
+  background:var(--muted);color:var(--ink-soft);font-size:0.9rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;}
+#themeToggle:hover{border-color:var(--primary);color:var(--primary);}
+
+/* ===================== MAIN LAYOUT ===================== */
+main{flex:1 1 auto;min-height:0;margin:0 auto;padding:0;
   width:100%;display:flex;flex-direction:column;}
 .tab-panel{display:none;flex:1 1 auto;min-height:0;}
 .tab-panel.active{display:flex;flex-direction:column;}
-.tab-panel.active.play-layout{flex-direction:row;gap:16px;align-items:stretch;}
-#app{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;
-  flex:1;min-width:0;overflow-y:auto;}
-/* Quick-reference card viewer -- its own white panel to the left of the
-   (dark) Registro log, not inside it. Clicking any card's 🔍 fills it in
-   instead of opening the modal, so cards can be checked without covering
-   the board. */
-#card-viewer-panel{flex:0 0 320px;background:var(--panel);border:1px solid var(--border);
-  border-radius:12px;padding:12px;overflow-y:auto;}
+.tab-panel.active.play-layout{flex-direction:row;gap:0;align-items:stretch;padding:0;}
+#app{background:var(--panel);border-radius:0;padding:10px 16px;
+  flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;}
+
+/* ===================== CARD VIEWER ===================== */
+#card-viewer-panel{flex:0 0 260px;background:var(--panel);border-right:1px solid var(--border);
+  border-radius:0;padding:12px;overflow-y:auto;}
 .card-viewer-placeholder{color:var(--ink-soft);font-size:0.76rem;font-style:italic;margin:0;}
-/* Capped at 280px wide (vs. the full 320px column) so it reads as a real
-   card, not a thumbnail, while still leaving room for the attacks below. */
 .card-viewer-img{display:block;width:100%;max-width:280px;margin:0 auto 6px;border-radius:8px;}
 .card-viewer-name{color:var(--ink);font-weight:700;font-size:0.85rem;margin-bottom:6px;}
 .card-viewer .attack-option{margin-bottom:8px;}
-#log-panel{flex:0 0 260px;background:#20232c;border-radius:12px;
+
+/* ===================== LOG PANEL ===================== */
+#log-panel{flex:0 0 220px;background:var(--muted);border-left:1px solid var(--border);border-radius:0;
   padding:12px;overflow:hidden;display:flex;flex-direction:column;}
 #log-panel h4{margin:0 0 8px;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;
-  color:#a9adbb;flex:0 0 auto;}
-#log{background:transparent;color:#d7dae0;padding:0;border-radius:0;
+  color:var(--ink-soft);flex:0 0 auto;}
+#log{background:transparent;color:var(--ink);padding:0;border-radius:0;
   overflow-y:auto;font-size:0.76rem;white-space:pre-wrap;margin:0;flex:1 1 auto;min-height:0;}
-/* Log lines colored by whose side they're about -- yellow for the player,
-   orange for the CPU -- so the log stays scannable at a glance. */
-.log-line-player{color:#ffd54a;}
-.log-line-cpu{color:#ff9d4d;}
-.log-line-neutral{color:#d7dae0;}
-#panelCollection.active{overflow-y:auto;}
+.log-line-player{color:#fbbf24;}
+.log-line-cpu{color:#fb923c;}
+.log-line-neutral{color:var(--ink);}
+
 @media (max-width:820px){
   html,body{height:auto;overflow:auto;}
   .tab-panel.active.play-layout{flex-direction:column;}
@@ -66,57 +168,53 @@ main{flex:1 1 auto;min-height:0;max-width:1640px;margin:0 auto;padding:16px;
   #log-panel{flex:0 0 auto;width:100%;max-height:200px;}
   #app{overflow-y:visible;}
 }
-.side-heading{margin:0 0 8px;display:flex;align-items:center;gap:8px;}
+
+/* ===================== BOARD ELEMENTS ===================== */
+.side-heading{margin:0 0 8px;display:flex;align-items:center;gap:8px;font-family:'Sora',sans-serif;}
 .profile-photo{width:28px;height:28px;border-radius:50%;object-fit:cover;
   border:1px solid var(--border);flex:0 0 auto;}
-/* Turn indicator next to each heading -- green means it's that side's
-   turn right now, red means it's waiting. */
 .turn-light{width:11px;height:11px;border-radius:50%;flex:0 0 auto;
   display:inline-block;border:1px solid rgba(0,0,0,0.15);}
-.turn-light-on{background:#3ecf5e;box-shadow:0 0 5px rgba(62,207,94,0.7);}
-.turn-light-off{background:#e0453f;}
-/* Name + photo sit above the Premios column, at the right of the board --
-   both grouped in their own vertical strip alongside that side's Active
-   row (a separate flex row from the Bench), so the rival's remaining
-   prizes are always level with mine instead of up by their Bench. */
+.turn-light-on{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6);}
+.turn-light-off{background:#ef4444;}
 .prize-column-wrap{flex:0 0 auto;display:flex;flex-direction:column;
   padding-left:14px;border-left:1px solid var(--border);}
 .prize-column-wrap .prize-column{padding-left:0;border-left:none;}
-/* Deck + Discard, beside that side's Bench row -- below my own Premios
-   (my Bench sits after my Active+Premios row), above the CPU's (their
-   Bench sits before their Active+Premios row). Both piles show a generic
-   face-down back; only the Discard pile is clickable (see
-   openDiscardPileModal) to actually see what's in it. */
-/* Sized to match .prize-card (45.5px, from .prize-grid's 96px/2 columns)
-   so Mazo/Descarte read as part of the same family of face-down piles. */
 .deck-discard-wrap{flex:0 0 auto;display:flex;gap:5px;padding-left:14px;
   border-left:1px solid var(--border);align-self:flex-start;}
-/* Invisible placeholder matching prize-column-wrap/deck-discard-wrap's
-   width (111px) for rows that have no real right-side content -- keeps
-   that row's side-board the same width as the others, so centered content
-   (e.g. my own Bench) lines up with the Active row above/below it. */
 .side-spacer{flex:0 0 111px;}
+.cpu-sidebar{flex:0 0 auto;display:flex;flex-direction:column;gap:0;padding-left:14px;
+  border-left:1px solid var(--border);}
+.cpu-sidebar .prize-column{border-left:none;padding-left:0;}
+.cpu-sidebar .deck-discard-wrap{border-left:none;padding-left:0;}
+.cpu-sidebar-gap{height:20px;}
 .deck-discard-pile{width:45.5px;text-align:center;}
 .deck-discard-pile img{width:100%;display:block;border-radius:4px;border:1px solid var(--border);}
 .deck-discard-pile.discard-pile-clickable{cursor:pointer;}
-.deck-discard-pile.discard-pile-clickable img{transition:box-shadow 0.1s;}
-.deck-discard-pile.discard-pile-clickable:hover img{box-shadow:0 0 0 2px var(--focus);}
+.deck-discard-pile.discard-pile-clickable img{transition:box-shadow 0.15s;}
+.deck-discard-pile.discard-pile-clickable:hover img{box-shadow:0 0 0 2px var(--primary);}
 .pile-label{font-size:0.62rem;color:var(--ink-soft);margin:3px 0 0;}
 .pile-empty{width:100%;aspect-ratio:245/342;border:1px dashed var(--border);
   border-radius:4px;display:flex;align-items:center;justify-content:center;
   font-size:0.62rem;color:var(--ink-soft);}
 .board-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .pokemon-card{position:relative;border:1px solid var(--border);border-radius:8px;padding:8px;
-  background:#fafaf6;min-width:120px;font-size:0.8rem;cursor:pointer;}
+  background:var(--card-bg);min-width:120px;font-size:0.8rem;cursor:pointer;
+  transition:border-color 0.15s,box-shadow 0.15s;}
+.status-badge{position:absolute;top:3px;left:3px;font-size:1rem;line-height:1;
+  background:rgba(0,0,0,0.65);color:#fff;border-radius:6px;padding:2px 4px;
+  pointer-events:none;z-index:2;white-space:nowrap;}
+.status-badge-bottom{top:auto;bottom:3px;}
 .pokemon-card.active-player{border-color:var(--accent-player);}
 .pokemon-card.active-cpu{border-color:var(--accent-cpu);}
 .pokemon-card[disabled],.pokemon-card.unselectable{opacity:0.5;cursor:not-allowed;}
 button.action-btn{margin:2px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);
-  background:#fff;cursor:pointer;font-size:0.8rem;}
-button.action-btn:hover{border-color:var(--focus);}
+  background:var(--muted);color:var(--ink);cursor:pointer;font-size:0.8rem;
+  transition:all 0.15s ease;}
+button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .hand-row{display:flex;gap:6px;flex-wrap:wrap;}
 
-.side-row{display:flex;gap:18px;align-items:flex-start;}
+.side-row{display:flex;gap:18px;align-items:flex-start;margin-bottom:0;}
 .side-board{flex:1;min-width:0;}
 .active-label,.bench-label,.prize-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;
   color:var(--ink-soft);margin:0 0 4px;}
@@ -124,50 +222,40 @@ button.action-btn:hover{border-color:var(--focus);}
 .prize-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;width:96px;}
 .prize-card{border-radius:4px;overflow:hidden;border:1px solid var(--border);}
 .prize-card img{width:100%;display:block;}
+.prize-empty{border:1px dashed var(--border);border-radius:4px;
+  aspect-ratio:245/342;background:transparent;}
 .prize-card.prize-choosable{cursor:pointer;border-color:var(--accent-player);
-  box-shadow:0 0 0 2px rgba(63,143,79,0.25);}
+  box-shadow:0 0 0 2px rgba(34,197,94,0.25);}
 .prize-card.prize-choosable:hover{box-shadow:0 0 0 2px var(--accent-player);transform:scale(1.04);}
-/* Fixed 3-column row: left slot (start-match button) / Active (always
-   centered) / right slot (attacks). Each side slot is an equal 1fr column
-   that reserves its space even when its content is empty, so the Active
-   card never shifts depending on what's rendered beside it. */
 .active-with-attacks{display:grid;grid-template-columns:1fr auto 1fr;
-  align-items:start;gap:16px;margin-bottom:10px;}
+  align-items:start;gap:12px;margin-bottom:0;}
 .side-slot{min-width:0;}
 .active-slot{display:flex;flex-direction:column;align-items:center;}
 .attacks-panel{min-width:220px;}
-.attacks-panel h4{margin:2px 0 6px;}
+.attacks-panel h4{margin:2px 0 6px;font-family:'Sora',sans-serif;font-weight:600;}
 .active-row{display:flex;justify-content:center;margin-bottom:0;}
-.bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
-/* Fixed at a real filled bench card's height (measured: 90x161px) instead
-   of a shorter min-height -- align-items:stretch already matched empty
-   slots to a filled sibling's height when one existed in the same row, but
-   an all-empty Bench (no Pokémon placed yet) had nothing to stretch
-   against and collapsed to a much shorter box. */
+.bench-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:2px;}
+.cpu-hand-row{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;margin-bottom:6px;}
+.cpu-hand-card{width:28px;height:40px;border-radius:3px;overflow:hidden;opacity:0.85;}
+.cpu-hand-card img{width:100%;height:100%;object-fit:cover;display:block;}
+.player-bench-row{margin-top:-135px;}
 .bench-slot{width:90px;height:161px;border:1px dashed var(--border);border-radius:8px;
   display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:0.65rem;text-align:center;}
 .bench-slot-empty{cursor:pointer;}
-.bench-slot-empty:hover{border-color:var(--focus);background:rgba(63,111,217,0.06);color:var(--focus);}
-/* "Sin Activo" placeholder, sized to match a real Active card (measured:
-   170x240px) instead of reusing bench-slot's smaller size. */
+.bench-slot-empty:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
 .active-slot-empty{width:170px;height:240px;font-size:0.8rem;}
-/* Bench Pokémon smaller than the Active card but still easy to read --
-   bigger than Premios/Mazo/Descarte (45.5px), which was too cramped to
-   read name/HP/energy at a glance. */
 .pokemon-card:not(.active-card){width:90px;min-width:90px;padding:5px;font-size:0.68rem;}
+.pokemon-card:not(.active-card) .status-badge{font-size:0.75rem;padding:1px 3px;top:2px;left:2px;}
 .pokemon-card:not(.active-card) .card-thumb{margin:0 auto 3px;}
 .pokemon-card:not(.active-card).flipped .card-thumb{margin:3px auto 0;}
 .pokemon-card.active-card{min-width:170px;padding:14px;font-size:0.9rem;}
-.pokemon-card.active-player{border-width:2px;box-shadow:0 0 0 2px rgba(63,143,79,0.18);}
-.pokemon-card.active-cpu{border-width:2px;box-shadow:0 0 0 2px rgba(138,31,31,0.18);}
+.pokemon-card.active-player{border-width:2px;box-shadow:0 0 0 2px rgba(34,197,94,0.18);}
+.pokemon-card.active-cpu{border-width:2px;box-shadow:0 0 0 2px rgba(239,68,68,0.18);}
 .attack-option{margin-bottom:6px;}
 .attack-effect-text{font-size:0.72rem;color:var(--ink-soft);margin:2px 0 4px 4px;max-width:480px;}
-.setup-panel{background:var(--accent-player-soft,#eef7f0);border:1px solid var(--border);
+.setup-panel{background:var(--primary-soft);border:1px solid var(--border);
   border-radius:8px;padding:10px 12px;margin-top:8px;}
 .setup-panel p{margin:0 0 8px;font-size:0.85rem;color:var(--ink-soft);}
-/* Smaller than the shared .setup-panel base -- just wraps one button, so
-   it doesn't need the same padding as playControlsHtml's Retirar/Terminar
-   turno panel (which also uses .setup-panel). */
 .coin-flip-panel{min-width:0;padding:5px 6px;display:inline-block;}
 .coin-flip-panel #startMatchBtn{font-size:0.72rem;padding:4px 7px;}
 
@@ -178,21 +266,25 @@ button.action-btn:hover{border-color:var(--focus);}
 .hand-card-wrap{display:inline-block;}
 .hand-card-wrap .hand-card span{display:block;font-size:0.72rem;}
 
-.card-modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;}
+/* ===================== MODALS ===================== */
+.card-modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;}
 .card-modal.hidden{display:none;}
-.card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.6);}
+#cardModal{z-index:120;}
+#configModal{z-index:210;}
+#positionModal{z-index:220;}
+.card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 .card-modal-content{position:relative;z-index:1;background:var(--panel);padding:16px;
-  border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:10px;
-  max-width:90vw;max-height:90vh;}
+  border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  max-width:90vw;max-height:90vh;border:1px solid var(--border);}
 .card-modal-content img{max-width:80vw;max-height:75vh;border-radius:8px;display:block;}
 .card-modal-content > p{margin:0;text-align:center;max-width:360px;}
 
 .energy-discard-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px;}
 .energy-discard-option{border:2px solid var(--border);border-radius:8px;padding:6px;
-  cursor:pointer;background:#fafaf6;width:80px;text-align:center;}
+  cursor:pointer;background:var(--card-bg);width:80px;text-align:center;}
 .energy-discard-option img{width:100%;display:block;border-radius:4px;margin-bottom:4px;}
-.energy-discard-option:hover{border-color:var(--focus);}
-.energy-discard-option.selected{border-color:var(--accent-cpu);box-shadow:0 0 0 2px rgba(138,31,31,0.25);}
+.energy-discard-option:hover{border-color:var(--primary);}
+.energy-discard-option.selected{border-color:var(--accent-cpu);box-shadow:0 0 0 2px rgba(239,68,68,0.25);}
 
 .discard-pile-content{max-width:640px;}
 .discard-pile-title{font-weight:700;margin:0;}
@@ -200,6 +292,189 @@ button.action-btn:hover{border-color:var(--focus);}
   gap:8px;max-height:60vh;overflow-y:auto;width:100%;}
 .discard-pile-card{text-align:center;font-size:0.65rem;}
 .discard-pile-card img{width:100%;border-radius:6px;display:block;margin-bottom:2px;}
+
+/* ===================== COLLECTION ===================== */
+#panelCollection{padding:0;}
+#panelCollection.active{overflow:hidden;}
+.collection-layout{display:flex;height:100%;}
+.collection-sidebar{flex:0 0 180px;background:var(--panel);border-right:1px solid var(--border);
+  padding:16px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;}
+.collection-sidebar h4{margin:0 0 8px;font-family:'Sora',sans-serif;font-weight:700;
+  font-size:0.85rem;color:var(--ink);}
+.collection-nav{display:block;width:100%;text-align:left;padding:10px 12px;border:1px solid transparent;
+  border-radius:8px;background:transparent;color:var(--ink-soft);font-size:0.8rem;font-weight:600;
+  cursor:pointer;transition:all 0.15s ease;}
+.collection-nav:hover{color:var(--ink);background:var(--primary-soft);}
+.collection-nav.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.collection-nav-exit{color:var(--destructive);margin-top:8px;border-top:1px solid var(--border);padding-top:12px;border-radius:0;}
+.collection-nav-exit:hover{background:rgba(212,9,36,0.1);color:var(--destructive);}
+.collection-profile{display:flex;align-items:center;gap:10px;margin-top:auto;
+  padding-top:12px;border-top:1px solid var(--border);}
+.collection-profile-photo{width:36px;height:36px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--primary);}
+.collection-profile-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
+.collection-stats{padding-top:8px;font-size:0.72rem;color:var(--ink-soft);line-height:1.6;}
+.collection-content{flex:1;min-width:0;overflow-y:auto;}
+#panelShop{padding:0;}
+#panelShop.active{overflow:hidden;}
+.booster-shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
+.booster-pack{position:relative;border:2px solid var(--border);border-radius:14px;
+  overflow:hidden;cursor:pointer;text-align:center;background:var(--card-bg);
+  transition:all 0.2s ease;padding:0;}
+.booster-pack:hover{border-color:var(--primary);box-shadow:0 0 20px rgba(81,110,255,0.15);
+  transform:translateY(-3px);}
+.booster-pack img{width:100%;max-height:220px;object-fit:contain;display:block;
+  padding:12px 12px 0;background:linear-gradient(180deg,var(--muted),transparent);}
+.booster-pack-name{font-family:'Sora',sans-serif;font-weight:700;font-size:0.95rem;
+  color:var(--ink);padding:8px 0 2px;}
+.booster-pack-price{font-size:0.8rem;color:var(--primary);font-weight:600;padding-bottom:10px;}
+.booster-pack-count{position:absolute;top:8px;right:8px;font-size:0.7rem;font-weight:600;
+  color:var(--ink-soft);background:var(--panel-glass);backdrop-filter:blur(8px);
+  padding:3px 8px;border-radius:6px;border:1px solid var(--glass-border);}
+#collection-view{padding:0 16px 16px;}
+#collection-view h4{font-family:'Sora',sans-serif;font-weight:700;margin:16px 0 8px;
+  color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;font-size:0.85rem;}
+.collection-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;}
+.collection-card{position:relative;border:1px solid var(--border);border-radius:8px;
+  overflow:hidden;background:var(--card-bg);text-align:center;cursor:pointer;
+  transition:all 0.15s ease;}
+.collection-card:hover{border-color:var(--primary);transform:scale(1.03);
+  box-shadow:0 4px 12px rgba(81,110,255,0.12);}
+.collection-card img{width:100%;display:block;border-radius:6px 6px 0 0;}
+.collection-card-name{font-size:0.65rem;color:var(--ink-soft);padding:4px 4px 2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.collection-card-count{font-family:'Sora',sans-serif;font-weight:700;font-size:0.75rem;
+  color:var(--primary);padding-bottom:4px;}
+.collection-card-count.zero{color:var(--ink-muted);}
+
+/* ===================== BOOSTER SELECT MODAL ===================== */
+#boosterSelectModal .card-modal-content{max-width:600px;width:95vw;padding:0;overflow:hidden;}
+.booster-modal-header{display:flex;align-items:center;justify-content:space-between;
+  width:100%;padding:16px 20px;border-bottom:1px solid var(--border);}
+.booster-modal-header h3{margin:0;font-family:'Sora',sans-serif;font-weight:700;font-size:1.1rem;
+  color:var(--ink);}
+.booster-modal-header .booster-modal-price{font-size:0.9rem;color:var(--primary);font-weight:600;}
+.booster-modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);
+  background:var(--muted);color:var(--ink-soft);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;}
+.booster-modal-close:hover{border-color:var(--destructive);color:var(--destructive);}
+.booster-modal-subtitle{text-align:center;color:var(--ink-soft);font-size:0.85rem;
+  margin:0;padding:12px 20px 0;}
+/* Pack variant grid — 3 tall cards side by side */
+.booster-variant-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  padding:16px 20px;}
+.booster-variant{border:2px solid var(--border);border-radius:12px;overflow:hidden;
+  cursor:pointer;background:var(--card-bg);transition:all 0.2s ease;text-align:center;}
+.booster-variant:hover{border-color:var(--primary);transform:translateY(-3px);
+  box-shadow:0 8px 20px rgba(81,110,255,0.15);}
+.booster-variant.selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(81,110,255,0.3);
+  background:var(--primary-soft);}
+.booster-variant img{width:100%;display:block;}
+.booster-variant .bv-name{font-size:0.75rem;font-weight:600;color:var(--ink);padding:8px 4px;}
+.booster-modal-footer{width:100%;padding:12px 20px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.booster-modal-footer .bm-selected-info{font-size:0.8rem;color:var(--ink-soft);}
+.booster-modal-footer .bm-open-btn{padding:10px 28px;border-radius:10px;border:none;
+  background:var(--primary);color:#fff;font-family:'Sora',sans-serif;font-weight:700;
+  font-size:0.95rem;cursor:pointer;transition:all 0.15s ease;}
+.booster-modal-footer .bm-open-btn:hover{background:#3f55d4;transform:translateY(-1px);}
+.booster-modal-footer .bm-open-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+/* ===================== BOOSTER RESULT MODAL ===================== */
+#boosterResultModal .card-modal-content{max-width:780px;width:95vw;padding:24px;overflow:visible;}
+.booster-result-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.2rem;
+  margin:0 0 16px;color:var(--ink);text-align:center;}
+.booster-result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));
+  gap:10px;width:100%;margin-bottom:20px;}
+
+/* ===================== PAUSE MENU ===================== */
+.pause-modal-content{width:320px;padding:24px !important;}
+.pause-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.3rem;
+  margin:0 0 20px;color:var(--ink);text-align:center;}
+.pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}
+.pause-btn{width:100%;padding:14px 20px;border:1px solid var(--border);border-radius:10px;
+  background:var(--card-bg);color:var(--ink);font-size:0.95rem;font-weight:600;
+  cursor:pointer;text-align:left;transition:all 0.15s ease;}
+.pause-btn:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
+.pause-exit{color:var(--destructive);border-color:rgba(212,9,36,0.2);}
+.pause-exit:hover{border-color:var(--destructive);background:rgba(212,9,36,0.1);color:var(--destructive);}
+
+/* ===================== CONFIG MODAL ===================== */
+.config-modal-content{width:420px;max-width:95vw;padding:24px !important;max-height:90vh;overflow-y:auto;}
+.config-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.2rem;
+  margin:0 0 16px;color:var(--ink);text-align:center;}
+.config-section{margin-bottom:16px;}
+.config-section h4{font-family:'Sora',sans-serif;font-weight:700;font-size:0.9rem;
+  color:var(--ink);margin:0 0 4px;}
+.config-desc{font-size:0.78rem;color:var(--ink-soft);margin:0 0 12px;}
+.config-preview{width:100%;height:140px;border:2px dashed var(--border);border-radius:10px;
+  overflow:hidden;position:relative;background:var(--muted);margin-bottom:12px;
+  background-size:100% auto;background-position:50% 50%;background-repeat:no-repeat;}
+.config-preview img{display:none;}
+.config-preview-placeholder{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;color:var(--ink-muted);font-size:0.85rem;}
+.config-controls{display:flex;flex-direction:column;gap:10px;}
+.config-label{display:flex;flex-direction:column;gap:4px;font-size:0.8rem;color:var(--ink-soft);font-weight:600;}
+.config-file-input{padding:8px;border:1px solid var(--border);border-radius:6px;
+  background:var(--card-bg);color:var(--ink);font-size:0.8rem;cursor:pointer;}
+.config-file-input::file-selector-button{padding:6px 12px;border-radius:4px;border:1px solid var(--border);
+  background:var(--primary-soft);color:var(--primary);font-weight:600;cursor:pointer;margin-right:8px;}
+.config-file-input::file-selector-button:hover{background:var(--primary);color:#fff;}
+.config-slider-row{display:flex;align-items:center;gap:10px;}
+.config-slider-row label{font-size:0.78rem;color:var(--ink-soft);min-width:120px;}
+.config-slider-row label span{color:var(--primary);font-weight:700;}
+.config-slider{flex:1;accent-color:var(--primary);height:4px;}
+.config-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+.config-hidden{display:none;}
+.config-divider{height:1px;background:var(--border);margin:12px 0;}
+.config-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+.config-toggle-label{font-size:0.85rem;font-weight:600;color:var(--ink);}
+.config-toggle{padding:6px 16px;border:1px solid var(--border);border-radius:6px;
+  background:var(--primary);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;
+  transition:all 0.15s;}
+.config-toggle.off{background:var(--muted);color:var(--ink-soft);}
+.drag-hint{font-size:0.72rem;color:var(--ink-muted);font-style:italic;margin:4px 0 8px;}
+.config-position-btns{display:flex;gap:8px;margin:8px 0;}
+.config-pos-btn{flex:1;text-align:center;font-size:0.8rem;padding:10px 8px !important;}
+/* Position modal */
+.position-modal-content{width:800px;max-width:95vw;padding:0 !important;overflow:hidden;}
+.position-preview{position:relative;width:100%;height:450px;
+  background:url('Perfil/Portada_Oficial.jpeg') center/100% auto no-repeat;
+  background-color:#0b1120;border-radius:0 0 12px 12px;overflow:hidden;cursor:crosshair;}
+.pos-logo{position:absolute;top:20px;left:50%;transform:translateX(-50%);
+  font-family:'Sora',sans-serif;font-weight:800;font-size:1rem;letter-spacing:0.15em;
+  color:#c9a84c;background:rgba(0,0,0,0.6);padding:8px 20px;border-radius:6px;
+  border:2px solid rgba(201,168,76,0.4);cursor:grab;user-select:none;z-index:2;
+  text-shadow:0 0 10px rgba(201,168,76,0.3);transition:border-color 0.15s;}
+.pos-logo:active{cursor:grabbing;border-color:var(--primary);}
+.pos-nav{position:absolute;top:100px;left:30px;display:flex;flex-direction:column;gap:6px;
+  cursor:grab;user-select:none;z-index:2;}
+.pos-nav:active{cursor:grabbing;}
+.pos-nav-btn{padding:10px 24px;border:1px solid rgba(201,168,76,0.2);border-radius:8px;
+  background:rgba(20,25,40,0.85);backdrop-filter:blur(6px);color:#d4c89a;
+  font-family:'Sora',sans-serif;font-weight:600;font-size:0.85rem;
+  transition:border-color 0.15s;pointer-events:none;}
+.pos-logo.dragging,.pos-nav.dragging{opacity:0.8;}
+
+/* Floating player info in play mode */
+.coin-float{position:fixed;bottom:16px;left:16px;z-index:50;
+  display:flex;align-items:center;gap:10px;
+  background:var(--panel-glass);backdrop-filter:blur(10px);
+  padding:8px 14px;border-radius:10px;border:1px solid var(--glass-border);
+  box-shadow:var(--glass-shadow);}
+.coin-float-photo{width:32px;height:32px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--primary);}
+.coin-float-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
+.coin-float-coins{font-size:0.75rem;color:var(--ink-soft);font-weight:600;}
+.coin-float-coins span{color:var(--primary);font-weight:700;}
+.booster-result-card{border:1px solid var(--border);border-radius:8px;overflow:hidden;
+  background:var(--card-bg);text-align:center;cursor:pointer;transition:all 0.15s ease;}
+.booster-result-card:hover{border-color:var(--primary);transform:scale(1.04);
+  box-shadow:0 4px 12px rgba(81,110,255,0.15);}
+.booster-result-card img{width:100%;display:block;}
+.booster-result-card .brc-name{font-size:0.6rem;color:var(--ink-soft);padding:3px 2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.booster-result-card.rare{border-color:var(--primary);box-shadow:0 0 8px rgba(81,110,255,0.2);}
 
 /* ===================== AUTH SCREEN ===================== */
 #authScreen{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
