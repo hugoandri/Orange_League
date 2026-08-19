@@ -33,6 +33,29 @@ function renderCoinCount() {
   if (floatEl) { floatEl.textContent = val; }
 }
 
+// Syncs every static "who am I" spot in the UI (menu widget, floating coin
+// display, shop/collection sidebars) to profileState -- the board's own
+// header re-reads profileState live via playerPhotoUrl()/playerDisplayName()
+// on its next render, so it doesn't need updating here.
+function renderProfile() {
+  if (!profileState) { return; }
+  var name = playerDisplayName();
+  var photo = playerPhotoUrl();
+
+  var menuNameEl = document.getElementById('menuProfileName');
+  if (menuNameEl) { menuNameEl.textContent = name; }
+  var menuPhotoEl = document.getElementById('menuProfilePhoto');
+  if (menuPhotoEl) { menuPhotoEl.src = photo; }
+
+  var floatNameEl = document.querySelector('.coin-float-name');
+  if (floatNameEl) { floatNameEl.textContent = name; }
+  var floatPhotoEl = document.querySelector('.coin-float-photo');
+  if (floatPhotoEl) { floatPhotoEl.src = photo; }
+
+  document.querySelectorAll('.collection-profile-name').forEach(function (el) { el.textContent = name; });
+  document.querySelectorAll('.collection-profile-photo').forEach(function (el) { el.src = photo; });
+}
+
 // Syncs the header's result text ("Ganaste"/"Perdiste") and the Rendirse
 // button's visibility to matchWinner -- called on every board render plus
 // right after finishMatch() sets it, so both stay consistent everywhere.
@@ -61,9 +84,17 @@ function statusBadgeHtml(instance, flipped) {
     instance.statusConditions.map(function (s) { return STATUS_EMOJI[s] || ''; }).join('') + '</span>';
 }
 
-// Profile photos supplied by the user (Perfil/), matched to each side by
-// filename: Jugador.jpg is the player, Rival.jpg is the CPU.
+// Default profile photos (Perfil/) -- the player's own photo/name come from
+// profileState (economy.js) once signed in; these are the fallback until a
+// photo is configured (or for the CPU side, which is never configurable).
 var PROFILE_PHOTO_URL = { player: 'Perfil/Jugador.jpg', cpu: 'Perfil/Rival.jpg' };
+
+function playerPhotoUrl() {
+  return (profileState && profileState.photo) || PROFILE_PHOTO_URL.player;
+}
+function playerDisplayName() {
+  return (profileState && profileState.username) || 'Tú';
+}
 
 // Real Base Set-era card back. Originally hotlinked from Bulbapedia
 // (archives.bulbagarden.net) -- moved to a local copy (Cartas/Cardback.jpg)
@@ -387,7 +418,7 @@ function renderBoard() {
   html += '</div></div>';
   // Player sidebar: profile/name → prizes → deck/discard
   html += '<div class="cpu-sidebar">' +
-    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.player + '" alt="">Tú' + turnLightHtml(s, 'player') + '</h3>' +
+    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + playerPhotoUrl() + '" alt="">' + escapeHtml(playerDisplayName()) + turnLightHtml(s, 'player') + '</h3>' +
     '<div class="cpu-sidebar-gap"></div>' +
     prizeColumnHtml(s, 'player') +
     '<div class="cpu-sidebar-gap"></div>' +

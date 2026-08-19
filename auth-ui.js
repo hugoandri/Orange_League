@@ -22,6 +22,31 @@
     return 'No se pudo crear la cuenta. Intentá de nuevo.';
   }
 
+  // Reads an image file, downscales it to at most maxSize px on its longest
+  // side, and re-encodes as JPEG -- keeps the resulting data URL well under
+  // updateProfile's server-side size cap without needing Firebase Storage.
+  function compressImageFile(file, maxSize, quality) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = function () {
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function () {
+          var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('authShowSignup').addEventListener('click', function (e) {
       e.preventDefault();
@@ -43,15 +68,12 @@
     document.getElementById('authLoginForm').addEventListener('submit', function (e) {
       e.preventDefault();
       setError('authLoginError', '');
-      var username = document.getElementById('authLoginUsername').value.trim().toLowerCase();
+      var email = document.getElementById('authLoginEmail').value.trim();
       var password = document.getElementById('authLoginPassword').value;
       setSubmitting('authLoginSubmit', true, 'Entrar');
-      firebase.functions().httpsCallable('resolveLoginEmail')({ username: username })
-        .then(function (res) {
-          return firebase.auth().signInWithEmailAndPassword(res.data.email, password);
-        })
+      firebase.auth().signInWithEmailAndPassword(email, password)
         .catch(function () {
-          setError('authLoginError', 'Usuario o contraseña incorrectos.');
+          setError('authLoginError', 'Email o contraseña incorrectos.');
         })
         .then(function () {
           setSubmitting('authLoginSubmit', false, 'Entrar');
@@ -81,20 +103,74 @@
       e.preventDefault();
       setError('authForgotError', '');
       document.getElementById('authForgotMessage').textContent = '';
-      var username = document.getElementById('authForgotUsername').value.trim().toLowerCase();
+      var email = document.getElementById('authForgotEmail').value.trim();
       setSubmitting('authForgotSubmit', true, 'Enviar mail de recuperación');
-      firebase.functions().httpsCallable('resolveLoginEmail')({ username: username })
-        .then(function (res) { return firebase.auth().sendPasswordResetEmail(res.data.email); })
+      firebase.auth().sendPasswordResetEmail(email)
         .catch(function () { /* deliberately silent -- same message either way, see below */ })
         .then(function () {
           document.getElementById('authForgotMessage').textContent =
-            'Si el usuario existe, te llegará un mail con instrucciones.';
+            'Si el email existe, te llegará un mail con instrucciones.';
           setSubmitting('authForgotSubmit', false, 'Enviar mail de recuperación');
         });
     });
 
     document.getElementById('menuLogoutBtn').addEventListener('click', function () {
       firebase.auth().signOut();
+    });
+
+    // ── Profile widget + edit modal ──────────────────────────────────
+    var pendingPhoto = null;
+
+    document.getElementById('menuProfileBtn').addEventListener('click', function () {
+      document.getElementById('editProfileError').textContent = '';
+      pendingPhoto = null;
+      document.getElementById('editProfilePreviewImg').src = playerPhotoUrl();
+      document.getElementById('editProfileUsername').value = (profileState && profileState.username) || '';
+      document.getElementById('editProfilePhotoInput').value = '';
+      document.getElementById('editProfileModal').classList.remove('hidden');
+    });
+
+    document.getElementById('editProfileCancel').addEventListener('click', function () {
+      document.getElementById('editProfileModal').classList.add('hidden');
+    });
+    document.querySelector('#editProfileModal .card-modal-backdrop').addEventListener('click', function () {
+      document.getElementById('editProfileModal').classList.add('hidden');
+    });
+
+    document.getElementById('editProfilePhotoInput').addEventListener('change', function (e) {
+      var file = e.target.files[0];
+      if (!file) { return; }
+      compressImageFile(file, 200, 0.8).then(function (dataUrl) {
+        pendingPhoto = dataUrl;
+        document.getElementById('editProfilePreviewImg').src = dataUrl;
+      });
+    });
+
+    document.getElementById('editProfileSave').addEventListener('click', function () {
+      var errorEl = document.getElementById('editProfileError');
+      errorEl.textContent = '';
+      var newUsername = document.getElementById('editProfileUsername').value.trim().toLowerCase();
+      var currentUsername = (profileState && profileState.username) || '';
+      var payload = {};
+      if (newUsername && newUsername !== currentUsername) { payload.username = newUsername; }
+      if (pendingPhoto) { payload.photo = pendingPhoto; }
+
+      if (!payload.username && !payload.photo) {
+        document.getElementById('editProfileModal').classList.add('hidden');
+        return;
+      }
+
+      var btn = document.getElementById('editProfileSave');
+      btn.disabled = true;
+      updateProfileCloud(payload)
+        .then(function () {
+          btn.disabled = false;
+          document.getElementById('editProfileModal').classList.add('hidden');
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          errorEl.textContent = err.message || 'No se pudo guardar el perfil.';
+        });
     });
 
     var unsubscribeEconomy = null;

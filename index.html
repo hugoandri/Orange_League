@@ -17,8 +17,8 @@
 
       <form id="authLoginForm" class="auth-panel">
         <h2 class="auth-title">Iniciar sesión</h2>
-        <label class="auth-label">Usuario
-          <input type="text" id="authLoginUsername" class="auth-input" autocomplete="username" required>
+        <label class="auth-label">Email
+          <input type="email" id="authLoginEmail" class="auth-input" autocomplete="email" required>
         </label>
         <label class="auth-label">Contraseña
           <input type="password" id="authLoginPassword" class="auth-input" autocomplete="current-password" required>
@@ -51,8 +51,8 @@
 
       <form id="authForgotForm" class="auth-panel hidden">
         <h2 class="auth-title">Olvidé mi contraseña</h2>
-        <label class="auth-label">Usuario
-          <input type="text" id="authForgotUsername" class="auth-input" autocomplete="username" required>
+        <label class="auth-label">Email
+          <input type="email" id="authForgotEmail" class="auth-input" autocomplete="email" required>
         </label>
         <p class="auth-error" id="authForgotError"></p>
         <p class="auth-message" id="authForgotMessage"></p>
@@ -74,6 +74,10 @@
         <img class="menu-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
       </div>
     </header>
+    <button type="button" class="menu-profile" id="menuProfileBtn">
+      <span class="menu-profile-name" id="menuProfileName">Jugador</span>
+      <img class="menu-profile-photo" id="menuProfilePhoto" src="Perfil/Jugador.jpg" alt="">
+    </button>
     <div class="menu-body">
       <nav class="menu-nav">
         <button type="button" class="menu-nav-btn" id="menuPlay">
@@ -360,6 +364,31 @@
       <h3 class="booster-result-title">¡Sobre abierto!</h3>
       <div id="boosterResultGrid" class="booster-result-grid"></div>
       <button type="button" id="boosterResultClose" class="bm-open-btn">OK</button>
+    </div>
+  </div>
+
+  <div id="editProfileModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="card-modal-content">
+      <h3 class="config-title">👤 Editar perfil</h3>
+      <div class="profile-edit-preview">
+        <img id="editProfilePreviewImg" src="" alt="">
+      </div>
+      <div class="config-controls">
+        <label class="config-label">
+          Foto de perfil
+          <input type="file" id="editProfilePhotoInput" accept="image/*" class="config-file-input">
+        </label>
+        <label class="config-label">
+          Nombre de usuario
+          <input type="text" id="editProfileUsername" class="config-file-input">
+        </label>
+      </div>
+      <p class="auth-error" id="editProfileError"></p>
+      <div class="config-actions">
+        <button type="button" class="pause-btn" id="editProfileSave">💾 Guardar</button>
+        <button type="button" class="pause-btn pause-exit" id="editProfileCancel">← Cancelar</button>
+      </div>
     </div>
   </div>
 

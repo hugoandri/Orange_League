@@ -99,6 +99,9 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 .light .menu-footer-btn{border-color:rgba(139,105,20,0.15);background:rgba(255,255,255,0.6);color:#6d6340;}
 .light .menu-version{color:#8a7d5a;}
 .light .menu-art-card{border-color:rgba(139,105,20,0.3);}
+.light .menu-profile{border-color:rgba(139,105,20,0.15);background:rgba(255,255,255,0.7);}
+.light .menu-profile:hover{border-color:rgba(139,105,20,0.4);}
+.light .menu-profile-name{color:#1a1510;}
 
 /* ===================== HEADER ===================== */
 header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:12px 20px;
@@ -475,6 +478,17 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .booster-result-card .brc-name{font-size:0.6rem;color:var(--ink-soft);padding:3px 2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .booster-result-card.rare{border-color:var(--primary);box-shadow:0 0 8px rgba(81,110,255,0.2);}
+
+/* ===================== MENU PROFILE WIDGET ===================== */
+.menu-profile{position:absolute;top:16px;right:32px;z-index:3;display:flex;align-items:center;gap:10px;
+  padding:6px 14px 6px 6px;border:1px solid rgba(201,168,76,0.15);border-radius:999px;
+  background:rgba(20,25,40,0.8);backdrop-filter:blur(8px);cursor:pointer;transition:border-color 0.15s;}
+.menu-profile:hover{border-color:rgba(201,168,76,0.4);}
+.menu-profile-name{font-family:'Sora',sans-serif;font-weight:600;font-size:0.82rem;color:#d4c89a;}
+.menu-profile-photo{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);}
+.profile-edit-preview{width:100px;height:100px;margin:0 auto 16px;border-radius:50%;overflow:hidden;
+  border:2px solid var(--primary);}
+.profile-edit-preview img{width:100%;height:100%;object-fit:cover;display:block;}
 
 /* ===================== AUTH SCREEN ===================== */
 #authScreen{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;

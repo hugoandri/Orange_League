@@ -7,25 +7,6 @@ admin.initializeApp();
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
-const RESOLVE_LOGIN_RATE_LIMIT = { maxRequests: 20, windowMs: 5 * 60 * 1000 };
-
-async function checkRateLimit(key, maxRequests, windowMs) {
-  const ref = admin.firestore().collection('rateLimits').doc(key);
-  const now = Date.now();
-  await admin.firestore().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const data = snap.exists ? snap.data() : null;
-    if (!data || now - data.windowStart > windowMs) {
-      tx.set(ref, { windowStart: now, count: 1 });
-      return;
-    }
-    if (data.count >= maxRequests) {
-      throw new HttpsError('resource-exhausted', 'Demasiados intentos. Probá de nuevo en unos minutos.');
-    }
-    tx.update(ref, { count: data.count + 1 });
-  });
-}
-
 exports.createAccount = onCall(async (request) => {
   const data = request.data || {};
   const username = (data.username || '').trim().toLowerCase();
@@ -82,30 +63,6 @@ exports.createAccount = onCall(async (request) => {
   }
 
   return { uid: uid };
-});
-
-exports.resolveLoginEmail = onCall(async (request) => {
-  const forwardedFor = (request.rawRequest && request.rawRequest.headers && request.rawRequest.headers['x-forwarded-for']) || '';
-  const ip = String(forwardedFor).split(',')[0].trim() || (request.rawRequest && request.rawRequest.ip) || 'unknown';
-  await checkRateLimit('resolveLoginEmail_' + ip, RESOLVE_LOGIN_RATE_LIMIT.maxRequests, RESOLVE_LOGIN_RATE_LIMIT.windowMs);
-
-  const username = (((request.data || {}).username) || '').trim().toLowerCase();
-  if (!username) {
-    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
-  }
-
-  const snap = await admin.firestore().collection('usernames').doc(username).get();
-  const uid = snap.exists ? snap.data().uid : null;
-  if (!uid || uid === 'pending') {
-    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
-  }
-
-  try {
-    const userRecord = await admin.auth().getUser(uid);
-    return { email: userRecord.email };
-  } catch (e) {
-    throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
-  }
 });
 
 const AWARD_COOLDOWN_MS = 10000;
@@ -167,4 +124,69 @@ exports.openBooster = onCall(async (request) => {
   });
 
   return { cards: cards };
+});
+
+const MAX_PHOTO_LENGTH = 200000; // ~150KB binary once base64 overhead is accounted for -- generous for a compressed profile photo, small enough to leave headroom in the 1MiB Firestore document limit
+
+exports.updateProfile = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+  }
+  const data = request.data || {};
+
+  var newUsername = null;
+  if (typeof data.username === 'string' && data.username.trim()) {
+    newUsername = data.username.trim().toLowerCase();
+    if (!USERNAME_RE.test(newUsername)) {
+      throw new HttpsError('invalid-argument', 'El usuario debe tener 3-20 letras minúsculas, números o guión bajo.');
+    }
+  }
+
+  var photo = null;
+  if (typeof data.photo === 'string' && data.photo) {
+    if (data.photo.indexOf('data:image/') !== 0) {
+      throw new HttpsError('invalid-argument', 'La foto debe ser una imagen válida.');
+    }
+    if (data.photo.length > MAX_PHOTO_LENGTH) {
+      throw new HttpsError('invalid-argument', 'La foto es demasiado grande.');
+    }
+    photo = data.photo;
+  }
+
+  if (!newUsername && !photo) {
+    throw new HttpsError('invalid-argument', 'No hay cambios para guardar.');
+  }
+
+  const uid = request.auth.uid;
+  const userRef = admin.firestore().collection('users').doc(uid);
+
+  const result = await admin.firestore().runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    const currentUsername = userSnap.exists ? userSnap.data().username : null;
+
+    var newUsernameRef = null;
+    if (newUsername && newUsername !== currentUsername) {
+      newUsernameRef = admin.firestore().collection('usernames').doc(newUsername);
+      const newUsernameSnap = await tx.get(newUsernameRef);
+      if (newUsernameSnap.exists) {
+        throw new HttpsError('already-exists', 'Ese usuario ya está en uso.');
+      }
+    }
+
+    const updates = {};
+    if (newUsernameRef) {
+      tx.set(newUsernameRef, { uid: uid });
+      if (currentUsername) {
+        tx.delete(admin.firestore().collection('usernames').doc(currentUsername));
+      }
+      updates.username = newUsername;
+    }
+    if (photo) {
+      updates.photo = photo;
+    }
+    tx.set(userRef, updates, { merge: true });
+    return updates;
+  });
+
+  return result;
 });

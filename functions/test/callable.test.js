@@ -36,19 +36,57 @@ async function testCreateAccount() {
   }
 }
 
-async function testResolveLoginEmail() {
-  const resolveLoginEmail = httpsCallable(functions, 'resolveLoginEmail');
+async function testUpdateProfile() {
+  await signInWithEmailAndPassword(auth, 'testuser1@example.com', 'password123');
+  const updateProfile = httpsCallable(functions, 'updateProfile');
 
-  const res = await resolveLoginEmail({ username: 'testuser1' });
-  assert.strictEqual(res.data.email, 'testuser1@example.com');
-  console.log('PASS: resolveLoginEmail finds the email for an existing username');
+  const res = await updateProfile({ username: 'testuser1renamed' });
+  assert.strictEqual(res.data.username, 'testuser1renamed');
+  console.log('PASS: updateProfile changes the username');
+
+  const userDocRef = doc(db, 'users', auth.currentUser.uid);
+  const snap = await getDoc(userDocRef);
+  assert.strictEqual(snap.data().username, 'testuser1renamed', 'the user doc reflects the new username');
+  console.log('PASS: the renamed username is saved on the user doc');
+
+  // The old username should be freed -- prove it by successfully claiming it
+  // for a different account (createAccount doesn't change the caller's own
+  // signed-in session, so we're still testuser1renamed's session below).
+  const createAccount = httpsCallable(functions, 'createAccount');
+  const claimRes = await createAccount({ username: 'testuser1', email: 'reclaimed@example.com', password: 'password123' });
+  assert.ok(claimRes.data.uid, 'the old username should be free to claim again');
+  console.log('PASS: the old username was freed and can be claimed by someone else');
 
   try {
-    await resolveLoginEmail({ username: 'nosuchuser' });
-    assert.fail('expected unknown username to be rejected');
+    await updateProfile({ username: 'testuser1' });
+    assert.fail('expected a username already taken by someone else to be rejected');
   } catch (e) {
-    assert.strictEqual(e.code, 'functions/not-found');
-    console.log('PASS: unknown username returns not-found');
+    assert.strictEqual(e.code, 'functions/already-exists');
+    console.log('PASS: updateProfile rejects a username already taken by someone else');
+  }
+
+  const tinyPhoto = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  const photoRes = await updateProfile({ photo: tinyPhoto });
+  assert.strictEqual(photoRes.data.photo, tinyPhoto);
+  const snapAfterPhoto = await getDoc(userDocRef);
+  assert.strictEqual(snapAfterPhoto.data().photo, tinyPhoto, 'the photo is saved on the user doc');
+  console.log('PASS: updateProfile saves a photo');
+
+  try {
+    await updateProfile({});
+    assert.fail('expected a no-op call (nothing to change) to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/invalid-argument');
+    console.log('PASS: updateProfile rejects a call with nothing to change');
+  }
+
+  await auth.signOut();
+  try {
+    await updateProfile({ username: 'somebody' });
+    assert.fail('expected unauthenticated call to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/unauthenticated');
+    console.log('PASS: updateProfile requires auth');
   }
 }
 
@@ -125,7 +163,7 @@ async function testOpenBooster() {
 
 async function main() {
   await testCreateAccount();
-  await testResolveLoginEmail();
+  await testUpdateProfile();
   await testAwardMatchResult();
   await testOpenBooster();
   console.log('ALL CALLABLE TESTS PASSED');

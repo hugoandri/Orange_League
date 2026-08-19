@@ -54,6 +54,13 @@ design (data model, Cloud Functions, security rules) and
 `docs/superpowers/plans/2026-08-18-cuentas-firebase.md` for how it was
 built.
 
+**Login is by email + password**, not username — you pick a username at
+signup (for the profile widget/board display) and can change it any time
+from the profile widget (top-right of the main menu), but it never affects
+how you log in. This also means there's no `resolveLoginEmail`-style lookup
+function: the client already has the email, so login/forgot-password call
+Firebase Auth directly.
+
 To develop locally against the Firebase Emulator Suite instead of the real
 project, uncomment the three `useEmulator(...)` lines in `firebase-init.js`,
 then run `firebase emulators:start --project demo-test` and open
@@ -63,8 +70,7 @@ Tests:
 - `node run-tests.js` — the game's own test suite (unchanged).
 - `node functions/test/pureEconomy.test.js` — pure reward/booster-draw logic.
 - `firebase emulators:exec --project demo-test --only firestore "node functions/test/rules.test.js"` — Firestore security rules.
-- `firebase emulators:exec --project demo-test --only auth,firestore,functions "node functions/test/callable.test.js"` — the 4 Cloud Functions end-to-end.
-- `firebase emulators:exec --project demo-test --only auth,firestore,functions "node functions/test/rateLimit.test.js"` — the `resolveLoginEmail` rate limit (run separately from `callable.test.js` — both call `resolveLoginEmail` and would exhaust a shared rate-limit bucket if run against the same emulator session).
+- `firebase emulators:exec --project demo-test --only auth,firestore,functions "node functions/test/callable.test.js"` — the 5 Cloud Functions end-to-end (`createAccount`, `updateProfile`, `awardMatchResult`, `openBooster`, plus auth checks).
 
 Deploy: `firebase deploy --project default`.
 
@@ -98,12 +104,12 @@ rules-engine.js game state + pure action functions (DOM-free)
 card-effects.js attack-name -> effect fn, trainer-name -> effect fn
 ai.js           CPU heuristic decision logic
 firebase-init.js initializes the Firebase app (client SDK config)
-economy.js      Firestore listener + Cloud Function callers (coins, collection)
-auth-ui.js      login/signup/forgot-password flow + auth gating
+economy.js      Firestore listener + Cloud Function callers (coins, collection, profile)
+auth-ui.js      login/signup/forgot-password flow, auth gating, profile edit modal
 ui.js           the only file that touches the DOM
-functions/      Cloud Functions: createAccount, resolveLoginEmail,
+functions/      Cloud Functions: createAccount, updateProfile,
                 awardMatchResult, openBooster — the only code allowed to
-                write coins/collection
+                write coins/collection/username/photo
 ```
 
 This started as a personal local project with no `npm`/CI/external
