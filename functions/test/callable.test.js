@@ -60,9 +60,13 @@ async function testAwardMatchResult() {
   assert.strictEqual(winRes.data.coins, 225, '150 starting + 75 for a win');
   console.log('PASS: a win pays 75 coins on top of the starting balance');
 
-  const lossRes = await awardMatchResult({ result: 'loss' });
-  assert.strictEqual(lossRes.data.coins, 225, 'a loss pays 0, balance unchanged');
-  console.log('PASS: a loss does not change the balance');
+  try {
+    await awardMatchResult({ result: 'loss' });
+    assert.fail('expected a second award right after the first to be rejected by the cooldown');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/resource-exhausted');
+    console.log('PASS: awarding twice in a row is rejected by the cooldown');
+  }
 
   await auth.signOut();
   try {

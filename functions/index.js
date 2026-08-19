@@ -1,11 +1,30 @@
 const admin = require('firebase-admin');
-const { FieldValue } = require('firebase-admin/firestore');
+const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { computeMatchReward, BOOSTER_COST, drawBoosterCards } = require('./lib/pureEconomy');
 const CARD_CATALOG = require('./lib/cardCatalog');
 admin.initializeApp();
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+const RESOLVE_LOGIN_RATE_LIMIT = { maxRequests: 20, windowMs: 5 * 60 * 1000 };
+
+async function checkRateLimit(key, maxRequests, windowMs) {
+  const ref = admin.firestore().collection('rateLimits').doc(key);
+  const now = Date.now();
+  await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() : null;
+    if (!data || now - data.windowStart > windowMs) {
+      tx.set(ref, { windowStart: now, count: 1 });
+      return;
+    }
+    if (data.count >= maxRequests) {
+      throw new HttpsError('resource-exhausted', 'Demasiados intentos. Probá de nuevo en unos minutos.');
+    }
+    tx.update(ref, { count: data.count + 1 });
+  });
+}
 
 exports.createAccount = onCall(async (request) => {
   const data = request.data || {};
@@ -66,6 +85,9 @@ exports.createAccount = onCall(async (request) => {
 });
 
 exports.resolveLoginEmail = onCall(async (request) => {
+  const ip = (request.rawRequest && request.rawRequest.ip) || 'unknown';
+  await checkRateLimit('resolveLoginEmail_' + ip, RESOLVE_LOGIN_RATE_LIMIT.maxRequests, RESOLVE_LOGIN_RATE_LIMIT.windowMs);
+
   const username = (((request.data || {}).username) || '').trim().toLowerCase();
   if (!username) {
     throw new HttpsError('not-found', 'Usuario o contraseña incorrectos.');
@@ -85,6 +107,8 @@ exports.resolveLoginEmail = onCall(async (request) => {
   }
 });
 
+const AWARD_COOLDOWN_MS = 10000;
+
 exports.awardMatchResult = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
@@ -99,9 +123,15 @@ exports.awardMatchResult = onCall(async (request) => {
 
   const newCoins = await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(userRef);
-    const current = snap.exists ? snap.data().coins : 0;
+    const data = snap.exists ? snap.data() : {};
+    const current = data.coins || 0;
+    const lastAwardAt = data.lastAwardAt;
+    const now = Timestamp.now();
+    if (lastAwardAt && now.toMillis() - lastAwardAt.toMillis() < AWARD_COOLDOWN_MS) {
+      throw new HttpsError('resource-exhausted', 'Esperá un poco antes de registrar otro resultado.');
+    }
     const updated = current + delta;
-    tx.set(userRef, { coins: updated }, { merge: true });
+    tx.set(userRef, { coins: updated, lastAwardAt: now }, { merge: true });
     return updated;
   });
 
