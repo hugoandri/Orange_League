@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 admin.initializeApp();
 
@@ -49,7 +50,7 @@ exports.createAccount = onCall(async (request) => {
     username: username,
     coins: 150,
     collection: {},
-    createdAt: db.constructor.FieldValue.serverTimestamp()
+    createdAt: FieldValue.serverTimestamp()
   });
   await batch.commit();
 
