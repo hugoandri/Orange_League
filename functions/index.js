@@ -94,7 +94,7 @@ exports.awardMatchResult = onCall(async (request) => {
     const snap = await tx.get(userRef);
     const current = snap.exists ? snap.data().coins : 0;
     const updated = current + delta;
-    tx.update(userRef, { coins: updated });
+    tx.set(userRef, { coins: updated }, { merge: true });
     return updated;
   });
 
