@@ -5,16 +5,16 @@ const { computeMatchReward, BOOSTER_COST, drawBoosterCards } = require('./lib/pu
 const CARD_CATALOG = require('./lib/cardCatalog');
 admin.initializeApp();
 
-const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 exports.createAccount = onCall(async (request) => {
   const data = request.data || {};
-  const username = (data.username || '').trim().toLowerCase();
+  const username = (data.username || '').trim();
   const email = (data.email || '').trim();
   const password = data.password || '';
 
   if (!USERNAME_RE.test(username)) {
-    throw new HttpsError('invalid-argument', 'El usuario debe tener 3-20 letras minúsculas, números o guión bajo.');
+    throw new HttpsError('invalid-argument', 'El usuario debe tener 3-20 letras, números o guión bajo.');
   }
   if (!email || email.indexOf('@') === -1) {
     throw new HttpsError('invalid-argument', 'Email inválido.');
@@ -23,7 +23,10 @@ exports.createAccount = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'La contraseña debe tener al menos 6 caracteres.');
   }
 
-  const usernameRef = admin.firestore().collection('usernames').doc(username);
+  // Uniqueness is enforced case-insensitively via this lowercase key, but the
+  // display username keeps whatever casing the user typed (see users/{uid}.username below).
+  const usernameKey = username.toLowerCase();
+  const usernameRef = admin.firestore().collection('usernames').doc(usernameKey);
 
   await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(usernameRef);
@@ -136,9 +139,9 @@ exports.updateProfile = onCall(async (request) => {
 
   var newUsername = null;
   if (typeof data.username === 'string' && data.username.trim()) {
-    newUsername = data.username.trim().toLowerCase();
+    newUsername = data.username.trim();
     if (!USERNAME_RE.test(newUsername)) {
-      throw new HttpsError('invalid-argument', 'El usuario debe tener 3-20 letras minúsculas, números o guión bajo.');
+      throw new HttpsError('invalid-argument', 'El usuario debe tener 3-20 letras, números o guión bajo.');
     }
   }
 
@@ -163,10 +166,14 @@ exports.updateProfile = onCall(async (request) => {
   const result = await admin.firestore().runTransaction(async (tx) => {
     const userSnap = await tx.get(userRef);
     const currentUsername = userSnap.exists ? userSnap.data().username : null;
+    const currentUsernameKey = currentUsername ? currentUsername.toLowerCase() : null;
+    const newUsernameKey = newUsername ? newUsername.toLowerCase() : null;
 
+    // Only touch the uniqueness index when the case-insensitive key actually
+    // changes -- a pure casing edit (e.g. "hugo" -> "Hugo") keeps the same key.
     var newUsernameRef = null;
-    if (newUsername && newUsername !== currentUsername) {
-      newUsernameRef = admin.firestore().collection('usernames').doc(newUsername);
+    if (newUsername && newUsernameKey !== currentUsernameKey) {
+      newUsernameRef = admin.firestore().collection('usernames').doc(newUsernameKey);
       const newUsernameSnap = await tx.get(newUsernameRef);
       if (newUsernameSnap.exists) {
         throw new HttpsError('already-exists', 'Ese usuario ya está en uso.');
@@ -174,10 +181,12 @@ exports.updateProfile = onCall(async (request) => {
     }
 
     const updates = {};
-    if (newUsernameRef) {
-      tx.set(newUsernameRef, { uid: uid });
-      if (currentUsername) {
-        tx.delete(admin.firestore().collection('usernames').doc(currentUsername));
+    if (newUsername) {
+      if (newUsernameRef) {
+        tx.set(newUsernameRef, { uid: uid });
+        if (currentUsernameKey) {
+          tx.delete(admin.firestore().collection('usernames').doc(currentUsernameKey));
+        }
       }
       updates.username = newUsername;
     }

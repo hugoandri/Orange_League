@@ -15,16 +15,24 @@ connectFirestoreEmulator(db, '127.0.0.1', 8080);
 async function testCreateAccount() {
   const createAccount = httpsCallable(functions, 'createAccount');
 
-  const res = await createAccount({ username: 'testuser1', email: 'testuser1@example.com', password: 'password123' });
+  const res = await createAccount({ username: 'TestUser1', email: 'testuser1@example.com', password: 'password123' });
   assert.ok(res.data.uid, 'expected a uid back');
   console.log('PASS: createAccount returns a uid');
 
+  // Firestore rules only allow owner reads, so sign in as the new account to check its doc.
+  await signInWithEmailAndPassword(auth, 'testuser1@example.com', 'password123');
+  const userDocRef = doc(db, 'users', res.data.uid);
+  const snap = await getDoc(userDocRef);
+  assert.strictEqual(snap.data().username, 'TestUser1', 'the display username keeps the casing the user typed');
+  console.log('PASS: createAccount preserves the username casing');
+  await auth.signOut();
+
   try {
     await createAccount({ username: 'testuser1', email: 'other@example.com', password: 'password123' });
-    assert.fail('expected duplicate username to be rejected');
+    assert.fail('expected a case-insensitive duplicate username to be rejected');
   } catch (e) {
     assert.strictEqual(e.code, 'functions/already-exists');
-    console.log('PASS: duplicate username is rejected');
+    console.log('PASS: duplicate username is rejected case-insensitively');
   }
 
   try {
@@ -39,30 +47,36 @@ async function testCreateAccount() {
 async function testUpdateProfile() {
   await signInWithEmailAndPassword(auth, 'testuser1@example.com', 'password123');
   const updateProfile = httpsCallable(functions, 'updateProfile');
+  const userDocRef = doc(db, 'users', auth.currentUser.uid);
 
-  const res = await updateProfile({ username: 'testuser1renamed' });
-  assert.strictEqual(res.data.username, 'testuser1renamed');
+  const caseOnlyRes = await updateProfile({ username: 'testUser1' });
+  assert.strictEqual(caseOnlyRes.data.username, 'testUser1');
+  const caseOnlySnap = await getDoc(userDocRef);
+  assert.strictEqual(caseOnlySnap.data().username, 'testUser1', 'a casing-only change is saved without touching the uniqueness index');
+  console.log('PASS: updateProfile allows a casing-only rename');
+
+  const res = await updateProfile({ username: 'TestUser1Renamed' });
+  assert.strictEqual(res.data.username, 'TestUser1Renamed');
   console.log('PASS: updateProfile changes the username');
 
-  const userDocRef = doc(db, 'users', auth.currentUser.uid);
   const snap = await getDoc(userDocRef);
-  assert.strictEqual(snap.data().username, 'testuser1renamed', 'the user doc reflects the new username');
+  assert.strictEqual(snap.data().username, 'TestUser1Renamed', 'the user doc reflects the new username, casing included');
   console.log('PASS: the renamed username is saved on the user doc');
 
   // The old username should be freed -- prove it by successfully claiming it
   // for a different account (createAccount doesn't change the caller's own
-  // signed-in session, so we're still testuser1renamed's session below).
+  // signed-in session, so we're still TestUser1Renamed's session below).
   const createAccount = httpsCallable(functions, 'createAccount');
   const claimRes = await createAccount({ username: 'testuser1', email: 'reclaimed@example.com', password: 'password123' });
   assert.ok(claimRes.data.uid, 'the old username should be free to claim again');
   console.log('PASS: the old username was freed and can be claimed by someone else');
 
   try {
-    await updateProfile({ username: 'testuser1' });
-    assert.fail('expected a username already taken by someone else to be rejected');
+    await updateProfile({ username: 'TestUser1' });
+    assert.fail('expected a username already taken by someone else (case-insensitively) to be rejected');
   } catch (e) {
     assert.strictEqual(e.code, 'functions/already-exists');
-    console.log('PASS: updateProfile rejects a username already taken by someone else');
+    console.log('PASS: updateProfile rejects a username already taken by someone else, case-insensitively');
   }
 
   const tinyPhoto = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';

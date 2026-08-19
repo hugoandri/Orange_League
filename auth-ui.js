@@ -96,7 +96,7 @@
     document.getElementById('authSignupForm').addEventListener('submit', function (e) {
       e.preventDefault();
       setError('authSignupError', '');
-      var username = document.getElementById('authSignupUsername').value.trim().toLowerCase();
+      var username = document.getElementById('authSignupUsername').value.trim();
       var email = document.getElementById('authSignupEmail').value.trim();
       var password = document.getElementById('authSignupPassword').value;
       setSubmitting('authSignupSubmit', true, 'Crear cuenta');
@@ -165,7 +165,7 @@
       var errorEl = document.getElementById('editProfileError');
       errorEl.textContent = '';
 
-      var newUsername = document.getElementById('editProfileUsername').value.trim().toLowerCase();
+      var newUsername = document.getElementById('editProfileUsername').value.trim();
       var currentUsername = (profileState && profileState.username) || '';
       var currentPassword = document.getElementById('editProfileCurrentPassword').value;
       var newPassword = document.getElementById('editProfileNewPassword').value;
