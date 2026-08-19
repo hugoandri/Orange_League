@@ -85,7 +85,8 @@ exports.createAccount = onCall(async (request) => {
 });
 
 exports.resolveLoginEmail = onCall(async (request) => {
-  const ip = (request.rawRequest && request.rawRequest.ip) || 'unknown';
+  const forwardedFor = (request.rawRequest && request.rawRequest.headers && request.rawRequest.headers['x-forwarded-for']) || '';
+  const ip = String(forwardedFor).split(',')[0].trim() || (request.rawRequest && request.rawRequest.ip) || 'unknown';
   await checkRateLimit('resolveLoginEmail_' + ip, RESOLVE_LOGIN_RATE_LIMIT.maxRequests, RESOLVE_LOGIN_RATE_LIMIT.windowMs);
 
   const username = (((request.data || {}).username) || '').trim().toLowerCase();

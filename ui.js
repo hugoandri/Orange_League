@@ -810,6 +810,7 @@ function showBoosterResult(cards) {
 }
 
 function renderCollectionCards(filter) {
+  if (!econState) { return; }
   var html = '';
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
     var cards = [];
