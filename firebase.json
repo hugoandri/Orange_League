@@ -9,6 +9,21 @@
       "codebase": "default"
     }
   ],
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      "docs/**",
+      "README.md",
+      "PROGRESS.md",
+      "tests.html",
+      "tests.js",
+      "run-tests.js"
+    ]
+  },
   "emulators": {
     "auth": { "port": 9099 },
     "functions": { "port": 5001 },
