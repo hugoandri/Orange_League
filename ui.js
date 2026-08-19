@@ -445,9 +445,8 @@ function afterPlayerAction() {
 // button (see tabBtnPlay's handler) instead of a button rendered here.
 function finishMatch(winner) {
   matchWinner = winner;
-  econState = winner === 'player' ? awardWin(econState) : awardLoss(econState);
-  saveEconomy(econState);
-  renderCoinCount();
+  awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
+    .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results); also syncs the header via updateHeaderControls()
   var textEl = document.getElementById('matchEndText');
   textEl.textContent = winner === 'player' ? 'Has Ganado' : 'Has Perdido';
@@ -773,17 +772,17 @@ function closeBoosterSelectModal() {
 
 function openBoosterAndPurchase() {
   if (!boosterSelectState || boosterSelectState.selectedPack === null) { return; }
-  var result = buyBooster(econState, boosterSelectState.setKey, Math.random);
-  if (!result) {
-    alert('No tienes suficientes monedas.');
-    closeBoosterSelectModal();
-    return;
-  }
-  econState = result.economy;
-  saveEconomy(econState);
-  renderCoinCount();
-  closeBoosterSelectModal();
-  showBoosterResult(result.cards);
+  var setKey = boosterSelectState.setKey;
+  document.getElementById('boosterOpenBtn').disabled = true;
+  openBoosterCloud(setKey)
+    .then(function (cards) {
+      closeBoosterSelectModal();
+      showBoosterResult(cards);
+    })
+    .catch(function (err) {
+      alert(err.message || 'No se pudo abrir el sobre.');
+      document.getElementById('boosterOpenBtn').disabled = false;
+    });
 }
 
 function showBoosterResult(cards) {
@@ -1123,8 +1122,6 @@ document.addEventListener('DOMContentLoaded', function () {
   try { savedTheme = localStorage.getItem('tcg_theme'); } catch (e) {}
   applyTheme(savedTheme !== 'light');
 
-  econState = loadEconomy();
-  renderCoinCount();
   applyMenuBackground();
   applyMenuPositions();
   applyMenuLogo();
