@@ -965,7 +965,14 @@ function applyMenuBackground() {
   try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
   if (saved && saved.img) {
     el.style.backgroundImage = 'url(' + saved.img + ')';
-    el.style.backgroundSize = saved.w + '% auto';
+    // 'cover' instead of the saved width%/auto-height: a width below 100%
+    // (or an image whose aspect ratio doesn't match the 1180x1080 box)
+    // left the image narrower/shorter than its frame, showing the frame's
+    // own dark background as two solid columns on the image's own left and
+    // right sides. Cover guarantees the image always fills the frame with
+    // no gaps; the saved x/y position still controls which part of the
+    // image is centered/visible.
+    el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = saved.x + '% ' + saved.y + '%';
     el.style.backgroundRepeat = 'no-repeat';
   } else {
