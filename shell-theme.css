@@ -28,13 +28,6 @@
   background:radial-gradient(60% 55% at 74% 52%,rgba(141,255,98,.10) 0%,transparent 70%);
 }
 
-/* Bridges the gap between the nav column and the key-art's left edge --
-   normally a fixed 36px sliver, widened by JS (layoutShellStage) to cover
-   however far the nav column shifted left to use letterbox bar space, so
-   that shift never exposes a bare/empty seam. Flat color, not a gradient:
-   it only needs to match the veil's own fully-opaque left edge (#191612). */
-.shell-gap-filler{position:absolute;left:704px;top:0;width:36px;height:1080px;background:#191612;pointer-events:none;}
-
 .shell-left-col{position:absolute;left:104px;top:96px;width:600px;display:flex;flex-direction:column;gap:34px;}
 .shell-brand{display:flex;flex-direction:column;gap:14px;}
 

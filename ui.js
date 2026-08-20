@@ -23,15 +23,6 @@ function layoutShellStage() {
   if (profileCard) { profileCard.style.transform = 'translateX(' + extraShift + 'px)'; }
   var logoutBtn = document.getElementById('menuLogoutBtn');
   if (logoutBtn) { logoutBtn.style.transform = 'translateX(' + extraShift + 'px)'; }
-
-  // Shifting the nav column left opens up the gap between it and the
-  // key-art's still-fixed left edge (normally a tight 36px sliver) -- widen
-  // this filler by the same amount so that gap never shows as a bare seam.
-  var gapFiller = document.getElementById('shellGapFiller');
-  if (gapFiller) {
-    gapFiller.style.left = (704 - extraShift) + 'px';
-    gapFiller.style.width = (36 + extraShift) + 'px';
-  }
 }
 
 // Force clear broken portada positions and old backgrounds
