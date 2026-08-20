@@ -93,6 +93,14 @@ fs.writeFileSync('functions/lib/cardCatalog.js', src + '\nmodule.exports = CARD_
 "
 ```
 
+## Shell redesign
+
+The interface shell (menus, board frame, panels, HUD) is being re-skinned
+screen-by-screen to a 32-bit-console visual design from a client handoff —
+see `docs/superpowers/specs/2026-08-19-shell-redesign-design.md` for the
+adaptation decisions and phase order. So far: the main menu only. Every
+other screen still uses the original look until its own phase lands.
+
 ## Architecture
 
 Plain `<script>` tags (no ES modules — those get blocked by CORS when
@@ -107,6 +115,8 @@ firebase-init.js initializes the Firebase app (client SDK config)
 economy.js      Firestore listener + Cloud Function callers (coins, collection, profile)
 auth-ui.js      login/signup/forgot-password flow, auth gating, profile edit modal
 ui.js           the only file that touches the DOM
+shell-layout.js DOM-free math for the shell redesign (stage scale/position, collection progress)
+shell-theme.css shell redesign's design tokens + component styles (currently: main menu only)
 functions/      Cloud Functions: createAccount, updateProfile,
                 awardMatchResult, openBooster — the only code allowed to
                 write coins/collection/username/photo
