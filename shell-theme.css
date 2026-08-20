@@ -24,15 +24,14 @@
 /* ===== Menú principal ===== */
 .shell-menu{position:absolute;inset:0;}
 
-.shell-keyart{position:absolute;right:0;top:0;width:1180px;height:1080px;background-repeat:no-repeat;}
-.shell-keyart-veil{
-  position:absolute;right:0;top:0;width:1180px;height:1080px;pointer-events:none;
-  background:linear-gradient(90deg,#191612 0%,rgba(25,22,18,.92) 22%,rgba(25,22,18,.35) 52%,rgba(25,22,18,0) 78%);
-}
-.shell-keyart-halo{
-  position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(60% 55% at 74% 52%,rgba(141,255,98,.10) 0%,transparent 70%);
-}
+/* Hidden for now -- the user asked to remove the key-art wallpaper and
+   just show .shell-stage's own gray/dark gradient across the whole
+   screen. The veil and halo only make sense layered over an image, so
+   they're hidden too. Kept in place (not deleted) in case a key-art
+   image comes back in a later pass. */
+.shell-keyart{display:none;}
+.shell-keyart-veil{display:none;}
+.shell-keyart-halo{display:none;}
 
 .shell-left-col{position:absolute;left:104px;top:96px;width:600px;display:flex;flex-direction:column;gap:34px;}
 .shell-brand{display:flex;flex-direction:column;gap:14px;}
