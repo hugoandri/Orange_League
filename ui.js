@@ -927,7 +927,7 @@ var MENU_BG_DEFAULT = (function () {
 })();
 
 function applyMenuBackground() {
-  var el = document.getElementById('menuScreen');
+  var el = document.getElementById('shellKeyart');
   if (!el) { return; }
   var saved = null;
   try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
@@ -947,8 +947,8 @@ function applyMenuBackground() {
 function applyMenuLogo() {
   var show = true;
   try { show = localStorage.getItem('tcg_menu_logo') !== 'hidden'; } catch (e) {}
-  var header = document.querySelector('.menu-header');
-  if (header) { header.style.display = show ? '' : 'none'; }
+  var logoWrap = document.getElementById('menuLogoWrap');
+  if (logoWrap) { logoWrap.style.display = show ? '' : 'none'; }
 }
 
 function openConfigModal() {

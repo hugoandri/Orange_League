@@ -5,6 +5,7 @@
 <title>Pokémon TCG Simulador · Overgrowth vs Blackout</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="shell-theme.css">
 </head>
 <body>
 
@@ -66,58 +67,96 @@
 
   <!-- ===== MAIN MENU (PTCGO Style) ===== -->
   <div id="menuScreen" class="hidden">
-    <div class="menu-bg-art">
-      <div class="menu-bg-overlay"></div>
-    </div>
-    <header class="menu-header">
-      <div class="menu-logo">
-        <img class="menu-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="shellStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-menu">
+          <div class="shell-keyart" id="shellKeyart"></div>
+          <div class="shell-keyart-veil"></div>
+          <div class="shell-keyart-halo"></div>
+
+          <div class="shell-left-col">
+            <div class="shell-brand" id="menuLogoWrap">
+              <div class="shell-logo-plate">
+                <img class="shell-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+              </div>
+              <div class="shell-setline">
+                <div class="shell-setline-rule"></div>
+                <div class="shell-setline-text">BASE SET · 1998</div>
+              </div>
+              <div class="shell-tagline">Duelo por turnos contra la CPU. 60 cartas, 6 premios, sin piedad.</div>
+            </div>
+
+            <nav class="shell-nav">
+              <button type="button" class="shell-nav-item" id="menuPlay">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph">⚔</span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">JUGAR</span>
+                  <span class="shell-nav-item-sub">DUELO CONTRA LA CPU</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
+              <button type="button" class="shell-nav-item" id="menuShop">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph">◎</span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">TIENDA</span>
+                  <span class="shell-nav-item-sub">SOBRES Y CAJAS</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
+              <button type="button" class="shell-nav-item" id="menuCollection">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph">▤</span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">MI COLECCIÓN</span>
+                  <span class="shell-nav-item-sub" id="menuCollectionSub">CARGANDO…</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
+              <button type="button" class="shell-nav-item" id="menuConfig">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph">⚙</span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">CONFIGURACIÓN</span>
+                  <span class="shell-nav-item-sub">AUDIO, VÍDEO, PARTIDA</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
+            </nav>
+          </div>
+
+          <button type="button" class="shell-player-card" id="menuProfileBtn">
+            <span class="shell-player-avatar"><img id="menuProfilePhoto" src="Perfil/Jugador.jpg" alt=""></span>
+            <span class="shell-player-id">
+              <span class="shell-player-name" id="menuProfileName">Jugador</span>
+              <span class="shell-player-role">ENTRENADOR</span>
+            </span>
+            <span class="shell-player-divider"></span>
+            <span class="shell-player-econ">
+              <span class="shell-player-coin"></span>
+              <span class="shell-player-balance" id="coin-count">--</span>
+            </span>
+          </button>
+
+          <div class="shell-bottombar">
+            <div class="shell-version">V1.0 · OVERGROWTH VS BLACKOUT</div>
+            <div class="shell-types">
+              <div class="shell-type-badge" title="Planta"><img src="Tipos/planta.png" alt="Planta"></div>
+              <div class="shell-type-badge" title="Fuego"><img src="Tipos/fuego.png" alt="Fuego"></div>
+              <div class="shell-type-badge" title="Agua"><img src="Tipos/agua.png" alt="Agua"></div>
+              <div class="shell-type-badge" title="Rayo"><img src="Tipos/rayo.png" alt="Rayo"></div>
+              <div class="shell-type-badge" title="Psíquico"><img src="Tipos/psiquico.png" alt="Psíquico"></div>
+              <div class="shell-type-badge" title="Lucha"><img src="Tipos/lucha.png" alt="Lucha"></div>
+              <div class="shell-type-badge" title="Incoloro"><img src="Tipos/incoloro.png" alt="Incoloro"></div>
+            </div>
+            <button type="button" class="shell-logout" id="menuLogoutBtn">CERRAR SESIÓN</button>
+          </div>
+        </div>
       </div>
-    </header>
-    <button type="button" class="menu-profile" id="menuProfileBtn">
-      <span class="menu-profile-name" id="menuProfileName">Jugador</span>
-      <img class="menu-profile-photo" id="menuProfilePhoto" src="Perfil/Jugador.jpg" alt="">
-    </button>
-    <div class="menu-body">
-      <nav class="menu-nav">
-        <button type="button" class="menu-nav-btn" id="menuPlay">
-          <span class="mnb-icon">⚔️</span>
-          <div class="mnb-text">
-            <span class="mnb-title">Jugar</span>
-            <span class="mnb-sub">Duelo contra la CPU</span>
-          </div>
-          <span class="mnb-arrow">›</span>
-        </button>
-        <button type="button" class="menu-nav-btn" id="menuShop">
-          <span class="mnb-icon">🛒</span>
-          <div class="mnb-text">
-            <span class="mnb-title">Tienda</span>
-            <span class="mnb-sub">Sobres y boosters</span>
-          </div>
-          <span class="mnb-arrow">›</span>
-        </button>
-        <button type="button" class="menu-nav-btn" id="menuCollection">
-          <span class="mnb-icon">📚</span>
-          <div class="mnb-text">
-            <span class="mnb-title">Mi Colección</span>
-            <span class="mnb-sub">Cartas obtenidas</span>
-          </div>
-          <span class="mnb-arrow">›</span>
-        </button>
-        <button type="button" class="menu-nav-btn" id="menuConfig">
-          <span class="mnb-icon">⚙️</span>
-          <div class="mnb-text">
-            <span class="mnb-title">Configuración</span>
-            <span class="mnb-sub">Opciones del juego</span>
-          </div>
-          <span class="mnb-arrow">›</span>
-        </button>
-      </nav>
     </div>
-    <footer class="menu-footer">
-      <span class="menu-version">v1.0 · Overgrowth vs Blackout · Base Set 1998</span>
-      <button type="button" class="menu-footer-btn" id="menuLogoutBtn">Cerrar sesión</button>
-    </footer>
   </div>
 
   <!-- ===== HEADER (game) ===== -->
