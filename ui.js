@@ -31,6 +31,8 @@ function renderCoinCount() {
   document.getElementById('coin-count').textContent = val;
   var floatEl = document.getElementById('coin-count-float');
   if (floatEl) { floatEl.textContent = val; }
+  var menuEl = document.getElementById('menuCoinCount');
+  if (menuEl) { menuEl.textContent = val; }
 }
 
 // Syncs every static "who am I" spot in the UI (menu widget, floating coin
