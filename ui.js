@@ -14,7 +14,14 @@ function layoutShellStage() {
   // #shellStage, which must never be cropped).
   var backdrop = document.getElementById('shellBackdrop');
   if (backdrop) {
-    var coverScale = Math.max(window.innerWidth / SHELL_STAGE_WIDTH, window.innerHeight / SHELL_STAGE_HEIGHT);
+    // BACKDROP_ZOOM > 1 zooms in past the minimum "cover" fit -- the
+    // gradient's own warm center only spans a small fraction of its
+    // 1920x1080 box before fading to near-black, so a bare cover fit still
+    // shows a stark light-center/dark-edges split. Zooming in crops out
+    // more of that dark outer falloff, so what's actually visible on
+    // screen looks like one more uniform tone instead of two.
+    var BACKDROP_ZOOM = 1.8;
+    var coverScale = Math.max(window.innerWidth / SHELL_STAGE_WIDTH, window.innerHeight / SHELL_STAGE_HEIGHT) * BACKDROP_ZOOM;
     var bx = (window.innerWidth - SHELL_STAGE_WIDTH * coverScale) / 2;
     var by = (window.innerHeight - SHELL_STAGE_HEIGHT * coverScale) / 2;
     backdrop.style.transform = 'translate(' + bx + 'px,' + by + 'px) scale(' + coverScale + ')';
