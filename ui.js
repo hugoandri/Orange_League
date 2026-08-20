@@ -44,7 +44,7 @@ function renderCoinCount() {
   var floatEl = document.getElementById('coin-count-float');
   if (floatEl) { floatEl.textContent = val; }
   var menuEl = document.getElementById('menuCoinCount');
-  if (menuEl) { menuEl.textContent = val; }
+  if (menuEl) { menuEl.innerHTML = pixelDigitsHtml(val, 'oro', 3); }
 }
 
 // Syncs every static "who am I" spot in the UI (menu widget, floating coin
@@ -752,7 +752,7 @@ function hideShopScreen() {
 // they're looking at the screen, e.g. right after a purchase updates coins.
 function updateShopBalance() {
   var balanceEl = document.getElementById('shopCoinBalance');
-  if (balanceEl && econState) { balanceEl.textContent = econState.coins; }
+  if (balanceEl && econState) { balanceEl.innerHTML = pixelDigitsHtml(econState.coins, 'oro', 3); }
 }
 
 // Builds the card grid -- called once per screen-open (showShopScreen), not
@@ -775,7 +775,7 @@ function renderShopScreen() {
           '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
         '</div>' +
         '<div class="shell-shop-card-footer">' +
-          '<span class="shell-shop-card-price"><span class="shell-shop-coin"></span>100</span>' +
+          '<span class="shell-shop-card-price"><span class="shell-shop-coin"></span>' + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
           '<button type="button" class="shell-shop-card-btn">ABRIR</button>' +
         '</div>' +
       '</div>';
@@ -1089,6 +1089,13 @@ document.addEventListener('DOMContentLoaded', function () {
   applyMenuLogo();
   layoutShellStages();
   window.addEventListener('resize', layoutShellStages);
+
+  // News panel dates -- static placeholder content (no real feed exists
+  // yet), so a one-time pass at load is enough; a live feed would call this
+  // again after replacing the list's HTML.
+  document.querySelectorAll('.shell-news-item-day').forEach(function (el) {
+    el.innerHTML = pixelDigitsHtml(el.textContent.trim(), 'plata', 2);
+  });
 
   // Menu buttons
   document.getElementById('menuPlay').addEventListener('click', function () {

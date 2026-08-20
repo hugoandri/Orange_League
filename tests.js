@@ -663,6 +663,38 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('computeStageTransform(1920,1080) y', exact.y, 0);
 })();
 
+(function testPixelDigits() {
+  // Every glyph flattens to the full 8x11 = 88-cell grid, transparent cells
+  // included (the renderer always loops over all 88, matching the source
+  // reference implementation).
+  var one = buildPixelDigitCells('1', 'plata');
+  check('buildPixelDigitCells("1") has 88 cells', one.length, 88);
+
+  // Spot-check against the actual ported algorithm's output (not hand-
+  // derived -- the flood-fill/outline/highlight logic is intricate enough
+  // that re-deriving it by hand would just be a second, less trustworthy
+  // implementation). Locks in known-good behavior as a regression guard.
+  check('buildPixelDigitCells("1") cell 0 is transparent', one[0].bg, 'transparent');
+  check('buildPixelDigitCells("1") cell 3 is the outline color', one[3].bg, '#0a0806');
+  check('buildPixelDigitCells("1") cell 11 is the highlight tone', one[11].bg, '#ffffff');
+  check('buildPixelDigitCells("1") cell 19 is a mid-ramp tone', one[19].bg, '#cfc6b6');
+  check('buildPixelDigitCells("1") cell 75 is the cut/low tone', one[75].bg, '#2a251f');
+
+  // Custom outline color is honored.
+  var withOutline = buildPixelDigitCells('1', 'dano', 'rgba(58,8,2,.92)');
+  check('buildPixelDigitCells honors a custom outline color', withOutline[3].bg, 'rgba(58,8,2,.92)');
+
+  // Unknown glyph (not 0-9) renders nothing, not a crash.
+  check('buildPixelDigitCells rejects a non-digit', buildPixelDigitCells('X', 'oro').length, 0);
+
+  // pixelDigitsHtml wraps one grid per character, all at the requested block
+  // size, with a gap proportional to it.
+  var html = pixelDigitsHtml('10', 'oro', 2);
+  check('pixelDigitsHtml renders one grid per digit', (html.match(/display:grid/g) || []).length, 2);
+  check('pixelDigitsHtml renders all cells at the requested block size', (html.match(/width:2px/g) || []).length, 88 * 2);
+  check('pixelDigitsHtml sets the gap proportional to block size', html.indexOf('gap:4px') !== -1, true);
+})();
+
 (function testCollectionProgress() {
   var fakeCatalog = { base: [{}, {}, {}], jungle: [{}, {}] };
   var progress = collectionProgress({ 'base-1': 2, 'base-2': 1 }, fakeCatalog);
