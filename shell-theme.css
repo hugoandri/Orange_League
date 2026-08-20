@@ -4,7 +4,13 @@
 .shell-viewport{position:absolute;inset:0;overflow:hidden;
   background:radial-gradient(160% 100% at 50% -10%,#1c1811 0%,#0f0d0a 55%,#070706 100%);}
 .shell-stage{
-  width:1920px;height:1080px;position:absolute;left:0;top:0;overflow:hidden;
+  /* No overflow:hidden here -- layoutShellStage() (ui.js) shifts the nav
+     column/profile card/logout button outside this 0-1920 local box on
+     purpose, to use the letterbox bar space. Clipping at this element's own
+     bounds would cut them off even though they land inside the real
+     viewport once the stage's own scale/translate is applied. The real
+     screen-edge clipping still happens one level up, on .shell-viewport. */
+  width:1920px;height:1080px;position:absolute;left:0;top:0;
   transform-origin:0 0;font-family:'Silkscreen',monospace;color:#efe9dd;
   background:radial-gradient(120% 85% at 50% -10%,#332d24 0%,#191612 52%,#0b0a09 100%);
 }
