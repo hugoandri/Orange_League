@@ -944,26 +944,6 @@ function applyMenuBackground() {
   }
 }
 
-// Default logo placement (no saved custom position yet): 50px lower than
-// its natural flex position, options unaffected.
-var MENU_LOGO_DEFAULT = { dx: 0, dy: 85 };
-var MENU_NAV_DEFAULT = { dx: 0, dy: 0 };
-
-function applyMenuPositions() {
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem('tcg_menu_pos')); } catch (e) {}
-  var header = document.querySelector('.menu-header');
-  var nav = document.querySelector('.menu-nav');
-  // saved.logo/nav store a relative dx/dy (how far it was dragged from its
-  // own natural flex position), not an absolute coordinate -- translate()
-  // is always relative to that natural position regardless of where it is,
-  // so no guess about the real layout's starting point is needed here.
-  var logoPos = (saved && saved.logo) ? saved.logo : MENU_LOGO_DEFAULT;
-  var navPos = (saved && saved.nav) ? saved.nav : MENU_NAV_DEFAULT;
-  if (header) { header.style.transform = 'translate(' + logoPos.dx + 'px, ' + logoPos.dy + 'px)'; }
-  if (nav) { nav.style.transform = 'translate(' + navPos.dx + 'px, ' + navPos.dy + 'px)'; }
-}
-
 function applyMenuLogo() {
   var show = true;
   try { show = localStorage.getItem('tcg_menu_logo') !== 'hidden'; } catch (e) {}
@@ -971,111 +951,6 @@ function applyMenuLogo() {
   if (header) { header.style.display = show ? '' : 'none'; }
 }
 
-function makeDraggable(el) {
-  var startX, startY, origX, origY;
-  el.addEventListener('mousedown', function (e) {
-    e.preventDefault();
-    startX = e.clientX;
-    startY = e.clientY;
-    origX = el.offsetLeft;
-    origY = el.offsetTop;
-    el.classList.add('dragging');
-    function onMove(ev) {
-      el.style.left = (origX + ev.clientX - startX) + 'px';
-      el.style.top = (origY + ev.clientY - startY) + 'px';
-      el.style.transform = 'none';
-    }
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      el.classList.remove('dragging');
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
-}
-
-function openPositionModal() {
-  var modal = document.getElementById('positionModal');
-  var preview = document.getElementById('positionPreview');
-  var logo = document.getElementById('posDragLogo');
-  var nav = document.getElementById('posDragNav');
-  var realHeader = document.querySelector('.menu-header');
-  var realNav = document.querySelector('.menu-nav');
-
-  // Show the modal first -- offsetWidth/offsetHeight below read as 0 on a
-  // display:none element, which would silently zero out every position.
-  modal.classList.remove('hidden');
-
-  logo.style.transform = 'none';
-  nav.style.transform = 'none';
-
-  // Anchor each preview handle to where the real element actually sits on
-  // screen right now (ignoring any translate already applied to it), scaled
-  // into preview space -- a guessed/hardcoded starting point (e.g.
-  // "centered") misrepresents the real layout (the header/nav sit near the
-  // left edge, not centered), so a small drag in the preview mapped to a
-  // huge, wrong jump on the real screen.
-  var scaleToPreviewX = preview.offsetWidth / window.innerWidth;
-  var scaleToPreviewY = preview.offsetHeight / window.innerHeight;
-  var headerRect = getUntransformedRect(realHeader);
-  var navRect = getUntransformedRect(realNav);
-  var logoBaseLeft = headerRect.left * scaleToPreviewX;
-  var logoBaseTop = headerRect.top * scaleToPreviewY;
-  var navBaseLeft = navRect.left * scaleToPreviewX;
-  var navBaseTop = navRect.top * scaleToPreviewY;
-  logo.dataset.baseLeft = logoBaseLeft;
-  logo.dataset.baseTop = logoBaseTop;
-  nav.dataset.baseLeft = navBaseLeft;
-  nav.dataset.baseTop = navBaseTop;
-
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem('tcg_menu_pos')); } catch (e) {}
-
-  var logoPos = (saved && saved.logo) ? saved.logo : MENU_LOGO_DEFAULT;
-  var navPos = (saved && saved.nav) ? saved.nav : MENU_NAV_DEFAULT;
-  logo.style.left = (logoBaseLeft + logoPos.dx * scaleToPreviewX) + 'px';
-  logo.style.top = (logoBaseTop + logoPos.dy * scaleToPreviewY) + 'px';
-  nav.style.left = (navBaseLeft + navPos.dx * scaleToPreviewX) + 'px';
-  nav.style.top = (navBaseTop + navPos.dy * scaleToPreviewY) + 'px';
-
-  // Enable dragging in the preview
-  makeDraggable(logo);
-  makeDraggable(nav);
-}
-
-function getUntransformedRect(el) {
-  var prevTransform = el.style.transform;
-  el.style.transform = '';
-  var rect = el.getBoundingClientRect();
-  el.style.transform = prevTransform;
-  return rect;
-}
-
-function closePositionModal() {
-  document.getElementById('positionModal').classList.add('hidden');
-}
-
-function savePositionFromModal() {
-  var preview = document.getElementById('positionPreview');
-  var logo = document.getElementById('posDragLogo');
-  var nav = document.getElementById('posDragNav');
-  var scaleX = window.innerWidth / preview.offsetWidth;
-  var scaleY = window.innerHeight / preview.offsetHeight;
-  var pos = {
-    logo: {
-      dx: Math.round((logo.offsetLeft - parseFloat(logo.dataset.baseLeft)) * scaleX),
-      dy: Math.round((logo.offsetTop - parseFloat(logo.dataset.baseTop)) * scaleY)
-    },
-    nav: {
-      dx: Math.round((nav.offsetLeft - parseFloat(nav.dataset.baseLeft)) * scaleX),
-      dy: Math.round((nav.offsetTop - parseFloat(nav.dataset.baseTop)) * scaleY)
-    }
-  };
-  localStorage.setItem('tcg_menu_pos', JSON.stringify(pos));
-  applyMenuPositions();
-  closePositionModal();
-}
 function openConfigModal() {
   document.getElementById('configMenu').classList.remove('config-hidden');
   document.getElementById('configBgPanel').classList.add('config-hidden');
@@ -1160,7 +1035,6 @@ document.addEventListener('DOMContentLoaded', function () {
   applyTheme(savedTheme !== 'light');
 
   applyMenuBackground();
-  applyMenuPositions();
   applyMenuLogo();
 
   // Menu buttons
@@ -1200,18 +1074,6 @@ document.addEventListener('DOMContentLoaded', function () {
     logoToggle.textContent = isOn ? 'OFF' : 'ON';
     localStorage.setItem('tcg_menu_logo', isOn ? 'hidden' : 'visible');
     applyMenuLogo();
-  });
-
-  // Position modal
-  document.getElementById('configMoveBoth').addEventListener('click', openPositionModal);
-  document.getElementById('posSave').addEventListener('click', savePositionFromModal);
-  document.getElementById('posCancel').addEventListener('click', closePositionModal);
-  document.querySelector('#positionModal .card-modal-backdrop').addEventListener('click', closePositionModal);
-
-  // Reset positions
-  document.getElementById('configResetPositions').addEventListener('click', function () {
-    localStorage.removeItem('tcg_menu_pos');
-    applyMenuPositions();
   });
 
   // Enable drag when config opens

@@ -274,7 +274,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .card-modal.hidden{display:none;}
 #cardModal{z-index:120;}
 #configModal{z-index:210;}
-#positionModal{z-index:220;}
 #editProfileModal{z-index:210;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 .card-modal-content{position:relative;z-index:1;background:var(--panel);padding:16px;
@@ -437,29 +436,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
   background:var(--primary);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;
   transition:all 0.15s;}
 .config-toggle.off{background:var(--muted);color:var(--ink-soft);}
-.drag-hint{font-size:0.72rem;color:var(--ink-muted);font-style:italic;margin:4px 0 8px;}
-.config-position-btns{display:flex;gap:8px;margin:8px 0;}
-.config-pos-btn{flex:1;text-align:center;font-size:0.8rem;padding:10px 8px !important;}
-/* Position modal */
-.position-modal-content{width:800px;max-width:95vw;padding:0 !important;overflow:hidden;}
-.position-preview{position:relative;width:100%;height:450px;
-  background:url('Perfil/Portada_Oficial.jpeg') center/100% auto no-repeat;
-  background-color:#0b1120;border-radius:0 0 12px 12px;overflow:hidden;cursor:crosshair;}
-.pos-logo{position:absolute;top:20px;left:50%;transform:translateX(-50%);
-  font-family:'Sora',sans-serif;font-weight:800;font-size:1rem;letter-spacing:0.15em;
-  color:#c9a84c;background:rgba(0,0,0,0.6);padding:8px 20px;border-radius:6px;
-  border:2px solid rgba(201,168,76,0.4);cursor:grab;user-select:none;z-index:2;
-  text-shadow:0 0 10px rgba(201,168,76,0.3);transition:border-color 0.15s;}
-.pos-logo:active{cursor:grabbing;border-color:var(--primary);}
-.pos-nav{position:absolute;top:100px;left:30px;display:flex;flex-direction:column;gap:6px;
-  cursor:grab;user-select:none;z-index:2;}
-.pos-nav:active{cursor:grabbing;}
-.pos-nav-btn{padding:10px 24px;border:1px solid rgba(201,168,76,0.2);border-radius:8px;
-  background:rgba(20,25,40,0.85);backdrop-filter:blur(6px);color:#d4c89a;
-  font-family:'Sora',sans-serif;font-weight:600;font-size:0.85rem;
-  transition:border-color 0.15s;pointer-events:none;}
-.pos-logo.dragging,.pos-nav.dragging{opacity:0.8;}
-
 /* Floating player info in play mode */
 .coin-float{position:fixed;bottom:16px;left:16px;z-index:50;
   display:flex;align-items:center;gap:10px;
