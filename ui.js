@@ -1,6 +1,13 @@
 var gameState = null;
 var econState = null;
 
+function layoutShellStage() {
+  var stage = document.getElementById('shellStage');
+  if (!stage) { return; }
+  var t = computeStageTransform(window.innerWidth, window.innerHeight);
+  stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
+}
+
 // Force clear broken portada positions and old backgrounds
 (function () {
   try {
@@ -56,6 +63,12 @@ function renderProfile() {
 
   document.querySelectorAll('.collection-profile-name').forEach(function (el) { el.textContent = name; });
   document.querySelectorAll('.collection-profile-photo').forEach(function (el) { el.src = photo; });
+
+  var collectionSubEl = document.getElementById('menuCollectionSub');
+  if (collectionSubEl && econState) {
+    var progress = collectionProgress(econState.collection, CARD_CATALOG);
+    collectionSubEl.textContent = progress.owned + ' DE ' + progress.total + ' CARTAS';
+  }
 }
 
 // Syncs the header's result text ("Ganaste"/"Perdiste") and the Rendirse
@@ -1038,6 +1051,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   applyMenuBackground();
   applyMenuLogo();
+  layoutShellStage();
+  window.addEventListener('resize', layoutShellStage);
 
   // Menu buttons
   document.getElementById('menuPlay').addEventListener('click', function () {
