@@ -72,10 +72,14 @@ New file `shell-theme.css`, loaded after `style.css` in `index.html`. Holds:
   .shell-viewport{position:absolute;inset:0;overflow:hidden;background:#070706;}
   .shell-stage{width:1920px;height:1080px;position:relative;}
   ```
-  JS computes and applies the transform on load and on `resize`:
+  JS computes and applies the transform on load and on `resize`. Uses
+  `Math.max` (cover) rather than `Math.min` (contain) -- the user tried the
+  contain version live and asked for the screen to be filled edge-to-edge
+  instead of showing letterbox bars, even at the cost of cropping whichever
+  axis overflows:
   ```js
   function layoutShellStage(stageEl) {
-    var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    var scale = Math.max(window.innerWidth / 1920, window.innerHeight / 1080);
     var x = (window.innerWidth - 1920 * scale) / 2;
     var y = (window.innerHeight - 1080 * scale) / 2;
     stageEl.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
@@ -126,5 +130,5 @@ No card-engine logic changes, so `node run-tests.js` must stay green
 throughout (regression guard). There's no automated visual test for CSS/layout
 — verification is manual: run `firebase emulators:start`, open
 `http://127.0.0.1:5000`, log in, and eyeball the menu at a few window sizes
-(confirm scale-to-fit + letterboxing behaves, no scroll appears, real
+(confirm the stage fills the viewport edge-to-edge with no bars, no scroll appears, real
 coins/photo/username/collection-count show correctly).

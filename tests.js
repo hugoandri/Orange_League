@@ -625,17 +625,20 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 })();
 
 (function testComputeStageTransform() {
-  // Width-constrained: viewport narrower (relative to 16:9) than the stage.
-  var narrow = computeStageTransform(960, 1080);
-  check('computeStageTransform(960,1080) scale', narrow.scale, 0.5);
-  check('computeStageTransform(960,1080) x', narrow.x, 0);
-  check('computeStageTransform(960,1080) y', narrow.y, 270);
+  // Cover behavior: fills the whole viewport, cropping whichever axis
+  // overflows -- no letterbox bars on either axis.
 
-  // Height-constrained: viewport wider (relative to 16:9) than the stage.
+  // Narrower-than-16:9 viewport: height drives the scale, width overflows/crops.
+  var narrow = computeStageTransform(960, 1080);
+  check('computeStageTransform(960,1080) scale', narrow.scale, 1);
+  check('computeStageTransform(960,1080) x', narrow.x, -480);
+  check('computeStageTransform(960,1080) y', narrow.y, 0);
+
+  // Wider-than-16:9 viewport: width drives the scale, height overflows/crops.
   var wide = computeStageTransform(3840, 1080);
-  check('computeStageTransform(3840,1080) scale', wide.scale, 1);
-  check('computeStageTransform(3840,1080) x', wide.x, 960);
-  check('computeStageTransform(3840,1080) y', wide.y, 0);
+  check('computeStageTransform(3840,1080) scale', wide.scale, 2);
+  check('computeStageTransform(3840,1080) x', wide.x, 0);
+  check('computeStageTransform(3840,1080) y', wide.y, -540);
 
   // Exact fit.
   var exact = computeStageTransform(1920, 1080);
