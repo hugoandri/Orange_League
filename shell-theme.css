@@ -9,13 +9,7 @@
   background:url('Tablero/fondo.png') center/cover no-repeat, #070706;}
 
 .shell-stage{
-  /* No overflow:hidden here -- layoutShellStage() (ui.js) shifts the nav
-     column/profile card/logout button outside this 0-1920 local box on
-     purpose, to use the letterbox bar space. Clipping at this element's own
-     bounds would cut them off even though they land inside the real
-     viewport once the stage's own scale/translate is applied. The real
-     screen-edge clipping still happens one level up, on .shell-viewport. */
-  width:1920px;height:1080px;position:absolute;left:0;top:0;
+  width:1920px;height:1080px;position:absolute;left:0;top:0;overflow:hidden;
   transform-origin:0 0;font-family:'Silkscreen',monospace;color:#efe9dd;
 }
 .shell-stage-overlay{

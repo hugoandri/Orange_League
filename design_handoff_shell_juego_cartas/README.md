@@ -10,6 +10,10 @@ especulares, tipografía bitmap, y un verde fósforo como color de acción.
 Cubre siete pantallas: **Menú principal, Selección de mazo, Tablero de duelo, Tienda,
 Apertura de sobre, Mi colección y Configuración.**
 
+> **Antes de escribir una línea de layout, lee «⚠ Adaptación a la pantalla» más abajo.** El
+> diseño es un lienzo fijo de 1920×1080 que se escala con letterbox; si se implementa como una
+> página responsive, se cortan los laterales.
+
 Alcance explícito acordado con el cliente: **las cartas no se rediseñan.** Todas las cartas
 aparecen como marcadores de posición (rectángulos con trama diagonal y la etiqueta `CARTA`).
 El trabajo es todo lo que rodea a las cartas: marcos, fondos, menús, paneles, HUD, botones,
@@ -46,16 +50,101 @@ Dos matices:
 
 ---
 
+## ⚠ Adaptación a la pantalla — LEE ESTO ANTES DE MAQUETAR
+
+Este diseño **no es responsive**. Es un lienzo de resolución fija, como un juego de consola.
+La forma correcta de adaptarlo a cualquier pantalla es **escalar el lienzo completo y dejar
+bandas negras** (letterbox / pillarbox). Nunca recortar, nunca reflujo.
+
+**Síntoma de implementación incorrecta:** se cortan los laterales izquierdo y derecho (o el
+borde superior/inferior). Eso significa que se usó `max()` en vez de `min()` al calcular la
+escala, o `object-fit: cover`, o se dejó el lienzo a 1920px de ancho sin escalar dentro de un
+contenedor más estrecho con `overflow: hidden`.
+
+**La regla, con una sola fórmula:**
+
+```js
+const scale = Math.min(viewportWidth / 1920, viewportHeight / 1080);   // min, NUNCA max
+```
+
+`min` garantiza que el lado más restrictivo entre completo; el otro lado sobra y se rellena con
+el color de letterbox `#070706`. Con `max`, el lado excedente se sale del contenedor y se
+recorta: eso es exactamente el defecto reportado.
+
+**Implementación de referencia (web):**
+
+```html
+<div id="viewport">          <!-- ocupa toda la ventana; overflow:hidden -->
+  <div id="stage">…</div>    <!-- 1920×1080 fijos, escalado por transform -->
+</div>
+```
+
+```css
+#viewport {
+  position: relative;
+  width: 100%;
+  height: 100vh;         /* o 100dvh en móvil */
+  overflow: hidden;
+  background: #070706;   /* el color de las bandas */
+}
+#stage {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1920px;         /* SIEMPRE 1920×1080, sin media queries */
+  height: 1080px;
+  transform-origin: 0 0; /* imprescindible: sin esto el centrado no cuadra */
+  overflow: hidden;
+}
+```
+
+```js
+function fit() {
+  const vp = document.getElementById('viewport');
+  const st = document.getElementById('stage');
+  const w = vp.clientWidth, h = vp.clientHeight;
+  const s = Math.min(w / 1920, h / 1080) || 1;
+  const x = (w - 1920 * s) / 2;   // centrado horizontal → pillarbox
+  const y = (h - 1080 * s) / 2;   // centrado vertical  → letterbox
+  st.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+}
+fit();
+addEventListener('resize', fit);
+```
+
+**Puntos donde suele romperse:**
+
+1. `transform-origin` distinto de `0 0` — el `translate` calculado deja de coincidir y el
+   escenario se desplaza fuera del contenedor.
+2. Centrar con `display: grid; place-items: center` **además** del `translate` — el centrado se
+   aplica dos veces y el escenario se va de cuadro. Elige uno: o `translate` manual con
+   `transform-origin: 0 0` (recomendado, es lo que hace el prototipo), o `place-items: center`
+   con `transform-origin: center center` y solo `scale()`.
+3. Escalar con `zoom` o con `width: 100%` en lugar de `transform: scale()` — provoca reflujo y
+   rompe todas las medidas absolutas del diseño.
+4. Media queries o breakpoints. **No hay ninguno.** Si aparece un breakpoint en la
+   implementación, es un error de interpretación.
+5. `overflow` sin definir en el contenedor exterior — el escenario asoma y aparecen barras de
+   scroll.
+
+**Equivalentes en otros entornos:**
+
+- **Unity UI:** `Canvas Scaler` → `Scale With Screen Size`, `Reference Resolution` 1920×1080,
+  `Screen Match Mode` = **Expand** (equivale a `min`; `Shrink` recorta).
+- **Godot:** `Stretch Mode` = `canvas_items`, `Aspect` = **keep** (no `keep_width`/`keep_height`).
+- **React Native / móvil:** contenedor con la relación 16:9 centrada, escalado por `transform`.
+- **SwiftUI:** `.aspectRatio(16/9, contentMode: .fit)` — `.fit`, nunca `.fill`.
+
+**Si de verdad hace falta soportar relaciones de aspecto muy distintas** (móvil vertical, por
+ejemplo), eso es un rediseño, no una adaptación: hay que redistribuir las cuatro columnas del
+tablero y volver a presupuestar el alto. Consúltalo con el diseñador antes de improvisarlo.
+
+---
+
 ## Lienzo y escalado
 
 - Lienzo de diseño fijo: **1920 × 1080 px**. Todas las medidas de este documento son en ese lienzo.
-- El escenario se escala uniformemente al viewport: `scale = min(vw/1920, vh/1080)`, aplicado
-  con `transform: translate(x, y) scale(s)` y `transform-origin: 0 0`, centrado calculando
-  `x = (vw - 1920·s)/2`, `y = (vh - 1080·s)/2`. Contenedor exterior `overflow: hidden`.
-- **Ninguna pantalla hace scroll.** Todas encajan exactamente en 1080 px de alto. Es un
-  requisito del cliente: si añades contenido, recorta en otro sitio.
-- Recomendación de implementación: `transform: scale()` sobre un lienzo fijo, no layout fluido.
-  El diseño es de resolución fija tipo consola, no responsive.
+- El escenario se escala uniformemente al viewport con la fórmula de la sección anterior
+  (`min`, letterbox). No hay breakpoints ni layout fluido.
 
 ### Capas de fondo del escenario
 

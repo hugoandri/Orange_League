@@ -70,17 +70,22 @@ New file `shell-theme.css`, loaded after `style.css` in `index.html`. Holds:
   ```
   ```css
   .shell-viewport{position:absolute;inset:0;overflow:hidden;background:#070706;}
-  .shell-stage{width:1920px;height:1080px;position:relative;}
+  .shell-stage{width:1920px;height:1080px;position:relative;overflow:hidden;}
   ```
-  JS computes and applies the transform on load and on `resize`. Uses
-  `Math.min` (contain) -- `Math.max` (cover, fill the screen edge-to-edge)
-  was tried live at the user's request and reverted: on a wider-than-16:9
-  viewport it pushed the vertical axis past the viewport, cropping the
-  player card (near the top) and the bottom bar/logout button (`bottom:0`)
-  off-screen. `.shell-viewport`'s background is a dark radial gradient
-  (not flat black) so the letterbox bars read as ambient scene background
-  rather than dead space, partially addressing the "bars" complaint without
-  risking cropping real content:
+  JS computes and applies the transform on load and on `resize`. **Always
+  `Math.min` (contain), never `Math.max` (cover).** This was tried both
+  ways during the menu phase before landing here — `Math.max` was tried
+  live at the user's request (to fill the screen with no letterbox bars)
+  and caused real damage: on a wider-than-16:9 viewport it pushed content
+  past the viewport, cropping the player card and the bottom bar/logout
+  button off-screen, which then required per-element JS hacks (shifting
+  the nav column and other widgets into the "bar space", widening a gap
+  next to the key-art, `.shell-stage` clipping its own shifted children)
+  to patch around. All of that was reverted. `design_handoff_shell_juego_cartas 2/README.md`'s
+  "⚠ Adaptación a la pantalla" section (added after this went back to the
+  designer) confirms `min`/contain + flat-color letterbox bars is the
+  canonical, correct implementation — never crop, never reflow, never move
+  content outside the 1920×1080 stage:
   ```js
   function layoutShellStage(stageEl) {
     var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -89,6 +94,11 @@ New file `shell-theme.css`, loaded after `style.css` in `index.html`. Holds:
     stageEl.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
   }
   ```
+  The letterbox bars no longer read as "wasted dead space": `.shell-viewport`'s
+  background is the user-supplied `Tablero/fondo.png` (`cover`, centered),
+  covering the real screen directly regardless of the stage's own scale --
+  so the bars are simply more of the same background image, continuous
+  with the content inside the stage, not a separate flat fill.
   Each migrated screen's own root element becomes the `.shell-viewport`
   (`#menuScreen` already is `position:fixed;inset:0`, so it just gains a
   `.shell-stage` child wrapping its actual content, and `layoutShellStage`
