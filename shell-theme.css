@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap');
 
 /* ===== Fixed-canvas scaling shell ===== */
-.shell-viewport{position:absolute;inset:0;overflow:hidden;background:#070706;}
+.shell-viewport{position:absolute;inset:0;overflow:hidden;
+  background:radial-gradient(160% 100% at 50% -10%,#1c1811 0%,#0f0d0a 55%,#070706 100%);}
 .shell-stage{
   width:1920px;height:1080px;position:absolute;left:0;top:0;overflow:hidden;
   transform-origin:0 0;font-family:'Silkscreen',monospace;color:#efe9dd;
