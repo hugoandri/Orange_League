@@ -5,6 +5,7 @@ function layoutShellStage() {
   var stage = document.getElementById('shellStage');
   if (!stage) { return; }
   var t = computeStageTransform(window.innerWidth, window.innerHeight);
+  stage.style.width = t.width + 'px';
   stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
 }
 

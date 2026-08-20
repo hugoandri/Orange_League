@@ -11,8 +11,11 @@ Cubre siete pantallas: **Menú principal, Selección de mazo, Tablero de duelo, 
 Apertura de sobre, Mi colección y Configuración.**
 
 > **Antes de escribir una línea de layout, lee «⚠ Adaptación a la pantalla» más abajo.** El
-> diseño es un lienzo fijo de 1920×1080 que se escala con letterbox; si se implementa como una
-> página responsive, se cortan los laterales.
+> diseño tiene alto fijo (1080) y ancho elástico: llena la ventana entera sin bandas laterales,
+> y el ancho extra lo absorbe el centro de cada pantalla — nada se estira.
+>
+> El menú lleva un **panel de novedades** en su mitad derecha — la única superficie del shell
+> que consume datos remotos. Ver «La mitad derecha del menú: panel de novedades».
 
 Alcance explícito acordado con el cliente: **las cartas no se rediseñan.** Todas las cartas
 aparecen como marcadores de posición (rectángulos con trama diagonal y la etiqueta `CARTA`).
@@ -44,38 +47,44 @@ La UI debe recrearse fielmente con las librerías del codebase destino.
 Dos matices:
 - Las **cartas** son marcadores de posición intencionados. Sustitúyelas por el render real de
   carta que ya exista en el proyecto, respetando las cajas y proporciones indicadas.
-- El **logotipo** y el **arte principal** del menú son huecos vacíos a rellenar con material
-  del cliente. No hay logotipo diseñado en este paquete (no se pueden reproducir marcas de
-  terceros); usa el arte propio del proyecto.
+- El **logotipo** del menú es un hueco vacío a rellenar con material del cliente. No hay
+  logotipo diseñado en este paquete (no se pueden reproducir marcas de terceros); usa el arte
+  propio del proyecto.
+- El **panel de novedades** lleva texto de relleno realista, no copia final: se alimenta de un
+  feed.
 
 ---
 
 ## ⚠ Adaptación a la pantalla — LEE ESTO ANTES DE MAQUETAR
 
-Este diseño **no es responsive**. Es un lienzo de resolución fija, como un juego de consola.
-La forma correcta de adaptarlo a cualquier pantalla es **escalar el lienzo completo y dejar
-bandas negras** (letterbox / pillarbox). Nunca recortar, nunca reflujo.
+El diseño **no es responsive** en el sentido web, pero **sí llena la ventana entera**: no deja
+bandas laterales. El lienzo tiene **alto fijo de 1080** y **ancho elástico**: se escala por el
+alto, y el ancho crece hasta cubrir la ventana.
 
-**Síntoma de implementación incorrecta:** se cortan los laterales izquierdo y derecho (o el
-borde superior/inferior). Eso significa que se usó `max()` en vez de `min()` al calcular la
-escala, o `object-fit: cover`, o se dejó el lienzo a 1920px de ancho sin escalar dentro de un
-contenedor más estrecho con `overflow: hidden`.
+**Síntoma de implementación incorrecta:** bandas negras a izquierda y derecha (espacio
+desperdiciado), o los laterales del diseño cortados. Lo primero significa que se escaló con
+`min(vw/1920, vh/1080)` dejando el lienzo a 1920 fijos; lo segundo, que se usó `max()` o
+`object-fit: cover`.
 
-**La regla, con una sola fórmula:**
+**La regla:**
 
 ```js
-const scale = Math.min(viewportWidth / 1920, viewportHeight / 1080);   // min, NUNCA max
+let s = viewportHeight / 1080;                            // la escala la manda el ALTO
+if (viewportWidth / s < 1920) s = viewportWidth / 1920;   // ventana estrecha: no recortar
+const canvasWidth = Math.min(Math.max(viewportWidth / s, 1920), 2560);
 ```
 
-`min` garantiza que el lado más restrictivo entre completo; el otro lado sobra y se rellena con
-el color de letterbox `#070706`. Con `max`, el lado excedente se sale del contenedor y se
-recorta: eso es exactamente el defecto reportado.
+- **1920** es el ancho mínimo: por debajo, el diseño se recortaría. Si la ventana es más
+  estrecha que 16:9, la escala pasa a mandarla el ancho y aparecen bandas **arriba y abajo**
+  (nunca a los lados).
+- **2560** es el tope (21:9). Más allá, el lienzo se centra: en ultrapanorámico las columnas se
+  separarían tanto que la composición se rompería.
 
 **Implementación de referencia (web):**
 
 ```html
 <div id="viewport">          <!-- ocupa toda la ventana; overflow:hidden -->
-  <div id="stage">…</div>    <!-- 1920×1080 fijos, escalado por transform -->
+  <div id="stage">…</div>    <!-- alto 1080 fijo, ancho fijado por JS -->
 </div>
 ```
 
@@ -85,13 +94,12 @@ recorta: eso es exactamente el defecto reportado.
   width: 100%;
   height: 100vh;         /* o 100dvh en móvil */
   overflow: hidden;
-  background: #070706;   /* el color de las bandas */
 }
 #stage {
   position: absolute;
   left: 0; top: 0;
-  width: 1920px;         /* SIEMPRE 1920×1080, sin media queries */
-  height: 1080px;
+  height: 1080px;        /* fijo */
+  width: 1920px;         /* valor de partida; JS lo reescribe */
   transform-origin: 0 0; /* imprescindible: sin esto el centrado no cuadra */
   overflow: hidden;
 }
@@ -102,56 +110,221 @@ function fit() {
   const vp = document.getElementById('viewport');
   const st = document.getElementById('stage');
   const w = vp.clientWidth, h = vp.clientHeight;
-  const s = Math.min(w / 1920, h / 1080) || 1;
-  const x = (w - 1920 * s) / 2;   // centrado horizontal → pillarbox
-  const y = (h - 1080 * s) / 2;   // centrado vertical  → letterbox
-  st.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+  let s = h / 1080;
+  if (w / s < 1920) s = w / 1920;
+  const cw = Math.min(Math.max(w / s, 1920), 2560);
+  st.style.width = cw + 'px';
+  st.style.transform = `translate(${(w - cw * s) / 2}px, ${(h - 1080 * s) / 2}px) scale(${s})`;
 }
 fit();
 addEventListener('resize', fit);
 ```
+
+### Qué crece y qué no cuando el lienzo se ensancha
+
+Esta es la parte que hay que respetar al portar. **El ancho extra lo absorbe el centro; nada se
+estira.**
+
+| Elemento | Comportamiento |
+| --- | --- |
+| Raíles laterales del tablero (430 / 260 / 330), columna de mazos (480), filtros de colección (290) | **Ancho fijo.** Nunca crecen. |
+| Zona central del tablero | `flex: 1` — se queda todo el sobrante. |
+| Barras superior e inferior | Ancladas a los dos bordes (`left: 0; right: 0`). |
+| Columna de menú (`left: 104px`) | Anclada a la izquierda, ancho fijo 560. |
+| Panel de novedades (`right: 96px`) | Anclado a la derecha, ancho fijo 830. |
+| Capa decorativa del menú | `left: 740px; right: 0` — **ancho automático**, no 1180 fijos. |
+| Rejillas de cartas (colección `repeat(8, 164px)`, mazo `repeat(12, 96px)`) | **Celdas de ancho fijo**, centradas con `justify-content: center`. Ni crecen ni cambian de número. |
+| Rejillas de paneles (tienda `repeat(4, minmax(0,420px))`, ajustes `repeat(2, minmax(0,880px))`) | Crecen hasta su tope y se centran. |
+| Cartas, botones, tipografía, iconos | **Tamaño fijo siempre.** Nada de tipografía fluida. |
+
+Dicho de otro modo: en el menú varía la distancia entre la columna de opciones y el panel de
+novedades; en el tablero, el ancho de la mesa de juego. Todo lo demás conserva sus medidas
+exactas.
+
+Y **no hay media queries.** Si aparece un breakpoint en la implementación, es un error de
+interpretación.
 
 **Puntos donde suele romperse:**
 
 1. `transform-origin` distinto de `0 0` — el `translate` calculado deja de coincidir y el
    escenario se desplaza fuera del contenedor.
 2. Centrar con `display: grid; place-items: center` **además** del `translate` — el centrado se
-   aplica dos veces y el escenario se va de cuadro. Elige uno: o `translate` manual con
-   `transform-origin: 0 0` (recomendado, es lo que hace el prototipo), o `place-items: center`
-   con `transform-origin: center center` y solo `scale()`.
+   aplica dos veces y el escenario se va de cuadro.
 3. Escalar con `zoom` o con `width: 100%` en lugar de `transform: scale()` — provoca reflujo y
    rompe todas las medidas absolutas del diseño.
-4. Media queries o breakpoints. **No hay ninguno.** Si aparece un breakpoint en la
-   implementación, es un error de interpretación.
-5. `overflow` sin definir en el contenedor exterior — el escenario asoma y aparecen barras de
+4. Dejar el lienzo a 1920 fijos: vuelven las bandas laterales.
+5. Estirar la tipografía o las cartas con el lienzo. El ancho extra es espacio, no escala.
+6. **Rejillas con `1fr` + `aspect-ratio`.** Es el fallo más fácil de introducir: al ensancharse
+   el lienzo las celdas crecen en ancho, `aspect-ratio` las hace crecer en alto, y la pantalla
+   se sale de los 1080 (a 2560 la rejilla de mazo desbordaba 356px). Las rejillas de cartas van
+   con **ancho de celda fijo** y `justify-content: center`; las de paneles, con `minmax(0, N)`.
+7. `overflow` sin definir en el contenedor exterior — el escenario asoma y aparecen barras de
    scroll.
 
 **Equivalentes en otros entornos:**
 
 - **Unity UI:** `Canvas Scaler` → `Scale With Screen Size`, `Reference Resolution` 1920×1080,
-  `Screen Match Mode` = **Expand** (equivale a `min`; `Shrink` recorta).
-- **Godot:** `Stretch Mode` = `canvas_items`, `Aspect` = **keep** (no `keep_width`/`keep_height`).
-- **React Native / móvil:** contenedor con la relación 16:9 centrada, escalado por `transform`.
-- **SwiftUI:** `.aspectRatio(16/9, contentMode: .fit)` — `.fit`, nunca `.fill`.
+  `Screen Match Mode` = **Expand**, y los raíles anclados a los bordes.
+- **Godot:** `Stretch Mode` = `canvas_items`, `Aspect` = **expand** (`keep` deja bandas).
+- **SwiftUI / móvil:** contenedor a alto completo con el contenido anclado a los bordes; nunca
+  `.aspectRatio(contentMode: .fill)`.
 
-**Si de verdad hace falta soportar relaciones de aspecto muy distintas** (móvil vertical, por
-ejemplo), eso es un rediseño, no una adaptación: hay que redistribuir las cuatro columnas del
-tablero y volver a presupuestar el alto. Consúltalo con el diseñador antes de improvisarlo.
+**Si hace falta soportar relaciones de aspecto muy distintas** (móvil vertical, por ejemplo),
+eso es un rediseño, no una adaptación: hay que redistribuir las cuatro columnas del tablero y
+volver a presupuestar el alto. Consúltalo con el diseñador antes de improvisarlo.
+
+### El fondo sangra; el contenido no
+
+El fondo se pinta en el contenedor exterior, no en el escenario, para que el material continúe
+hasta el borde de la ventana en cualquier caso (incluidas las bandas superior e inferior de una
+ventana más estrecha que 16:9).
+
+El `#viewport` lleva el fondo completo del sistema, no `#070706` plano:
+
+```css
+#viewport {
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px),
+    radial-gradient(140% 100% at 50% -10%, #332d24 0%, #191612 52%, #0b0a09 100%);
+}
+```
+
+El `#stage` queda **sin fondo propio**: ni `background`, ni un color de respaldo, ni una copia
+del degradado a otra escala. Si el escenario conserva su propio degradado, se apilan dos
+degradados de geometrías distintas y el resultado es un rectángulo más claro con una costura
+nítida en los cuatro lados — el mismo parche que se quería eliminar. Nota el `140% 100%` en vez
+del `120% 85%` original: el degradado se extiende para cubrir también las bandas, de modo que
+el centro luminoso sigue cayendo detrás del escenario y la caída a negro continúa hacia fuera.
+
+La textura diagonal también se muda al exterior. En el escenario solo queda la viñeta, como
+capa superpuesta con `pointer-events: none`.
+
+Regla general: **el fondo sangra, el contenido no.** Fondos, texturas, degradados y viñetas se
+pintan en el contenedor exterior y llenan la ventana entera. Todo lo demás — paneles, botones,
+texto, cartas — vive dentro de los 1920×1080 y nunca se estira ni se reposiciona.
+
+Con esto la ventana se ve llena a cualquier relación de aspecto sin tocar una sola medida del
+diseño.
+
+### La mitad derecha del menú: panel de novedades
+
+El menú dedica la mitad derecha (**1180 × 1080**) a un **panel de novedades**, al estilo de los
+juegos en línea: es donde el equipo publica actualizaciones, eventos y avisos. No es un hueco de
+arte — es contenido real que llega de un feed. **No ensanches ni centres la columna de menú**
+para ocupar ese espacio: rompe la composición asimétrica del diseño.
+
+El panel mide **830 × 800** en `right: 96px; top: 132px`, es una placa metálica con corte de
+esquina de 16px, y tiene cuatro zonas apiladas:
+
+1. **Cabecera** (`flex: none`, `padding: 20px 24px`, borde inferior `1px #0b0907`, fondo
+   `linear-gradient(180deg,#2c2721,#1d1a15)`): cuadrado de 8px `#e8c46a` con halo, título
+   `NOVEDADES` Pixelify Sans 26px/700 `.04em`, y a la derecha la insignia de recuento
+   (10px `.14em`, texto `#0d2a06` sobre `#8dff62`, `padding: 6px 10px`, halo
+   `0 0 14px rgba(141,255,98,.5)`). El número cuenta las entradas del panel, destacada incluida:
+   manténlo sincronizado con el feed, no lo dejes fijo.
+2. **Entrada destacada** (panel hundido, `padding: 22px 24px`, `gap: 12px`): chip `DESTACADO`
+   dorado + fecha 11px `.14em` `#8a7e6f`; titular Pixelify Sans **32px**/700 `line-height: 1.2`;
+   cuerpo 12px `line-height: 1.9` `#a49785`; y el botón primario `VER DETALLES`
+   (`padding: 12px 20px`, 11px `.12em`).
+3. **Lista de entradas** (`flex: 1`, `overflow: hidden`) — **cinco** filas de `padding: 18px 24px`,
+   separadas por `1px rgba(0,0,0,.45)` (la última sin borde), hover
+   `background: rgba(232,196,106,.07)`. Cada fila:
+   - Columna de fecha de 74px: día en Pixelify Sans 22px/700 `#efe9dd` sobre mes en 10px `.14em`
+     `#6d6155`.
+   - Titular 15px `#f6f1e6` + resumen 11px `line-height: 1.8` `#a49785`, ambos con
+     `text-wrap: pretty`.
+   - Chip de categoría a la derecha: 10px `.12em`, `padding: 5px 9px`, borde de 1px al 40% del
+     color y texto del mismo color. **Paleta de categorías:** `EQUILIBRIO` `#8dff62` ·
+     `TIENDA` `#e8c46a` · `AVISO` `#ff8a72`. Añade nuevas categorías dentro de estos tres
+     colores; no introduzcas un cuarto.
+4. **Pie** (`padding: 16px 24px`, borde superior, hover `brightness(1.25)`):
+   `VER TODAS LAS NOVEDADES` 11px `.16em` `#a49785` y un `▶` 14px `#e8c46a`.
+
+**Al implementar**, este panel se alimenta de datos. Contrato mínimo por entrada:
+`{ id, fecha, titulo, resumen, categoria, destacado, url }`. Necesita tres estados que el
+prototipo no muestra: **cargando** (cinco filas fantasma con el degradado hundido), **vacío**
+(«Sin novedades por ahora» centrado, 12px `#6d6155`) y **error de red** (aviso en la variante
+`AVISO`, con un botón secundario `REINTENTAR`).
+
+**El alto del panel es fijo y la lista debe llenarlo.** Cinco entradas de una línea de resumen
+ocupan los 445px de la lista con holgura mínima. Dos reglas que se derivan de esto:
+- Si el feed trae **más** de cinco entradas no destacadas, la lista **no crece**: recorta a
+  cinco y deja el resto detrás del pie.
+- Si trae **menos**, no dejes el hueco: reduce el alto del panel al del contenido
+  (`height: auto` con `max-height: 800px`, lista `flex: none`). Un cuarto de panel vacío bajo la
+  última entrada es el mismo defecto de «se ve a medio terminar» que este panel vino a
+  resolver. **No lo disimules con `justify-content: space-between`** — eso solo reparte las
+  mismas filas por el vacío.
+
+El texto del prototipo es relleno realista, no copia final.
+
+Detrás del panel va una **capa decorativa**: el panel no llena la mitad derecha y esa capa evita
+que los márgenes se lean como vacío. Va de `left: 740px` a `right: 0` (ancho automático, para
+que acompañe al lienzo elástico), alto 1080, `overflow: hidden`,
+`pointer-events: none`, y lleva tres elementos:
+
+1. **Retícula técnica** a 104px, con el borde izquierdo desvanecido para que no exista costura
+   contra la columna de menú:
+   ```css
+   mask-image: linear-gradient(90deg, transparent 0, #000 26%);
+   background:
+     repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 104px),
+     repeating-linear-gradient(0deg,  rgba(255,255,255,.022) 0 1px, transparent 1px 104px);
+   ```
+2. **Dos círculos concéntricos** centrados en `left: 44%; top: 50%` — 760px con
+   `border: 1px solid rgba(232,196,106,.10)` y `box-shadow: inset 0 0 120px rgba(141,255,98,.05)`;
+   520px con `border: 1px solid rgba(232,196,106,.07)`.
+3. **Columna de cinco iconos de tipo** (planta, fuego, agua, rayo, psíquico) de 76px,
+   `gap: 30px`, en **`left: 26px`** (la franja libre entre la columna de menú y el panel de
+   novedades), centrada vertical, a **`opacity: .16`**. Debe quedar en esa franja: si se ancla
+   a la derecha, el panel la corta por la mitad y los iconos asoman como medias lunas.
+
+Regla general para los huecos de imagen que quedan en el diseño (logotipo, sobres de la tienda,
+sobre cerrado): **el estado vacío debe ser un elemento delimitado e intencionado, nunca un
+relleno a sangre.** Si el componente de imagen del codebase pinta un fondo en su estado vacío,
+o se le neutraliza ese relleno, o se le acota a un panel definido — un lavado uniforme sobre
+todo el bloque, con canto nítido, es el mismo parche con otro disfraz.
+
+**No hay velo de legibilidad sobre esta zona.** El diseño original lo llevaba para oscurecer el
+arte principal; con el panel de novedades en su lugar, un velo solo tiñe una superficie de UI
+y la desalinea del metal gris del resto del sistema. Si lo ves en una implementación, es un
+residuo: quítalo.
+
+**Orden de capas del menú** (de atrás a adelante), y hay que respetarlo: halo verde ambiental
+(`inset: 0`, `radial-gradient(60% 55% at 74% 52%, rgba(141,255,98,.10) 0%, transparent 70%)`,
+`pointer-events: none`) → capa decorativa → **panel de novedades** → columna de menú → tarjeta
+de jugador → barra inferior. El halo y la decoración van **detrás** del panel: si se pintan
+después, lo tiñen de verde oliva y le oscurecen el borde izquierdo.
 
 ---
 
 ## Lienzo y escalado
 
-- Lienzo de diseño fijo: **1920 × 1080 px**. Todas las medidas de este documento son en ese lienzo.
+- Lienzo de diseño: **alto fijo 1080px**, ancho elástico entre **1920 y 2560px**. Todas las
+  medidas de este documento se dan sobre el lienzo de referencia de 1920.
+- **Todas las medidas asumen `box-sizing: border-box`.** Ponlo como reset global
+  (`*, *::before, *::after { box-sizing: border-box; }`) antes de traducir una sola medida: con
+  `content-box`, cada elemento que combine alto fijo y padding crece y arrastra la pantalla
+  fuera de los 1080.
+- **Ninguna pantalla hace scroll.** Todas encajan exactamente en 1080px de alto. Es un
+  requisito del cliente: si añades contenido, recorta en otro sitio. Los contenedores `flex: 1`
+  que envuelven contenido de alto propio necesitan `min-height: 0` para poder encogerse.
 - El escenario se escala uniformemente al viewport con la fórmula de la sección anterior
   (`min`, letterbox). No hay breakpoints ni layout fluido.
 
-### Capas de fondo del escenario
+### Capas de fondo
 
-1. Base: `radial-gradient(120% 85% at 50% -10%, #332d24 0%, #191612 52%, #0b0a09 100%)`
-2. Superpuesta (no interactiva, `pointer-events:none`, cubre todo el escenario):
-   `repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px)` +
-   `radial-gradient(90% 70% at 50% 45%, transparent 40%, rgba(0,0,0,.55) 100%)`
+**En el contenedor exterior** (`#viewport`, sangra hasta el borde de la ventana):
+
+1. `radial-gradient(140% 100% at 50% -10%, #332d24 0%, #191612 52%, #0b0a09 100%)`
+2. `repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px)`
+
+**En el escenario** (`#stage`, sin fondo propio) solo la viñeta, como capa superpuesta no
+interactiva (`pointer-events: none`):
+
+- `radial-gradient(90% 70% at 50% 45%, transparent 40%, rgba(0,0,0,.55) 100%)`
+
+El color de las bandas ya no es un valor aparte: es la cola del propio degradado.
 
 ---
 
@@ -161,7 +334,7 @@ tablero y volver a presupuestar el alto. Consúltalo con el diseñador antes de 
 
 | Rol | Hex | Uso |
 | --- | --- | --- |
-| Fondo exterior | `#070706` | Letterbox alrededor del escenario |
+| Fondo exterior | `#070706` | *Obsoleto* — el fondo del contenedor exterior es el propio degradado |
 | Escenario oscuro | `#0b0a09` | Extremo del degradado de fondo |
 | Grafito medio | `#191612` | Fondo medio, laterales de raíles |
 | Grafito panel | `#221e19` | Fondo de raíles y paneles |
@@ -221,10 +394,26 @@ Silkscreen (400, 700)              →  --font-ui
 | Etiqueta de sección | Silkscreen | 10–12px | 400 | .20–.24em |
 | Etiqueta de botón | Silkscreen | 11–13px | 400 | .10–.14em |
 | Cuerpo / lista | Silkscreen | 11–13px | 400 | .02–.08em |
-| Mínimo absoluto | Silkscreen | **10px** | 400 | .02–.14em |
+| Mínimo absoluto | Silkscreen | **10px** | 400 | .02–.18em |
+
+**El mínimo de 10px no tiene excepciones**, y es fácil de romper sin darse cuenta: etiquetas de
+cuadro (`DEBILIDAD`, `PREMIOS · 6`), marcadores de carta y las iniciales de avatar son los
+primeros candidatos a caer a 8–9px. A la escala real del lienzo (0.5× en una ventana de 960px)
+esos textos son ilegibles. Si algo no cabe a 10px, recorta el texto o el contenedor — nunca la
+tipografía.
 
 Regla: **nunca por debajo de 10px.** Los textos de línea larga (descripciones de ataque)
 llevan `line-height: 1.55–1.7`; las etiquetas cortas, 1.5.
+
+### Iconos
+
+**Iconos de interfaz:** Phosphor duotone (https://phosphoricons.com), como especifica el
+sistema de diseño. Se usan en los cinco ítems del menú principal (ver la tabla de esa pantalla).
+Nunca como glifos Unicode en la tipografía bitmap: Silkscreen no los cubre y el navegador cae a
+un monospace genérico donde varios símbolos colapsan al mismo dibujo.
+
+**Iconos de tipo de energía:** los PNG propios en `tipos/` (ver *Assets*). No los sustituyas por
+iconos del set: son arte del cliente.
 
 ### Espaciado
 
@@ -329,9 +518,10 @@ padre con `overflow: hidden`.
 **Propósito:** punto de entrada; elegir modo, ver economía y progreso.
 
 **Layout:** una sola capa absoluta sobre el escenario.
-- Arte principal: bloque de **1180 × 1080** anclado a `right: 0; top: 0`. Encima, un velo de
-  legibilidad `linear-gradient(90deg, #191612 0%, rgba(25,22,18,.92) 22%, rgba(25,22,18,.35) 52%, rgba(25,22,18,0) 78%)`
-  y un halo verde `radial-gradient(60% 55% at 74% 52%, rgba(141,255,98,.10) 0%, transparent 70%)`.
+- **Capa decorativa** de `left: 740px` a `right: 0`, alto 1080 — retícula, círculos e iconos
+  ghost. Ver «La mitad derecha del menú no puede quedar vacía» arriba; es obligatoria.
+- Panel de novedades: **830 × 800** en `right: 96px; top: 132px`, **encima** de la capa
+  decorativa y del halo verde ambiental (ver el orden de capas más arriba). Sin velo encima.
 - Columna izquierda: `left: 104px; top: 96px; width: 600px`, flex column, `gap: 34px`.
 - Barra inferior: alto **96px**, `padding: 0 40px`, fondo
   `linear-gradient(180deg, rgba(11,10,9,0), rgba(11,10,9,.9) 40%)`, borde superior
@@ -353,20 +543,26 @@ Texto exacto: «Duelo por turnos contra la CPU. 60 cartas, 6 premios, sin piedad
 Cada fila lleva:
 - Barra de acento a la izquierda: 5px de ancho, altura completa,
   `linear-gradient(180deg,#8dff62,#2c8a1c)`, `box-shadow: 0 0 14px rgba(141,255,98,.7)`.
-- Cuadro de glifo hundido de 52 × 52, glifo 22px en `#8dff62`.
+- Cuadro de icono hundido de 52 × 52 con el icono a 26px en `#8dff62`.
 - Etiqueta Pixelify Sans 27px/700 con `text-shadow: 0 2px 0 rgba(0,0,0,.7)`; subetiqueta
   Silkscreen 11px `.14em` en `#9a8d7c`.
 - Chevron `›` 20px en `#6d6155` a la derecha.
 
-Contenido exacto (etiqueta / subetiqueta / glifo / destino):
+Contenido exacto (etiqueta / subetiqueta / icono / destino):
 
-| Etiqueta | Subetiqueta | Glifo | Destino |
+| Etiqueta | Subetiqueta | Icono (Phosphor duotone) | Destino |
 | --- | --- | --- | --- |
-| JUGAR | DUELO CONTRA LA CPU | ⚔ | Tablero de duelo |
-| MAZOS | CONSTRUIR Y ELEGIR | ▦ | Selección de mazo |
-| TIENDA | SOBRES Y CAJAS | ◎ | Tienda |
-| MI COLECCIÓN | 69 DE 102 CARTAS | ▤ | Mi colección |
-| CONFIGURACIÓN | AUDIO, VÍDEO, PARTIDA | ⚙ | Configuración |
+| JUGAR | DUELO CONTRA LA CPU | `sword` | Tablero de duelo |
+| MAZOS | CONSTRUIR Y ELEGIR | `stack` | Selección de mazo |
+| TIENDA | SOBRES Y CAJAS | `storefront` | Tienda |
+| MI COLECCIÓN | 69 DE 102 CARTAS | `grid-four` | Mi colección |
+| CONFIGURACIÓN | AUDIO, VÍDEO, PARTIDA | `gear-six` | Configuración |
+
+**No uses glifos Unicode para estos iconos.** Silkscreen no cubre ninguno de los caracteres
+candidatos (⚔ ▦ ◎ ▤ ⚙ y compañía): caen al monospace del sistema, y varios se vuelven
+indistinguibles entre sí — dos ítems del menú principal acaban con el mismo icono. Usa iconos
+reales del set (Phosphor duotone, como especifica el sistema de diseño) o el equivalente ya
+presente en el codebase.
 
 *Tarjeta de jugador* — placa metálica con corte 12px, padding `12px 20px 12px 12px`, gap 14px:
 avatar hundido de 48 × 48 (`AVA` 12px `#6d6155`), bloque `JUGADOR` 14px `.1em` +
@@ -385,7 +581,9 @@ placa metálica, icono al 100%); a la derecha `CERRAR SESIÓN` como botón secun
 **Propósito:** elegir el mazo activo y revisar su composición antes de duelar.
 
 **Layout:** cabecera de **84px** + cuerpo en dos columnas (`gap: 28px`,
-`padding: 32px 40px 40px`): izquierda fija **480px**, derecha flexible.
+`padding: 32px 40px 40px`, **`min-height: 0`**): izquierda fija **480px**, derecha flexible.
+El `min-height: 0` es necesario: sin él el cuerpo (`flex: 1`) no puede encogerse por debajo de
+su contenido y la pantalla crece por encima de 1080.
 
 **Cabecera** (patrón compartido por Mazos, Tienda, Colección y Configuración):
 `linear-gradient(180deg,#2c2721,#17140f)`, borde inferior `1px #0b0907`,
@@ -393,8 +591,9 @@ placa metálica, icono al 100%); a la derecha `CERRAR SESIÓN` como botón secun
 `◀ VOLVER` (secundario, `padding: 12px 18px`, 12px `.14em`), el título Pixelify Sans 30px/700,
 un espaciador y metadatos a la derecha (`3 MAZOS · 60/60 CARTAS`, 12px `.14em` `#9a8d7c`).
 
-**Columna izquierda** — 3 tarjetas de mazo de **150px** de alto, placa metálica con corte 12px,
-padding 16px, gap 18px:
+**Columna izquierda** — 3 tarjetas de mazo de **150px** de alto **con `box-sizing: border-box`**
+(sin él, el padding de 16px y el borde de 1px las llevan a 184px y la pantalla desborda 51px,
+recortando el CTA principal), placa metálica con corte 12px, padding 16px, gap 18px:
 - Franja de color de 12px a la izquierda con halo del mismo color.
 - Carta destacada de 82 × 114, trama diagonal `#1c1915`/`#141210`, texto `CARTA DEST.` 9px.
 - Nombre Pixelify Sans 24px/700; tipos 11px `.1em` `#9a8d7c`; fila de estadísticas 11px `.1em`:
@@ -415,8 +614,8 @@ Debajo, empujado al fondo, el botón primario **COMENZAR DUELO ▶** de 82px, Pi
   alto (hueco con padding 2px, relleno verde con halo). Valores:
   POKÉMON 22 (37%) · ENTRENADOR 16 (27%) · ENERGÍA 22 (37%).
 - Fila `ENERGÍAS`: chips con icono de tipo de 22px + recuento 12px. Datos: planta 14, agua 8.
-- Rejilla de 60 huecos: `grid-template-columns: repeat(12, 1fr)`, `gap: 9px`,
-  `aspect-ratio: 5/7`, trama diagonal sobre uno de cinco tonos rotativos
+- Rejilla de 60 huecos: `grid-template-columns: repeat(12, 96px)`, `gap: 9px`,
+  `justify-content: center`, celdas de **96 × 134**, trama diagonal sobre uno de cinco tonos rotativos
   (`#2a2a1e · #1f2a2a · #2a1f1f · #26221c · #1c2226`). Hover `scale(1.14)`.
 
 ---
@@ -467,7 +666,7 @@ borde derecho `1px #0b0907`, `box-shadow: 4px 0 18px rgba(0,0,0,.55)`, padding 1
   sale cruz, Staryu queda confundido al final del turno.»).
 - Tres cuadros hundidos iguales (`flex: 1`, `padding: 6px`, gap 5px): `DEBILIDAD` (icono
   planta 22px), `RESISTENCIA` (guion `—` 13px `#4a4239`), `RETIRADA` (icono incoloro 22px).
-  Etiquetas 9px `.14em` `#8a7e6f`.
+  Etiquetas 10px `.14em` `#8a7e6f`.
 - Espaciador flexible, y luego la **rejilla de acciones** (`repeat(2,1fr)`, `gap: 6px`):
   `ATACAR` primario a dos columnas, 50px, Pixelify Sans 21px/700 · `RETIRADA` y `HABILIDAD`
   secundarios de 40px · `PASAR TURNO ▶` dorado a dos columnas, 40px, 12px `.14em`.
@@ -535,7 +734,7 @@ arriba, espaciador flexible, bloque propio abajo.
 - Fila mazo + descarte: dos cuadros hundidos de padding 6px, cada uno con una carta de
   **58 × 81** (mazo con trama; descarte con recuadro discontinuo) y etiqueta 10px
   (`MAZO 47`, `DESC. 0`).
-- Etiqueta `PREMIOS · 6` 9px `.2em` (roja / verde).
+- Etiqueta `PREMIOS · 6` 10px `.18em` (roja / verde).
 - Rejilla de premios: `repeat(2, 58px)`, `gap: 6px`, seis cartas de 58 × 81 con la trama del
   bando correspondiente.
 
@@ -582,12 +781,13 @@ Lleva el brillo `sheen` de 120px a 3.6s. Contenido: kicker `OFERTA DE LANZAMIENT
 `#6d6155` tachado sobre `540` Pixelify Sans 34px/700 `#e8c46a`, y el botón dorado `COMPRAR`
 (`padding: 18px 34px`, Pixelify Sans 22px/700).
 
-*Rejilla de sobres* — `repeat(4, 1fr)`, `gap: 22px`. Cada tarjeta es una placa metálica con
+*Rejilla de sobres* — `repeat(4, minmax(0, 420px))`, `gap: 22px`, `justify-content: center`. Cada tarjeta es una placa metálica con
 corte 14px, padding 18px, gap 14px:
 - Visor hundido flexible con halo de color propio
   (`radial-gradient(70% 50% at 50% 30%, <glow>, transparent 70%)`) y, al centro, el arte del
-  sobre: `width: 58%`, `aspect-ratio: 2/3`, trama diagonal sobre el color base, leyenda
-  `ARTE SOBRE` 9px `#cfc6b6`.
+  sobre: `width: 58%` con `height: min(84%, calc(58% * 1.5))` — **no `aspect-ratio`**, que aquí
+  desbordaría el visor cuando la tarjeta crece. Trama diagonal sobre el color base, leyenda
+  `ARTE SOBRE` 10px `#cfc6b6`.
 - Nombre Pixelify Sans 22px/700; descripción 10px `.1em` `#9a8d7c` `line-height: 1.6`.
 - Pie: moneda de 17px + precio Pixelify Sans 22px/700 `#e8c46a`; botón primario verde `ABRIR`
   (`padding: 12px 20px`, 12px `.1em`) que lleva a la pantalla de apertura.
@@ -619,7 +819,7 @@ Cabecera ligera (sin placa): botón `◀ TIENDA` + título `SOBRE BASE SET` Pixe
 - Título `10 CARTAS NUEVAS` Pixelify Sans 34px/700 + subtítulo
   `1 HOLOGRÁFICA · 3 INFRECUENTES` 11px `.24em` `#e8c46a`.
 - Fila de 10 cartas de **142 × 198**, `gap: 14px`, hover `translateY(-14px)`. Etiqueta de
-  rareza debajo, 9px `.14em`.
+  rareza debajo, 10px `.14em`.
   - Común (índices 0–5): sombra normal, etiqueta `COMÚN` `#6d6155`.
   - Infrecuente (6–8): etiqueta `INFRECUENTE` `#8dff62`.
   - Holográfica (9): sombra
@@ -661,13 +861,14 @@ Cabecera, a la derecha: `BASE SET` 11px `.16em` `#9a8d7c`, barra de progreso de 
   `line-height: 1.7` `#6d6155`.
 
 **Rejilla de cartas** (derecha, panel hundido de padding 20px):
-`repeat(8, 1fr)`, `gap: 16px`, `aspect-ratio: 5/7`, hover `translateY(-6px)`.
+`repeat(8, 164px)`, `gap: 16px`, `justify-content: center`, celdas de **164 × 230**, hover
+`translateY(-6px)`.
 - Poseída: opacidad 1, etiqueta `#6d6155`, e insignia de recuento en `right/bottom: -5px`
   (mín. 24px de ancho, 24px de alto, `padding: 0 5px`, texto 11px `#0d2a06` sobre `#8dff62`,
   borde `2px #12100d`).
 - No poseída: opacidad `.42`, etiqueta `#3a342c`, y velo `rgba(8,8,7,.66)` con un `?` de 16px
   `#4a4239`.
-- Debajo, el número de la carta: `001/102`, 9px `.06em` `#8a7e6f`, centrado.
+- Debajo, el número de la carta: `001/102`, 10px `.06em` `#8a7e6f`, centrado.
 - Regla de datos del prototipo: se poseen todas menos las de índice `i % 5 === 3`; el recuento
   es `1 + (i % 4)`.
 
@@ -677,7 +878,7 @@ Cabecera, a la derecha: `BASE SET` 11px `.16em` `#9a8d7c`, barra de progreso de 
 
 **Propósito:** audio, partida, vídeo y cuenta.
 
-**Layout:** cabecera de 84px + rejilla `repeat(2, 1fr)`, `gap: 26px`,
+**Layout:** cabecera de 84px + rejilla `repeat(2, minmax(0, 880px))` centrada, `gap: 26px`,
 `padding: 34px 40px 40px`, `align-content: start`. Cuatro paneles: los dos primeros son placas
 metálicas con corte 14px y padding 26px; los dos últimos, paneles hundidos con padding 26px.
 
@@ -815,7 +1016,7 @@ empaquetado, vendorízalas en lugar de cargarlas por CDN.
 
 | Hueco | Tamaño | Dónde |
 | --- | --- | --- |
-| Arte principal | 1180 × 1080 (recorte `cover`) | Menú, mitad derecha |
+| Arte principal | — | *Retirado* — la mitad derecha del menú es ahora el panel de novedades |
 | Logotipo | 460 × 150 (`contain`) | Menú, arriba a la izquierda |
 | Arte de sobre (tienda) | proporción 2:3 | Cuatro tarjetas de la tienda |
 | Arte de sobre (apertura) | 330 × 470 | Sobre cerrado |
@@ -835,8 +1036,8 @@ de The Pokémon Company y no se reprodujeron; usa el arte propio del proyecto.
 | Mano CPU (dorso) | 88 × 123 | ≈ 5:7 |
 | Premios / mazo / descarte | 58 × 81 | ≈ 5:7 |
 | Apertura de sobre | 142 × 198 | ≈ 5:7 |
-| Rejilla de colección | `aspect-ratio: 5/7` | 5:7 |
-| Rejilla de mazo (60) | `aspect-ratio: 5/7` | 5:7 |
+| Rejilla de colección | 164 × 230 | ≈ 5:7 |
+| Rejilla de mazo (60) | 96 × 134 | ≈ 5:7 |
 | Carta destacada de mazo | 82 × 114 | ≈ 5:7 |
 
 La proporción canónica es **5:7**; solo la banca del tablero se aparta (3:4) para ganar altura

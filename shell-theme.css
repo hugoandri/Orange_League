@@ -1,35 +1,123 @@
 @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap');
 
-/* ===== Fixed-canvas scaling shell ===== */
-/* User-supplied background image (Tablero/fondo.png), covering the real
-   screen directly -- no scale/zoom math needed here (unlike the gradient
-   it replaces): a flat texture with no distinct focal point covers cleanly
-   with plain CSS background-size:cover, at any real screen size. */
+/* ===== Elastic-width scaling shell ===== */
+/* The background lives here, on the real (unscaled) viewport, so it bleeds
+   to every edge of the window at any aspect ratio -- including the
+   top/bottom bars that appear on a narrower-than-16:9 window. #shellStage
+   (below) paints no background of its own: stacking two independently
+   -sized backgrounds is what caused the visible seam this design went
+   through several iterations to fix. Tablero/fondo.png is the user's own
+   chosen background image (a flat texture, so plain cover-sizing is fine
+   -- no focal point to distort). */
 .shell-viewport{position:absolute;inset:0;overflow:hidden;
   background:url('Tablero/fondo.png') center/cover no-repeat, #070706;}
 
 .shell-stage{
+  /* width is a starting value only -- layoutShellStage() (ui.js) overwrites
+     it every load/resize via computeStageTransform()'s elastic width
+     (1920-2560), height always stays the fixed 1080. */
   width:1920px;height:1080px;position:absolute;left:0;top:0;overflow:hidden;
   transform-origin:0 0;font-family:'Silkscreen',monospace;color:#efe9dd;
 }
 .shell-stage-overlay{
+  /* Vignette only -- the diagonal noise texture moved to .shell-viewport
+     (it's part of the bleeding background now, not the fixed content). */
   position:absolute;inset:0;pointer-events:none;
-  background:
-    repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 5px),
-    radial-gradient(90% 70% at 50% 45%,transparent 40%,rgba(0,0,0,.55) 100%);
+  background:radial-gradient(90% 70% at 50% 45%,transparent 40%,rgba(0,0,0,.55) 100%);
 }
 
 /* ===== Menú principal ===== */
 .shell-menu{position:absolute;inset:0;}
 
-/* Hidden for now -- the user asked to remove the key-art wallpaper and
-   just show .shell-stage's own gray/dark gradient across the whole
-   screen. The veil and halo only make sense layered over an image, so
-   they're hidden too. Kept in place (not deleted) in case a key-art
-   image comes back in a later pass. */
-.shell-keyart{display:none;}
-.shell-keyart-veil{display:none;}
-.shell-keyart-halo{display:none;}
+/* Layer order matters (back to front): halo -> decor -> news panel ->
+   left column -> player card -> bottom bar. Painting the halo/decor after
+   the news panel tints it green and darkens its left edge. */
+.shell-halo{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(60% 55% at 74% 52%,rgba(141,255,98,.10) 0%,transparent 70%);
+}
+
+/* Decorative layer filling the gap between the nav column and the news
+   panel -- left:740px to right:0 is deliberately NOT a fixed width: it
+   has to keep pace with the elastic stage so it never leaves a bare seam
+   next to the panel on a wider-than-1920 canvas. */
+.shell-decor{position:absolute;left:740px;right:0;top:0;height:1080px;overflow:hidden;pointer-events:none;}
+.shell-decor-grid{
+  position:absolute;inset:0;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 26%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 26%);
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 104px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 104px);
+}
+.shell-decor-ring{position:absolute;left:44%;top:50%;border-radius:50%;}
+.shell-decor-ring-outer{width:760px;height:760px;margin:-380px 0 0 -380px;border:1px solid rgba(232,196,106,.10);box-shadow:inset 0 0 120px rgba(141,255,98,.05);}
+.shell-decor-ring-inner{width:520px;height:520px;margin:-260px 0 0 -260px;border:1px solid rgba(232,196,106,.07);}
+.shell-decor-types{position:absolute;left:26px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:30px;opacity:.16;}
+.shell-decor-types img{width:76px;height:76px;display:block;border-radius:50%;}
+
+/* News panel -- replaces the old key-art image slot. Real content (a
+   feed), not decorative art; see ui.js renderNewsPanel() for the data. */
+.shell-news-panel{
+  position:absolute;right:96px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#3a342c,#221e19);
+  border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 0 rgba(0,0,0,.55),0 10px 30px rgba(0,0,0,.6);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+}
+.shell-news-header{
+  flex:none;display:flex;align-items:center;gap:14px;padding:20px 24px;
+  border-bottom:1px solid #0b0907;background:linear-gradient(180deg,#2c2721,#1d1a15);
+  font-family:'Silkscreen',monospace;
+}
+.shell-news-header-dot{width:8px;height:8px;background:#e8c46a;box-shadow:0 0 10px #e8c46a;flex:none;}
+.shell-news-header-title{font-family:'Pixelify Sans',sans-serif;font-size:26px;font-weight:700;letter-spacing:.04em;flex:1;color:#efe9dd;}
+.shell-news-badge{font-size:10px;letter-spacing:.14em;color:#0d2a06;background:#8dff62;padding:6px 10px;box-shadow:0 0 14px rgba(141,255,98,.5);}
+.shell-news-featured{
+  flex:none;display:flex;flex-direction:column;gap:12px;padding:22px 24px;
+  background:linear-gradient(180deg,#15130f,#1d1a15);border-bottom:1px solid #0a0806;
+  box-shadow:inset 0 3px 10px rgba(0,0,0,.8);font-family:'Silkscreen',monospace;
+}
+.shell-news-featured-meta{display:flex;align-items:center;gap:12px;}
+.shell-news-chip-featured{font-size:10px;letter-spacing:.14em;color:#2b2005;background:linear-gradient(180deg,#f4dd9a,#b8912f);padding:5px 9px;}
+.shell-news-featured-date{font-size:11px;letter-spacing:.14em;color:#8a7e6f;}
+.shell-news-featured-title{font-family:'Pixelify Sans',sans-serif;font-size:32px;font-weight:700;letter-spacing:.02em;line-height:1.2;color:#efe9dd;text-wrap:pretty;}
+.shell-news-featured-body{font-size:12px;line-height:1.9;color:#a49785;text-wrap:pretty;}
+.shell-news-featured-btn{
+  align-self:flex-start;margin-top:4px;padding:12px 20px;cursor:pointer;font-size:11px;letter-spacing:.12em;
+  color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 3px 0 #16480d;font-family:'Silkscreen',monospace;
+}
+.shell-news-featured-btn:hover{filter:brightness(1.14);}
+.shell-news-list{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+.shell-news-item{
+  display:flex;align-items:flex-start;gap:16px;padding:18px 24px;cursor:pointer;
+  border-bottom:1px solid rgba(0,0,0,.45);transition:background .12s;
+  background:transparent;border-left:none;border-right:none;border-top:none;text-align:left;width:100%;
+  font-family:'Silkscreen',monospace;
+}
+.shell-news-item:hover{background:rgba(232,196,106,.07);}
+.shell-news-item-last{border-bottom:none;}
+.shell-news-item-date{flex:none;width:74px;display:flex;flex-direction:column;gap:5px;}
+.shell-news-item-day{font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;line-height:1;color:#efe9dd;}
+.shell-news-item-month{font-size:10px;letter-spacing:.14em;color:#6d6155;}
+.shell-news-item-body{flex:1;display:flex;flex-direction:column;gap:7px;}
+.shell-news-item-title{font-size:15px;letter-spacing:.02em;color:#f6f1e6;}
+.shell-news-item-summary{font-size:11px;line-height:1.8;color:#a49785;text-wrap:pretty;}
+.shell-news-item-tag{flex:none;font-size:10px;letter-spacing:.12em;padding:5px 9px;border:1px solid;align-self:flex-start;}
+.shell-news-item-tag--balance{color:#8dff62;border-color:rgba(141,255,98,.4);}
+.shell-news-item-tag--shop{color:#e8c46a;border-color:rgba(232,196,106,.4);}
+.shell-news-item-tag--notice{color:#ff8a72;border-color:rgba(255,138,114,.4);}
+.shell-news-footer{
+  flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;cursor:pointer;
+  border-top:1px solid #0b0907;background:linear-gradient(180deg,#2c2721,#1d1a15);transition:filter .12s;
+  width:100%;font-family:'Silkscreen',monospace;color:#a49785;
+}
+.shell-news-footer:hover{filter:brightness(1.25);}
+.shell-news-footer span:first-child{font-size:11px;letter-spacing:.16em;}
+.shell-news-footer span:last-child{font-size:14px;color:#e8c46a;}
 
 .shell-left-col{position:absolute;left:104px;top:96px;width:600px;display:flex;flex-direction:column;gap:34px;}
 .shell-brand{display:flex;flex-direction:column;gap:14px;}
@@ -73,7 +161,7 @@
 .shell-nav-item-glyph{
   width:52px;height:52px;flex:none;display:grid;place-items:center;
   background:linear-gradient(180deg,#15130f,#1f1b16);border:1px solid #0a0806;
-  box-shadow:inset 0 3px 8px rgba(0,0,0,.8);font-size:34px;color:#8dff62;
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.8);font-size:26px;color:#8dff62;
 }
 .shell-nav-item-text{display:flex;flex-direction:column;gap:6px;flex:1;}
 .shell-nav-item-title{

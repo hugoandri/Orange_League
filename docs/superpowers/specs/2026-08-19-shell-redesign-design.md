@@ -13,11 +13,18 @@ colección, Configuración. **Cards are explicitly out of scope** — they stay
 placeholders in the handoff and stay as this project's existing card
 rendering everywhere they appear.
 
-**Canonical reference:** `design_handoff_shell_juego_cartas/README.md` (all
-colors, type, spacing, shadow recipes, per-screen layout) and
-`Shell del Juego.dc.html` (the actual prototype markup — open it in a
-browser to see it live; ignore its `.dc.html` template runtime, only the
-markup/inline styles matter). This spec does not restate those pixel values
+**Canonical reference (current):** `design_handoff_shell_juego_final/README.md`
+and its `Shell del Juego.dc.html` — a third handoff revision. The first
+(`design_handoff_shell_juego_cartas/`, now a snapshot of an earlier revision)
+specified a fixed-1920×1080-canvas menu with a key-art photo on the right; a
+second revision (superseded, not kept in the repo) added a "read this before
+laying out" scaling section confirming plain `Math.min`/contain + flat
+letterbox bars. This final revision changes the canvas model again —
+elastic width instead of fixed-then-letterboxed, see "Elastic-width canvas"
+below — and replaces the key-art photo slot with a real "Panel de
+novedades" (news feed) component. Ignore the `.dc.html` file's own template
+runtime; only its markup/inline styles matter. This spec does not restate
+those pixel values
 — it records the **adaptation decisions**: what maps to what in this
 codebase, what's dropped, what's wired to real data instead of the
 prototype's mock data. When writing task briefs from this spec, pull exact
@@ -58,51 +65,52 @@ New file `shell-theme.css`, loaded after `style.css` in `index.html`. Holds:
   handoff README's "Design Tokens" section (color table, type scale,
   spacing scale, shadow/bevel recipes, `clip-path` corner-cut recipes,
   button variants, `@keyframes`).
-- **Fixed-canvas scaling shell**, applied per-screen as that screen is
+- **Elastic-width scaling shell**, applied per-screen as that screen is
   migrated (not globally on day one — unmigrated screens must keep working
   normally). Structure:
   ```html
   <div class="shell-viewport">      <!-- fills the screen's existing full-viewport container -->
-    <div class="shell-stage">       <!-- width:1920px; height:1080px; transform-origin: 0 0 -->
+    <div class="shell-stage">       <!-- height:1080px fixed; width set by JS every load/resize -->
       ...screen content...
     </div>
   </div>
   ```
-  ```css
-  .shell-viewport{position:absolute;inset:0;overflow:hidden;background:#070706;}
-  .shell-stage{width:1920px;height:1080px;position:relative;overflow:hidden;}
-  ```
-  JS computes and applies the transform on load and on `resize`. **Always
-  `Math.min` (contain), never `Math.max` (cover).** This was tried both
-  ways during the menu phase before landing here — `Math.max` was tried
-  live at the user's request (to fill the screen with no letterbox bars)
-  and caused real damage: on a wider-than-16:9 viewport it pushed content
-  past the viewport, cropping the player card and the bottom bar/logout
-  button off-screen, which then required per-element JS hacks (shifting
-  the nav column and other widgets into the "bar space", widening a gap
-  next to the key-art, `.shell-stage` clipping its own shifted children)
-  to patch around. All of that was reverted. `design_handoff_shell_juego_cartas 2/README.md`'s
-  "⚠ Adaptación a la pantalla" section (added after this went back to the
-  designer) confirms `min`/contain + flat-color letterbox bars is the
-  canonical, correct implementation — never crop, never reflow, never move
-  content outside the 1920×1080 stage:
-  ```js
-  function layoutShellStage(stageEl) {
-    var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-    var x = (window.innerWidth - 1920 * scale) / 2;
-    var y = (window.innerHeight - 1080 * scale) / 2;
-    stageEl.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
-  }
-  ```
-  The letterbox bars no longer read as "wasted dead space": `.shell-viewport`'s
-  background is the user-supplied `Tablero/fondo.png` (`cover`, centered),
-  covering the real screen directly regardless of the stage's own scale --
-  so the bars are simply more of the same background image, continuous
-  with the content inside the stage, not a separate flat fill.
-  Each migrated screen's own root element becomes the `.shell-viewport`
-  (`#menuScreen` already is `position:fixed;inset:0`, so it just gains a
-  `.shell-stage` child wrapping its actual content, and `layoutShellStage`
-  runs whenever that screen becomes visible plus on `resize`).
+  Went through three iterations before landing here — see the git history
+  on `shell-layout.js`/`ui.js` for the two reverted ones (`Math.max`/cover,
+  which cropped the player card and bottom bar on a wide screen; then a
+  fixed-1920-canvas `Math.min`/contain with flat letterbox bars, which
+  wasted visible width on any wider-than-16:9 screen). The final model,
+  per `design_handoff_shell_juego_final/README.md`'s "⚠ Adaptación a la
+  pantalla" section: **height always drives the scale**, and the stage's
+  own **width grows elastically to fill the real screen**, clamped to
+  [1920, 2560] — so a normal landscape window gets no side bars at all.
+  Below 1920-equivalent width, scale falls back to being width-driven and
+  bars appear only top/bottom (never left/right). Past 2560, the maxed-out
+  stage centers with bars on both sides rather than stretching the
+  composition further apart. `computeStageTransform()` (`shell-layout.js`)
+  returns `{x, y, scale, width}`; `layoutShellStage()` (`ui.js`) applies
+  `width` to the stage's own `style.width` in addition to the transform.
+  Content that must stay a fixed width (the nav column, the news panel)
+  anchors to the stage's left/right edges via plain CSS (`left:104px` /
+  `right:96px`, not `left`+`right` together) so it doesn't stretch when the
+  stage widens; content that's allowed to grow (the decorative layer
+  between the nav and the news panel) uses `left:_px; right:0` so its
+  width tracks the elastic stage automatically, no JS needed.
+
+  **The background bleeds; the content doesn't.** `.shell-viewport`
+  (unscaled, real screen size) paints the background — in this project,
+  the user's own `Tablero/fondo.png` (`cover`, centered) rather than the
+  handoff's own gradient+noise-texture recipe, per an explicit later
+  request; either way the rule is the same: `.shell-stage` paints **no
+  background of its own**. Stacking two independently-sized backgrounds
+  (one on the fixed-then-scaled stage, one on the real viewport) is what
+  caused a visible seam during an earlier iteration — the fix was moving
+  the background down to the unscaled viewport entirely, not patching the
+  seam. Each migrated screen's own root element becomes the
+  `.shell-viewport` (`#menuScreen` already is `position:fixed;inset:0`, so
+  it just gains a `.shell-stage` child wrapping its actual content, and
+  `layoutShellStage` runs whenever that screen becomes visible plus on
+  `resize`).
 - **Fonts:** Google Fonts `<link>` tags for `Pixelify Sans` (variable,
   400..700) and `Silkscreen` (400, 700), added to `index.html` `<head>`.
   `font-family: 'Silkscreen', monospace` as the base, scoped to
@@ -116,9 +124,9 @@ New file `shell-theme.css`, loaded after `style.css` in `index.html`. Holds:
 
 | Handoff element | Current code | Decision |
 | --- | --- | --- |
-| Arte principal (1180×1080, `right:0;top:0`) | Existing "Configurar Portada" background system (`Perfil/Portada_Oficial.jpeg`, user-configurable via `#configBgBtn`) | Keep the configurable-background system as-is; re-box it into the handoff's 1180×1080 right-anchored slot, add the legibility gradient + green halo overlays on top of it. |
+| Arte principal / (superseded by) Panel de novedades (830×800, `right:96px;top:132px`) + decorative layer (`left:740px;right:0`) | N/A — this was a brand-new component, no prior code to adapt | The original handoff's key-art photo slot was hidden entirely (per an explicit request) before this final revision replaced it outright with a real "Panel de novedades" component. Built with static placeholder entries (5 items, matching the handoff's own admission that its copy is "realistic filler, not final copy") — no real news feed exists in this project; wiring one up is future scope. The decorative layer (grid mask, two concentric rings, 5 ghost type-icons) sits behind the panel, anchored `left:740px;right:0` so its width tracks the elastic stage automatically. |
 | Logotipo (460×150, metal plate) | `.menu-logo-img`, currently the official Pokémon TCG logo image already used on the login screen | Reuse the same logo image already in the project (it's already this project's established brand asset, not a new trademark reproduction). Fit `contain` inside the 460×150 metal-plate hole. |
-| 5 ítems de menú (Jugar/Mazos/Tienda/Mi Colección/Configuración) | 4 nav buttons: `menuPlay`, `menuShop`, `menuCollection`, `menuConfig` | Drop "Mazos" (out of scope). Keep the existing 4, restyled to the handoff's row recipe (accent bar, glyph box, label/sublabel, chevron). |
+| 5 ítems de menú (Jugar/Mazos/Tienda/Mi Colección/Configuración), icons as Unicode glyphs in the prototype's first two revisions | 4 nav buttons: `menuPlay`, `menuShop`, `menuCollection`, `menuConfig` | Drop "Mazos" (out of scope) — but the user separately asked for a 5th, disabled "MI MAZO" placeholder row (`menuDeck`, `disabled`, no click handler), which stays. Icons: the final handoff revision explicitly calls out Unicode glyphs (⚔ ▦ ◎ ▤ ⚙) as a defect — Silkscreen doesn't cover them, several collapse to the same fallback glyph. Switched to real Phosphor duotone icons (`ph-sword`, `ph-stack`, `ph-storefront`, `ph-grid-four`, `ph-gear-six`), loaded via the same CDN-`<link>` pattern the prototype itself uses. |
 | "MI COLECCIÓN" sublabel: `69 DE 102 CARTAS` (mock) | `econState.collection` (owned card keys) vs. total cards in `CARD_CATALOG`/`data-sets.js` | Compute real owned-count / total-count and render it instead of the mock string. |
 | Tarjeta de jugador: avatar 48×48, `JUGADOR` name, `ENTRENADOR · NV 12` sub-line, coin readout | `profileState.photo`/`playerPhotoUrl()`, `profileState.username`/`playerDisplayName()`, `econState.coins` — all already wired via `renderProfile()`/`renderCoinCount()` | Use the real photo/name/coin values (already available, just re-skin the card markup). Sub-line becomes just `ENTRENADOR` — no leveling system exists in this game, so no fake number gets invented. |
 | Barra inferior: version string, 7 type-icon row, `CERRAR SESIÓN` | `menu-footer`, `menuLogoutBtn` (both already exist) | Keep both. Add the 7-icon row from `Tipos/*.png` between them — purely decorative, no click behavior (matches the handoff, which doesn't wire these to anything either). |

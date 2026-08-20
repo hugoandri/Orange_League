@@ -625,25 +625,40 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 })();
 
 (function testComputeStageTransform() {
-  // Contain behavior: the whole canvas always stays visible, letterboxed
-  // on whichever axis has room to spare -- see shell-layout.js for why
-  // cover (fill screen, crop overflow) was tried and reverted.
+  // Elastic-width canvas: height always drives the scale, the stage's own
+  // width grows to fill whatever real width that leaves (clamped to
+  // 1920-2560) -- so a normal landscape screen gets no side bars at all.
+  // See shell-layout.js for the full rule and why plain contain/cover were
+  // each tried and reverted before landing here.
 
-  // Width-constrained: viewport narrower (relative to 16:9) than the stage.
+  // Narrower than 16:9: width takes over as the driver, bars appear only
+  // top/bottom (never left/right), stage width floors at 1920.
   var narrow = computeStageTransform(960, 1080);
   check('computeStageTransform(960,1080) scale', narrow.scale, 0.5);
+  check('computeStageTransform(960,1080) width', narrow.width, 1920);
   check('computeStageTransform(960,1080) x', narrow.x, 0);
   check('computeStageTransform(960,1080) y', narrow.y, 270);
 
-  // Height-constrained: viewport wider (relative to 16:9) than the stage.
-  var wide = computeStageTransform(3840, 1080);
-  check('computeStageTransform(3840,1080) scale', wide.scale, 1);
-  check('computeStageTransform(3840,1080) x', wide.x, 960);
-  check('computeStageTransform(3840,1080) y', wide.y, 0);
+  // Within the elastic range (1920-2560 at this scale): the stage widens to
+  // fill the screen exactly, no bars on any side.
+  var elastic = computeStageTransform(2200, 1080);
+  check('computeStageTransform(2200,1080) scale', elastic.scale, 1);
+  check('computeStageTransform(2200,1080) width', elastic.width, 2200);
+  check('computeStageTransform(2200,1080) x', elastic.x, 0);
+  check('computeStageTransform(2200,1080) y', elastic.y, 0);
 
-  // Exact fit.
+  // Past 2560 (ultra-wide): the stage caps out and centers, bars reappear
+  // on the sides rather than stretching the composition further apart.
+  var ultrawide = computeStageTransform(3840, 1080);
+  check('computeStageTransform(3840,1080) scale', ultrawide.scale, 1);
+  check('computeStageTransform(3840,1080) width', ultrawide.width, 2560);
+  check('computeStageTransform(3840,1080) x', ultrawide.x, 640);
+  check('computeStageTransform(3840,1080) y', ultrawide.y, 0);
+
+  // Exact fit (minimum width, height-exact).
   var exact = computeStageTransform(1920, 1080);
   check('computeStageTransform(1920,1080) scale', exact.scale, 1);
+  check('computeStageTransform(1920,1080) width', exact.width, 1920);
   check('computeStageTransform(1920,1080) x', exact.x, 0);
   check('computeStageTransform(1920,1080) y', exact.y, 0);
 })();

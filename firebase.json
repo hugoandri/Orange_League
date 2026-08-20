@@ -17,7 +17,7 @@
       "**/node_modules/**",
       "functions/**",
       "docs/**",
-      "design_handoff_shell_juego_cartas/**",
+      "design_handoff_shell_juego_final/**",
       "README.md",
       "PROGRESS.md",
       "tests.html",
