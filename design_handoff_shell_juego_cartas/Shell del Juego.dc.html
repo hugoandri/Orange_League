@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#070706; }
+  a { color:#8dff62; text-decoration:none; }
+  a:hover { color:#c6ffab; }
+  *::selection { background:rgba(141,255,98,.3); }
+  @keyframes glowPulse { 0%,100% { box-shadow:0 0 0 1px #8dff62, 0 0 18px rgba(141,255,98,.45); } 50% { box-shadow:0 0 0 1px #8dff62, 0 0 34px rgba(141,255,98,.85); } }
+  @keyframes sheen { 0% { transform:translateX(-140%) skewX(-18deg); } 100% { transform:translateX(240%) skewX(-18deg); } }
+  @keyframes bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+  @keyframes blink { 0%,49% { opacity:1; } 50%,100% { opacity:.25; } }
+  @keyframes holo { 0% { background-position:0% 50%; } 100% { background-position:200% 50%; } }
+</style>
+</helmet>
+
+<div style="position:relative;width:100%;height:100vh;background:#070706;overflow:hidden">
+<div ref="{{ stageRef }}" style="width:1920px;height:1080px;position:absolute;left:0;top:0;overflow:hidden;transform-origin:0 0;font-family:'Silkscreen',monospace;color:#efe9dd;background:radial-gradient(120% 85% at 50% -10%,#332d24 0%,#191612 52%,#0b0a09 100%)">
+
+  <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 5px),radial-gradient(90% 70% at 50% 45%,transparent 40%,rgba(0,0,0,.55) 100%)"></div>
+
+  <!-- ============================ MENÚ PRINCIPAL ============================ -->
+  <sc-if value="{{ isMenu }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;inset:0">
+
+    <div style="position:absolute;right:0;top:0;width:1180px;height:1080px">
+      <image-slot id="keyart" shape="rect" fit="cover" placeholder="ARTE PRINCIPAL — arrastra tu imagen aquí"></image-slot>
+    </div>
+    <div style="position:absolute;right:0;top:0;width:1180px;height:1080px;pointer-events:none;background:linear-gradient(90deg,#191612 0%,rgba(25,22,18,.92) 22%,rgba(25,22,18,.35) 52%,rgba(25,22,18,0) 78%)"></div>
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(60% 55% at 74% 52%,rgba(141,255,98,.10) 0%,transparent 70%)"></div>
+
+    <div style="position:absolute;left:104px;top:96px;width:600px;display:flex;flex-direction:column;gap:34px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="width:460px;height:150px;position:relative;padding:10px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.55),0 8px 24px rgba(0,0,0,.6);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+          <image-slot id="logotipo" shape="rect" fit="contain" placeholder="LOGOTIPO"></image-slot>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:34px;height:2px;background:#e8c46a"></div>
+          <div style="font-size:15px;letter-spacing:.28em;color:#e8c46a">BASE SET · 1998</div>
+        </div>
+        <div style="font-family:'Pixelify Sans',monospace;font-size:20px;line-height:1.5;color:#a49785;max-width:440px">Duelo por turnos contra la CPU. 60 cartas, 6 premios, sin piedad.</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;width:560px">
+        <sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="5">
+          <div onClick="{{ m.go }}" style="position:relative;height:82px;display:flex;align-items:center;gap:20px;padding:0 22px 0 18px;cursor:pointer;background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3d372e,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 -2px 0 rgba(0,0,0,.55),0 4px 0 #110f0c,0 8px 16px rgba(0,0,0,.45);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);transition:transform .12s,filter .12s" style-hover="transform:translateX(10px);filter:brightness(1.28) saturate(1.1)">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 14px rgba(141,255,98,.7)"></div>
+            <div style="width:52px;height:52px;flex:none;display:grid;place-items:center;background:linear-gradient(180deg,#15130f,#1f1b16);border:1px solid #0a0806;box-shadow:inset 0 3px 8px rgba(0,0,0,.8);font-size:22px;color:#8dff62">{{ m.glyph }}</div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+              <div style="font-family:'Pixelify Sans',monospace;font-size:27px;font-weight:700;letter-spacing:.02em;color:#f6f1e6;text-shadow:0 2px 0 rgba(0,0,0,.7)">{{ m.label }}</div>
+              <div style="font-size:11px;letter-spacing:.14em;color:#9a8d7c">{{ m.sub }}</div>
+            </div>
+            <div style="font-size:20px;color:#6d6155">›</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="position:absolute;right:40px;top:36px;display:flex;align-items:center;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 20px 12px 12px;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 16px rgba(0,0,0,.55);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)">
+        <div style="width:48px;height:48px;background:linear-gradient(180deg,#15130f,#1f1b16);border:1px solid #0a0806;box-shadow:inset 0 3px 7px rgba(0,0,0,.8);display:grid;place-items:center;font-size:12px;color:#6d6155">AVA</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="font-size:14px;letter-spacing:.1em;color:#f6f1e6">JUGADOR</div>
+          <div style="font-size:10px;letter-spacing:.12em;color:#9a8d7c">ENTRENADOR · NV 12</div>
+        </div>
+        <div style="width:1px;height:38px;background:#0b0907;box-shadow:1px 0 0 rgba(255,255,255,.08)"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 10px rgba(232,196,106,.5)"></div>
+          <div style="font-size:16px;color:#e8c46a">150</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;background:linear-gradient(180deg,rgba(11,10,9,0),rgba(11,10,9,.9) 40%);border-top:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:11px;letter-spacing:.16em;color:#6d6155">v1.0 · OVERGROWTH vs BLACKOUT</div>
+      <div style="display:flex;align-items:center;gap:18px">
+        <div title="Planta" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/planta.png" alt="Planta" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Fuego" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/fuego.png" alt="Fuego" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Agua" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/agua.png" alt="Agua" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Rayo" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/rayo.png" alt="Rayo" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Psíquico" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/psiquico.png" alt="Psíquico" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Lucha" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/lucha.png" alt="Lucha" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+        <div title="Incoloro" style="width:52px;height:52px;border-radius:50%;padding:3px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 3px 10px rgba(0,0,0,.6);cursor:default;transition:transform .12s" style-hover="transform:translateY(-5px)">
+          <img src="tipos/incoloro.png" alt="Incoloro" style="width:100%;height:100%;display:block;border-radius:50%">
+        </div>
+      </div>
+      <div onClick="{{ noop }}" style="font-size:12px;letter-spacing:.14em;color:#a49785;padding:12px 18px;cursor:pointer;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 0 #100e0b" style-hover="color:#efe9dd;filter:brightness(1.25)">CERRAR SESIÓN</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============================ SELECCIÓN DE MAZO ============================ -->
+  <sc-if value="{{ isDecks }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+    <div style="height:84px;flex:none;display:flex;align-items:center;gap:22px;padding:0 40px;background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <div onClick="{{ goMenu }}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;font-size:12px;letter-spacing:.14em;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">◀ VOLVER</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;letter-spacing:.04em">SELECCIÓN DE MAZO</div>
+      <div style="flex:1"></div>
+      <div style="font-size:12px;letter-spacing:.14em;color:#9a8d7c">3 MAZOS · 60/60 CARTAS</div>
+    </div>
+
+    <div style="flex:1;display:flex;gap:28px;padding:32px 40px 40px">
+      <div style="width:480px;flex:none;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ decks }}" as="d" hint-placeholder-count="3">
+          <div onClick="{{ d.pick }}" style="position:relative;height:150px;display:flex;gap:18px;padding:16px;cursor:pointer;background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 4px 0 #110f0c,0 8px 16px rgba(0,0,0,.4);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);transition:filter .12s" style-hover="filter:brightness(1.2)">
+            <div style="width:12px;flex:none;background:{{ d.color }};box-shadow:0 0 14px {{ d.glow }}"></div>
+            <div style="width:82px;height:114px;flex:none;background:repeating-linear-gradient(135deg,#1c1915 0 6px,#141210 6px 12px);border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.8);display:grid;place-items:center;font-size:9px;color:#5c5348;text-align:center;line-height:1.6">CARTA<br>DEST.</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:10px;padding-top:4px">
+              <div style="font-family:'Pixelify Sans',monospace;font-size:24px;font-weight:700">{{ d.name }}</div>
+              <div style="font-size:11px;letter-spacing:.1em;color:#9a8d7c">{{ d.types }}</div>
+              <div style="flex:1"></div>
+              <div style="display:flex;gap:16px;font-size:11px;letter-spacing:.1em">
+                <div style="color:#8dff62">V {{ d.wins }}</div>
+                <div style="color:#ff6a5a">D {{ d.losses }}</div>
+                <div style="color:#6d6155">{{ d.count }} CARTAS</div>
+              </div>
+            </div>
+            <sc-if value="{{ d.active }}">
+              <div style="position:absolute;right:14px;top:14px;font-size:10px;letter-spacing:.14em;color:#0d2a06;background:#8dff62;padding:5px 9px;box-shadow:0 0 16px rgba(141,255,98,.6)">EN USO</div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <div style="flex:1"></div>
+        <div onClick="{{ goDuel }}" style="height:82px;display:grid;place-items:center;cursor:pointer;font-family:'Pixelify Sans',monospace;font-size:26px;font-weight:700;letter-spacing:.08em;color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),inset 0 -3px 0 rgba(0,0,0,.3),0 4px 0 #16480d,0 0 30px rgba(141,255,98,.35);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)" style-hover="filter:brightness(1.12)">COMENZAR DUELO ▶</div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:24px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.8)">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:11px;letter-spacing:.2em;color:#e8c46a">MAZO SELECCIONADO</div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:34px;font-weight:700">{{ deckName }}</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="font-size:11px;letter-spacing:.12em;color:#a49785;padding:11px 16px;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">EDITAR</div>
+            <div style="font-size:11px;letter-spacing:.12em;color:#a49785;padding:11px 16px;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">DUPLICAR</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:28px">
+          <sc-for list="{{ deckStats }}" as="s" hint-placeholder-count="3">
+            <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:.12em"><div style="color:#9a8d7c">{{ s.label }}</div><div style="color:#efe9dd">{{ s.value }}</div></div>
+              <div style="height:12px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 5px rgba(0,0,0,.9);padding:2px">
+                <div style="height:100%;width:{{ s.pct }};background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 10px rgba(141,255,98,.5)"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font-size:11px;letter-spacing:.16em;color:#9a8d7c">ENERGÍAS</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)">
+            <img src="tipos/planta.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%">
+            <div style="font-size:12px;color:#efe9dd">14</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)">
+            <img src="tipos/agua.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%">
+            <div style="font-size:12px;color:#efe9dd">8</div>
+          </div>
+        </div>
+
+        <div style="flex:1;display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:1fr;gap:9px;align-content:start">
+          <sc-for list="{{ deckSlots }}" as="c" hint-placeholder-count="60">
+            <div style="aspect-ratio:5/7;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 4px,transparent 4px 8px),{{ c.bg }};border:1px solid rgba(0,0,0,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);cursor:pointer;transition:transform .1s" style-hover="transform:scale(1.14)"></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============================ TABLERO DE DUELO ============================ -->
+  <sc-if value="{{ isDuel }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+
+    <div style="height:62px;flex:none;display:flex;align-items:center;gap:18px;padding:0 24px;background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 16px rgba(0,0,0,.6);z-index:6">
+      <div onClick="{{ goMenu }}" style="width:40px;height:38px;display:grid;place-items:center;cursor:pointer;font-size:14px;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 0 #100e0b" style-hover="filter:brightness(1.3)">◀</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 16px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9)">
+        <div style="width:9px;height:9px;border-radius:50%;background:#8dff62;box-shadow:0 0 10px #8dff62;animation:blink 1.4s steps(1,end) infinite"></div>
+        <div style="font-size:12px;letter-spacing:.16em;color:#8dff62">FASE PRINCIPAL</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:16px;padding:8px 26px;background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 3px 10px rgba(0,0,0,.5);clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 100%,0 100%)">
+        <div style="font-size:12px;letter-spacing:.16em;color:#9a8d7c">TURNO 04</div>
+        <div style="width:1px;height:22px;background:#0b0907"></div>
+        <div style="font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#8dff62;text-shadow:0 0 14px rgba(141,255,98,.6)">TU TURNO</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="font-size:12px;letter-spacing:.14em;color:#e8c46a;padding:9px 16px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9)">0:42</div>
+      <div onClick="{{ goSettings }}" style="width:40px;height:38px;display:grid;place-items:center;cursor:pointer;font-size:14px;color:#a49785;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 0 #100e0b" style-hover="filter:brightness(1.3)">✕</div>
+    </div>
+
+    <div style="flex:1;display:flex;min-height:0">
+
+      <!-- A · VISOR DE CARTA -->
+      <div style="width:430px;flex:none;display:flex;flex-direction:column;gap:6px;padding:12px;background:linear-gradient(90deg,#241f1a,#191612);border-right:1px solid #0b0907;box-shadow:4px 0 18px rgba(0,0,0,.55)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:7px;height:7px;background:#e8c46a;box-shadow:0 0 8px #e8c46a"></div>
+          <div style="font-size:11px;letter-spacing:.22em;color:#a49785">CARTA SELECCIONADA</div>
+        </div>
+
+        <div style="align-self:center;position:relative;width:300px;height:420px;flex:none;padding:6px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),linear-gradient(180deg,#413a31,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 26px rgba(0,0,0,.7)">
+          <div style="width:100%;height:100%;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;display:grid;place-items:center;font-size:10px;letter-spacing:.16em;color:#6d6155;text-align:center;line-height:2.2">CARTA A TAMAÑO COMPLETO<br>288 × 408</div>
+          <div style="position:absolute;left:-1px;top:-1px;width:16px;height:16px;border-left:2px solid #e8c46a;border-top:2px solid #e8c46a"></div>
+          <div style="position:absolute;right:-1px;bottom:-1px;width:16px;height:16px;border-right:2px solid #e8c46a;border-bottom:2px solid #e8c46a"></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)">
+          <img src="tipos/agua.png" alt="" style="width:26px;height:26px;display:block;border-radius:50%">
+          <div style="font-family:'Pixelify Sans',monospace;font-size:24px;font-weight:700;letter-spacing:.02em;flex:1">STARYU</div>
+          <div style="font-size:10px;letter-spacing:.12em;color:#8a7e6f">BÁSICO</div>
+          <div style="font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#8dff62">40<span style="font-size:12px;color:#6d6155">/40</span></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85)">
+          <div style="padding:8px 12px;border-bottom:1px solid #0a0806;background:linear-gradient(180deg,#2c2721,#1d1a15);font-size:10px;letter-spacing:.22em;color:#a49785">ATAQUES</div>
+          <div onClick="{{ noop }}" style="display:flex;gap:11px;padding:8px 11px;border-bottom:1px solid rgba(0,0,0,.5);cursor:pointer" style-hover="background:rgba(141,255,98,.09)">
+            <div style="display:flex;gap:4px;flex:none;width:56px;padding-top:2px"><img src="tipos/agua.png" alt="" style="width:24px;height:24px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.7)"></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:13px;color:#f6f1e6">BOFETÓN</div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#8a7e6f;line-height:1.7">Sin efecto adicional.</div>
+            </div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:24px;font-weight:700;color:#8dff62;align-self:flex-start">20</div>
+          </div>
+          <div onClick="{{ noop }}" style="display:flex;gap:11px;padding:8px 11px;cursor:pointer" style-hover="background:rgba(141,255,98,.09)">
+            <div style="display:flex;gap:4px;flex:none;width:56px;padding-top:2px"><img src="tipos/agua.png" alt="" style="width:24px;height:24px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.7)"><img src="tipos/incoloro.png" alt="" style="width:24px;height:24px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.7)"></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:13px;color:#f6f1e6">GIRO RÁPIDO</div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#8a7e6f;line-height:1.55">Lanza una moneda. Si sale cara, este ataque hace 10 puntos de daño más. Si sale cruz, Staryu queda confundido al final del turno.</div>
+            </div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:24px;font-weight:700;color:#8dff62;align-self:flex-start">30</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="font-size:9px;letter-spacing:.14em;color:#8a7e6f">DEBILIDAD</div>
+            <img src="tipos/planta.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%">
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="font-size:9px;letter-spacing:.14em;color:#8a7e6f">RESISTENCIA</div>
+            <div style="height:22px;display:grid;place-items:center;font-size:13px;color:#4a4239">—</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="font-size:9px;letter-spacing:.14em;color:#8a7e6f">RETIRADA</div>
+            <img src="tipos/incoloro.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%">
+          </div>
+        </div>
+
+        <div style="flex:1"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div onClick="{{ noop }}" style="grid-column:span 2;height:50px;display:grid;place-items:center;cursor:pointer;font-family:'Pixelify Sans',monospace;font-size:21px;font-weight:700;letter-spacing:.06em;color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 3px 0 #16480d,0 0 24px rgba(141,255,98,.28)" style-hover="filter:brightness(1.14)">ATACAR</div>
+          <div onClick="{{ noop }}" style="height:40px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.1em;color:#d6cbb9;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">RETIRADA</div>
+          <div onClick="{{ noop }}" style="height:40px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.1em;color:#d6cbb9;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">HABILIDAD</div>
+          <div onClick="{{ noop }}" style="grid-column:span 2;height:40px;display:grid;place-items:center;cursor:pointer;font-size:12px;letter-spacing:.14em;color:#2b2005;background:linear-gradient(180deg,#f4dd9a,#b8912f);border:1px solid #4a3a0c;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 3px 0 #6d5514" style-hover="filter:brightness(1.1)">PASAR TURNO ▶</div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:11px;padding:9px;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 0 1px rgba(141,255,98,.2)">
+          <div style="width:38px;height:38px;flex:none;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);display:grid;place-items:center;font-size:8px;color:#5c5348">AVA</div>
+          <div style="font-size:13px;letter-spacing:.08em;color:#8dff62;flex:1">DARKSPOON</div>
+          <div style="width:17px;height:17px;border-radius:50%;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)"></div>
+          <div style="font-family:'Pixelify Sans',monospace;font-size:18px;font-weight:700;color:#e8c46a">300</div>
+        </div>
+      </div>
+
+      <!-- B · TABLERO -->
+      <div style="flex:1;position:relative;min-width:0;display:flex;flex-direction:column">
+        <div style="position:absolute;inset:0;overflow:hidden;perspective:1400px">
+          <div style="position:absolute;left:-10%;right:-10%;top:5%;bottom:17%;transform:rotateX(24deg);transform-origin:50% 100%;background:radial-gradient(70% 60% at 50% 50%,rgba(141,255,98,.06),transparent 70%),repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 92px),repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 92px),linear-gradient(180deg,#221e19,#14120f);border:2px solid rgba(255,255,255,.06);box-shadow:inset 0 0 120px rgba(0,0,0,.85)"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,10,9,.5),transparent 24%,transparent 76%,rgba(11,10,9,.5))"></div>
+        </div>
+
+        <div style="position:relative;flex:none;height:56px;overflow:hidden">
+          <div style="position:absolute;left:16px;top:12px;display:flex;align-items:center;gap:9px;z-index:2">
+            <div style="font-size:10px;letter-spacing:.2em;color:#ff8a72">MANO CPU</div>
+            <div style="width:28px;height:28px;display:grid;place-items:center;font-family:'Pixelify Sans',monospace;font-size:16px;font-weight:700;color:#ffd9cf;background:linear-gradient(180deg,#4a2a24,#2a1714);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 6px rgba(0,0,0,.6)">5</div>
+          </div>
+          <div style="position:absolute;left:0;right:0;top:-64px;display:flex;justify-content:center">
+            <sc-for list="{{ oppHand }}" as="o" hint-placeholder-count="5">
+              <div style="width:88px;height:123px;margin-left:-20px;background:repeating-linear-gradient(135deg,#3b1f1c 0 6px,#2a1512 6px 12px);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 5px 12px rgba(0,0,0,.7);display:grid;place-items:end center;padding-bottom:7px;font-size:10px;letter-spacing:.1em;color:#7a4a42">DORSO</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:0">
+
+          <div style="position:absolute;left:24px;right:24px;top:50%;height:1px;margin-top:-1px;background:linear-gradient(90deg,transparent,rgba(232,196,106,.35) 20%,rgba(232,196,106,.35) 80%,transparent);pointer-events:none"></div>
+          <div style="position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-5px 0 0 -5px;background:#e8c46a;transform:rotate(45deg);box-shadow:0 0 12px rgba(232,196,106,.7);pointer-events:none"></div>
+
+          <div style="display:flex;gap:10px">
+            <sc-for list="{{ oppBench }}" as="b" hint-placeholder-count="5">
+              <div style="width:84px;display:flex;flex-direction:column;gap:5px;align-items:center">
+                <sc-if value="{{ b.filled }}" hint-placeholder-val="{{ true }}">
+                  <div style="width:84px;height:112px;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 10px rgba(0,0,0,.6);display:grid;place-items:center;font-size:8px;color:#6d6155;cursor:pointer" style-hover="filter:brightness(1.3)">CARTA</div>
+                  <div style="width:84px;height:6px;background:#0f0d0b;border:1px solid #0a0806;padding:1px"><div style="height:100%;width:{{ b.hp }};background:linear-gradient(180deg,#ff8a72,#c0392b)"></div></div>
+                  <div style="font-size:10px;letter-spacing:.04em;color:#a49785">{{ b.name }}</div>
+                </sc-if>
+                <sc-if value="{{ b.empty }}">
+                  <div style="width:84px;height:112px;border:1px dashed #3a342c;display:grid;place-items:center;font-size:10px;color:#4a4239">BANCA</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:5px;align-items:center">
+            <div style="width:200px;display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:linear-gradient(180deg,#3a2a26,#241715);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)">
+              <div style="font-size:11px;letter-spacing:.06em;color:#f6f1e6">MACHOP</div>
+              <div style="font-size:11px;color:#ff8a72">50/50</div>
+            </div>
+            <div style="position:relative;width:116px;height:162px;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:0 0 0 1px rgba(255,138,114,.55),0 0 22px rgba(255,138,114,.28),0 8px 20px rgba(0,0,0,.75);display:grid;place-items:center;font-size:8px;color:#6d6155;cursor:pointer">
+              ACTIVO CPU
+              <div style="position:absolute;right:-12px;top:-12px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-family:'Pixelify Sans',monospace;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(180deg,#ff6a5a,#a02012);border:2px solid #12100d;box-shadow:0 3px 10px rgba(0,0,0,.7)">0</div>
+            </div>
+            <div style="display:flex;gap:5px;height:24px;align-items:center">
+              <img src="tipos/lucha.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.7)">
+              <div style="width:20px;height:20px;border:1px dashed #4a4239;border-radius:50%"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:5px;align-items:center">
+            <div style="display:flex;gap:5px;height:24px;align-items:center">
+              <img src="tipos/planta.png" alt="" style="width:22px;height:22px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.7)">
+              <div style="width:20px;height:20px;border:1px dashed #4a4239;border-radius:50%"></div>
+            </div>
+            <div style="position:relative;width:116px;height:162px;background:repeating-linear-gradient(135deg,rgba(141,255,98,.07) 0 6px,transparent 6px 12px),#20241c;border:1px solid #0a0806;animation:glowPulse 2.6s ease-in-out infinite;display:grid;place-items:center;font-size:8px;color:#7d8a72;cursor:pointer">TU ACTIVO</div>
+            <div style="width:200px;display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%)">
+              <div style="font-size:11px;letter-spacing:.06em;color:#f6f1e6">WEEDLE</div>
+              <div style="font-size:11px;color:#8dff62">40/40</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <sc-for list="{{ myBench }}" as="b" hint-placeholder-count="5">
+              <div style="width:84px;display:flex;flex-direction:column;gap:5px;align-items:center">
+                <sc-if value="{{ b.filled }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:10px;letter-spacing:.04em;color:#a49785">{{ b.name }}</div>
+                  <div style="width:84px;height:6px;background:#0f0d0b;border:1px solid #0a0806;padding:1px"><div style="height:100%;width:{{ b.hp }};background:linear-gradient(180deg,#8dff62,#2c8a1c)"></div></div>
+                  <div style="width:84px;height:112px;background:repeating-linear-gradient(135deg,rgba(141,255,98,.06) 0 5px,transparent 5px 10px),#20241c;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 10px rgba(0,0,0,.6);display:grid;place-items:center;font-size:8px;color:#6d6155;cursor:pointer" style-hover="filter:brightness(1.35)">CARTA</div>
+                </sc-if>
+                <sc-if value="{{ b.empty }}">
+                  <div style="width:84px;height:112px;border:1px dashed #3a342c;display:grid;place-items:center;font-size:10px;color:#4a4239">BANCA</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="position:relative;flex:none;height:192px;overflow:hidden;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(11,10,9,0),rgba(20,18,15,.92) 32%,#17140f);border-top:1px solid rgba(255,255,255,.06)">
+          <div style="display:flex;align-items:center;gap:12px;padding:7px 20px 0">
+            <div style="font-size:10px;letter-spacing:.24em;color:#e8c46a">MANO · 7</div>
+            <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(232,196,106,.35),transparent)"></div>
+          </div>
+          <div style="flex:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;padding-bottom:10px">
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/planta.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">BULBASAUR</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/agua.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">STARYU</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/incoloro.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">CAMBIO</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/planta.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">ENERGÍA</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/agua.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">MAGIKARP</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/incoloro.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">BILL</div>
+            </div>
+            <div style="width:100px;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-20px)">
+              <div style="width:100px;height:140px;position:relative;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.65);display:grid;place-items:center;font-size:8px;color:#6d6155" style-hover="box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7)">
+                CARTA
+                <img src="tipos/agua.png" alt="" style="position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8)">
+              </div>
+              <div style="font-size:10px;letter-spacing:.02em;color:#a49785">ENERGÍA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C · PREMIOS Y MAZOS -->
+      <div style="width:260px;flex:none;display:flex;flex-direction:column;gap:8px;padding:10px;background:linear-gradient(180deg,#221e19,#191612);border-left:1px solid #0b0907;box-shadow:-3px 0 14px rgba(0,0,0,.45)">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:linear-gradient(180deg,#3a2a26,#241715);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)">
+          <div style="width:34px;height:34px;flex:none;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);display:grid;place-items:center;font-size:8px;color:#5c5348">CPU</div>
+          <div style="font-size:13px;letter-spacing:.08em;color:#ff8a72;flex:1">CPU</div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#ff6a5a;box-shadow:0 0 8px #ff6a5a"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="width:58px;height:81px;background:repeating-linear-gradient(135deg,#3b1f1c 0 5px,#2a1512 5px 10px);border:1px solid #0a0806"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#8a7e6f">MAZO 47</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="width:58px;height:81px;border:1px dashed #3a342c"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#5c5348">DESC. 0</div>
+          </div>
+        </div>
+        <div style="font-size:9px;letter-spacing:.2em;color:#ff8a72;padding-left:2px">PREMIOS · 6</div>
+        <div style="display:grid;grid-template-columns:repeat(2,58px);gap:6px;justify-content:center">
+          <sc-for list="{{ prizes }}" as="p" hint-placeholder-count="6">
+            <div style="width:58px;height:81px;background:repeating-linear-gradient(135deg,#3b1f1c 0 5px,#2a1512 5px 10px);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 2px 5px rgba(0,0,0,.6)"></div>
+          </sc-for>
+        </div>
+
+        <div style="flex:1;min-height:8px"></div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,58px);gap:6px;justify-content:center">
+          <sc-for list="{{ prizes }}" as="p" hint-placeholder-count="6">
+            <div style="width:58px;height:81px;background:repeating-linear-gradient(135deg,#1c3b1d 0 5px,#122a13 5px 10px);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 2px 5px rgba(0,0,0,.6)"></div>
+          </sc-for>
+        </div>
+        <div style="font-size:9px;letter-spacing:.2em;color:#8dff62;padding-left:2px">PREMIOS · 6</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="width:58px;height:81px;background:repeating-linear-gradient(135deg,#1c3b1d 0 5px,#122a13 5px 10px);border:1px solid #0a0806;box-shadow:0 0 10px rgba(141,255,98,.14)"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#a49785">MAZO 47</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:6px;background:#14120f;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85)">
+            <div style="width:58px;height:81px;border:1px dashed #3a342c"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#5c5348">DESC. 0</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)">
+          <div style="width:34px;height:34px;flex:none;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);display:grid;place-items:center;font-size:8px;color:#5c5348">AVA</div>
+          <div style="font-size:13px;letter-spacing:.08em;color:#8dff62;flex:1">DARKSPOON</div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#8dff62;box-shadow:0 0 8px #8dff62"></div>
+        </div>
+      </div>
+
+      <!-- D · REGISTRO -->
+      <div style="width:330px;flex:none;display:flex;flex-direction:column;padding:10px;background:linear-gradient(270deg,#221e19,#191612);border-left:1px solid #0b0907;box-shadow:-4px 0 16px rgba(0,0,0,.5)">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85)">
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #0a0806;background:linear-gradient(180deg,#2c2721,#1d1a15)">
+            <div style="width:7px;height:7px;background:#8dff62;box-shadow:0 0 8px #8dff62"></div>
+            <div style="font-size:11px;letter-spacing:.22em;color:#a49785">REGISTRO</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+            <sc-for list="{{ logLines }}" as="l" hint-placeholder-count="9">
+              <div style="display:flex;gap:8px;font-size:11px;line-height:1.5">
+                <div style="color:#4f4740;flex:none">{{ l.t }}</div>
+                <div style="color:{{ l.color }}">{{ l.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============================ TIENDA ============================ -->
+  <sc-if value="{{ isShop }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+    <div style="height:84px;flex:none;display:flex;align-items:center;gap:22px;padding:0 40px;background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <div onClick="{{ goMenu }}" style="display:flex;align-items:center;gap:10px;padding:12px 18px;cursor:pointer;font-size:12px;letter-spacing:.14em;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">◀ VOLVER</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;letter-spacing:.04em">TIENDA</div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9)">
+        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 12px rgba(232,196,106,.5)"></div>
+        <div style="font-family:'Pixelify Sans',monospace;font-size:24px;font-weight:700;color:#e8c46a">150</div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:28px;padding:32px 40px 40px;min-height:0">
+      <div style="flex:none;height:170px;position:relative;overflow:hidden;display:flex;align-items:center;gap:32px;padding:0 34px;background:linear-gradient(90deg,#2a2419,#3a3120 55%,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 6px 18px rgba(0,0,0,.5)">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:120px;background:linear-gradient(120deg,rgba(255,255,255,.16),transparent);animation:sheen 3.6s ease-in-out infinite"></div>
+        <div style="display:flex;flex-direction:column;gap:12px;z-index:1">
+          <div style="font-size:11px;letter-spacing:.24em;color:#e8c46a">OFERTA DE LANZAMIENTO</div>
+          <div style="font-family:'Pixelify Sans',monospace;font-size:38px;font-weight:700;letter-spacing:.02em">CAJA BASE · 12 SOBRES</div>
+          <div style="font-size:12px;letter-spacing:.1em;color:#a49785">GARANTIZA 2 HOLOGRÁFICAS</div>
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:22px;z-index:1">
+          <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+            <div style="font-size:13px;color:#6d6155;text-decoration:line-through">720</div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:34px;font-weight:700;color:#e8c46a">540</div>
+          </div>
+          <div onClick="{{ noop }}" style="padding:18px 34px;cursor:pointer;font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#2b2005;background:linear-gradient(180deg,#f4dd9a,#b8912f);border:1px solid #4a3a0c;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 4px 0 #6d5514" style-hover="filter:brightness(1.1)">COMPRAR</div>
+        </div>
+      </div>
+
+      <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:22px;min-height:0">
+        <sc-for list="{{ shopItems }}" as="s" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:14px;padding:18px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+            <div style="flex:1;position:relative;min-height:0;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85);display:grid;place-items:center;overflow:hidden">
+              <div style="position:absolute;inset:0;background:radial-gradient(70% 50% at 50% 30%,{{ s.glow }},transparent 70%)"></div>
+              <div style="width:58%;aspect-ratio:2/3;background:repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 6px,transparent 6px 12px),{{ s.bg }};border:1px solid #0a0806;box-shadow:0 8px 18px rgba(0,0,0,.7);display:grid;place-items:center;font-size:9px;color:#cfc6b6;text-align:center;line-height:1.7">ARTE<br>SOBRE</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700">{{ s.name }}</div>
+              <div style="font-size:10px;letter-spacing:.1em;color:#9a8d7c;line-height:1.6">{{ s.desc }}</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:17px;height:17px;border-radius:50%;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)"></div>
+                <div style="font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#e8c46a">{{ s.price }}</div>
+              </div>
+              <div onClick="{{ goPack }}" style="padding:12px 20px;cursor:pointer;font-size:12px;letter-spacing:.1em;color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 3px 0 #16480d" style-hover="filter:brightness(1.14)">ABRIR</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============================ APERTURA DE SOBRE ============================ -->
+  <sc-if value="{{ isPack }}">
+  <div style="position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 44%,#2a2418 0%,#141210 55%,#080807 100%)">
+    <div style="position:absolute;left:0;right:0;top:0;height:84px;display:flex;align-items:center;gap:22px;padding:0 40px">
+      <div onClick="{{ goShop }}" style="padding:12px 18px;cursor:pointer;font-size:12px;letter-spacing:.14em;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">◀ TIENDA</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:26px;font-weight:700;letter-spacing:.04em">SOBRE BASE SET</div>
+    </div>
+
+    <sc-if value="{{ packClosed }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:38px">
+      <div onClick="{{ openPack }}" style="position:relative;width:330px;height:470px;overflow:hidden;cursor:pointer;animation:bob 3s ease-in-out infinite;background:repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 8px,transparent 8px 16px),linear-gradient(160deg,#4a3f1f,#2a2318 60%,#3a3120);border:2px solid #0a0806;box-shadow:0 24px 60px rgba(0,0,0,.8),inset 0 2px 0 rgba(255,255,255,.2);display:grid;place-items:center">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:130px;background:linear-gradient(120deg,rgba(255,255,255,.28),transparent);animation:sheen 2.8s ease-in-out infinite"></div>
+        <div style="font-size:11px;letter-spacing:.2em;color:#e8c46a;text-align:center;line-height:2.2">ARTE DEL SOBRE<br>330 × 470</div>
+      </div>
+      <div style="font-size:14px;letter-spacing:.28em;color:#e8c46a;animation:blink 1.5s steps(1,end) infinite">TOCAR PARA ABRIR</div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ packOpen }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;padding:0 40px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="font-family:'Pixelify Sans',monospace;font-size:34px;font-weight:700">10 CARTAS NUEVAS</div>
+        <div style="font-size:11px;letter-spacing:.24em;color:#e8c46a">1 HOLOGRÁFICA · 3 INFRECUENTES</div>
+      </div>
+      <div style="display:flex;gap:14px">
+        <sc-for list="{{ packCards }}" as="c" hint-placeholder-count="10">
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+            <div style="width:142px;height:198px;position:relative;overflow:hidden;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px),#241f1a;border:1px solid #0a0806;box-shadow:{{ c.shadow }};display:grid;place-items:center;font-size:9px;color:#6d6155;cursor:pointer;transition:transform .14s" style-hover="transform:translateY(-14px)">
+              CARTA
+              <sc-if value="{{ c.holo }}">
+                <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,120,220,.28),rgba(120,220,255,.28),rgba(255,240,120,.28),rgba(160,255,140,.28),rgba(255,120,220,.28));background-size:200% 100%;animation:holo 3.4s linear infinite;mix-blend-mode:screen"></div>
+              </sc-if>
+            </div>
+            <div style="font-size:9px;letter-spacing:.14em;color:{{ c.tagColor }}">{{ c.tag }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:14px">
+        <div onClick="{{ goCollection }}" style="padding:19px 40px;cursor:pointer;font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 4px 0 #16480d,0 0 28px rgba(141,255,98,.3)" style-hover="filter:brightness(1.14)">AÑADIR A LA COLECCIÓN</div>
+        <div onClick="{{ resetPack }}" style="padding:19px 34px;cursor:pointer;font-size:13px;letter-spacing:.12em;color:#d6cbb9;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 4px 0 #100e0b" style-hover="filter:brightness(1.3)">ABRIR OTRO</div>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ============================ MI COLECCIÓN ============================ -->
+  <sc-if value="{{ isCollection }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+    <div style="height:84px;flex:none;display:flex;align-items:center;gap:22px;padding:0 40px;background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <div onClick="{{ goMenu }}" style="padding:12px 18px;cursor:pointer;font-size:12px;letter-spacing:.14em;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">◀ VOLVER</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;letter-spacing:.04em">MI COLECCIÓN</div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="font-size:11px;letter-spacing:.16em;color:#9a8d7c">BASE SET</div>
+        <div style="width:280px;height:14px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 5px rgba(0,0,0,.9);padding:2px">
+          <div style="height:100%;width:68%;background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 10px rgba(141,255,98,.5)"></div>
+        </div>
+        <div style="font-family:'Pixelify Sans',monospace;font-size:22px;font-weight:700;color:#8dff62">69<span style="font-size:14px;color:#6d6155">/102</span></div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;gap:26px;padding:28px 40px 34px;min-height:0">
+      <div style="width:290px;flex:none;display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:10px;letter-spacing:.22em;color:#e8c46a">BUSCAR</div>
+          <div style="height:46px;display:flex;align-items:center;padding:0 14px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-size:12px;color:#5c5348">NOMBRE DE CARTA…</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:10px;letter-spacing:.22em;color:#e8c46a">TIPO</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px">
+            <div title="Planta" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/planta.png" alt="Planta" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Fuego" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/fuego.png" alt="Fuego" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Agua" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/agua.png" alt="Agua" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Rayo" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/rayo.png" alt="Rayo" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Psíquico" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/psiquico.png" alt="Psíquico" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Lucha" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/lucha.png" alt="Lucha" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+            <div title="Incoloro" style="width:56px;height:56px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 0 #100e0b;transition:filter .12s" style-hover="filter:brightness(1.4)">
+              <img src="tipos/incoloro.png" alt="Incoloro" style="width:34px;height:34px;display:block;border-radius:50%">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:10px;letter-spacing:.22em;color:#e8c46a">RAREZA</div>
+          <sc-for list="{{ rarities }}" as="r" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)" style-hover="filter:brightness(1.35)">
+              <div style="font-size:11px;letter-spacing:.1em;color:#d6cbb9">{{ r.name }}</div>
+              <div style="font-size:11px;color:{{ r.color }}">{{ r.count }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:1"></div>
+        <div style="padding:16px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85);display:flex;flex-direction:column;gap:9px">
+          <div style="font-size:10px;letter-spacing:.2em;color:#8a7e6f">DUPLICADAS</div>
+          <div style="font-family:'Pixelify Sans',monospace;font-size:28px;font-weight:700;color:#e8c46a">41</div>
+          <div style="font-size:10px;letter-spacing:.08em;color:#6d6155;line-height:1.7">Canjeables por monedas en la tienda.</div>
+        </div>
+      </div>
+
+      <div style="flex:1;min-height:0;padding:20px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85);overflow:hidden">
+        <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:16px">
+          <sc-for list="{{ collection }}" as="c" hint-placeholder-count="24">
+            <div style="display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:transform .12s" style-hover="transform:translateY(-6px)">
+              <div style="position:relative;width:100%;aspect-ratio:5/7;background:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 5px,transparent 5px 10px),{{ c.bg }};border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.55);display:grid;place-items:center;font-size:8px;color:{{ c.label }};opacity:{{ c.opacity }}">
+                CARTA
+                <sc-if value="{{ c.owned }}" hint-placeholder-val="{{ true }}">
+                  <div style="position:absolute;right:-5px;bottom:-5px;min-width:24px;height:24px;padding:0 5px;display:grid;place-items:center;font-size:11px;color:#0d2a06;background:#8dff62;border:2px solid #12100d;box-shadow:0 2px 6px rgba(0,0,0,.7)">{{ c.count }}</div>
+                </sc-if>
+                <sc-if value="{{ c.locked }}">
+                  <div style="position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,8,7,.66);font-size:16px;color:#4a4239">?</div>
+                </sc-if>
+              </div>
+              <div style="font-size:9px;letter-spacing:.06em;color:#8a7e6f;text-align:center">{{ c.no }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============================ CONFIGURACIÓN ============================ -->
+  <sc-if value="{{ isSettings }}">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+    <div style="height:84px;flex:none;display:flex;align-items:center;gap:22px;padding:0 40px;background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 14px rgba(0,0,0,.5)">
+      <div onClick="{{ goMenu }}" style="padding:12px 18px;cursor:pointer;font-size:12px;letter-spacing:.14em;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">◀ VOLVER</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;letter-spacing:.04em">CONFIGURACIÓN</div>
+    </div>
+
+    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:34px 40px 40px;min-height:0;align-content:start">
+
+      <div style="display:flex;flex-direction:column;gap:20px;padding:26px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:26px;height:2px;background:#8dff62"></div>
+          <div style="font-size:12px;letter-spacing:.24em;color:#8dff62">AUDIO</div>
+        </div>
+        <sc-for list="{{ sliders }}" as="s" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;letter-spacing:.1em"><div style="color:#d6cbb9">{{ s.label }}</div><div style="color:#8dff62">{{ s.value }}</div></div>
+            <div onClick="{{ s.set }}" style="position:relative;height:26px;display:flex;align-items:center;cursor:pointer;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);padding:3px">
+              <div style="height:100%;width:{{ s.pct }};background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 12px rgba(141,255,98,.45)"></div>
+              <div style="position:absolute;top:-4px;left:{{ s.pct }};width:16px;height:34px;margin-left:-8px;background:linear-gradient(180deg,#6d6155,#2a251f);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 7px rgba(0,0,0,.7)"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;padding:26px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:26px;height:2px;background:#e8c46a"></div>
+          <div style="font-size:12px;letter-spacing:.24em;color:#e8c46a">PARTIDA</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="font-size:12px;letter-spacing:.1em;color:#d6cbb9">VELOCIDAD DE LA CPU</div>
+          <div style="display:flex;gap:0;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);padding:3px">
+            <sc-for list="{{ speeds }}" as="p" hint-placeholder-count="3">
+              <div onClick="{{ p.set }}" style="flex:1;height:44px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.12em;color:{{ p.color }};background:{{ p.bg }};box-shadow:{{ p.shadow }}">{{ p.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <sc-for list="{{ toggles }}" as="t" hint-placeholder-count="4">
+          <div onClick="{{ t.flip }}" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.4)">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:12px;letter-spacing:.08em;color:#d6cbb9">{{ t.label }}</div>
+              <div style="font-size:9px;letter-spacing:.06em;color:#8a7e6f">{{ t.note }}</div>
+            </div>
+            <div style="flex:none;width:76px;height:32px;display:flex;align-items:center;padding:3px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);justify-content:{{ t.justify }}">
+              <div style="width:34px;height:100%;background:{{ t.knob }};border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:26px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85)">
+        <div style="font-size:12px;letter-spacing:.24em;color:#9a8d7c">VÍDEO</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:11px;letter-spacing:.1em;color:#8a7e6f">RESOLUCIÓN</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-size:12px;color:#d6cbb9;cursor:pointer">1920 × 1080 <span style="color:#6d6155">▾</span></div>
+          </div>
+          <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:11px;letter-spacing:.1em;color:#8a7e6f">MODO</div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-size:12px;color:#d6cbb9;cursor:pointer">PANTALLA COMPLETA <span style="color:#6d6155">▾</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:26px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85)">
+        <div style="font-size:12px;letter-spacing:.24em;color:#9a8d7c">CUENTA</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:56px;height:56px;flex:none;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);display:grid;place-items:center;font-size:9px;color:#5c5348">AVA</div>
+          <div style="display:flex;flex-direction:column;gap:7px;flex:1">
+            <div style="font-size:14px;letter-spacing:.08em">JUGADOR</div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#8a7e6f">SESIÓN INICIADA · NV 12</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div onClick="{{ noop }}" style="flex:1;height:50px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.12em;color:#d6cbb9;background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b" style-hover="filter:brightness(1.3)">CAMBIAR NOMBRE</div>
+          <div onClick="{{ noop }}" style="flex:1;height:50px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.12em;color:#ffb0a4;background:linear-gradient(180deg,#4a2a24,#2a1714);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 0 #180d0b" style-hover="filter:brightness(1.3)">BORRAR DATOS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+const T = {
+  planta:  { color:'#62c23c', icon:'tipos/planta.png' },
+  fuego:   { color:'#e0452a', icon:'tipos/fuego.png' },
+  agua:    { color:'#3aa0e0', icon:'tipos/agua.png' },
+  rayo:    { color:'#e8c46a', icon:'tipos/rayo.png' },
+  psiquico:{ color:'#a35fd6', icon:'tipos/psiquico.png' },
+  lucha:   { color:'#c1682c', icon:'tipos/lucha.png' },
+  incoloro:{ color:'#cfc6b6', icon:'tipos/incoloro.png' },
+};
+const t = (k, extra) => Object.assign({ name:k }, T[k], extra || {});
+
+class Component extends DCLogic {
+  state = {
+    screen: 'menu',
+    deck: 0,
+    packOpen: false,
+    vol: { musica: 70, efectos: 85, voz: 45 },
+    speed: 1,
+    flags: { animaciones: true, autopase: false, confirmar: true, registro: true },
+  };
+
+  componentDidMount() {
+    this.stage = React.createRef && this.stageRef;
+    this.fit();
+    this._onResize = () => this.fit();
+    window.addEventListener('resize', this._onResize);
+  }
+  componentWillUnmount() { window.removeEventListener('resize', this._onResize); }
+  componentDidUpdate() { this.fit(); }
+
+  fit() {
+    const el = this.stageRef && this.stageRef.current;
+    if (!el) return;
+    const host = el.parentElement;
+    if (!host) return;
+    const w = host.clientWidth || window.innerWidth;
+    const h = host.clientHeight || window.innerHeight;
+    const s = Math.min(w / 1920, h / 1080) || 1;
+    const x = (w - 1920 * s) / 2, y = (h - 1080 * s) / 2;
+    el.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')';
+  }
+
+  go = (screen) => () => this.setState({ screen });
+
+  renderVals() {
+    const S = this.state;
+    if (!this.stageRef) this.stageRef = { current: null };
+    const stageRef = (el) => { this.stageRef.current = el; if (el) this.fit(); };
+
+    const decks = [
+      { name:'OVERGROWTH', types:'PLANTA · AGUA', wins:12, losses:4, count:60, color:'#62c23c', glow:'rgba(98,194,60,.55)' },
+      { name:'BLACKOUT',   types:'RAYO · INCOLORO', wins:8,  losses:7, count:60, color:'#e8c46a', glow:'rgba(232,196,106,.55)' },
+      { name:'BRUSHFIRE',  types:'FUEGO · LUCHA', wins:5,  losses:9, count:60, color:'#e0452a', glow:'rgba(224,69,42,.55)' },
+    ].map((d, i) => ({ ...d, active: i === S.deck, pick: () => this.setState({ deck: i }) }));
+
+    const slotBgs = ['#2a2a1e','#1f2a2a','#2a1f1f','#26221c','#1c2226'];
+
+    return {
+      stageRef,
+      isMenu: S.screen === 'menu',
+      isDecks: S.screen === 'decks',
+      isDuel: S.screen === 'duel',
+      isShop: S.screen === 'shop',
+      isPack: S.screen === 'pack',
+      isCollection: S.screen === 'collection',
+      isSettings: S.screen === 'settings',
+      goMenu: this.go('menu'), goDecks: this.go('decks'), goDuel: this.go('duel'),
+      goShop: this.go('shop'), goPack: () => this.setState({ screen:'pack', packOpen:false }),
+      goCollection: this.go('collection'), goSettings: this.go('settings'),
+      noop: () => {},
+
+      menuItems: [
+        { label:'JUGAR',         sub:'DUELO CONTRA LA CPU',   glyph:'⚔', go:this.go('duel') },
+        { label:'MAZOS',         sub:'CONSTRUIR Y ELEGIR',    glyph:'▦', go:this.go('decks') },
+        { label:'TIENDA',        sub:'SOBRES Y CAJAS',        glyph:'◎', go:this.go('shop') },
+        { label:'MI COLECCIÓN',  sub:'69 DE 102 CARTAS',      glyph:'▤', go:this.go('collection') },
+        { label:'CONFIGURACIÓN', sub:'AUDIO, VÍDEO, PARTIDA', glyph:'⚙', go:this.go('settings') },
+      ],
+
+      energyTypes: [t('planta'),t('fuego'),t('agua'),t('rayo'),t('psiquico'),t('lucha'),t('incoloro')],
+
+      decks,
+      deckName: decks[S.deck].name,
+      deckStats: [
+        { label:'POKÉMON', value:'22', pct:'37%' },
+        { label:'ENTRENADOR', value:'16', pct:'27%' },
+        { label:'ENERGÍA', value:'22', pct:'37%' },
+      ],
+      deckEnergies: [t('planta',{count:14}), t('agua',{count:8})],
+      deckSlots: Array.from({ length:60 }, (_, i) => ({ bg: slotBgs[i % slotBgs.length] })),
+
+      prizes: Array.from({ length:6 }, (_, i) => ({ i })),
+      oppHand: Array.from({ length:5 }, (_, i) => ({ i })),
+      oppBench: [
+        { filled:true, empty:false, name:'STARYU', hp:'100%' },
+        { filled:true, empty:false, name:'MAGIKARP', hp:'55%' },
+        { filled:false, empty:true },
+        { filled:false, empty:true },
+        { filled:false, empty:true },
+      ],
+      myBench: [
+        { filled:true, empty:false, name:'BULBASAUR', hp:'100%' },
+        { filled:true, empty:false, name:'STARYU', hp:'80%' },
+        { filled:true, empty:false, name:'MAGIKARP', hp:'100%' },
+        { filled:false, empty:true },
+        { filled:false, empty:true },
+      ],
+      hand: [
+        t('planta',{ name:'BULBASAUR' }), t('agua',{ name:'STARYU' }), t('incoloro',{ name:'CAMBIO' }),
+        t('planta',{ name:'ENERGÍA' }), t('agua',{ name:'MAGIKARP' }), t('incoloro',{ name:'BILL' }),
+        t('agua',{ name:'ENERGÍA' }),
+      ],
+      attacks: [
+        { name:'BURBUJA', note:'MONEDA: SI ES CARA, PARÁLISIS.', dmg:'10', cost:[T.agua], nameColor:'#efe9dd', dmgColor:'#8dff62', use:()=>{} },
+        { name:'PLACAJE', note:'SIN EFECTO ADICIONAL.', dmg:'20', cost:[T.agua,T.incoloro], nameColor:'#efe9dd', dmgColor:'#8dff62', use:()=>{} },
+      ],
+      logLines: [
+        { t:'T1', text:'Jugador roba su mano inicial.', color:'#8a7e6f' },
+        { t:'T1', text:'CPU roba su mano inicial (mulligans: 0).', color:'#8a7e6f' },
+        { t:'T2', text:'CPU juega Onix de básico.', color:'#ff8a72' },
+        { t:'T2', text:'CPU juega Staryu a la banca.', color:'#ff8a72' },
+        { t:'T3', text:'Coloca a Squirtle como Activo.', color:'#8dff62' },
+        { t:'T3', text:'Adjunta Energía Agua a Squirtle.', color:'#8dff62' },
+        { t:'T4', text:'CPU ataca con Onix — Lanzarrocas.', color:'#ff8a72' },
+        { t:'T4', text:'Squirtle recibe 20 de daño.', color:'#e8c46a' },
+        { t:'T4', text:'Tu turno. Elige un ataque.', color:'#efe9dd' },
+      ],
+
+      shopItems: [
+        { name:'SOBRE BASE', desc:'11 CARTAS + 1 ENERGÍA', price:'60',  bg:'#3a3120', glow:'rgba(232,196,106,.16)' },
+        { name:'SOBRE PLANTA', desc:'SESGADO A TIPO PLANTA', price:'75', bg:'#243020', glow:'rgba(98,194,60,.16)' },
+        { name:'SOBRE FUEGO', desc:'SESGADO A TIPO FUEGO', price:'75',  bg:'#3a2320', glow:'rgba(224,69,42,.16)' },
+        { name:'SOBRE HOLO', desc:'1 HOLOGRÁFICA GARANTIZADA', price:'180', bg:'#2a2438', glow:'rgba(163,95,214,.18)' },
+      ],
+
+      packClosed: !S.packOpen,
+      packOpen: S.packOpen,
+      openPack: () => this.setState({ packOpen:true }),
+      resetPack: () => this.setState({ packOpen:false }),
+      packCards: Array.from({ length:10 }, (_, i) => {
+        const holo = i === 9, unc = i > 5 && i < 9;
+        return {
+          holo, tag: holo ? 'HOLOGRÁFICA' : unc ? 'INFRECUENTE' : 'COMÚN',
+          tagColor: holo ? '#e8c46a' : unc ? '#8dff62' : '#6d6155',
+          shadow: holo
+            ? '0 0 0 1px #e8c46a,0 0 30px rgba(232,196,106,.55),0 8px 18px rgba(0,0,0,.7)'
+            : 'inset 0 1px 0 rgba(255,255,255,.1),0 6px 14px rgba(0,0,0,.6)',
+        };
+      }),
+
+      rarities: [
+        { name:'COMÚN',        count:'44/48', color:'#8dff62' },
+        { name:'INFRECUENTE',  count:'19/32', color:'#8dff62' },
+        { name:'RARA',         count:'5/16',  color:'#e8c46a' },
+        { name:'HOLOGRÁFICA',  count:'1/6',   color:'#ff8a72' },
+      ],
+      collection: Array.from({ length:24 }, (_, i) => {
+        const owned = i % 5 !== 3;
+        return {
+          no: String(i + 1).padStart(3, '0') + '/102',
+          owned, locked: !owned,
+          count: 'x' + (1 + (i % 4)),
+          bg: slotBgs[i % slotBgs.length],
+          label: owned ? '#6d6155' : '#3a342c',
+          opacity: owned ? '1' : '.42',
+        };
+      }),
+
+      sliders: ['musica','efectos','voz'].map((k) => ({
+        label: k === 'musica' ? 'MÚSICA' : k === 'efectos' ? 'EFECTOS' : 'VOZ',
+        value: S.vol[k],
+        pct: S.vol[k] + '%',
+        set: (e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const pct = Math.round(Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100)));
+          this.setState({ vol: { ...S.vol, [k]: pct } });
+        },
+      })),
+
+      speeds: ['LENTA','NORMAL','RÁPIDA'].map((label, i) => ({
+        label,
+        set: () => this.setState({ speed: i }),
+        color: i === S.speed ? '#0d2a06' : '#8a7e6f',
+        bg: i === S.speed ? 'linear-gradient(180deg,#8dff62,#2c8a1c)' : 'transparent',
+        shadow: i === S.speed ? 'inset 0 1px 0 rgba(255,255,255,.45)' : 'none',
+      })),
+
+      toggles: [
+        { key:'animaciones', label:'ANIMACIONES DE ATAQUE', note:'DESACTIVAR ACELERA LOS TURNOS' },
+        { key:'autopase',    label:'PASAR TURNO AUTOMÁTICO', note:'AL QUEDARSE SIN ACCIONES' },
+        { key:'confirmar',   label:'CONFIRMAR ATAQUES',      note:'PIDE CONFIRMACIÓN ANTES DE ATACAR' },
+        { key:'registro',    label:'REGISTRO EXTENDIDO',     note:'MUESTRA TIRADAS DE MONEDA' },
+      ].map((x) => ({
+        label:x.label, note:x.note,
+        justify: S.flags[x.key] ? 'flex-end' : 'flex-start',
+        knob: S.flags[x.key] ? 'linear-gradient(180deg,#8dff62,#2c8a1c)' : 'linear-gradient(180deg,#6d6155,#2a251f)',
+        flip: () => this.setState({ flags: { ...S.flags, [x.key]: !S.flags[x.key] } }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>
