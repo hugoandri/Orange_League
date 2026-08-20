@@ -6,6 +6,23 @@ function layoutShellStage() {
   if (!stage) { return; }
   var t = computeStageTransform(window.innerWidth, window.innerHeight);
   stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
+
+  // On a wider-than-16:9 viewport, contain scaling leaves empty letterbox
+  // bars on the sides (t.x > 0). Rather than stretching the art to fill
+  // them, nudge the nav column into the left bar and the profile card /
+  // logout button into the right bar, so they end up a fixed on-screen
+  // distance from the true viewport edges instead of the stage's edges --
+  // using the full screen width without resizing anything. t.x is a real
+  // screen-pixel amount; dividing by t.scale converts it into the stage's
+  // own (unscaled) coordinate space, since this translate happens *inside*
+  // the already-scaled stage.
+  var extraShift = t.scale > 0 ? (t.x / t.scale) : 0;
+  var leftCol = document.querySelector('.shell-left-col');
+  if (leftCol) { leftCol.style.transform = 'translateX(' + (-extraShift) + 'px)'; }
+  var profileCard = document.getElementById('menuProfileBtn');
+  if (profileCard) { profileCard.style.transform = 'translateX(' + extraShift + 'px)'; }
+  var logoutBtn = document.getElementById('menuLogoutBtn');
+  if (logoutBtn) { logoutBtn.style.transform = 'translateX(' + extraShift + 'px)'; }
 }
 
 // Force clear broken portada positions and old backgrounds
