@@ -1,12 +1,16 @@
 var gameState = null;
 var econState = null;
 
-function layoutShellStage() {
-  var stage = document.getElementById('shellStage');
-  if (!stage) { return; }
+// Every shell screen (#menuScreen, #shopScreen, ...) has its own
+// .shell-viewport > .shell-stage pair; each stage gets the same elastic-width
+// transform independently -- they're isolated fixed-position overlays, only
+// one ever visible at a time, so there's no interaction between them.
+function layoutShellStages() {
   var t = computeStageTransform(window.innerWidth, window.innerHeight);
-  stage.style.width = t.width + 'px';
-  stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
+  document.querySelectorAll('.shell-stage').forEach(function (stage) {
+    stage.style.width = t.width + 'px';
+    stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
+  });
 }
 
 // Force clear broken portada positions and old backgrounds
@@ -727,44 +731,73 @@ var BOOSTER_PACK_NAMES = {
 
 var boosterSelectState = null;
 
-function renderShop() {
-  if (!econState) { document.getElementById('shopStats').innerHTML = '<div>Cargando…</div>'; return; }
-  var total = 0;
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-    total += CARD_CATALOG[setKey].length;
-  });
-  document.getElementById('shopStats').innerHTML =
-    '<div>Monedas: <strong>' + econState.coins + '</strong></div>';
-  renderShopBoosters();
+// Tracks where the shop screen was opened from, so the "◀ VOLVER" button can
+// return there: 'menu' from the main menu's TIENDA item, 'game' from a live
+// match. Defaults to 'menu' since that's the only reachable entry point today.
+var shopReturnTo = 'menu';
+
+function showShopScreen(returnTo) {
+  shopReturnTo = returnTo;
+  document.getElementById('shopScreen').classList.remove('hidden');
+  renderShopScreen();
 }
 
-function renderShopBoosters() {
-  var html = '<h3 style="font-family:Sora,sans-serif;font-weight:700;margin:0 0 16px;">Sobres de boosters</h3>';
-  html += '<div class="booster-shop-grid">';
+function hideShopScreen() {
+  document.getElementById('shopScreen').classList.add('hidden');
+}
+
+// Only updates the coin balance -- called on every Firestore snapshot
+// (economy.js). Deliberately NOT rebuilding the card grid here: that would
+// re-roll each card's random cover art out from under the player while
+// they're looking at the screen, e.g. right after a purchase updates coins.
+function updateShopBalance() {
+  var balanceEl = document.getElementById('shopCoinBalance');
+  if (balanceEl && econState) { balanceEl.textContent = econState.coins; }
+}
+
+// Builds the card grid -- called once per screen-open (showShopScreen), not
+// on every economy update (see updateShopBalance above).
+function renderShopScreen() {
+  updateShopBalance();
+
+  var grid = document.getElementById('shopGrid');
+  if (!grid || !econState) { return; }
+
+  var html = '';
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-    var total = CARD_CATALOG[setKey].length;
     var packs = BOOSTER_PACKS[setKey];
     var randomPack = packs[Math.floor(Math.random() * packs.length)];
-    html += '<div class="booster-pack" data-set="' + setKey + '">' +
-      '<img src="' + randomPack + '" alt="' + BOOSTER_NAMES[setKey] + '">' +
-      '<div class="booster-pack-name">' + BOOSTER_NAMES[setKey] + '</div>' +
-      '<div class="booster-pack-price">100 monedas · 11 cartas</div>' +
-      '<div class="booster-pack-count">' + total + ' cartas</div>' +
+    html +=
+      '<div class="shell-shop-card" data-set="' + setKey + '">' +
+        '<div class="shell-shop-card-art"><img src="' + randomPack + '" alt="' + BOOSTER_NAMES[setKey] + '"></div>' +
+        '<div class="shell-shop-card-text">' +
+          '<div class="shell-shop-card-name">SOBRE ' + BOOSTER_NAMES[setKey].toUpperCase() + '</div>' +
+          '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
+        '</div>' +
+        '<div class="shell-shop-card-footer">' +
+          '<span class="shell-shop-card-price"><span class="shell-shop-coin"></span>100</span>' +
+          '<button type="button" class="shell-shop-card-btn">ABRIR</button>' +
+        '</div>' +
       '</div>';
   });
-  html += '</div>';
-  document.getElementById('shop-content').innerHTML = html;
+  html +=
+    '<div class="shell-shop-card shell-shop-card-disabled">' +
+      '<div class="shell-shop-card-art"><span class="shell-shop-card-placeholder">PRÓXIMAMENTE</span></div>' +
+      '<div class="shell-shop-card-text">' +
+        '<div class="shell-shop-card-name">NUEVO SOBRE</div>' +
+        '<div class="shell-shop-card-desc">EN UNA PRÓXIMA ACTUALIZACIÓN</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-footer">' +
+        '<button type="button" class="shell-shop-card-btn" disabled>PRÓXIMAMENTE</button>' +
+      '</div>' +
+    '</div>';
+  grid.innerHTML = html;
 
-  document.querySelectorAll('.booster-pack').forEach(function (el) {
-    el.addEventListener('click', function () {
-      openBoosterSelectModal(el.getAttribute('data-set'));
+  grid.querySelectorAll('.shell-shop-card[data-set]').forEach(function (card) {
+    card.querySelector('.shell-shop-card-btn').addEventListener('click', function () {
+      openBoosterSelectModal(card.getAttribute('data-set'));
     });
   });
-}
-
-function renderShopPlaceholder(title) {
-  document.getElementById('shop-content').innerHTML =
-    '<p style="color:var(--ink-soft);padding:40px 20px;text-align:center;">Próximamente: ' + title + '</p>';
 }
 
 function renderCollection() {
@@ -1046,11 +1079,6 @@ function openPauseMenu() {
 function closePauseMenu() {
   document.getElementById('pauseModal').classList.add('hidden');
 }
-function setActiveShopNav(el) {
-  document.querySelectorAll('#panelShop .collection-nav').forEach(function (n) { n.classList.remove('active'); });
-  el.classList.add('active');
-}
-
 document.addEventListener('DOMContentLoaded', function () {
   // Theme init
   var savedTheme = null;
@@ -1059,8 +1087,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   applyMenuBackground();
   applyMenuLogo();
-  layoutShellStage();
-  window.addEventListener('resize', layoutShellStage);
+  layoutShellStages();
+  window.addEventListener('resize', layoutShellStages);
 
   // Menu buttons
   document.getElementById('menuPlay').addEventListener('click', function () {
@@ -1069,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('menuShop').addEventListener('click', function () {
     hideMenu();
-    switchTab('shop');
+    showShopScreen('menu');
   });
   document.getElementById('menuCollection').addEventListener('click', function () {
     hideMenu();
@@ -1166,28 +1194,16 @@ document.addEventListener('DOMContentLoaded', function () {
     showMenu();
   });
 
-  // Shop sidebar
-  document.getElementById('shopNavBoosters').addEventListener('click', function () {
-    setActiveShopNav(this);
-    renderShopBoosters();
-  });
-  document.getElementById('shopNavDecks').addEventListener('click', function () {
-    setActiveShopNav(this);
-    renderShopPlaceholder('Mazos');
-  });
-  document.getElementById('shopNavSpecial').addEventListener('click', function () {
-    setActiveShopNav(this);
-    renderShopPlaceholder('Ediciones especiales');
-  });
-  document.getElementById('shopNavExit').addEventListener('click', function () {
-    showMenu();
-  });
-
   // Tab buttons
   document.getElementById('tabBtnMenu').addEventListener('click', showMenu);
   document.getElementById('tabBtnPlay').addEventListener('click', function () { switchTab('play'); });
-  document.getElementById('tabBtnShop').addEventListener('click', function () { switchTab('shop'); });
+  document.getElementById('tabBtnShop').addEventListener('click', function () { showShopScreen('game'); });
   document.getElementById('tabBtnCollection').addEventListener('click', function () { switchTab('collection'); });
+
+  document.getElementById('shopBackBtn').addEventListener('click', function () {
+    hideShopScreen();
+    if (shopReturnTo === 'menu') { showMenu(); }
+  });
 
   // ── Modals ───────────────────────────────────────────────────────
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
@@ -1300,8 +1316,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function switchTab(tab) {
-  var tabs = { play: 'tabBtnPlay', shop: 'tabBtnShop', collection: 'tabBtnCollection' };
-  var panels = { play: 'panelPlay', shop: 'panelShop', collection: 'panelCollection' };
+  var tabs = { play: 'tabBtnPlay', collection: 'tabBtnCollection' };
+  var panels = { play: 'panelPlay', collection: 'panelCollection' };
   Object.keys(tabs).forEach(function (key) {
     document.getElementById(tabs[key]).classList.toggle('active', key === tab);
     document.getElementById(panels[key]).classList.toggle('active', key === tab);
@@ -1315,6 +1331,5 @@ function switchTab(tab) {
   } else {
     if (coinFloat) { coinFloat.style.display = 'none'; }
   }
-  if (tab === 'shop') { renderShop(); }
   if (tab === 'collection') { renderCollection(); }
 }

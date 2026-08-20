@@ -42,6 +42,12 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #menuScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+/* Shop screen -- same full-screen-overlay pattern as #menuScreen (never
+   shown at the same time, so sharing a z-index tier is fine). */
+#shopScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#shopScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
 /* ===================== HEADER ===================== */
 header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:12px 20px;
   background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;}
@@ -214,6 +220,8 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 #cardModal{z-index:120;}
 #configModal{z-index:210;}
 #editProfileModal{z-index:210;}
+#boosterSelectModal{z-index:210;}
+#boosterResultModal{z-index:210;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 .card-modal-content{position:relative;z-index:1;background:var(--panel);padding:16px;
   border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:10px;
@@ -257,22 +265,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .collection-profile-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
 .collection-stats{padding-top:8px;font-size:0.72rem;color:var(--ink-soft);line-height:1.6;}
 .collection-content{flex:1;min-width:0;overflow-y:auto;}
-#panelShop{padding:0;}
-#panelShop.active{overflow:hidden;}
-.booster-shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
-.booster-pack{position:relative;border:2px solid var(--border);border-radius:14px;
-  overflow:hidden;cursor:pointer;text-align:center;background:var(--card-bg);
-  transition:all 0.2s ease;padding:0;}
-.booster-pack:hover{border-color:var(--primary);box-shadow:0 0 20px rgba(81,110,255,0.15);
-  transform:translateY(-3px);}
-.booster-pack img{width:100%;max-height:220px;object-fit:contain;display:block;
-  padding:12px 12px 0;background:linear-gradient(180deg,var(--muted),transparent);}
-.booster-pack-name{font-family:'Sora',sans-serif;font-weight:700;font-size:0.95rem;
-  color:var(--ink);padding:8px 0 2px;}
-.booster-pack-price{font-size:0.8rem;color:var(--primary);font-weight:600;padding-bottom:10px;}
-.booster-pack-count{position:absolute;top:8px;right:8px;font-size:0.7rem;font-weight:600;
-  color:var(--ink-soft);background:var(--panel-glass);backdrop-filter:blur(8px);
-  padding:3px 8px;border-radius:6px;border:1px solid var(--glass-border);}
 #collection-view{padding:0 16px 16px;}
 #collection-view h4{font-family:'Sora',sans-serif;font-weight:700;margin:16px 0 8px;
   color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;font-size:0.85rem;}

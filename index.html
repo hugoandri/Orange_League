@@ -246,6 +246,40 @@
     </div>
   </div>
 
+  <!-- ===== SHOP (Tienda) ===== -->
+  <div id="shopScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="shopStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <button type="button" class="shell-page-back" id="shopBackBtn">◀ VOLVER</button>
+            <div class="shell-page-title">TIENDA</div>
+            <div class="shell-page-spacer"></div>
+            <div class="shell-page-coin">
+              <span class="shell-page-coin-dot"></span>
+              <span class="shell-page-coin-value" id="shopCoinBalance">--</span>
+            </div>
+          </div>
+
+          <div class="shell-shop-body">
+            <div class="shell-offer-banner">
+              <div class="shell-offer-sheen"></div>
+              <div class="shell-offer-text">
+                <div class="shell-offer-kicker">PRÓXIMAMENTE</div>
+                <div class="shell-offer-title">OFERTAS ESPECIALES</div>
+                <div class="shell-offer-note">Pronto vas a poder conseguir promociones y paquetes exclusivos acá.</div>
+              </div>
+            </div>
+
+            <div class="shell-shop-grid" id="shopGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== HEADER (game) ===== -->
   <header class="top">
     <h1>Pokémon TCG Simulador</h1>
@@ -282,23 +316,6 @@
         <h4>Registro</h4>
         <pre id="log"></pre>
       </aside>
-    </section>
-    <section id="panelShop" class="tab-panel">
-      <div class="collection-layout">
-        <aside class="collection-sidebar">
-          <h4>Tienda</h4>
-          <button type="button" class="collection-nav active" id="shopNavBoosters">Sobres</button>
-          <button type="button" class="collection-nav" id="shopNavDecks">Mazos</button>
-          <button type="button" class="collection-nav" id="shopNavSpecial">Ediciones especiales</button>
-          <button type="button" class="collection-nav collection-nav-exit" id="shopNavExit">Volver al menú</button>
-          <div class="collection-profile">
-            <img class="collection-profile-photo" src="Perfil/Jugador.jpg" alt="">
-            <span class="collection-profile-name">Jugador</span>
-          </div>
-          <div class="collection-stats" id="shopStats"></div>
-        </aside>
-        <div id="shop-content" class="collection-content"></div>
-      </div>
     </section>
     <section id="panelCollection" class="tab-panel">
       <div class="collection-layout">

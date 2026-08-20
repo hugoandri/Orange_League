@@ -12,6 +12,7 @@ function initEconomyListener(uid) {
       profileState = { username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();
+      updateShopBalance();
     }, function (err) {
       console.error('No se pudo escuchar los datos de la cuenta', err);
     });
