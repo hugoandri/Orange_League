@@ -530,7 +530,7 @@ In `index.html`'s `<head>`, add the new stylesheet after `style.css`:
 
 - [ ] **Step 4: Retarget the background/logo-visibility functions in `ui.js`**
 
-Change `applyMenuBackground()`'s target element from `#menuScreen` to `#shellKeyart`:
+Change `applyMenuBackground()`'s target element from `#menuScreen` to `#shellKeyart`. The snippet below is the function's **complete** current body (its closing `}` is the line right after `}` shown here) — the only change anywhere in it is the `getElementById` argument on the first line:
 
 ```js
 function applyMenuBackground() {
@@ -549,9 +549,10 @@ function applyMenuBackground() {
     el.style.backgroundPosition = '50% 50%';
     el.style.backgroundRepeat = 'no-repeat';
   }
+}
 ```
 
-(Leave the rest of the function body below this point untouched — only the target-element line changes.)
+Every other function in `ui.js` is untouched by this step.
 
 Change `applyMenuLogo()` to toggle the new logo wrapper instead of the removed `.menu-header`:
 
