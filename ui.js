@@ -23,6 +23,15 @@ function layoutShellStage() {
   if (profileCard) { profileCard.style.transform = 'translateX(' + extraShift + 'px)'; }
   var logoutBtn = document.getElementById('menuLogoutBtn');
   if (logoutBtn) { logoutBtn.style.transform = 'translateX(' + extraShift + 'px)'; }
+
+  // The key-art (and its darkening veil) follows the nav column's leftward
+  // shift by the same amount, so the gap between them always stays the
+  // original fixed 36px sliver instead of growing into a visible seam --
+  // same size image, same size veil, just moved, not resized.
+  var keyart = document.getElementById('shellKeyart');
+  if (keyart) { keyart.style.transform = 'translateX(' + (-extraShift) + 'px)'; }
+  var keyartVeil = document.querySelector('.shell-keyart-veil');
+  if (keyartVeil) { keyartVeil.style.transform = 'translateX(' + (-extraShift) + 'px)'; }
 }
 
 // Force clear broken portada positions and old backgrounds
