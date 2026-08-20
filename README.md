@@ -116,11 +116,13 @@ economy.js      Firestore listener + Cloud Function callers (coins, collection, 
 auth-ui.js      login/signup/forgot-password flow, auth gating, profile edit modal
 ui.js           the only file that touches the DOM
 shell-layout.js DOM-free math for the shell redesign (stage scale/position, collection progress)
-shell-theme.css shell redesign's design tokens + component styles (currently: main menu only)
 functions/      Cloud Functions: createAccount, updateProfile,
                 awardMatchResult, openBooster — the only code allowed to
                 write coins/collection/username/photo
 ```
+
+`shell-theme.css` — shell redesign's design tokens + component styles
+(currently: main menu only); loaded via a `<link>` tag, not a script.
 
 This started as a personal local project with no `npm`/CI/external
 dependencies for the game itself — that's still true for everything above.

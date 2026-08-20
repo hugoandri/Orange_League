@@ -953,8 +953,8 @@ function applyMenuBackground() {
     el.style.backgroundRepeat = 'no-repeat';
   } else {
     el.style.backgroundImage = 'url(' + MENU_BG_DEFAULT + ')';
-    el.style.backgroundSize = '100% auto';
-    el.style.backgroundPosition = '50% 50%';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
     el.style.backgroundRepeat = 'no-repeat';
   }
 }
@@ -1123,13 +1123,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('configReset').addEventListener('click', function () {
     localStorage.removeItem('tcg_menu_bg');
-    var el = document.getElementById('menuScreen');
-    if (el) {
-      el.style.backgroundImage = 'url(' + MENU_BG_DEFAULT + ')';
-      el.style.backgroundSize = '100% auto';
-      el.style.backgroundPosition = '50% 50%';
-      el.style.backgroundRepeat = 'no-repeat';
-    }
+    applyMenuBackground();
     document.getElementById('configPreviewImg').src = '';
     document.getElementById('configPreview').style.backgroundImage = 'none';
     document.querySelector('.config-preview-placeholder').style.display = 'flex';
