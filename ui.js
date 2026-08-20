@@ -7,6 +7,19 @@ function layoutShellStage() {
   var t = computeStageTransform(window.innerWidth, window.innerHeight);
   stage.style.transform = 'translate(' + t.x + 'px,' + t.y + 'px) scale(' + t.scale + ')';
 
+  // The backdrop (the decorative gradient behind everything) uses its own
+  // "cover" scale instead of the content's "contain" scale, so it fills the
+  // real screen edge-to-edge at its native, undistorted proportions -- it's
+  // purely decorative, so cropping its edges is fine (unlike the content in
+  // #shellStage, which must never be cropped).
+  var backdrop = document.getElementById('shellBackdrop');
+  if (backdrop) {
+    var coverScale = Math.max(window.innerWidth / SHELL_STAGE_WIDTH, window.innerHeight / SHELL_STAGE_HEIGHT);
+    var bx = (window.innerWidth - SHELL_STAGE_WIDTH * coverScale) / 2;
+    var by = (window.innerHeight - SHELL_STAGE_HEIGHT * coverScale) / 2;
+    backdrop.style.transform = 'translate(' + bx + 'px,' + by + 'px) scale(' + coverScale + ')';
+  }
+
   // On a wider-than-16:9 viewport, contain scaling leaves empty letterbox
   // bars on the sides (t.x > 0). Rather than stretching the art to fill
   // them, nudge the nav column into the left bar and the profile card /

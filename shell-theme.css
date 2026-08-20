@@ -1,15 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap');
 
 /* ===== Fixed-canvas scaling shell ===== */
-.shell-viewport{position:absolute;inset:0;overflow:hidden;
-  /* The handoff's own "escenario" gradient, applied here (at real
-     viewport size) instead of on .shell-stage (which gets scaled/
-     translated to a fixed 1920x1080 box). With no key-art image anymore,
-     this gradient is the entire visible background -- putting it on the
-     unscaled viewport means it's one continuous gradient across the real
-     screen, with no seam where the scaled stage's own edge used to meet
-     a separately-computed bar background. */
-  background:radial-gradient(120% 85% at 50% -10%,#332d24 0%,#191612 52%,#0b0a09 100%);}
+.shell-viewport{position:absolute;inset:0;overflow:hidden;background:#070706;}
+
+/* Holds the handoff's exact "escenario" gradient at its native 1920x1080
+   proportions (unchanged formula, so it looks exactly like the handoff),
+   then gets its own "cover" transform (layoutShellStage, ui.js) to fill
+   the real screen edge-to-edge -- computing the gradient directly against
+   the real (differently-shaped) viewport distorted its proportions,
+   making it read as a flatter gray instead of the intended warm-to-dark
+   look. .shell-stage (the content layer, nav/etc) keeps its own separate
+   "contain" transform so nothing in it is ever cropped; only this purely
+   decorative background layer is allowed to crop at the edges. */
+.shell-backdrop{
+  position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;
+  background:radial-gradient(120% 85% at 50% -10%,#332d24 0%,#191612 52%,#0b0a09 100%);
+}
 .shell-stage{
   /* No overflow:hidden here -- layoutShellStage() (ui.js) shifts the nav
      column/profile card/logout button outside this 0-1920 local box on
