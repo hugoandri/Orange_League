@@ -623,3 +623,36 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   }
   check('all scripted games reached a winner', completed, GAMES);
 })();
+
+(function testComputeStageTransform() {
+  // Width-constrained: viewport narrower (relative to 16:9) than the stage.
+  var narrow = computeStageTransform(960, 1080);
+  check('computeStageTransform(960,1080) scale', narrow.scale, 0.5);
+  check('computeStageTransform(960,1080) x', narrow.x, 0);
+  check('computeStageTransform(960,1080) y', narrow.y, 270);
+
+  // Height-constrained: viewport wider (relative to 16:9) than the stage.
+  var wide = computeStageTransform(3840, 1080);
+  check('computeStageTransform(3840,1080) scale', wide.scale, 1);
+  check('computeStageTransform(3840,1080) x', wide.x, 960);
+  check('computeStageTransform(3840,1080) y', wide.y, 0);
+
+  // Exact fit.
+  var exact = computeStageTransform(1920, 1080);
+  check('computeStageTransform(1920,1080) scale', exact.scale, 1);
+  check('computeStageTransform(1920,1080) x', exact.x, 0);
+  check('computeStageTransform(1920,1080) y', exact.y, 0);
+})();
+
+(function testCollectionProgress() {
+  var fakeCatalog = { base: [{}, {}, {}], jungle: [{}, {}] };
+  var progress = collectionProgress({ 'base-1': 2, 'base-2': 1 }, fakeCatalog);
+  check('collectionProgress owned counts distinct keys', progress.owned, 2);
+  check('collectionProgress total sums every set', progress.total, 5);
+
+  var empty = collectionProgress({}, fakeCatalog);
+  check('collectionProgress owned is 0 for an empty collection', empty.owned, 0);
+
+  var real = collectionProgress({}, CARD_CATALOG);
+  check('collectionProgress total matches the real catalog (base+jungle+fossil)', real.total, 228);
+})();
