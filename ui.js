@@ -13,24 +13,6 @@ function layoutShellStages() {
   });
 }
 
-// Force clear broken portada positions and old backgrounds
-(function () {
-  try {
-    var bg = localStorage.getItem('tcg_menu_bg');
-    if (bg && (bg.indexOf('portada.png') !== -1 || bg.indexOf('.html') !== -1)) {
-      localStorage.removeItem('tcg_menu_bg');
-    }
-    var pos = JSON.parse(localStorage.getItem('tcg_menu_pos'));
-    var isOldFormat = pos && ((pos.nav && pos.nav.dx === undefined) || (pos.logo && pos.logo.dx === undefined));
-    var isOutOfBounds = pos && ((pos.nav && (pos.nav.y > 800 || pos.nav.y < -100 || pos.nav.x > 1200 || pos.nav.x < -300)) ||
-        (pos.logo && (pos.logo.y > 800 || pos.logo.y < -100 || pos.logo.x > 1200 || pos.logo.x < -300)));
-    if (pos && (isOldFormat || isOutOfBounds)) {
-      localStorage.removeItem('tcg_menu_pos');
-      localStorage.removeItem('tcg_menu_logo');
-    }
-  } catch (e) {}
-})();
-
 // Tracked separately from getWinner(gameState) because a surrender ends the
 // match without the underlying game state actually reaching a real win
 // condition (prizes emptied, etc.) -- this is the source of truth the
@@ -1040,8 +1022,8 @@ function applyTheme(dark) {
   var icon = dark ? '🌙' : '☀️';
   var t1 = document.getElementById('themeToggle');
   if (t1) { t1.textContent = icon; }
-  var t2 = document.getElementById('configThemeToggle');
-  if (t2) { t2.textContent = icon + (dark ? ' Modo Oscuro' : ' Modo Claro'); }
+  var t2 = document.getElementById('configThemeSelect');
+  if (t2) { t2.value = dark ? 'dark' : 'light'; }
   try { localStorage.setItem('tcg_theme', dark ? 'dark' : 'light'); } catch (e) {}
 }
 function toggleTheme() {
@@ -1071,38 +1053,6 @@ function initMenuParticles() {
   }
 }
 
-var MENU_BG_DEFAULT = (function () {
-  try {
-    var base = window.location.href.replace(/\/[^\/]*$/, '/');
-    return base + 'Perfil/Portada_Oficial.jpeg';
-  } catch (e) { return 'Perfil/Portada_Oficial.jpeg'; }
-})();
-
-function applyMenuBackground() {
-  var el = document.getElementById('shellKeyart');
-  if (!el) { return; }
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
-  if (saved && saved.img) {
-    el.style.backgroundImage = 'url(' + saved.img + ')';
-    // 'cover' instead of the saved width%/auto-height: a width below 100%
-    // (or an image whose aspect ratio doesn't match the 1180x1080 box)
-    // left the image narrower/shorter than its frame, showing the frame's
-    // own dark background as two solid columns on the image's own left and
-    // right sides. Cover guarantees the image always fills the frame with
-    // no gaps; the saved x/y position still controls which part of the
-    // image is centered/visible.
-    el.style.backgroundSize = 'cover';
-    el.style.backgroundPosition = saved.x + '% ' + saved.y + '%';
-    el.style.backgroundRepeat = 'no-repeat';
-  } else {
-    el.style.backgroundImage = 'url(' + MENU_BG_DEFAULT + ')';
-    el.style.backgroundSize = 'cover';
-    el.style.backgroundPosition = 'center';
-    el.style.backgroundRepeat = 'no-repeat';
-  }
-}
-
 function applyMenuLogo() {
   var show = true;
   try { show = localStorage.getItem('tcg_menu_logo') !== 'hidden'; } catch (e) {}
@@ -1110,72 +1060,41 @@ function applyMenuLogo() {
   if (logoWrap) { logoWrap.style.display = show ? '' : 'none'; }
 }
 
-function openConfigModal() {
-  document.getElementById('configMenu').classList.remove('config-hidden');
-  document.getElementById('configBgPanel').classList.add('config-hidden');
-  document.getElementById('configModal').classList.remove('hidden');
-  var logoToggle = document.getElementById('configLogoToggle');
-  var isHidden = localStorage.getItem('tcg_menu_logo') === 'hidden';
-  logoToggle.classList.toggle('off', isHidden);
-  logoToggle.textContent = isHidden ? 'OFF' : 'ON';
+// ── Configuración ──────────────────────────────────────────────────
+function initConfigSliders() {
+  document.querySelectorAll('.shell-config-slider').forEach(function (el) {
+    var track = el.querySelector('[data-slider-track]');
+    var fill = el.querySelector('[data-slider-fill]');
+    var thumb = el.querySelector('[data-slider-thumb]');
+    var valueEl = el.querySelector('[data-slider-value]');
+    track.addEventListener('click', function (e) {
+      var rect = track.getBoundingClientRect();
+      var pct = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
+      fill.style.width = pct + '%';
+      thumb.style.left = pct + '%';
+      valueEl.textContent = pct;
+    });
+  });
 }
 
-function closeConfigModal() {
-  document.getElementById('configModal').classList.add('hidden');
+// Tracks where the config screen was opened from, mirroring shopReturnTo:
+// 'menu' from the main menu's CONFIGURACIÓN item, 'game' from the in-game
+// pause menu's ⚙️ button (both reachable today).
+var configReturnTo = 'menu';
+
+function showConfigScreen(returnTo) {
+  configReturnTo = returnTo;
+  document.getElementById('configAccountPhoto').src = playerPhotoUrl();
+  document.getElementById('configAccountName').textContent = playerDisplayName();
+  document.getElementById('configThemeSelect').value = document.body.classList.contains('light') ? 'light' : 'dark';
+  document.getElementById('configLogoSelect').value = localStorage.getItem('tcg_menu_logo') === 'hidden' ? 'hide' : 'show';
+  document.getElementById('configModeSelect').value = document.fullscreenElement ? 'fullscreen' : 'window';
+  document.getElementById('configScreen').classList.remove('hidden');
+}
+function hideConfigScreen() {
+  document.getElementById('configScreen').classList.add('hidden');
 }
 
-function showConfigBg() {
-  var saved = null;
-  try { saved = JSON.parse(localStorage.getItem('tcg_menu_bg')); } catch (e) {}
-  var w = saved ? saved.w : 100, h = saved ? saved.h : 100, x = saved ? saved.x : 50, y = saved ? saved.y : 50;
-  document.getElementById('configWidth').value = w;
-  document.getElementById('configHeight').value = h;
-  document.getElementById('configX').value = x;
-  document.getElementById('configY').value = y;
-  document.getElementById('configWidthVal').textContent = w;
-  document.getElementById('configHeightVal').textContent = h;
-  document.getElementById('configXVal').textContent = x;
-  document.getElementById('configYVal').textContent = y;
-  var preview = document.getElementById('configPreview');
-  var placeholder = document.querySelector('.config-preview-placeholder');
-  if (saved && saved.img) {
-    document.getElementById('configPreviewImg').src = saved.img;
-    preview.style.backgroundImage = 'url(' + saved.img + ')';
-    preview.style.backgroundSize = w + '% ' + h + '%';
-    preview.style.backgroundPosition = x + '% ' + y + '%';
-    placeholder.style.display = 'none';
-  } else {
-    preview.style.backgroundImage = 'none';
-    placeholder.style.display = 'flex';
-  }
-  document.getElementById('configMenu').classList.add('config-hidden');
-  document.getElementById('configBgPanel').classList.remove('config-hidden');
-}
-
-function updateConfigPreview() {
-  var img = document.getElementById('configPreviewImg');
-  var preview = document.getElementById('configPreview');
-  var placeholder = document.querySelector('.config-preview-placeholder');
-  var src = img.src;
-  if (!src || src === window.location.href) {
-    placeholder.style.display = 'flex';
-    preview.style.backgroundImage = 'none';
-    return;
-  }
-  placeholder.style.display = 'none';
-  var w = document.getElementById('configWidth').value;
-  var h = document.getElementById('configHeight').value;
-  var x = document.getElementById('configX').value;
-  var y = document.getElementById('configY').value;
-  preview.style.backgroundImage = 'url(' + src + ')';
-  preview.style.backgroundSize = w + '% ' + h + '%';
-  preview.style.backgroundPosition = x + '% ' + y + '%';
-  preview.style.backgroundRepeat = 'no-repeat';
-  document.getElementById('configWidthVal').textContent = w;
-  document.getElementById('configHeightVal').textContent = h;
-  document.getElementById('configXVal').textContent = x;
-  document.getElementById('configYVal').textContent = y;
-}
 function openPauseMenu() {
   document.getElementById('pauseModal').classList.remove('hidden');
 }
@@ -1188,7 +1107,6 @@ document.addEventListener('DOMContentLoaded', function () {
   try { savedTheme = localStorage.getItem('tcg_theme'); } catch (e) {}
   applyTheme(savedTheme !== 'light');
 
-  applyMenuBackground();
   applyMenuLogo();
   layoutShellStages();
   window.addEventListener('resize', layoutShellStages);
@@ -1214,79 +1132,41 @@ document.addEventListener('DOMContentLoaded', function () {
     showCollectionScreen('menu');
   });
   document.getElementById('menuConfig').addEventListener('click', function () {
-    openConfigModal();
+    hideMenu();
+    showConfigScreen('menu');
   });
-  // Config modal
-  document.getElementById('configBgBtn').addEventListener('click', showConfigBg);
-  document.getElementById('configBack').addEventListener('click', function () {
-    document.getElementById('configBgPanel').classList.add('config-hidden');
-    document.getElementById('configMenu').classList.remove('config-hidden');
-  });
-  document.getElementById('configCloseMenu').addEventListener('click', function () {
-    closeConfigModal();
-  });
-  document.querySelector('#configModal .card-modal-backdrop').addEventListener('click', function () {
-    closeConfigModal();
+  document.getElementById('configBackBtn').addEventListener('click', function () {
+    hideConfigScreen();
+    if (configReturnTo === 'menu') { showMenu(); }
   });
 
-  // Logo toggle
-  var logoToggle = document.getElementById('configLogoToggle');
-  logoToggle.addEventListener('click', function () {
-    var isOn = !logoToggle.classList.contains('off');
-    logoToggle.classList.toggle('off');
-    logoToggle.textContent = isOn ? 'OFF' : 'ON';
-    localStorage.setItem('tcg_menu_logo', isOn ? 'hidden' : 'visible');
+  initConfigSliders();
+
+  document.getElementById('configModeSelect').addEventListener('change', function () {
+    if (this.value === 'fullscreen') {
+      if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen().catch(function () {}); }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen().catch(function () {});
+    }
+  });
+  document.addEventListener('fullscreenchange', function () {
+    var modeSelect = document.getElementById('configModeSelect');
+    if (modeSelect) { modeSelect.value = document.fullscreenElement ? 'fullscreen' : 'window'; }
+  });
+  document.getElementById('configThemeSelect').addEventListener('change', function () {
+    applyTheme(this.value === 'dark');
+  });
+  document.getElementById('configLogoSelect').addEventListener('change', function () {
+    localStorage.setItem('tcg_menu_logo', this.value === 'hide' ? 'hidden' : 'visible');
     applyMenuLogo();
   });
+  document.getElementById('configChangeNameBtn').addEventListener('click', function () {
+    document.getElementById('menuProfileBtn').click();
+  });
+  document.getElementById('configLogoutBtn').addEventListener('click', function () {
+    document.getElementById('menuLogoutBtn').click();
+  });
 
-  // Enable drag when config opens
-  document.getElementById('configFileInput').addEventListener('change', function (e) {
-    var file = e.target.files[0];
-    if (!file) { return; }
-    var reader = new FileReader();
-    reader.onload = function (ev) {
-      document.getElementById('configPreviewImg').src = ev.target.result;
-      updateConfigPreview();
-    };
-    reader.readAsDataURL(file);
-  });
-  ['configWidth', 'configHeight', 'configX', 'configY'].forEach(function (id) {
-    document.getElementById(id).addEventListener('input', updateConfigPreview);
-  });
-  document.getElementById('configSave').addEventListener('click', function () {
-    var img = document.getElementById('configPreviewImg');
-    if (!img.src || img.src === window.location.href) { return; }
-    var data = {
-      img: img.src,
-      w: parseInt(document.getElementById('configWidth').value),
-      h: parseInt(document.getElementById('configHeight').value),
-      x: parseInt(document.getElementById('configX').value),
-      y: parseInt(document.getElementById('configY').value)
-    };
-    localStorage.setItem('tcg_menu_bg', JSON.stringify(data));
-    applyMenuBackground();
-    closeConfigModal();
-  });
-  document.getElementById('configReset').addEventListener('click', function () {
-    localStorage.removeItem('tcg_menu_bg');
-    applyMenuBackground();
-    document.getElementById('configPreviewImg').src = '';
-    document.getElementById('configPreview').style.backgroundImage = 'none';
-    document.querySelector('.config-preview-placeholder').style.display = 'flex';
-    document.getElementById('configWidth').value = 100;
-    document.getElementById('configHeight').value = 100;
-    document.getElementById('configX').value = 50;
-    document.getElementById('configY').value = 50;
-    document.getElementById('configWidthVal').textContent = '100';
-    document.getElementById('configHeightVal').textContent = '100';
-    document.getElementById('configXVal').textContent = '50';
-    document.getElementById('configYVal').textContent = '50';
-  });
-  document.querySelector('#configModal .card-modal-backdrop').addEventListener('click', closeConfigModal);
-  document.getElementById('configThemeToggle').addEventListener('click', function () {
-    toggleTheme();
-    this.textContent = document.body.classList.contains('light') ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
-  });
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
   // Tab buttons
@@ -1397,7 +1277,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('pauseResume').addEventListener('click', closePauseMenu);
   document.getElementById('pauseConfig').addEventListener('click', function () {
     closePauseMenu();
-    openConfigModal();
+    showConfigScreen('game');
   });
   document.getElementById('pauseSurrender').addEventListener('click', function () {
     closePauseMenu();

@@ -52,6 +52,10 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #collectionScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+#configScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#configScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
 /* ===================== HEADER ===================== */
 header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:12px 20px;
   background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;}
@@ -260,20 +264,13 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .pause-exit{color:var(--destructive);border-color:rgba(212,9,36,0.2);}
 .pause-exit:hover{border-color:var(--destructive);background:rgba(212,9,36,0.1);color:var(--destructive);}
 
-/* ===================== CONFIG MODAL ===================== */
-.config-modal-content{width:420px;max-width:95vw;padding:24px !important;max-height:90vh;overflow-y:auto;}
+/* ===================== EDIT PROFILE MODAL ===================== */
+/* .config-title/-desc/-controls/-label/-file-input/-divider/-actions below
+   are shared with #editProfileModal (the only remaining consumer of these
+   classes after the Configuración screen moved to shell-config-* markup). */
 .config-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.2rem;
   margin:0 0 16px;color:var(--ink);text-align:center;}
-.config-section{margin-bottom:16px;}
-.config-section h4{font-family:'Sora',sans-serif;font-weight:700;font-size:0.9rem;
-  color:var(--ink);margin:0 0 4px;}
 .config-desc{font-size:0.78rem;color:var(--ink-soft);margin:0 0 12px;}
-.config-preview{width:100%;height:140px;border:2px dashed var(--border);border-radius:10px;
-  overflow:hidden;position:relative;background:var(--muted);margin-bottom:12px;
-  background-size:100% auto;background-position:50% 50%;background-repeat:no-repeat;}
-.config-preview img{display:none;}
-.config-preview-placeholder{position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:center;color:var(--ink-muted);font-size:0.85rem;}
 .config-controls{display:flex;flex-direction:column;gap:10px;}
 .config-label{display:flex;flex-direction:column;gap:4px;font-size:0.8rem;color:var(--ink-soft);font-weight:600;}
 .config-file-input{padding:8px;border:1px solid var(--border);border-radius:6px;
@@ -281,19 +278,8 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .config-file-input::file-selector-button{padding:6px 12px;border-radius:4px;border:1px solid var(--border);
   background:var(--primary-soft);color:var(--primary);font-weight:600;cursor:pointer;margin-right:8px;}
 .config-file-input::file-selector-button:hover{background:var(--primary);color:#fff;}
-.config-slider-row{display:flex;align-items:center;gap:10px;}
-.config-slider-row label{font-size:0.78rem;color:var(--ink-soft);min-width:120px;}
-.config-slider-row label span{color:var(--primary);font-weight:700;}
-.config-slider{flex:1;accent-color:var(--primary);height:4px;}
 .config-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-.config-hidden{display:none;}
 .config-divider{height:1px;background:var(--border);margin:12px 0;}
-.config-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
-.config-toggle-label{font-size:0.85rem;font-weight:600;color:var(--ink);}
-.config-toggle{padding:6px 16px;border:1px solid var(--border);border-radius:6px;
-  background:var(--primary);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;
-  transition:all 0.15s;}
-.config-toggle.off{background:var(--muted);color:var(--ink-soft);}
 /* Floating player info in play mode */
 .coin-float{position:fixed;bottom:16px;left:16px;z-index:50;
   display:flex;align-items:center;gap:10px;

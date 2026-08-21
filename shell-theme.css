@@ -444,3 +444,100 @@
 .shell-collection-cell-veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,8,7,.66);font-size:16px;color:#4a4239;}
 .shell-collection-cell-num{font-size:10px;letter-spacing:.06em;color:#8a7e6f;text-align:center;}
 .shell-collection-cell.locked .shell-collection-cell-num{color:#3a342c;}
+
+/* ===== Configuración ===== */
+.shell-config-body{
+  flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,880px));gap:26px;
+  padding:34px 40px 40px;min-height:0;align-content:start;justify-content:center;overflow-y:auto;
+  font-family:'Silkscreen',monospace;
+}
+
+.shell-config-panel{
+  display:flex;flex-direction:column;gap:20px;padding:26px;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);
+  border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 18px rgba(0,0,0,.5);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+}
+.shell-config-panel-sunken{
+  display:flex;flex-direction:column;gap:18px;padding:26px;
+  background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85);
+}
+
+.shell-config-kicker{display:flex;align-items:center;gap:12px;}
+.shell-config-kicker-bar{width:26px;height:2px;}
+.shell-config-kicker-bar.green{background:#8dff62;}
+.shell-config-kicker-bar.gold{background:#e8c46a;}
+.shell-config-kicker-text{font-size:12px;letter-spacing:.24em;}
+.shell-config-kicker-text.green{color:#8dff62;}
+.shell-config-kicker-text.gold{color:#e8c46a;}
+.shell-config-kicker-note{font-size:10px;letter-spacing:.14em;color:#8a7e6f;}
+.shell-config-title-plain{font-size:12px;letter-spacing:.24em;color:#9a8d7c;}
+
+/* Audio: sliders are a real, self-contained UI (click-to-set updates their
+   own displayed %) but aren't wired to any actual audio system yet -- there
+   is no music/SFX/voice engine in the game today. */
+.shell-config-slider{display:flex;flex-direction:column;gap:11px;}
+.shell-config-slider-row{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.1em;}
+.shell-config-slider-label{color:#d6cbb9;}
+.shell-config-slider-value{color:#8dff62;}
+.shell-config-slider-track{
+  position:relative;height:26px;display:flex;align-items:center;cursor:pointer;
+  background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);padding:3px;
+}
+.shell-config-slider-fill{height:100%;background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 12px rgba(141,255,98,.45);}
+.shell-config-slider-thumb{
+  position:absolute;top:-4px;width:16px;height:34px;margin-left:-8px;
+  background:linear-gradient(180deg,#6d6155,#2a251f);border:1px solid #0a0806;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 7px rgba(0,0,0,.7);
+}
+
+/* Partida: none of these settings exist yet (no CPU-speed knob, no attack
+   animations toggle, no auto-pass, no attack confirmation) -- kept visible
+   per design but fully inert until a real setting exists behind each one. */
+.shell-config-panel-disabled{display:flex;flex-direction:column;gap:20px;opacity:.45;pointer-events:none;}
+.shell-config-speed{display:flex;flex-direction:column;gap:11px;}
+.shell-config-speed-label{font-size:12px;letter-spacing:.1em;color:#d6cbb9;}
+.shell-config-speed-track{display:flex;gap:0;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);padding:3px;}
+.shell-config-speed-option{flex:1;height:44px;display:grid;place-items:center;font-size:11px;letter-spacing:.12em;color:#8a7e6f;}
+.shell-config-speed-option.active{color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:inset 0 1px 0 rgba(255,255,255,.45);}
+.shell-config-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid rgba(0,0,0,.4);}
+.shell-config-toggle-text{display:flex;flex-direction:column;gap:6px;}
+.shell-config-toggle-label{font-size:12px;letter-spacing:.08em;color:#d6cbb9;}
+.shell-config-toggle-note{font-size:10px;letter-spacing:.06em;color:#8a7e6f;}
+.shell-config-toggle-track{
+  flex:none;width:76px;height:32px;display:flex;align-items:center;padding:3px;justify-content:flex-start;
+  background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);
+}
+.shell-config-toggle-track.on{justify-content:flex-end;}
+.shell-config-toggle-knob{width:34px;height:100%;background:linear-gradient(180deg,#6d6155,#2a251f);border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.4);}
+.shell-config-toggle-track.on .shell-config-toggle-knob{background:linear-gradient(180deg,#8dff62,#2c8a1c);}
+
+/* Vídeo: all three are real, working settings (fullscreen, theme, menu-logo
+   visibility) -- native <select> elements per the handoff's own note that
+   these should be real selects, not the prototype's inert dropdown look. */
+.shell-config-field-row{display:flex;gap:14px;flex-wrap:wrap;}
+.shell-config-field{flex:1;min-width:180px;display:flex;flex-direction:column;gap:9px;}
+.shell-config-field-label{font-size:11px;letter-spacing:.1em;color:#8a7e6f;}
+.shell-config-select-wrap{position:relative;}
+.shell-config-select{
+  width:100%;height:44px;padding:0 30px 0 14px;background:#0f0d0b;border:1px solid #0a0806;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-size:12px;color:#d6cbb9;cursor:pointer;
+  font-family:'Silkscreen',monospace;appearance:none;-webkit-appearance:none;-moz-appearance:none;
+}
+.shell-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#6d6155;font-size:12px;pointer-events:none;}
+
+/* Cuenta */
+.shell-config-account-row{display:flex;align-items:center;gap:14px;}
+.shell-config-account-avatar{width:56px;height:56px;flex:none;overflow:hidden;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);}
+.shell-config-account-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.shell-config-account-id{display:flex;flex-direction:column;gap:7px;flex:1;}
+.shell-config-account-name{font-size:14px;letter-spacing:.08em;color:#efe9dd;}
+.shell-config-account-status{font-size:10px;letter-spacing:.1em;color:#8a7e6f;}
+.shell-config-account-actions{display:flex;gap:12px;}
+.shell-config-account-btn{
+  flex:1;height:50px;display:grid;place-items:center;cursor:pointer;font-size:11px;letter-spacing:.12em;color:#d6cbb9;
+  background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b;
+  font-family:'Silkscreen',monospace;
+}
+.shell-config-account-btn:hover{filter:brightness(1.3);}
+.shell-config-account-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}

@@ -428,60 +428,154 @@
     </div>
   </div>
 
-  <div id="configModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content config-modal-content">
-      <div id="configMenu">
-        <h3 class="config-title">⚙️ Configuración</h3>
-        <div class="config-actions">
-          <button type="button" class="pause-btn" id="configBgBtn">🖼️ Configurar Portada</button>
-          <button type="button" class="pause-btn" id="configThemeToggle">🌙 Modo Oscuro</button>
-          <button type="button" class="pause-btn pause-exit" id="configCloseMenu">← Volver al Menú</button>
-        </div>
-      </div>
-      <div id="configBgPanel" class="config-hidden">
-        <h3 class="config-title">🖼️ Configurar Portada</h3>
-        <div class="config-section">
-          <p class="config-desc">Elegí una imagen, ajustá el tamaño y la posición</p>
-          <div class="config-preview" id="configPreview">
-            <img id="configPreviewImg" src="" alt="">
-            <div class="config-preview-placeholder">Sin imagen</div>
+  <!-- ===== CONFIGURACIÓN ===== -->
+  <div id="configScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="configStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <button type="button" class="shell-page-back" id="configBackBtn">◀ VOLVER</button>
+            <div class="shell-page-title">CONFIGURACIÓN</div>
+            <div class="shell-page-spacer"></div>
           </div>
-          <div class="config-controls">
-            <label class="config-label">
-              Seleccionar imagen
-              <input type="file" id="configFileInput" accept="image/*" class="config-file-input">
-            </label>
-            <div class="config-slider-row">
-              <label>Ancho: <span id="configWidthVal">100</span>%</label>
-              <input type="range" id="configWidth" min="10" max="200" value="100" class="config-slider">
+
+          <div class="shell-config-body">
+            <div class="shell-config-panel">
+              <div class="shell-config-kicker">
+                <span class="shell-config-kicker-bar green"></span>
+                <span class="shell-config-kicker-text green">AUDIO</span>
+              </div>
+              <div class="shell-config-slider">
+                <div class="shell-config-slider-row">
+                  <span class="shell-config-slider-label">MÚSICA</span>
+                  <span class="shell-config-slider-value" data-slider-value>70</span>
+                </div>
+                <div class="shell-config-slider-track" data-slider-track>
+                  <div class="shell-config-slider-fill" data-slider-fill style="width:70%"></div>
+                  <div class="shell-config-slider-thumb" data-slider-thumb style="left:70%"></div>
+                </div>
+              </div>
+              <div class="shell-config-slider">
+                <div class="shell-config-slider-row">
+                  <span class="shell-config-slider-label">EFECTOS</span>
+                  <span class="shell-config-slider-value" data-slider-value>85</span>
+                </div>
+                <div class="shell-config-slider-track" data-slider-track>
+                  <div class="shell-config-slider-fill" data-slider-fill style="width:85%"></div>
+                  <div class="shell-config-slider-thumb" data-slider-thumb style="left:85%"></div>
+                </div>
+              </div>
+              <div class="shell-config-slider">
+                <div class="shell-config-slider-row">
+                  <span class="shell-config-slider-label">VOZ</span>
+                  <span class="shell-config-slider-value" data-slider-value>45</span>
+                </div>
+                <div class="shell-config-slider-track" data-slider-track>
+                  <div class="shell-config-slider-fill" data-slider-fill style="width:45%"></div>
+                  <div class="shell-config-slider-thumb" data-slider-thumb style="left:45%"></div>
+                </div>
+              </div>
             </div>
-            <div class="config-slider-row">
-              <label>Alto: <span id="configHeightVal">100</span>%</label>
-              <input type="range" id="configHeight" min="10" max="200" value="100" class="config-slider">
+
+            <div class="shell-config-panel">
+              <div class="shell-config-kicker">
+                <span class="shell-config-kicker-bar gold"></span>
+                <span class="shell-config-kicker-text gold">PARTIDA</span>
+                <span class="shell-config-kicker-note">PRÓXIMAMENTE</span>
+              </div>
+              <div class="shell-config-panel-disabled">
+                <div class="shell-config-speed">
+                  <div class="shell-config-speed-label">VELOCIDAD DE LA CPU</div>
+                  <div class="shell-config-speed-track">
+                    <div class="shell-config-speed-option">LENTA</div>
+                    <div class="shell-config-speed-option active">NORMAL</div>
+                    <div class="shell-config-speed-option">RÁPIDA</div>
+                  </div>
+                </div>
+                <div class="shell-config-toggle-row">
+                  <div class="shell-config-toggle-text">
+                    <span class="shell-config-toggle-label">ANIMACIONES DE ATAQUE</span>
+                    <span class="shell-config-toggle-note">DESACTIVAR ACELERA LOS TURNOS</span>
+                  </div>
+                  <div class="shell-config-toggle-track on"><div class="shell-config-toggle-knob"></div></div>
+                </div>
+                <div class="shell-config-toggle-row">
+                  <div class="shell-config-toggle-text">
+                    <span class="shell-config-toggle-label">PASAR TURNO AUTOMÁTICO</span>
+                    <span class="shell-config-toggle-note">AL QUEDARSE SIN ACCIONES</span>
+                  </div>
+                  <div class="shell-config-toggle-track"><div class="shell-config-toggle-knob"></div></div>
+                </div>
+                <div class="shell-config-toggle-row">
+                  <div class="shell-config-toggle-text">
+                    <span class="shell-config-toggle-label">CONFIRMAR ATAQUES</span>
+                    <span class="shell-config-toggle-note">PIDE CONFIRMACIÓN ANTES DE ATACAR</span>
+                  </div>
+                  <div class="shell-config-toggle-track on"><div class="shell-config-toggle-knob"></div></div>
+                </div>
+                <div class="shell-config-toggle-row">
+                  <div class="shell-config-toggle-text">
+                    <span class="shell-config-toggle-label">REGISTRO EXTENDIDO</span>
+                    <span class="shell-config-toggle-note">MUESTRA TIRADAS DE MONEDA</span>
+                  </div>
+                  <div class="shell-config-toggle-track on"><div class="shell-config-toggle-knob"></div></div>
+                </div>
+              </div>
             </div>
-            <div class="config-slider-row">
-              <label>Posición X: <span id="configXVal">50</span>%</label>
-              <input type="range" id="configX" min="0" max="100" value="50" class="config-slider">
+
+            <div class="shell-config-panel-sunken">
+              <div class="shell-config-title-plain">VÍDEO</div>
+              <div class="shell-config-field-row">
+                <div class="shell-config-field">
+                  <div class="shell-config-field-label">MODO</div>
+                  <div class="shell-config-select-wrap">
+                    <select class="shell-config-select" id="configModeSelect">
+                      <option value="fullscreen">PANTALLA COMPLETA</option>
+                      <option value="window">VENTANA</option>
+                    </select>
+                    <span class="shell-config-select-arrow">▾</span>
+                  </div>
+                </div>
+                <div class="shell-config-field">
+                  <div class="shell-config-field-label">TEMA</div>
+                  <div class="shell-config-select-wrap">
+                    <select class="shell-config-select" id="configThemeSelect">
+                      <option value="dark">OSCURO</option>
+                      <option value="light">CLARO</option>
+                    </select>
+                    <span class="shell-config-select-arrow">▾</span>
+                  </div>
+                </div>
+                <div class="shell-config-field">
+                  <div class="shell-config-field-label">LOGO EN MENÚ</div>
+                  <div class="shell-config-select-wrap">
+                    <select class="shell-config-select" id="configLogoSelect">
+                      <option value="show">MOSTRAR</option>
+                      <option value="hide">OCULTAR</option>
+                    </select>
+                    <span class="shell-config-select-arrow">▾</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="config-slider-row">
-              <label>Posición Y: <span id="configYVal">50</span>%</label>
-              <input type="range" id="configY" min="0" max="100" value="50" class="config-slider">
+
+            <div class="shell-config-panel-sunken">
+              <div class="shell-config-title-plain">CUENTA</div>
+              <div class="shell-config-account-row">
+                <div class="shell-config-account-avatar"><img id="configAccountPhoto" src="" alt=""></div>
+                <div class="shell-config-account-id">
+                  <div class="shell-config-account-name" id="configAccountName">Jugador</div>
+                  <div class="shell-config-account-status">SESIÓN INICIADA</div>
+                </div>
+              </div>
+              <div class="shell-config-account-actions">
+                <button type="button" class="shell-config-account-btn" id="configChangeNameBtn">CAMBIAR NOMBRE</button>
+                <button type="button" class="shell-config-account-btn" id="configLogoutBtn">CERRAR SESIÓN</button>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="config-divider"></div>
-        <div class="config-section">
-          <h4>Logo y Menú</h4>
-          <div class="config-toggle-row">
-            <label class="config-toggle-label">Mostrar logo</label>
-            <button type="button" class="config-toggle" id="configLogoToggle">ON</button>
-          </div>
-        </div>
-        <div class="config-actions">
-          <button type="button" class="pause-btn" id="configSave">💾 Guardar</button>
-          <button type="button" class="pause-btn" id="configReset">🔄 Restaurar por defecto</button>
-          <button type="button" class="pause-btn pause-exit" id="configBack">← Volver</button>
         </div>
       </div>
     </div>
