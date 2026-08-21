@@ -72,7 +72,7 @@ const AWARD_COOLDOWN_MS = 10000;
 
 exports.awardMatchResult = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   }
   const result = (request.data || {}).result;
   if (result !== 'win' && result !== 'loss') {
@@ -89,7 +89,7 @@ exports.awardMatchResult = onCall(async (request) => {
     const lastAwardAt = data.lastAwardAt;
     const now = Timestamp.now();
     if (lastAwardAt && now.toMillis() - lastAwardAt.toMillis() < AWARD_COOLDOWN_MS) {
-      throw new HttpsError('resource-exhausted', 'Esperá un poco antes de registrar otro resultado.');
+      throw new HttpsError('resource-exhausted', 'Espera un poco antes de registrar otro resultado.');
     }
     const updated = current + delta;
     tx.set(userRef, { coins: updated, lastAwardAt: now }, { merge: true });
@@ -101,7 +101,7 @@ exports.awardMatchResult = onCall(async (request) => {
 
 exports.openBooster = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   }
   const setKey = (request.data || {}).setKey;
   if (!Object.prototype.hasOwnProperty.call(CARD_CATALOG, setKey)) {
@@ -114,7 +114,7 @@ exports.openBooster = onCall(async (request) => {
     const snap = await tx.get(userRef);
     const data = snap.exists ? snap.data() : null;
     if (!data || data.coins < BOOSTER_COST) {
-      throw new HttpsError('failed-precondition', 'No tenés suficientes monedas.');
+      throw new HttpsError('failed-precondition', 'No tienes suficientes monedas.');
     }
     const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random);
     const newCollection = Object.assign({}, data.collection);
@@ -133,7 +133,7 @@ const MAX_PHOTO_LENGTH = 200000; // ~150KB binary once base64 overhead is accoun
 
 exports.updateProfile = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Debés iniciar sesión.');
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   }
   const data = request.data || {};
 
@@ -198,4 +198,24 @@ exports.updateProfile = onCall(async (request) => {
   });
 
   return result;
+});
+
+// Only 'overgrowth' is a real, player-usable deck today (see data-decks.js
+// on the client) -- rejecting anything else keeps this field from ever
+// holding a deck the game can't actually load, even if a client bug let
+// the UI send something else.
+const VALID_DECK_KEYS = ['overgrowth'];
+
+exports.updateActiveDeck = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const deckKey = (request.data || {}).deckKey;
+  if (VALID_DECK_KEYS.indexOf(deckKey) === -1) {
+    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  }
+
+  const uid = request.auth.uid;
+  await admin.firestore().collection('users').doc(uid).set({ activeDeck: deckKey }, { merge: true });
+  return { activeDeck: deckKey };
 });

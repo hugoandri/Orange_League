@@ -1089,7 +1089,9 @@ function renderDeckDetail(deckKey) {
 }
 
 function showDecksScreen() {
-  renderDeckDetail('overgrowth');
+  renderDeckDetail((econState && econState.activeDeck) || 'overgrowth');
+  document.getElementById('decksSaveStatus').textContent = '';
+  document.getElementById('decksSaveStatus').className = 'shell-decks-save-status';
   document.getElementById('decksScreen').classList.remove('hidden');
 }
 function hideDecksScreen() {
@@ -1211,9 +1213,23 @@ document.addEventListener('DOMContentLoaded', function () {
     hideDecksScreen();
     showMenu();
   });
-  document.getElementById('decksStartBtn').addEventListener('click', function () {
-    hideDecksScreen();
-    switchTab('play');
+  document.getElementById('decksSaveBtn').addEventListener('click', function () {
+    var btn = document.getElementById('decksSaveBtn');
+    var status = document.getElementById('decksSaveStatus');
+    btn.disabled = true;
+    status.className = 'shell-decks-save-status';
+    status.textContent = 'GUARDANDO...';
+    updateActiveDeckCloud('overgrowth')
+      .then(function () {
+        btn.disabled = false;
+        status.className = 'shell-decks-save-status ok';
+        status.textContent = 'GUARDADO ✓';
+      })
+      .catch(function () {
+        btn.disabled = false;
+        status.className = 'shell-decks-save-status error';
+        status.textContent = 'NO SE PUDO GUARDAR. INTENTA DE NUEVO.';
+      });
   });
   document.getElementById('menuShop').addEventListener('click', function () {
     hideMenu();

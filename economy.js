@@ -8,7 +8,7 @@ function initEconomyListener(uid) {
     .onSnapshot(function (snap) {
       var data = snap.data();
       if (!data) { return; }
-      econState = { coins: data.coins, collection: data.collection || {} };
+      econState = { coins: data.coins, collection: data.collection || {}, activeDeck: data.activeDeck || 'overgrowth' };
       profileState = { username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();
@@ -29,4 +29,8 @@ function openBoosterCloud(setKey) {
 
 function updateProfileCloud(data) {
   return firebase.functions().httpsCallable('updateProfile')(data);
+}
+
+function updateActiveDeckCloud(deckKey) {
+  return firebase.functions().httpsCallable('updateActiveDeck')({ deckKey: deckKey });
 }
