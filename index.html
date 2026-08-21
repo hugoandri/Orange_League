@@ -417,23 +417,23 @@
 
   <div id="surrenderModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p>¿Seguro que quieres rendirte? Esto le dará la victoria al rival.</p>
-      <div>
-        <button type="button" id="surrenderConfirmBtn" class="action-btn">Sí</button>
-        <button type="button" id="surrenderCancelBtn" class="action-btn">No</button>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text">¿Seguro que quieres rendirte? Esto le dará la victoria al rival.</p>
+      <div class="shell-modal-actions">
+        <button type="button" id="surrenderConfirmBtn" class="shell-modal-btn shell-modal-btn-danger">SÍ</button>
+        <button type="button" id="surrenderCancelBtn" class="shell-modal-btn">NO</button>
       </div>
     </div>
   </div>
 
   <div id="energyDiscardModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p id="energyDiscardPrompt"></p>
-      <div id="energyDiscardGrid" class="energy-discard-grid"></div>
-      <div>
-        <button type="button" id="energyDiscardConfirm" class="action-btn" disabled>OK</button>
-        <button type="button" id="energyDiscardCancel" class="action-btn">Cancelar</button>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="energyDiscardPrompt"></p>
+      <div id="energyDiscardGrid" class="shell-energy-discard-grid"></div>
+      <div class="shell-modal-actions">
+        <button type="button" id="energyDiscardConfirm" class="shell-modal-btn shell-modal-btn-primary" disabled>OK</button>
+        <button type="button" id="energyDiscardCancel" class="shell-modal-btn">CANCELAR</button>
       </div>
     </div>
   </div>
@@ -450,34 +450,34 @@
 
   <div id="matchEndModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <p id="matchEndText" class="match-end-text"></p>
-      <div>
-        <button type="button" id="matchEndReplayBtn" class="action-btn">Volver a jugar</button>
-        <button type="button" id="matchEndCancelBtn" class="action-btn">Salir</button>
+    <div class="shell-modal-card">
+      <p id="matchEndText" class="shell-match-end-text"></p>
+      <div class="shell-modal-actions">
+        <button type="button" id="matchEndReplayBtn" class="shell-modal-btn shell-modal-btn-primary">VOLVER A JUGAR</button>
+        <button type="button" id="matchEndCancelBtn" class="shell-modal-btn">SALIR</button>
       </div>
     </div>
   </div>
 
   <div id="discardPileModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content discard-pile-content">
-      <p id="discardPileTitle" class="discard-pile-title"></p>
-      <div id="discardPileGrid" class="discard-pile-grid"></div>
-      <button type="button" id="discardPileClose" class="action-btn">Cerrar</button>
+    <div class="shell-modal-card shell-discard-pile-card">
+      <p class="shell-modal-title" id="discardPileTitle"></p>
+      <div id="discardPileGrid" class="shell-discard-pile-grid"></div>
+      <button type="button" id="discardPileClose" class="shell-modal-btn">CERRAR</button>
     </div>
   </div>
 
   <div id="pauseModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content pause-modal-content">
-      <h3 class="pause-title">Pausa</h3>
-      <div class="pause-buttons">
-        <button type="button" class="pause-btn" id="pauseResume">▶️ Reanudar</button>
-        <button type="button" class="pause-btn" id="pauseConfig">⚙️ Configuración</button>
-        <button type="button" class="pause-btn" id="pauseSurrender">🏳️ Rendirse</button>
-        <button type="button" class="pause-btn" id="pauseMusic">🔈 Música</button>
-        <button type="button" class="pause-btn pause-exit" id="pauseExit">🏠 Salir al Menú</button>
+    <div class="shell-modal-card shell-pause-card">
+      <h3 class="shell-modal-title">PAUSA</h3>
+      <div class="shell-pause-buttons">
+        <button type="button" class="shell-modal-btn" id="pauseResume">▶️ REANUDAR</button>
+        <button type="button" class="shell-modal-btn" id="pauseConfig">⚙️ CONFIGURACIÓN</button>
+        <button type="button" class="shell-modal-btn" id="pauseSurrender">🏳️ RENDIRSE</button>
+        <button type="button" class="shell-modal-btn" id="pauseMusic">🔈 MÚSICA</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-danger" id="pauseExit">🏠 SALIR AL MENÚ</button>
       </div>
     </div>
   </div>

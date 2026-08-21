@@ -64,84 +64,27 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #boardScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
-/* ===================== MATCH END / SHARED BUTTONS ===================== */
-/* .match-end-text and .action-btn are still used by several modals this
-   redesign hasn't reached yet (surrender, energy-discard, match-end,
-   discard-pile, card zoom) -- everything else in this section was specific
-   to the old header/tab-panel board layout, replaced by #boardScreen's
-   .shell-board-* markup (shell-theme.css). */
-.match-end-text{font-family:'Sora',sans-serif;font-size:1.4rem;font-weight:700;margin:0;}
-.match-end-text.win{color:#22c55e;}
-.match-end-text.loss{color:#ef4444;}
-
-button.action-btn{margin:2px;padding:6px 10px;border-radius:6px;border:1px solid var(--border);
-  background:var(--muted);color:var(--ink);cursor:pointer;font-size:0.8rem;
-  transition:all 0.15s ease;}
-button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
-
 /* ===================== MODALS ===================== */
+/* Visual styling for every modal's content now lives in shell-theme.css
+   (.shell-modal-*, .shell-card-zoom, .shell-profile-modal, .shell-booster-*,
+   .shell-active-choice-*) -- this class only keeps the shared fixed-overlay/
+   backdrop mechanics. */
 .card-modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;}
 .card-modal.hidden{display:none;}
+/* All of these sit above #boardScreen's z-index:200 (or #menuScreen's, for
+   editProfileModal/boosterSelectModal reached from the menu) -- the plain
+   z-index:110 default would otherwise render them invisible behind it. */
 #cardModal{z-index:210;}
 #editProfileModal{z-index:210;}
 #boosterSelectModal{z-index:210;}
 #boosterResultModal{z-index:210;}
 #activeChoiceModal{z-index:210;}
-/* These five still use the plain .card-modal base (z-index:110), which sat
-   fine above the old header+tab-panel board (no z-index of its own) but is
-   now hidden behind #boardScreen's z-index:200 -- bumped so pause,
-   surrender, the energy-discard choice, match-end, and the discard pile
-   viewer are all actually visible/reachable again during a live match. */
 #pauseModal{z-index:210;}
 #surrenderModal{z-index:210;}
 #energyDiscardModal{z-index:210;}
 #matchEndModal{z-index:210;}
 #discardPileModal{z-index:210;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
-.card-modal-content{position:relative;z-index:1;background:var(--panel);padding:16px;
-  border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:10px;
-  max-width:90vw;max-height:90vh;border:1px solid var(--border);}
-.card-modal-content img{max-width:80vw;max-height:75vh;border-radius:8px;display:block;}
-.card-modal-content > p{margin:0;text-align:center;max-width:360px;}
-
-.energy-discard-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px;}
-.energy-discard-option{border:2px solid var(--border);border-radius:8px;padding:6px;
-  cursor:pointer;background:var(--card-bg);width:80px;text-align:center;}
-.energy-discard-option img{width:100%;display:block;border-radius:4px;margin-bottom:4px;}
-.energy-discard-option:hover{border-color:var(--primary);}
-.energy-discard-option.selected{border-color:var(--accent-cpu);box-shadow:0 0 0 2px rgba(239,68,68,0.25);}
-
-.discard-pile-content{max-width:640px;}
-.discard-pile-title{font-weight:700;margin:0;}
-.discard-pile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
-  gap:8px;max-height:60vh;overflow-y:auto;width:100%;}
-.discard-pile-card{text-align:center;font-size:0.65rem;}
-.discard-pile-card img{width:100%;border-radius:6px;display:block;margin-bottom:2px;}
-
-
-/* ===================== PAUSE MENU ===================== */
-.pause-modal-content{width:320px;padding:24px !important;}
-.pause-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.3rem;
-  margin:0 0 20px;color:var(--ink);text-align:center;}
-.pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}
-.pause-btn{width:100%;padding:14px 20px;border:1px solid var(--border);border-radius:10px;
-  background:var(--card-bg);color:var(--ink);font-size:0.95rem;font-weight:600;
-  cursor:pointer;text-align:left;transition:all 0.15s ease;}
-.pause-btn:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
-.pause-exit{color:var(--destructive);border-color:rgba(212,9,36,0.2);}
-.pause-exit:hover{border-color:var(--destructive);background:rgba(212,9,36,0.1);color:var(--destructive);}
-
-/* Floating player info in play mode */
-.coin-float{position:fixed;bottom:16px;left:16px;z-index:50;
-  display:flex;align-items:center;gap:10px;
-  background:var(--panel-glass);backdrop-filter:blur(10px);
-  padding:8px 14px;border-radius:10px;border:1px solid var(--glass-border);
-  box-shadow:var(--glass-shadow);}
-.coin-float-photo{width:32px;height:32px;border-radius:50%;object-fit:cover;
-  border:2px solid var(--primary);}
-.coin-float-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
-.coin-float-coins{font-size:0.75rem;color:var(--ink-soft);font-weight:600;}
-.coin-float-coins span{color:var(--primary);font-weight:700;}
 
 /* ===================== AUTH SCREEN ===================== */
 /* Visual styling lives in shell-theme.css (.shell-auth-*) -- this rule only

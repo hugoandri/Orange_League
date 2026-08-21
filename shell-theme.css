@@ -1091,3 +1091,61 @@
 }
 .shell-active-choice-card:hover .shell-board-card-art{box-shadow:0 0 0 2px #8dff62,0 0 22px rgba(141,255,98,.45),0 6px 14px rgba(0,0,0,.6);}
 .shell-active-choice-card span{font-size:11px;letter-spacing:.04em;text-align:center;}
+
+/* ===== Shared game modals (pause, surrender, energy-discard, match-end,
+   discard-pile) -- no handoff mockup covers these, so they're built from
+   the same floating dark-plate recipe as .shell-profile-modal. ===== */
+.shell-modal-card{
+  position:relative;z-index:1;padding:26px;max-width:420px;display:flex;flex-direction:column;gap:16px;align-items:center;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#3a342c,#221e19);
+  border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 10px 30px rgba(0,0,0,.6);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  font-family:'Silkscreen',monospace;color:#efe9dd;
+}
+.shell-modal-title{font-family:'Pixelify Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:.02em;margin:0;text-align:center;color:#efe9dd;}
+.shell-modal-text{margin:0;font-size:13px;line-height:1.6;color:#d6cbb9;text-align:center;max-width:340px;}
+.shell-modal-actions{display:flex;gap:12px;width:100%;}
+.shell-modal-btn{
+  flex:1;height:46px;padding:0 20px;cursor:pointer;font-size:12px;letter-spacing:.1em;color:#d6cbb9;
+  background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b;font-family:'Silkscreen',monospace;
+}
+.shell-modal-btn:hover{filter:brightness(1.3);}
+.shell-modal-btn:disabled{cursor:default;pointer-events:none;opacity:.5;}
+.shell-modal-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-modal-btn-primary{
+  color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 3px 0 #16480d;
+}
+.shell-modal-btn-danger{
+  color:#ffb0a4;background:linear-gradient(180deg,#4a2a24,#2a1714);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 0 #180d0b;
+}
+
+.shell-match-end-text{font-family:'Pixelify Sans',sans-serif;font-size:28px;font-weight:700;margin:0;text-align:center;}
+.shell-match-end-text.win{color:#8dff62;text-shadow:0 0 20px rgba(141,255,98,.5);}
+.shell-match-end-text.loss{color:#ff6a5a;text-shadow:0 0 20px rgba(255,106,90,.4);}
+
+.shell-pause-card{width:340px;}
+.shell-pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}
+.shell-pause-buttons .shell-modal-btn{width:100%;text-align:left;padding:0 18px;}
+
+.shell-energy-discard-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:360px;}
+.shell-energy-discard-option{
+  border:1px solid #0b0907;padding:8px;cursor:pointer;width:80px;text-align:center;
+  background:linear-gradient(180deg,#15130f,#1d1a15);box-shadow:inset 0 3px 8px rgba(0,0,0,.8);
+  font-size:10px;letter-spacing:.04em;color:#a49785;
+}
+.shell-energy-discard-option img{width:100%;display:block;margin-bottom:6px;}
+.shell-energy-discard-option:hover{filter:brightness(1.2);}
+.shell-energy-discard-option.selected{box-shadow:0 0 0 2px #8dff62,0 0 14px rgba(141,255,98,.5),inset 0 3px 8px rgba(0,0,0,.8);}
+
+.shell-discard-pile-card{width:640px;max-width:90vw;}
+.shell-discard-pile-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;
+  max-height:60vh;overflow-y:auto;width:100%;
+}
+.shell-discard-pile-card-item{text-align:center;font-size:10px;letter-spacing:.02em;color:#a49785;}
+.shell-discard-pile-card-item img{width:100%;display:block;margin-bottom:4px;}

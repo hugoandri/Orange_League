@@ -257,7 +257,7 @@ function openDiscardPileModal(ownerId) {
   document.getElementById('discardPileGrid').innerHTML = p.discard.map(function (card) {
     var url = CARD_IMAGE_BY_NAME[card.name];
     if (!url) { return ''; }
-    return '<div class="discard-pile-card"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
+    return '<div class="shell-discard-pile-card-item"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
       '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
   }).join('');
   document.getElementById('discardPileModal').classList.remove('hidden');
@@ -300,10 +300,10 @@ function renderEnergyDiscardModal() {
   grid.innerHTML = s.energyTypes.map(function (type, i) {
     var cardName = ENERGY_CARD_NAME_BY_TYPE[type] || type;
     var selected = s.selected.indexOf(i) !== -1;
-    return '<div class="energy-discard-option' + (selected ? ' selected' : '') + '" data-energy-index="' + i + '">' +
+    return '<div class="shell-energy-discard-option' + (selected ? ' selected' : '') + '" data-energy-index="' + i + '">' +
       cardImageTag(cardName, '') + '<span>' + escapeHtml(translateCardName(cardName)) + '</span></div>';
   }).join('');
-  grid.querySelectorAll('.energy-discard-option').forEach(function (el) {
+  grid.querySelectorAll('.shell-energy-discard-option').forEach(function (el) {
     el.addEventListener('click', function () {
       var i = parseInt(el.getAttribute('data-energy-index'), 10);
       var pos = s.selected.indexOf(i);
@@ -1562,10 +1562,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var audio = document.getElementById('bgMusic');
     if (audio.paused) {
       audio.play();
-      this.textContent = '🔊 Música';
+      this.textContent = '🔊 MÚSICA';
     } else {
       audio.pause();
-      this.textContent = '🔈 Música';
+      this.textContent = '🔈 MÚSICA';
     }
   });
   document.getElementById('pauseExit').addEventListener('click', function () {
