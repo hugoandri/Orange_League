@@ -823,15 +823,23 @@ function formatClockMs(ms) {
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
+// Same pixel-glyph digit rendering the coin/collection counts use (not
+// plain browser text) -- per user feedback that the clock looked
+// inconsistent next to them.
+function renderClockDisplay(el, ms, isCpu) {
+  var low = ms <= 30000;
+  el.innerHTML = pixelDigitsHtml(formatClockMs(ms), (isCpu || low) ? 'dano' : 'oro', 2);
+  el.classList.toggle('cpu', !!isCpu);
+  el.classList.toggle('low', low);
+}
+
 function renderClocks() {
   var s = gameState;
   var el = document.getElementById('boardClock');
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
   var activeId = s.activePlayerId;
   var remaining = s.players[activeId].timeBankMs;
-  el.textContent = formatClockMs(remaining);
-  el.classList.toggle('cpu', activeId === 'cpu');
-  el.classList.toggle('low', remaining <= 30000);
+  renderClockDisplay(el, remaining, activeId === 'cpu');
 }
 
 function tickGameClock() {
@@ -869,9 +877,7 @@ function startNewMatch() {
   // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
   // the clock display is reset here directly -- otherwise it would keep
   // showing whatever the previous match's clock last read.
-  var clockEl = document.getElementById('boardClock');
-  clockEl.textContent = formatClockMs(DEFAULT_TIME_BANK_MS);
-  clockEl.classList.remove('cpu', 'low');
+  renderClockDisplay(document.getElementById('boardClock'), DEFAULT_TIME_BANK_MS, false);
   renderBoard();
 }
 

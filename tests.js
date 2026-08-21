@@ -796,6 +796,14 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('pixelStatusBadgeHtml renders one glyph per letter (PSN = 3)', (poisonedHtml.match(/display:grid/g) || []).length, 3);
   check('pixelStatusBadgeHtml uses the plate gradient colors', poisonedHtml.indexOf('#b47ce4') !== -1 && poisonedHtml.indexOf('#6a2f9e') !== -1, true);
   check('pixelStatusBadgeHtml on an unknown status renders nothing', pixelStatusBadgeHtml('Frozen', 2), '');
+
+  // The duel timer's colon is a real glyph (not the generic non-digit
+  // fallback) so mm:ss renders in the same pixel style as the digits either
+  // side of it, matching the coin/collection numbers.
+  var colon = buildPixelDigitCells(':', 'oro');
+  check('the colon separator is a real, known glyph (not the non-digit fallback)', colon.length, 88);
+  var clockHtml = pixelDigitsHtml('9:05', 'oro', 2);
+  check('pixelDigitsHtml renders the clock colon as a glyph grid, not plain text', (clockHtml.match(/display:grid/g) || []).length, 4);
 })();
 
 (function testCollectionProgress() {

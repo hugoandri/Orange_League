@@ -53,6 +53,10 @@ var PIXEL_DIGIT_GLYPHS = {
   '7': ['111111', '111111', '....11', '...11.', '...11.', '..11..', '..11..', '.11...', '.11...'],
   '8': ['.1111.', '11..11', '11..11', '.1111.', '.1111.', '11..11', '11..11', '11..11', '.1111.'],
   '9': ['.1111.', '11..11', '11..11', '11..11', '.11111', '....11', '....11', '...11.', '.111..'],
+  // Colon separator for the duel timer (mm:ss) -- same 6x9 box as the
+  // digits so it shares their bevel/outline instead of falling back to a
+  // plain-font glyph (buildPixelDigitCells' generic non-digit fallback).
+  ':': ['......', '......', '.11...', '.11...', '......', '......', '.11...', '.11...', '......'],
   // Coin icon -- same 6x9 stroke/outline box as the digits, the disc sits on
   // the same baseline. rampOffset (buildPixelDigitCells' 4th arg) shifts it
   // down 1 ramp row so the metal starts on a lighter tone, like a numeral.
