@@ -19,7 +19,7 @@
     if (err.code === 'functions/already-exists' || err.code === 'functions/invalid-argument') {
       return err.message;
     }
-    return 'No se pudo crear la cuenta. Intentá de nuevo.';
+    return 'No se pudo crear la cuenta. Intenta de nuevo.';
   }
 
   function friendlyProfileSaveError(err) {
@@ -183,7 +183,7 @@
         return;
       }
       if (newPassword && !currentPassword) {
-        errorEl.textContent = 'Ingresá tu contraseña actual para cambiarla.';
+        errorEl.textContent = 'Ingresa tu contraseña actual para cambiarla.';
         return;
       }
       if (!hasProfileChanges && !newPassword) {

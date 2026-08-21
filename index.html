@@ -183,12 +183,12 @@
                 </span>
                 <span class="shell-nav-item-chevron">›</span>
               </button>
-              <button type="button" class="shell-nav-item" id="menuDeck" disabled>
+              <button type="button" class="shell-nav-item" id="menuDeck">
                 <span class="shell-nav-item-accent"></span>
                 <span class="shell-nav-item-glyph"><i class="ph-duotone ph-stack"></i></span>
                 <span class="shell-nav-item-text">
                   <span class="shell-nav-item-title">MI MAZO</span>
-                  <span class="shell-nav-item-sub">PRÓXIMAMENTE</span>
+                  <span class="shell-nav-item-sub">REVISAR MAZO</span>
                 </span>
                 <span class="shell-nav-item-chevron">›</span>
               </button>
@@ -588,6 +588,94 @@
     </div>
   </div>
 
+  <!-- ===== SELECCIÓN DE MAZO ===== -->
+  <div id="decksScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="decksStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <button type="button" class="shell-page-back" id="decksBackBtn">◀ VOLVER</button>
+            <div class="shell-page-title">SELECCIÓN DE MAZO</div>
+            <div class="shell-page-spacer"></div>
+            <div class="shell-page-meta" id="decksMeta">3 MAZOS · 60/60 CARTAS</div>
+          </div>
+
+          <div class="shell-decks-body">
+            <div class="shell-decks-list">
+              <div class="shell-deck-card active" data-deck="overgrowth">
+                <div class="shell-deck-card-stripe deck-overgrowth"></div>
+                <div class="shell-deck-card-art"><img src="Cartas/base1/6_hires.png" alt="Gyarados"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">OVERGROWTH</div>
+                  <div class="shell-deck-card-types">PLANTA · AGUA</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer">
+                    <span class="shell-deck-card-count">60 CARTAS</span>
+                  </div>
+                </div>
+                <span class="shell-deck-card-badge">EN USO</span>
+              </div>
+
+              <div class="shell-deck-card disabled" data-deck="blackout" tabindex="-1" aria-disabled="true">
+                <div class="shell-deck-card-stripe deck-blackout"></div>
+                <div class="shell-deck-card-art shell-deck-card-art-placeholder">CPU</div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">BLACKOUT</div>
+                  <div class="shell-deck-card-types">AGUA · LUCHA</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer">
+                    <span class="shell-deck-card-note">MAZO DE LA CPU · PRÓXIMAMENTE JUGABLE</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="shell-deck-card disabled" data-deck="new" tabindex="-1" aria-disabled="true">
+                <div class="shell-deck-card-stripe deck-placeholder"></div>
+                <div class="shell-deck-card-art shell-deck-card-art-placeholder">+</div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">NUEVO MAZO</div>
+                  <div class="shell-deck-card-types">ARMA EL TUYO</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer">
+                    <span class="shell-deck-card-note">PRÓXIMAMENTE: ARMA MAZOS CON TU COLECCIÓN</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="shell-decks-spacer"></div>
+              <button type="button" class="shell-decks-cta" id="decksStartBtn">COMENZAR DUELO ▶</button>
+            </div>
+
+            <div class="shell-deck-detail">
+              <div class="shell-deck-detail-header">
+                <div class="shell-deck-detail-id">
+                  <div class="shell-deck-detail-kicker">MAZO SELECCIONADO</div>
+                  <div class="shell-deck-detail-name">OVERGROWTH</div>
+                </div>
+                <div class="shell-deck-detail-actions">
+                  <button type="button" class="shell-deck-detail-btn" disabled>EDITAR</button>
+                  <button type="button" class="shell-deck-detail-btn" disabled>DUPLICAR</button>
+                </div>
+              </div>
+
+              <div class="shell-deck-stats" id="deckStats"></div>
+
+              <div class="shell-deck-energies" id="deckEnergies">
+                <div class="shell-deck-energies-label">ENERGÍAS</div>
+              </div>
+
+              <div class="shell-deck-grid-panel">
+                <div class="shell-deck-grid" id="deckGrid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="boosterSelectModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-booster-modal">
@@ -596,7 +684,7 @@
         <span class="shell-booster-modal-price"><span class="shell-shop-coin"></span><span id="boosterModalPrice"></span></span>
         <button type="button" id="boosterModalClose" class="shell-booster-modal-close">✕</button>
       </div>
-      <p class="shell-booster-modal-subtitle">ELEGÍ LA ILUSTRACIÓN DEL SOBRE</p>
+      <p class="shell-booster-modal-subtitle">ELIGE LA ILUSTRACIÓN DEL SOBRE</p>
       <div id="boosterModalGrid" class="shell-booster-variant-grid"></div>
       <div class="shell-booster-modal-footer">
         <span class="shell-booster-selected-info" id="boosterSelectedInfo">TOCÁ UN SOBRE PARA SELECCIONARLO</span>

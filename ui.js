@@ -108,8 +108,12 @@ var CARD_BACK_URL = 'Cartas/Cardback.jpg';
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
 // Blackout is a Base Set card, so this lookup covers the whole game.
 var CARD_IMAGE_BY_NAME = {};
+var CARD_SUPERTYPE_BY_NAME = {};
 ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-  (CARD_CATALOG[setKey] || []).forEach(function (c) { CARD_IMAGE_BY_NAME[c.n] = c.img; });
+  (CARD_CATALOG[setKey] || []).forEach(function (c) {
+    CARD_IMAGE_BY_NAME[c.n] = c.img;
+    CARD_SUPERTYPE_BY_NAME[c.n] = c.st;
+  });
 });
 
 function escapeHtml(s) {
@@ -1016,6 +1020,82 @@ function showBoosterResult(cards, setKey) {
 }
 
 
+// ── Mazos (deck selection) ────────────────────────────────────────
+// Only "overgrowth" is a real, player-usable deck today -- "blackout" is
+// the CPU's fixed deck (real data, not player-selectable yet) and there is
+// no deck builder, so a third "new deck" slot is a generic placeholder,
+// not a fabricated preset. See DECKLISTS in data-decks.js.
+var ENERGY_CARD_TYPE_ICON = {
+  Grass: 'planta', Fire: 'fuego', Water: 'agua', Lightning: 'rayo',
+  Psychic: 'psiquico', Fighting: 'lucha', Colorless: 'incoloro'
+};
+
+function deckComposition(deckKey) {
+  var counts = { pokemon: 0, trainer: 0, energy: 0 };
+  var energies = [];
+  var seenEnergy = {};
+  DECKLISTS[deckKey].forEach(function (entry) {
+    var st = CARD_SUPERTYPE_BY_NAME[entry.name];
+    if (st === 'Pokémon') { counts.pokemon += entry.count; }
+    else if (st === 'Trainer') { counts.trainer += entry.count; }
+    else if (st === 'Energy') {
+      counts.energy += entry.count;
+      if (!seenEnergy[entry.name]) {
+        seenEnergy[entry.name] = true;
+        var typeWord = entry.name.replace(/ Energy$/, '');
+        energies.push({ name: entry.name, count: entry.count, icon: ENERGY_CARD_TYPE_ICON[typeWord] });
+      }
+    }
+  });
+  return { pokemon: counts.pokemon, trainer: counts.trainer, energy: counts.energy, total: counts.pokemon + counts.trainer + counts.energy, energies: energies };
+}
+
+function renderDeckDetail(deckKey) {
+  var comp = deckComposition(deckKey);
+  var stats = [
+    { label: 'POKÉMON', value: comp.pokemon },
+    { label: 'ENTRENADOR', value: comp.trainer },
+    { label: 'ENERGÍA', value: comp.energy }
+  ];
+  document.getElementById('deckStats').innerHTML = stats.map(function (s) {
+    var pct = comp.total ? Math.round((s.value / comp.total) * 100) : 0;
+    return '<div class="shell-deck-stat">' +
+      '<div class="shell-deck-stat-row"><span class="shell-deck-stat-label">' + s.label + '</span>' +
+      '<span class="shell-deck-stat-value">' + s.value + ' (' + pct + '%)</span></div>' +
+      '<div class="shell-deck-stat-track"><div class="shell-deck-stat-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+  }).join('');
+
+  var energiesHtml = '<div class="shell-deck-energies-label">ENERGÍAS</div>' + comp.energies.map(function (e) {
+    if (!e.icon) { return ''; }
+    return '<div class="shell-deck-energy-chip"><img src="Tipos/' + e.icon + '.png" alt=""><span>' + e.count + '</span></div>';
+  }).join('');
+  document.getElementById('deckEnergies').innerHTML = energiesHtml;
+
+  var html = expandDecklist(DECKLISTS[deckKey]).map(function (card) {
+    var img = CARD_IMAGE_BY_NAME[card.name] || '';
+    return '<div class="shell-deck-slot" data-card-name="' + escapeHtml(card.name) + '">' +
+      (img ? '<img src="' + img + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' : '') +
+      '</div>';
+  }).join('');
+  var grid = document.getElementById('deckGrid');
+  grid.innerHTML = html;
+  grid.querySelectorAll('.shell-deck-slot').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      if (name) { openCardModal(name); }
+    });
+  });
+}
+
+function showDecksScreen() {
+  renderDeckDetail('overgrowth');
+  document.getElementById('decksScreen').classList.remove('hidden');
+}
+function hideDecksScreen() {
+  document.getElementById('decksScreen').classList.add('hidden');
+}
+
 // ── Theme ──────────────────────────────────────────────────────────
 function applyTheme(dark) {
   document.body.classList.toggle('light', !dark);
@@ -1121,6 +1201,18 @@ document.addEventListener('DOMContentLoaded', function () {
   // Menu buttons
   document.getElementById('menuPlay').addEventListener('click', function () {
     hideMenu();
+    switchTab('play');
+  });
+  document.getElementById('menuDeck').addEventListener('click', function () {
+    hideMenu();
+    showDecksScreen();
+  });
+  document.getElementById('decksBackBtn').addEventListener('click', function () {
+    hideDecksScreen();
+    showMenu();
+  });
+  document.getElementById('decksStartBtn').addEventListener('click', function () {
+    hideDecksScreen();
     switchTab('play');
   });
   document.getElementById('menuShop').addEventListener('click', function () {
