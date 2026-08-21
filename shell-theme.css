@@ -994,7 +994,10 @@
 .shell-board-hand-card-wrap:hover .shell-board-hand-card{box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.45),0 10px 20px rgba(0,0,0,.7);}
 .shell-board-hand-card img:not(.shell-board-hand-card-type){width:100%;height:100%;object-fit:cover;display:block;}
 .shell-board-hand-card-type{position:absolute;left:4px;top:4px;width:20px;height:20px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.8);}
-.shell-board-hand-card-name{font-size:10px;letter-spacing:.02em;color:#a49785;}
+.shell-board-hand-card-name{
+  font-size:10px;letter-spacing:.02em;color:#a49785;width:100%;height:12px;line-height:12px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;flex:none;
+}
 
 /* --- C · Premios y mazos --- */
 .shell-board-side{
