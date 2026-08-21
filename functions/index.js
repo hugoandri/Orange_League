@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { computeMatchReward, BOOSTER_COST, drawBoosterCards } = require('./lib/pureEconomy');
+const { computeMatchReward, BOOSTER_COST, drawBoosterCards, PROTECTOR_COST, PROTECTOR_IDS } = require('./lib/pureEconomy');
 const CARD_CATALOG = require('./lib/cardCatalog');
 admin.initializeApp();
 
@@ -127,6 +127,40 @@ exports.openBooster = onCall(async (request) => {
   });
 
   return { cards: cards };
+});
+
+// Tienda's "Protectores" tab: a one-time cosmetic purchase, unlocked forever
+// once bought -- unlike a booster, there's nothing to "consume" here, so a
+// repeat purchase of an already-owned id is a harmless no-op instead of an
+// error (covers double-clicks / stale UI without double-charging).
+exports.buyCardBack = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const id = (request.data || {}).id;
+  if (PROTECTOR_IDS.indexOf(id) === -1) {
+    throw new HttpsError('invalid-argument', 'Protector inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+
+  return admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? snap.data() : null;
+    if (!data) {
+      throw new HttpsError('failed-precondition', 'Cuenta no encontrada.');
+    }
+    const owned = Array.isArray(data.cardBacks) ? data.cardBacks : [];
+    if (owned.indexOf(id) !== -1) {
+      return { cardBacks: owned };
+    }
+    if (data.coins < PROTECTOR_COST) {
+      throw new HttpsError('failed-precondition', 'No tienes suficientes monedas.');
+    }
+    const newCardBacks = owned.concat([id]);
+    tx.update(userRef, { coins: data.coins - PROTECTOR_COST, cardBacks: newCardBacks });
+    return { cardBacks: newCardBacks };
+  });
 });
 
 const MAX_PHOTO_LENGTH = 200000; // ~150KB binary once base64 overhead is accounted for -- generous for a compressed profile photo, small enough to leave headroom in the 1MiB Firestore document limit

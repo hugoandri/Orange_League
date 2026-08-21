@@ -278,17 +278,28 @@
             </div>
           </div>
 
+          <div class="shell-shop-tabs">
+            <button type="button" class="shell-shop-tab active" data-shop-tab="packs">PACKS</button>
+            <button type="button" class="shell-shop-tab" data-shop-tab="protectores">PROTECTORES</button>
+          </div>
+
           <div class="shell-shop-body">
-            <div class="shell-offer-banner">
-              <div class="shell-offer-sheen"></div>
-              <div class="shell-offer-text">
-                <div class="shell-offer-kicker">PRÓXIMAMENTE</div>
-                <div class="shell-offer-title">OFERTAS ESPECIALES</div>
-                <div class="shell-offer-note">Pronto vas a poder conseguir promociones y paquetes exclusivos aquí.</div>
+            <div class="shell-shop-panel" id="shopPacksPanel">
+              <div class="shell-offer-banner">
+                <div class="shell-offer-sheen"></div>
+                <div class="shell-offer-text">
+                  <div class="shell-offer-kicker">PRÓXIMAMENTE</div>
+                  <div class="shell-offer-title">OFERTAS ESPECIALES</div>
+                  <div class="shell-offer-note">Pronto vas a poder conseguir promociones y paquetes exclusivos aquí.</div>
+                </div>
               </div>
+
+              <div class="shell-shop-grid" id="shopGrid"></div>
             </div>
 
-            <div class="shell-shop-grid" id="shopGrid"></div>
+            <div class="shell-shop-panel hidden" id="shopProtectorsPanel">
+              <div class="shell-shop-grid" id="shopProtectorsGrid"></div>
+            </div>
           </div>
         </div>
       </div>

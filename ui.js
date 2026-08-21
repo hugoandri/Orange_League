@@ -71,20 +71,36 @@ var CARD_BACK_URL = 'Cartas/Cardback.jpg';
 // Card backs the player can choose for their OWN deck/discard/prizes only
 // -- the rival's cards always show CARD_BACK_URL, per user request. A
 // plain array (not hardcoded selects) so a future shop unlock can just push
-// another entry here without touching the picker markup or logic.
+// another entry here without touching the picker markup or logic. Entries
+// with no `cost` are free/always available; the rest are the Tienda's
+// "Protectores" (real Cloud Function purchase -- see buyCardBackCloud),
+// only selectable once their id shows up in econState.cardBacks.
+var PROTECTOR_COST = 75;
 var CARD_BACK_OPTIONS = [
   { id: 'clasico', name: 'Clásico', img: CARD_BACK_URL },
   { id: 'pocket_monsters', name: 'Pocket Monsters', img: 'Cartas/Cardback_PocketMonsters.png' },
-  { id: 'arcoiris', name: 'Arcoíris', img: 'Cartas/Cardback_Arcoiris.png' }
+  { id: 'arcoiris', name: 'Arcoíris', img: 'Cartas/Cardback_Arcoiris.png' },
+  { id: 'protector_koffing', name: 'Koffing', img: 'Cartas/Protector_Koffing.png', cost: PROTECTOR_COST },
+  { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png', cost: PROTECTOR_COST },
+  { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png', cost: PROTECTOR_COST },
+  { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png', cost: PROTECTOR_COST },
+  { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png', cost: PROTECTOR_COST }
 ];
 var DEFAULT_CARD_BACK_ID = 'clasico';
 
+function ownsCardBack(id) {
+  var opt = CARD_BACK_OPTIONS.filter(function (o) { return o.id === id; })[0];
+  if (!opt) { return false; }
+  if (!opt.cost) { return true; }
+  return !!(econState && econState.cardBacks && econState.cardBacks.indexOf(id) !== -1);
+}
+
 function getCardBackId() {
   var id = localStorage.getItem('tcg_card_back');
-  return CARD_BACK_OPTIONS.some(function (o) { return o.id === id; }) ? id : DEFAULT_CARD_BACK_ID;
+  return (CARD_BACK_OPTIONS.some(function (o) { return o.id === id; }) && ownsCardBack(id)) ? id : DEFAULT_CARD_BACK_ID;
 }
 function setCardBackId(id) {
-  if (!CARD_BACK_OPTIONS.some(function (o) { return o.id === id; })) { return; }
+  if (!ownsCardBack(id)) { return; }
   try { localStorage.setItem('tcg_card_back', id); } catch (e) {}
 }
 // The rival's face-down cards never change -- only 'player' reads the
@@ -99,7 +115,8 @@ function renderCardBackPicker() {
   var grid = document.getElementById('configCardBackGrid');
   if (!grid) { return; }
   var selected = getCardBackId();
-  grid.innerHTML = CARD_BACK_OPTIONS.map(function (o) {
+  var owned = CARD_BACK_OPTIONS.filter(function (o) { return ownsCardBack(o.id); });
+  grid.innerHTML = owned.map(function (o) {
     return '<div class="shell-config-cardback-option' + (o.id === selected ? ' selected' : '') +
       '" data-card-back-id="' + o.id + '" title="' + escapeHtml(o.name) + '">' +
       '<img src="' + o.img + '" alt="' + escapeHtml(o.name) + '">' +
@@ -965,11 +982,23 @@ var shopReturnTo = 'menu';
 function showShopScreen(returnTo) {
   shopReturnTo = returnTo;
   document.getElementById('shopScreen').classList.remove('hidden');
+  showShopTab('packs');
   renderShopScreen();
 }
 
 function hideShopScreen() {
   document.getElementById('shopScreen').classList.add('hidden');
+}
+
+// Two tabs for now (Packs / Protectores) -- Packs is the existing booster
+// grid, Protectores is the new cosmetic card-back shop below.
+function showShopTab(tab) {
+  document.querySelectorAll('.shell-shop-tab').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-shop-tab') === tab);
+  });
+  document.getElementById('shopPacksPanel').classList.toggle('hidden', tab !== 'packs');
+  document.getElementById('shopProtectorsPanel').classList.toggle('hidden', tab !== 'protectores');
+  if (tab === 'protectores') { renderProtectorsGrid(); }
 }
 
 // Only updates the coin balance -- called on every Firestore snapshot
@@ -1022,6 +1051,49 @@ function renderShopScreen() {
   grid.querySelectorAll('.shell-shop-card[data-set]').forEach(function (card) {
     card.querySelector('.shell-shop-card-btn').addEventListener('click', function () {
       openBoosterSelectModal(card.getAttribute('data-set'));
+    });
+  });
+}
+
+// Protectores: real cosmetic card backs bought with real coins (Cloud
+// Function, see buyCardBackCloud) -- unlike the boosters above there's no
+// randomness to re-roll, so re-rendering after a purchase is always safe.
+function renderProtectorsGrid() {
+  var grid = document.getElementById('shopProtectorsGrid');
+  if (!grid || !econState) { return; }
+
+  var protectors = CARD_BACK_OPTIONS.filter(function (o) { return o.cost; });
+  grid.innerHTML = protectors.map(function (o) {
+    var owned = ownsCardBack(o.id);
+    var footer = owned
+      ? '<span class="shell-shop-card-owned-label">EN TU COLECCIÓN</span>'
+      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 2) + pixelDigitsHtml(o.cost, 'oro', 3) + '</span>' +
+        '<button type="button" class="shell-shop-card-btn" data-buy-back="' + o.id + '">COMPRAR</button>';
+    return '<div class="shell-shop-card' + (owned ? ' shell-shop-card-owned' : '') + '">' +
+      '<div class="shell-shop-card-art protector"><img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"></div>' +
+      '<div class="shell-shop-card-text">' +
+        '<div class="shell-shop-card-name">' + escapeHtml(o.name.toUpperCase()) + '</div>' +
+        '<div class="shell-shop-card-desc">PROTECTOR DE CARTAS</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-footer">' + footer + '</div>' +
+    '</div>';
+  }).join('');
+
+  grid.querySelectorAll('[data-buy-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-buy-back');
+      btn.disabled = true;
+      btn.textContent = 'COMPRANDO...';
+      buyCardBackCloud(id)
+        .then(function () {
+          renderProtectorsGrid();
+          renderCardBackPicker();
+        })
+        .catch(function (err) {
+          alert(err.message || 'No se pudo comprar el protector.');
+          btn.disabled = false;
+          btn.textContent = 'COMPRAR';
+        });
     });
   });
 }
@@ -1679,6 +1751,9 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('shopBackBtn').addEventListener('click', function () {
     hideShopScreen();
     if (shopReturnTo === 'menu') { showMenu(); }
+  });
+  document.querySelectorAll('.shell-shop-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { showShopTab(btn.getAttribute('data-shop-tab')); });
   });
 
   document.getElementById('collectionBackBtn').addEventListener('click', function () {

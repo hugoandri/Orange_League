@@ -1,5 +1,17 @@
 var BOOSTER_COST = 100;
 
+// Cosmetic card-back skins sold in the Tienda's "Protectores" tab (see
+// buyCardBack in index.js) -- server-side source of truth for both the
+// valid ids and the price, so a client can never claim a different cost.
+var PROTECTOR_COST = 75;
+var PROTECTOR_IDS = [
+  'protector_koffing',
+  'protector_pikachu',
+  'protector_team_rocket',
+  'protector_pokebola_morada',
+  'protector_fantasma'
+];
+
 function computeMatchReward(result) {
   return result === 'win' ? 75 : 0;
 }
@@ -24,6 +36,8 @@ function drawBoosterCards(pool, rng) {
 
 module.exports = {
   BOOSTER_COST: BOOSTER_COST,
+  PROTECTOR_COST: PROTECTOR_COST,
+  PROTECTOR_IDS: PROTECTOR_IDS,
   computeMatchReward: computeMatchReward,
   drawBoosterCards: drawBoosterCards
 };

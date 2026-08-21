@@ -1,8 +1,15 @@
 const assert = require('assert');
-const { BOOSTER_COST, computeMatchReward, drawBoosterCards } = require('../lib/pureEconomy');
+const { BOOSTER_COST, PROTECTOR_COST, PROTECTOR_IDS, computeMatchReward, drawBoosterCards } = require('../lib/pureEconomy');
 
 assert.strictEqual(BOOSTER_COST, 100, 'booster costs 100 coins');
 console.log('PASS: BOOSTER_COST is 100');
+
+assert.strictEqual(PROTECTOR_COST, 75, 'a protector costs 75 coins');
+console.log('PASS: PROTECTOR_COST is 75');
+
+assert.strictEqual(PROTECTOR_IDS.length, 5, 'there are 5 real protectors for sale');
+assert.strictEqual(new Set(PROTECTOR_IDS).size, PROTECTOR_IDS.length, 'no duplicate protector ids');
+console.log('PASS: PROTECTOR_IDS has 5 unique ids');
 
 assert.strictEqual(computeMatchReward('win'), 75, 'a win pays 75 coins');
 console.log('PASS: win reward is 75');

@@ -8,11 +8,12 @@ function initEconomyListener(uid) {
     .onSnapshot(function (snap) {
       var data = snap.data();
       if (!data) { return; }
-      econState = { coins: data.coins, collection: data.collection || {}, activeDeck: data.activeDeck || 'overgrowth' };
+      econState = { coins: data.coins, collection: data.collection || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [] };
       profileState = { username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();
       updateShopBalance();
+      renderCardBackPicker();
     }, function (err) {
       console.error('No se pudo escuchar los datos de la cuenta', err);
     });
@@ -25,6 +26,10 @@ function awardMatchResultCloud(result) {
 function openBoosterCloud(setKey) {
   return firebase.functions().httpsCallable('openBooster')({ setKey: setKey })
     .then(function (res) { return res.data.cards; });
+}
+
+function buyCardBackCloud(id) {
+  return firebase.functions().httpsCallable('buyCardBack')({ id: id });
 }
 
 function updateProfileCloud(data) {
