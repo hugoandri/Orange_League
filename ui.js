@@ -84,7 +84,8 @@ var CARD_BACK_OPTIONS = [
   { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png', cost: PROTECTOR_COST },
   { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png', cost: PROTECTOR_COST },
   { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png', cost: PROTECTOR_COST },
-  { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png', cost: PROTECTOR_COST }
+  { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png', cost: PROTECTOR_COST },
+  { id: 'protector_perona', name: 'Perona', img: 'Cartas/Protector_Perona.png', cost: PROTECTOR_COST }
 ];
 var DEFAULT_CARD_BACK_ID = 'clasico';
 

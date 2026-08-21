@@ -9,7 +9,8 @@ var PROTECTOR_IDS = [
   'protector_pikachu',
   'protector_team_rocket',
   'protector_pokebola_morada',
-  'protector_fantasma'
+  'protector_fantasma',
+  'protector_perona'
 ];
 
 function computeMatchReward(result) {
