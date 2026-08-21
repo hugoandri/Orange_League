@@ -863,7 +863,7 @@ function openBoosterAndPurchase() {
   openBoosterCloud(setKey)
     .then(function (cards) {
       closeBoosterSelectModal();
-      showBoosterResult(cards);
+      showBoosterResult(cards, setKey);
     })
     .catch(function (err) {
       alert(err.message || 'No se pudo abrir el sobre.');
@@ -871,20 +871,46 @@ function openBoosterAndPurchase() {
     });
 }
 
-function showBoosterResult(cards) {
+var BOOSTER_RESULT_RARITY = {
+  'Rare Holo': { cls: 'holo', label: 'HOLOGRÁFICA' },
+  Rare: { cls: 'rare', label: 'RARA' },
+  Uncommon: { cls: 'uncommon', label: 'INFRECUENTE' },
+  Common: { cls: 'common', label: 'COMÚN' }
+};
+
+// Tracks which set the currently-shown result came from, so "ABRIR OTRO"
+// knows which pack-select modal to reopen.
+var boosterResultSetKey = null;
+
+function showBoosterResult(cards, setKey) {
+  boosterResultSetKey = setKey;
+  var counts = { holo: 0, rare: 0, uncommon: 0 };
   var html = '';
   cards.forEach(function (c) {
     var url = CARD_IMAGE_BY_NAME[c.n] || '';
-    var isRare = c.r === 'Rare' || c.r === 'Rare Holo';
-    html += '<div class="booster-result-card' + (isRare ? ' rare' : '') + '" data-card-name="' + escapeHtml(c.n) + '">' +
-      (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
-      '<div class="brc-name">' + escapeHtml(translateCardName(c.n)) + '</div>' +
+    var rarity = BOOSTER_RESULT_RARITY[c.r] || BOOSTER_RESULT_RARITY.Common;
+    if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
+    html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '">' +
+      '<div class="shell-booster-result-card-art">' +
+        (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
+        (rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' : '') +
+      '</div>' +
+      '<div class="shell-booster-result-card-label">' + rarity.label + '</div>' +
       '</div>';
   });
   document.getElementById('boosterResultGrid').innerHTML = html;
+  document.getElementById('boosterResultTitle').innerHTML =
+    pixelDigitsHtml(cards.length, 'fosforo', 3) + ' CARTAS NUEVAS';
+
+  var subtitleParts = [];
+  if (counts.holo) { subtitleParts.push(counts.holo + (counts.holo > 1 ? ' HOLOGRÁFICAS' : ' HOLOGRÁFICA')); }
+  if (counts.rare) { subtitleParts.push(counts.rare + (counts.rare > 1 ? ' RARAS' : ' RARA')); }
+  if (counts.uncommon) { subtitleParts.push(counts.uncommon + ' INFRECUENTES'); }
+  document.getElementById('boosterResultSubtitle').textContent = subtitleParts.join(' · ');
+
   document.getElementById('boosterResultModal').classList.remove('hidden');
 
-  document.querySelectorAll('.booster-result-card').forEach(function (el) {
+  document.querySelectorAll('.shell-booster-result-card').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
       if (name) { openCardModal(name); }
@@ -1271,6 +1297,11 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('#boosterResultModal .card-modal-backdrop').addEventListener('click', function () {
     document.getElementById('boosterResultModal').classList.add('hidden');
     renderCollection();
+  });
+  document.getElementById('boosterResultAgain').addEventListener('click', function () {
+    document.getElementById('boosterResultModal').classList.add('hidden');
+    renderCollection();
+    if (boosterResultSetKey) { openBoosterSelectModal(boosterResultSetKey); }
   });
 
   // Music

@@ -281,16 +281,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
   color:var(--primary);padding-bottom:4px;}
 .collection-card-count.zero{color:var(--ink-muted);}
 
-/* ===================== BOOSTER RESULT MODAL ===================== */
-#boosterResultModal .card-modal-content{max-width:780px;width:95vw;padding:24px;overflow:visible;}
-.bm-open-btn{padding:10px 28px;border-radius:10px;border:none;
-  background:var(--primary);color:#fff;font-family:'Sora',sans-serif;font-weight:700;
-  font-size:0.95rem;cursor:pointer;transition:all 0.15s ease;}
-.bm-open-btn:hover{background:#3f55d4;transform:translateY(-1px);}
-.booster-result-title{font-family:'Sora',sans-serif;font-weight:700;font-size:1.2rem;
-  margin:0 0 16px;color:var(--ink);text-align:center;}
-.booster-result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));
-  gap:10px;width:100%;margin-bottom:20px;}
 
 /* ===================== PAUSE MENU ===================== */
 .pause-modal-content{width:320px;padding:24px !important;}
@@ -349,14 +339,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 .coin-float-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
 .coin-float-coins{font-size:0.75rem;color:var(--ink-soft);font-weight:600;}
 .coin-float-coins span{color:var(--primary);font-weight:700;}
-.booster-result-card{border:1px solid var(--border);border-radius:8px;overflow:hidden;
-  background:var(--card-bg);text-align:center;cursor:pointer;transition:all 0.15s ease;}
-.booster-result-card:hover{border-color:var(--primary);transform:scale(1.04);
-  box-shadow:0 4px 12px rgba(81,110,255,0.15);}
-.booster-result-card img{width:100%;display:block;}
-.booster-result-card .brc-name{font-size:0.6rem;color:var(--ink-soft);padding:3px 2px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.booster-result-card.rare{border-color:var(--primary);box-shadow:0 0 8px rgba(81,110,255,0.2);}
 .profile-edit-preview{width:100px;height:100px;margin:0 auto 16px;border-radius:50%;overflow:hidden;
   border:2px solid var(--primary);}
 .profile-edit-preview img{width:100%;height:100%;object-fit:cover;display:block;}

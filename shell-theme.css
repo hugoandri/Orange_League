@@ -342,3 +342,45 @@
 .shell-booster-variant-name{font-size:10px;letter-spacing:.1em;}
 .shell-booster-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;border-top:1px solid #0b0907;}
 .shell-booster-selected-info{font-size:10px;letter-spacing:.1em;color:#9a8d7c;}
+
+/* ===== Booster result modal (cards revealed after opening a pack) -- per
+   design_handoff_shell_juego_final's "Apertura de sobre / Estado B", but
+   kept as a modal (not a separate full screen with its own closed-pack
+   click-to-open animation -- that's a bigger feature, not what was asked)
+   and adapted to this game's real 11-card/4-rarity economy instead of the
+   handoff's 10-card mockup. No "AÑADIR A LA COLECCIÓN" button: the cards
+   are already saved server-side the instant the pack opens, so a button
+   implying that's still pending would be fake. "ABRIR OTRO" is real --
+   it reopens the pack-select modal for the same set. ===== */
+.shell-booster-result{
+  position:relative;z-index:1;width:900px;max-width:94vw;max-height:88vh;
+  display:flex;flex-direction:column;align-items:center;gap:28px;padding:40px 40px 32px;overflow-y:auto;
+  background:radial-gradient(70% 60% at 50% 44%,#2a2418 0%,#141210 55%,#080807 100%);
+  border:1px solid #0b0907;box-shadow:0 20px 50px rgba(0,0,0,.7);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  font-family:'Silkscreen',monospace;color:#efe9dd;text-align:center;
+}
+.shell-booster-result-title{margin:0;font-family:'Pixelify Sans',sans-serif;font-size:34px;font-weight:700;letter-spacing:.02em;color:#efe9dd;display:flex;align-items:center;justify-content:center;gap:14px;}
+.shell-booster-result-subtitle{margin:0;font-size:11px;letter-spacing:.24em;color:#e8c46a;min-height:1em;}
+.shell-booster-result-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;}
+.shell-booster-result-card{width:142px;cursor:pointer;display:flex;flex-direction:column;gap:8px;font-family:'Silkscreen',monospace;transition:transform .14s;}
+.shell-booster-result-card:hover{transform:translateY(-14px);}
+.shell-booster-result-card-art{
+  position:relative;width:142px;height:198px;overflow:hidden;border:1px solid #0a0806;
+  background:linear-gradient(180deg,#15130f,#1d1a15);box-shadow:0 6px 14px rgba(0,0,0,.6);
+}
+.shell-booster-result-card-art img{width:100%;height:100%;object-fit:cover;display:block;}
+.shell-booster-result-card-label{font-size:10px;letter-spacing:.14em;color:#6d6155;}
+.shell-booster-result-card.uncommon .shell-booster-result-card-label{color:#8dff62;}
+.shell-booster-result-card.rare .shell-booster-result-card-label,
+.shell-booster-result-card.holo .shell-booster-result-card-label{color:#e8c46a;}
+.shell-booster-result-card.holo .shell-booster-result-card-art{
+  box-shadow:0 0 0 1px #e8c46a,0 0 30px rgba(232,196,106,.55),0 8px 18px rgba(0,0,0,.7);
+}
+.shell-booster-result-foil{
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
+  animation:holo 3.4s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,120,220,.28),rgba(120,220,255,.28),rgba(255,240,120,.28),rgba(160,255,140,.28),rgba(255,120,220,.28));
+}
+.shell-booster-result-actions{display:flex;align-items:center;justify-content:center;gap:16px;}
+@keyframes holo{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
