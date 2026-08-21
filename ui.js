@@ -353,7 +353,6 @@ function activeColHtml(activeInstance, mine, flipped) {
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
     cardImageTag(activeInstance.name, '') +
-    (activeInstance.damage > 0 ? '<div class="shell-board-active-damage">' + activeInstance.damage + '</div>' : '') +
     '</div>';
   var energiesHtml = '<div class="shell-board-active-energies">' +
     activeInstance.attachedEnergy.map(function (e) {
