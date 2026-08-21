@@ -97,6 +97,7 @@ function createGame(rng) {
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
     phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
     pendingPrizeChoice: null, // { playerId: 'player', count: N } while the player must pick prize card(s)
+    pendingActiveChoice: null, // 'player' while they must pick which Bench Pokémon becomes their new Active
     rng: rng,
     log: [],
     players: {
@@ -388,7 +389,17 @@ function knockOutIfNeeded(state, ownerId, instance) {
   var attackerId = opponentOf(ownerId);
   logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado', ownerId);
   if (owner.active && owner.active.id === instance.id) {
-    owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
+    if (ownerId === 'player' && owner.bench.length > 0) {
+      // Let the player choose which Bench Pokémon becomes their new Active
+      // instead of auto-promoting the first one -- see chooseNewActive(),
+      // resolved from the UI's active-choice modal. The CPU still
+      // auto-promotes (bench.shift()): no player input to wait on there.
+      owner.active = null;
+      state.pendingActiveChoice = 'player';
+      logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
+    } else {
+      owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
+    }
   } else {
     owner.bench = owner.bench.filter(function (b) { return b.id !== instance.id; });
   }
@@ -427,6 +438,17 @@ function takePrize(state, playerId, prizeIndex) {
     state.pendingPrizeChoice.count -= 1;
     if (state.pendingPrizeChoice.count <= 0) { state.pendingPrizeChoice = null; }
   }
+}
+
+// Resolves the player's pending Active choice (see knockOutIfNeeded): moves
+// the chosen Bench Pokémon into the now-empty Active slot.
+function chooseNewActive(state, playerId, benchInstanceId) {
+  var p = state.players[playerId];
+  var idx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
+  if (idx === -1) { return; }
+  p.active = p.bench.splice(idx, 1)[0];
+  if (state.pendingActiveChoice === playerId) { state.pendingActiveChoice = null; }
+  logEvent(state, translatePlayer(playerId) + ' elige a ' + p.active.name + ' como Activo', playerId);
 }
 
 function canAttack(state, playerId, attackName) {

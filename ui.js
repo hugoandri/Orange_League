@@ -63,6 +63,11 @@ function playerDisplayName() {
   return (profileState && profileState.username) || 'Tú';
 }
 
+// Real Base Set-era card back, used for every face-down surface on the
+// board (deck, discard, prizes, CPU's hand) -- per user request, a real
+// scan instead of a plain gradient texture.
+var CARD_BACK_URL = 'Cartas/Cardback.jpg';
+
 // Real card artwork, reused from the same catalog data that backs the
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
 // Blackout is a Base Set card, so this lookup covers the whole game.
@@ -313,6 +318,28 @@ function renderEnergyDiscardModal() {
   document.getElementById('energyDiscardConfirm').disabled = s.selected.length !== s.count;
 }
 
+// Shown whenever gameState.pendingActiveChoice === 'player' (see
+// rules-engine.js's knockOutIfNeeded/chooseNewActive) -- a real mandatory
+// choice, not an auto-promoted Bench Pokémon: no backdrop-click or Escape
+// dismissal, since real TCG rules don't let you skip placing a new Active.
+function renderActiveChoiceModal() {
+  var p = gameState.players.player;
+  var grid = document.getElementById('activeChoiceGrid');
+  grid.innerHTML = p.bench.map(function (instance) {
+    return '<button type="button" class="shell-active-choice-card" data-instance-id="' + instance.id + '">' +
+      cardImageTag(instance.name, 'shell-board-card-art') +
+      '<span>' + escapeHtml(translateCardName(instance.name)) + '</span>' +
+      '</button>';
+  }).join('');
+  grid.querySelectorAll('.shell-active-choice-card').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      chooseNewActive(gameState, 'player', btn.getAttribute('data-instance-id'));
+      afterPlayerAction();
+    });
+  });
+  document.getElementById('activeChoiceModal').classList.remove('hidden');
+}
+
 // One small icon per attached energy, overlaid in the card's top-left
 // corner -- same visual trick the hand cards used for their type icon,
 // reused here to show the real attached-energy count/types at a glance
@@ -327,11 +354,15 @@ function cardEnergiesOverlayHtml(attachedEnergy) {
   return '<div class="shell-board-card-energies">' + icons + '</div>';
 }
 
-function benchCardHtml(instance, mine) {
+// `flipped` rotates the CPU's Bench art 180° too, same as its Active --
+// per user request, so the whole rival side reads consistently as "facing
+// across the table" instead of just the Active looking that way.
+function benchCardHtml(instance, mine, flipped) {
   var stats = CARD_STATS[instance.name];
   var hp = stats.hp - instance.damage;
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
-  var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
+  var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
+    '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
     cardImageTag(instance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
@@ -343,10 +374,10 @@ function benchEmptyHtml(mine) {
   return '<div class="shell-board-bench-slot"><div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>BANCA</div></div>';
 }
 
-function benchRowHtml(bench, mine) {
+function benchRowHtml(bench, mine, flipped) {
   var html = '<div class="shell-board-bench-row">';
   for (var i = 0; i < 5; i++) {
-    html += bench[i] ? benchCardHtml(bench[i], mine) : benchEmptyHtml(mine);
+    html += bench[i] ? benchCardHtml(bench[i], mine, flipped) : benchEmptyHtml(mine);
   }
   html += '</div>';
   return html;
@@ -389,15 +420,14 @@ function sideHeaderHtml(ownerId) {
 
 // Deck (always face-down, just a count) and Discard pile -- only the count
 // matters at a glance; the discard's actual cards are one click away (see
-// openDiscardPileModal). Both piles are plain textured boxes, no card-back
-// image, matching every other face-down surface on this board.
+// openDiscardPileModal). Both use the real card back, per user request.
 function deckDiscardRowHtml(state, ownerId) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
   var discardCount = p.discard.length;
-  var deckArt = '<div class="shell-board-deckbox-art' + (mine ? ' mine' : '') + '"></div>';
+  var deckArt = '<div class="shell-board-deckbox-art"><img src="' + CARD_BACK_URL + '" alt="Mazo boca abajo"></div>';
   var discardArt = discardCount > 0
-    ? '<div class="shell-board-deckbox-art' + (mine ? ' mine' : '') + '"></div>'
+    ? '<div class="shell-board-deckbox-art"><img src="' + CARD_BACK_URL + '" alt="Descarte boca abajo"></div>'
     : '<div class="shell-board-deckbox-art empty"></div>';
   return '<div class="shell-board-deckrow">' +
     '<div class="shell-board-deckbox" title="Mazo">' + deckArt + '<div class="shell-board-deckbox-label">MAZO ' + p.deck.length + '</div></div>' +
@@ -418,8 +448,9 @@ function prizeGridHtml(state, ownerId) {
   var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + p.prizes.length + '</div><div class="shell-board-prize-grid">';
   for (var i = 0; i < 6; i++) {
     if (i < p.prizes.length) {
-      var cls = 'shell-board-prize-card' + (mine ? ' mine' : '') + (choosable ? ' choosable' : '');
-      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '></div>';
+      var cls = 'shell-board-prize-card' + (choosable ? ' choosable' : '');
+      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
+        '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo"></div>';
     } else {
       html += '<div class="shell-board-prize-card empty"></div>';
     }
@@ -430,7 +461,7 @@ function prizeGridHtml(state, ownerId) {
 
 function cpuHandRowHtml(count) {
   var cards = '';
-  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card">DORSO</div>'; }
+  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
   return '<div class="shell-board-hand-cpu">' +
     '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + count + '</span></div>' +
     '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
@@ -462,14 +493,15 @@ function renderBoardActions() {
   var s = gameState;
   var p = s.players.player;
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  var pendingActive = s.pendingActiveChoice === 'player';
   var html = '';
 
   if (s.phase === 'setup') {
     html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
-  } else if (s.phase === 'playing' && !pendingPlayerPrize) {
+  } else if (s.phase === 'playing' && !pendingPlayerPrize && !pendingActive) {
     var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
     html += '<div class="shell-board-actions"><div class="shell-board-actions-grid">' +
-      '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>RETIRADA</button>' +
+      '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>CAMBIAR POKÉMON</button>' +
       '<button type="button" class="shell-board-action" disabled title="Próximamente">HABILIDAD</button>' +
       '<button type="button" class="shell-board-action-gold" id="endTurnBtn">PASAR TURNO ▶</button>' +
       '</div></div>';
@@ -497,19 +529,26 @@ function renderBoard() {
   var boardHtml = cpuHandRowHtml(c.hand.length) +
     '<div class="shell-board-zone">' +
     '<div class="shell-board-centerline"></div><div class="shell-board-centerline-diamond"></div>' +
-    benchRowHtml(c.bench, false) +
+    benchRowHtml(c.bench, false, true) +
     activeColHtml(c.active, false, true) +
     activeColHtml(p.active, true, false) +
-    benchRowHtml(p.bench, true) +
+    benchRowHtml(p.bench, true, false) +
     '</div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  var pendingActive = s.pendingActiveChoice === 'player';
   if (pendingPlayerPrize) {
     boardHtml += '<div class="shell-board-prize-pending">¡Noqueaste un Pokémon! Elige una de tus cartas de premio para tomarla.</div>';
-  } else {
+  } else if (!pendingActive) {
     boardHtml += handBandHtml(s);
   }
   document.getElementById('app').innerHTML = boardHtml;
+
+  if (pendingActive) {
+    renderActiveChoiceModal();
+  } else {
+    document.getElementById('activeChoiceModal').classList.add('hidden');
+  }
 
   // Column C: CPU block (header → deck/discard → prizes) on top, mine
   // (mirrored) on the bottom, sharing one flexible spacer -- this is what

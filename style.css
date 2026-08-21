@@ -86,6 +86,7 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 #editProfileModal{z-index:210;}
 #boosterSelectModal{z-index:210;}
 #boosterResultModal{z-index:210;}
+#activeChoiceModal{z-index:210;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 .card-modal-content{position:relative;z-index:1;background:var(--panel);padding:16px;
   border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:10px;

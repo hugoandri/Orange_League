@@ -239,6 +239,52 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('getWinner declares player the winner', getWinner(state), 'player');
 })();
 
+(function testKnockoutDefersActiveChoiceToPlayerWhenBenchIsNonEmpty() {
+  var state = createGame(function () { return 0.42; });
+  state.players.player.active = { id: 'p1', name: 'Gyarados', attachedEnergy: [], damage: 100, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.bench = [
+    { id: 'p2', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false },
+    { id: 'p3', name: 'Staryu', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }
+  ];
+  state.players.cpu.active = { id: 'c1', name: 'Weedle', attachedEnergy: ['Grass', 'Grass', 'Grass'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.bench = [];
+  state.activePlayerId = 'cpu';
+  state.turnCounter = 2;
+
+  knockOutIfNeeded(state, 'player', state.players.player.active);
+  check('player active is not auto-promoted', state.players.player.active, null);
+  check('pendingActiveChoice is set to player instead', state.pendingActiveChoice, 'player');
+  check('player bench is untouched until the choice is resolved', state.players.player.bench.length, 2);
+
+  chooseNewActive(state, 'player', 'p3');
+  check('chosen Bench Pokémon becomes the new Active', state.players.player.active.id, 'p3');
+  check('chosen Pokémon is removed from the bench', state.players.player.bench.length, 1);
+  check('remaining bench still has the other Pokémon', state.players.player.bench[0].id, 'p2');
+  check('pendingActiveChoice clears once resolved', state.pendingActiveChoice, null);
+})();
+
+(function testKnockoutStillAutoPromotesWhenNoChoiceApplies() {
+  var state = createGame(function () { return 0.42; });
+  // CPU's own knockout always auto-promotes -- no player input to wait on.
+  state.players.cpu.active = { id: 'c1', name: 'Weedle', attachedEnergy: [], damage: 40, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.bench = [{ id: 'c2', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  knockOutIfNeeded(state, 'cpu', state.players.cpu.active);
+  check('cpu auto-promotes its own bench Pokémon', state.players.cpu.active.id, 'c2');
+  check('no pendingActiveChoice for the cpu side', state.pendingActiveChoice, null);
+
+  // Player's own knockout with an empty bench has no choice to make either --
+  // active just goes to null, preserving the existing "no active, no bench" loss path.
+  var state2 = createGame(function () { return 0.42; });
+  state2.players.player.active = { id: 'p1', name: 'Gyarados', attachedEnergy: [], damage: 100, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state2.players.player.bench = [];
+  state2.players.player.hasHadActive = true;
+  state2.players.cpu.active = { id: 'c1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  knockOutIfNeeded(state2, 'player', state2.players.player.active);
+  check('player active goes to null with an empty bench', state2.players.player.active, null);
+  check('no pendingActiveChoice when there is nothing to choose from', state2.pendingActiveChoice, null);
+  check('getWinner declares cpu the winner (no active, empty bench)', getWinner(state2), 'cpu');
+})();
+
 (function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
   var state = createGame(function () { return 0.42; });
   state.activePlayerId = 'player';

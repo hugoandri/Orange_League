@@ -409,9 +409,9 @@
 
   <div id="cardModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
+    <div class="shell-card-zoom">
       <img id="cardModalImg" src="" alt="">
-      <button type="button" id="cardModalClose" class="action-btn">Cerrar</button>
+      <button type="button" id="cardModalClose" class="shell-card-zoom-close">CERRAR</button>
     </div>
   </div>
 
@@ -435,6 +435,16 @@
         <button type="button" id="energyDiscardConfirm" class="action-btn" disabled>OK</button>
         <button type="button" id="energyDiscardCancel" class="action-btn">Cancelar</button>
       </div>
+    </div>
+  </div>
+
+  <!-- No backdrop/close: choosing a new Active after a knockout is
+       mandatory, not dismissible (real TCG rules). -->
+  <div id="activeChoiceModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-active-choice-modal">
+      <div class="shell-active-choice-header">¡NOQUEADO! ELIGE TU NUEVO POKÉMON ACTIVO</div>
+      <div class="shell-active-choice-grid" id="activeChoiceGrid"></div>
     </div>
   </div>
 
