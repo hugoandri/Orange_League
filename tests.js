@@ -774,6 +774,28 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('pixelDigitsHtml renders one grid per digit', (html.match(/display:grid/g) || []).length, 2);
   check('pixelDigitsHtml renders all cells at the requested block size', (html.match(/width:2px/g) || []).length, 88 * 2);
   check('pixelDigitsHtml sets the gap proportional to block size', html.indexOf('gap:4px') !== -1, true);
+
+  // rampOffset (4th arg) shifts which ramp row an "on" cell reads from,
+  // clamped so it never goes out of bounds -- used by the coin icon so its
+  // metal starts on a lighter tone, like a numeral's top row would.
+  var plain = buildPixelDigitCells('8', 'oro');
+  var shifted = buildPixelDigitCells('8', 'oro', null, 1);
+  check('rampOffset shifts an on-cell to the previous ramp row', shifted[25].bg, plain[18].bg);
+  check('rampOffset clamps at the ramp\'s first row instead of going negative', buildPixelDigitCells('8', 'oro', null, 8)[18].bg, PIXEL_DIGIT_PALETTES.oro.ramp[0]);
+
+  // The coin icon reuses the same 8x11 cell grid as every digit.
+  var coin = buildPixelDigitCells('moneda', 'oro', null, 1);
+  check('the coin glyph is a real, known glyph (not the non-digit fallback)', coin.length, 88);
+  var coinHtml = pixelCoinHtml('oro', 3);
+  check('pixelCoinHtml renders one 8x11 grid at the requested block size', (coinHtml.match(/width:3px/g) || []).length, 88);
+
+  // Status badges: one real Special Condition per key, letters match the
+  // handoff's abbreviations, and the glyph count matches the letter count.
+  check('every real Special Condition has a status badge', Object.keys(PIXEL_STATUS_BADGES).sort(), ['Asleep', 'Burned', 'Confused', 'Paralyzed', 'Poisoned'].sort());
+  var poisonedHtml = pixelStatusBadgeHtml('Poisoned', 2);
+  check('pixelStatusBadgeHtml renders one glyph per letter (PSN = 3)', (poisonedHtml.match(/display:grid/g) || []).length, 3);
+  check('pixelStatusBadgeHtml uses the plate gradient colors', poisonedHtml.indexOf('#b47ce4') !== -1 && poisonedHtml.indexOf('#6a2f9e') !== -1, true);
+  check('pixelStatusBadgeHtml on an unknown status renders nothing', pixelStatusBadgeHtml('Frozen', 2), '');
 })();
 
 (function testCollectionProgress() {

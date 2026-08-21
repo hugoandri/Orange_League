@@ -354,6 +354,16 @@ function cardEnergiesOverlayHtml(attachedEnergy) {
   return '<div class="shell-board-card-energies">' + icons + '</div>';
 }
 
+// Same overlay mechanic as the attached-energy icons, but anchored to the
+// card's bottom edge (see .shell-board-active-status-badges) so it never
+// collides with the energy icons sitting up top. Only the Active shows this
+// -- the Bench doesn't display Special Conditions in the real rules.
+function cardStatusOverlayHtml(statusConditions) {
+  if (!statusConditions.length) { return ''; }
+  var badges = statusConditions.map(function (s) { return pixelStatusBadgeHtml(s, 2); }).join('');
+  return '<div class="shell-board-active-status-badges">' + badges + '</div>';
+}
+
 // `flipped` rotates the CPU's Bench art 180° too, same as its Active --
 // per user request, so the whole rival side reads consistently as "facing
 // across the table" instead of just the Active looking that way.
@@ -399,11 +409,10 @@ function activeColHtml(activeInstance, mine, flipped) {
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
     cardImageTag(activeInstance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
+    cardStatusOverlayHtml(activeInstance.statusConditions) +
     '</div>';
-  var statusHtml = activeInstance.statusConditions.length
-    ? '<div class="shell-board-active-status">' + escapeHtml(activeInstance.statusConditions.map(translateStatus).join(', ')) + '</div>' : '';
   var order = mine ? (cardHtml + namePlate) : (namePlate + cardHtml);
-  return '<div class="shell-board-active-col">' + order + statusHtml + '</div>';
+  return '<div class="shell-board-active-col">' + order + '</div>';
 }
 
 function sideHeaderHtml(ownerId) {
@@ -510,7 +519,7 @@ function renderBoardActions() {
   html += '<div class="shell-board-viewer-footer">' +
     '<div class="shell-board-viewer-footer-avatar"><img src="' + playerPhotoUrl() + '" alt=""></div>' +
     '<div class="shell-board-viewer-footer-name">' + escapeHtml(playerDisplayName()) + '</div>' +
-    '<div class="shell-board-viewer-footer-coin-dot"></div>' +
+    '<div class="shell-board-viewer-footer-coin-dot">' + pixelCoinHtml('oro', 2) + '</div>' +
     '<div class="shell-board-viewer-footer-coin-value">' + (econState ? econState.coins : '--') + '</div>' +
     '</div>';
 
@@ -937,7 +946,7 @@ function renderShopScreen() {
           '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
         '</div>' +
         '<div class="shell-shop-card-footer">' +
-          '<span class="shell-shop-card-price"><span class="shell-shop-coin"></span>' + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
+          '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 2) + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
           '<button type="button" class="shell-shop-card-btn">ABRIR</button>' +
         '</div>' +
       '</div>';
@@ -1509,6 +1518,14 @@ document.addEventListener('DOMContentLoaded', function () {
   // again after replacing the list's HTML.
   document.querySelectorAll('.shell-news-item-day').forEach(function (el) {
     el.innerHTML = pixelDigitsHtml(el.textContent.trim(), 'plata', 2);
+  });
+
+  // Static coin-icon spots (menu balance, shop header, booster modal price) --
+  // replaced once here with the pixel-glyph coin; the shop-card and board-
+  // footer coins are rendered per-instance in their own template strings
+  // since those elements get rebuilt on every render.
+  document.querySelectorAll('.shell-player-coin, .shell-page-coin-dot, .shell-shop-coin').forEach(function (el) {
+    el.innerHTML = pixelCoinHtml('oro', 2);
   });
 
   // Menu buttons

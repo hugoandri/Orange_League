@@ -190,10 +190,7 @@
 .shell-player-role{font-size:10px;letter-spacing:.12em;color:#9a8d7c;text-transform:uppercase;}
 .shell-player-divider{width:1px;height:38px;background:#0b0907;box-shadow:1px 0 0 rgba(255,255,255,.08);}
 .shell-player-econ{display:flex;align-items:center;gap:8px;}
-.shell-player-coin{
-  width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f4dd9a,#b8912f);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 10px rgba(232,196,106,.5);
-}
+.shell-player-coin{display:inline-flex;flex:none;filter:drop-shadow(0 0 6px rgba(232,196,106,.5));}
 .shell-player-balance{font-size:16px;color:#e8c46a;}
 .shell-player-card:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
 
@@ -242,10 +239,7 @@
   display:flex;align-items:center;gap:12px;padding:12px 20px;background:#0f0d0b;border:1px solid #0a0806;
   box-shadow:inset 0 2px 6px rgba(0,0,0,.9);
 }
-.shell-page-coin-dot{
-  width:22px;height:22px;border-radius:50%;flex:none;background:linear-gradient(180deg,#f4dd9a,#b8912f);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 12px rgba(232,196,106,.5);
-}
+.shell-page-coin-dot{display:inline-flex;flex:none;filter:drop-shadow(0 0 8px rgba(232,196,106,.5));}
 .shell-page-coin-value{font-family:'Pixelify Sans',sans-serif;font-size:24px;font-weight:700;color:#e8c46a;}
 
 /* ===== Tienda ===== */
@@ -287,7 +281,7 @@
 .shell-shop-card-desc{font-size:10px;letter-spacing:.1em;color:#9a8d7c;line-height:1.6;}
 .shell-shop-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .shell-shop-card-price{display:flex;align-items:center;gap:8px;font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;color:#e8c46a;}
-.shell-shop-coin{width:17px;height:17px;border-radius:50%;flex:none;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);}
+.shell-shop-coin{display:inline-flex;flex:none;}
 .shell-shop-card-btn{
   padding:12px 20px;cursor:pointer;font-size:12px;letter-spacing:.1em;font-family:'Silkscreen',monospace;
   color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;
@@ -903,7 +897,7 @@
 .shell-board-viewer-footer-avatar{width:38px;height:38px;flex:none;overflow:hidden;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);}
 .shell-board-viewer-footer-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
 .shell-board-viewer-footer-name{font-size:13px;letter-spacing:.08em;color:#8dff62;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.shell-board-viewer-footer-coin-dot{width:17px;height:17px;border-radius:50%;flex:none;background:linear-gradient(180deg,#f4dd9a,#b8912f);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);}
+.shell-board-viewer-footer-coin-dot{display:inline-flex;flex:none;}
 .shell-board-viewer-footer-coin-value{font-family:'Pixelify Sans',sans-serif;font-size:18px;font-weight:700;color:#e8c46a;}
 
 /* --- B · Tablero --- */
@@ -975,7 +969,6 @@
 .shell-board-active-card:hover{filter:brightness(1.2);}
 .shell-board-active-card.flipped .shell-board-card-art{transform:rotate(180deg);}
 .shell-board-active-empty{width:116px;height:162px;border:1px dashed #3a342c;display:grid;place-items:center;font-size:11px;color:#4a4239;text-align:center;}
-.shell-board-active-status{font-size:9px;letter-spacing:.06em;color:#ff8a72;}
 
 /* Shared by bench + active card art -- a dedicated class (not a bare `img`
    descendant selector) so the energy-icon overlay below can't inherit this
@@ -987,6 +980,12 @@
    (since removed there), reused here for real energy count/types instead. */
 .shell-board-card-energies{position:absolute;left:3px;top:3px;display:flex;flex-wrap:wrap;gap:2px;max-width:calc(100% - 6px);z-index:1;}
 .shell-board-card-energies img{width:16px;height:16px;display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.85);}
+
+/* Special-condition badges, overlaid bottom-left on the Active's card art
+   only -- opposite corner from the energy icons above so the two overlays
+   never collide. Same pixel-glyph mechanic as pixelCoinHtml/pixelDigitsHtml. */
+.shell-board-active-status-badges{position:absolute;left:3px;bottom:3px;display:flex;flex-wrap:wrap;gap:2px;max-width:calc(100% - 6px);z-index:1;}
+.shell-status-badge{padding:2px 3px;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.85);}
 
 .shell-board-prize-pending{padding:10px 16px;text-align:center;font-size:12px;color:#e8c46a;background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;}
 
