@@ -602,6 +602,7 @@ function afterPlayerAction() {
 function finishMatch(winner) {
   matchWinner = winner;
   stopGameClock();
+  playMatchEndMusic(winner);
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results)
@@ -657,6 +658,7 @@ function wireBoardButtons() {
       if (gameState.phase === 'setup' && gameState.players.player.active) {
         startMatch(gameState);
         startGameClock();
+        startDuelMusic();
         showCardInViewer(gameState.players.player.active.name, gameState.players.player.active.id);
         // If the coin flip hands the CPU the opening turn, there's no turn
         // of mine being cut short here to review -- so, same as ending my
@@ -844,6 +846,8 @@ function stopGameClock() {
 function startNewMatch() {
   matchWinner = null;
   stopGameClock();
+  stopDuelMusic();
+  document.getElementById('matchEndMusic').pause();
   document.getElementById('matchEndModal').classList.add('hidden');
   gameState = createGame(Math.random);
   aiSetupBoard(gameState, 'cpu');
@@ -1283,6 +1287,8 @@ function showBoardScreen() {
 function hideBoardScreen() {
   document.getElementById('boardScreen').classList.add('hidden');
   stopGameClock();
+  stopDuelMusic();
+  document.getElementById('matchEndMusic').pause();
 }
 
 // Restarts the chess clock after anything that covers the board (pause,
@@ -1314,18 +1320,113 @@ function applyMenuLogo() {
 }
 
 // ── Configuración ──────────────────────────────────────────────────
+
+// Real duel-music library (Songs/) -- grouped exactly as requested: YGOFBM's
+// two Yu-Gi-Oh tracks, PKMNTCG's five Pokémon TCG tracks. Filenames kept
+// verbatim (spaces/apostrophes and all); set as a JS property, not written
+// into an HTML attribute, so no manual escaping is needed.
+var DUEL_MUSIC_TRACKS = {
+  ygofbm_free: { label: 'Free Duel', file: 'Songs/Yugioh_Free_Duel.mp3' },
+  ygofbm_prelim: { label: 'Preliminar', file: 'Songs/Yugioh_Preliminares.mp3' },
+  pkmntcg_duel: { label: 'Duel', file: 'Songs/Pokemon_TCG.mp3' },
+  pkmntcg_club: { label: 'Club Master Duel', file: 'Songs/14 Club Master Duel.mp3' },
+  pkmntcg_ronald: { label: 'Ronald', file: "Songs/16 Ronald's Theme.mp3" },
+  pkmntcg_grand: { label: 'Gran Master Duel', file: 'Songs/20 Grand Master Duel.mp3' },
+  pkmntcg_imakuni: { label: 'Imakuni', file: "Songs/17. Imakuni_'s Theme.mp3" }
+};
+var DUEL_MUSIC_DEFAULT = 'ygofbm_free';
+var MATCH_END_MUSIC = { win: 'Songs/06 Win!.mp3', loss: 'Songs/08 Lost.mp3' };
+
+function getMusicVolume() {
+  var v = parseInt(localStorage.getItem('tcg_music_volume'), 10);
+  return isNaN(v) ? 70 : Math.max(0, Math.min(100, v));
+}
+function setMusicVolume(pct) {
+  try { localStorage.setItem('tcg_music_volume', pct); } catch (e) {}
+  var vol = pct / 100;
+  var bg = document.getElementById('bgMusic');
+  if (bg) { bg.volume = vol; }
+  var endEl = document.getElementById('matchEndMusic');
+  if (endEl) { endEl.volume = vol; }
+}
+
+function getDuelMusicKey() {
+  var key = localStorage.getItem('tcg_duel_track');
+  return DUEL_MUSIC_TRACKS[key] ? key : DUEL_MUSIC_DEFAULT;
+}
+function setDuelMusicKey(key) {
+  if (!DUEL_MUSIC_TRACKS[key]) { return; }
+  try { localStorage.setItem('tcg_duel_track', key); } catch (e) {}
+}
+
+// Called once the coin flip actually starts the duel (startMatchBtn) --
+// loops for the whole match, real volume from the Música slider.
+function startDuelMusic() {
+  var bg = document.getElementById('bgMusic');
+  var track = DUEL_MUSIC_TRACKS[getDuelMusicKey()];
+  bg.src = track.file;
+  bg.loop = true;
+  bg.volume = getMusicVolume() / 100;
+  bg.currentTime = 0;
+  bg.play().catch(function () {});
+}
+function stopDuelMusic() {
+  var bg = document.getElementById('bgMusic');
+  bg.pause();
+}
+// Stops the duel music and plays the real Win!/Lost fanfare once (no loop).
+function playMatchEndMusic(winner) {
+  stopDuelMusic();
+  var el = document.getElementById('matchEndMusic');
+  el.src = winner === 'player' ? MATCH_END_MUSIC.win : MATCH_END_MUSIC.loss;
+  el.loop = false;
+  el.volume = getMusicVolume() / 100;
+  el.currentTime = 0;
+  el.play().catch(function () {});
+}
+
+// 7-second preview of whichever track is currently selected in the
+// dropdown (not necessarily saved yet) -- uses its own <audio> element so
+// it never interferes with an actual in-progress match's music.
+var duelMusicPreviewTimeout = null;
+function stopDuelMusicPreview() {
+  if (!duelMusicPreviewTimeout) { return; }
+  clearTimeout(duelMusicPreviewTimeout);
+  duelMusicPreviewTimeout = null;
+  document.getElementById('duelMusicPreview').pause();
+  var btn = document.getElementById('configDuelMusicPlay');
+  btn.textContent = '▶';
+  btn.classList.remove('playing');
+}
+function toggleDuelMusicPreview() {
+  if (duelMusicPreviewTimeout) { stopDuelMusicPreview(); return; }
+  var track = DUEL_MUSIC_TRACKS[document.getElementById('configDuelMusicSelect').value];
+  if (!track) { return; }
+  var el = document.getElementById('duelMusicPreview');
+  el.src = track.file;
+  el.currentTime = 0;
+  el.volume = getMusicVolume() / 100;
+  el.play().catch(function () {});
+  var btn = document.getElementById('configDuelMusicPlay');
+  btn.textContent = '⏸';
+  btn.classList.add('playing');
+  duelMusicPreviewTimeout = setTimeout(stopDuelMusicPreview, 7000);
+}
+
 function initConfigSliders() {
   document.querySelectorAll('.shell-config-slider').forEach(function (el) {
     var track = el.querySelector('[data-slider-track]');
     var fill = el.querySelector('[data-slider-fill]');
     var thumb = el.querySelector('[data-slider-thumb]');
     var valueEl = el.querySelector('[data-slider-value]');
+    var isMusic = el.id === 'configMusicSlider';
     track.addEventListener('click', function (e) {
       var rect = track.getBoundingClientRect();
       var pct = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
       fill.style.width = pct + '%';
       thumb.style.left = pct + '%';
       valueEl.textContent = pct;
+      if (isMusic) { setMusicVolume(pct); }
     });
   });
 }
@@ -1342,9 +1443,16 @@ function showConfigScreen(returnTo) {
   document.getElementById('configThemeSelect').value = document.body.classList.contains('light') ? 'light' : 'dark';
   document.getElementById('configLogoSelect').value = localStorage.getItem('tcg_menu_logo') === 'hidden' ? 'hide' : 'show';
   document.getElementById('configModeSelect').value = document.fullscreenElement ? 'fullscreen' : 'window';
+  document.getElementById('configDuelMusicSelect').value = getDuelMusicKey();
+  var musicPct = getMusicVolume();
+  var musicSlider = document.getElementById('configMusicSlider');
+  musicSlider.querySelector('[data-slider-fill]').style.width = musicPct + '%';
+  musicSlider.querySelector('[data-slider-thumb]').style.left = musicPct + '%';
+  musicSlider.querySelector('[data-slider-value]').textContent = musicPct;
   document.getElementById('configScreen').classList.remove('hidden');
 }
 function hideConfigScreen() {
+  stopDuelMusicPreview();
   document.getElementById('configScreen').classList.add('hidden');
 }
 
@@ -1446,6 +1554,11 @@ document.addEventListener('DOMContentLoaded', function () {
     localStorage.setItem('tcg_menu_logo', this.value === 'hide' ? 'hidden' : 'visible');
     applyMenuLogo();
   });
+  document.getElementById('configDuelMusicSelect').addEventListener('change', function () {
+    setDuelMusicKey(this.value);
+    stopDuelMusicPreview();
+  });
+  document.getElementById('configDuelMusicPlay').addEventListener('click', toggleDuelMusicPreview);
   document.getElementById('configChangeNameBtn').addEventListener('click', function () {
     document.getElementById('menuProfileBtn').click();
   });

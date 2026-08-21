@@ -339,7 +339,9 @@
     </div>
   </div>
 
-  <audio id="bgMusic" src="Songs/YGO-Free%20Duel.mp3" loop preload="none"></audio>
+  <audio id="bgMusic" loop preload="none"></audio>
+  <audio id="matchEndMusic" preload="none"></audio>
+  <audio id="duelMusicPreview" preload="none"></audio>
 
   <!-- ===== TABLERO DE DUELO ===== -->
   <div id="boardScreen" class="hidden">
@@ -501,7 +503,7 @@
                 <span class="shell-config-kicker-bar green"></span>
                 <span class="shell-config-kicker-text green">AUDIO</span>
               </div>
-              <div class="shell-config-slider">
+              <div class="shell-config-slider" id="configMusicSlider">
                 <div class="shell-config-slider-row">
                   <span class="shell-config-slider-label">MÚSICA</span>
                   <span class="shell-config-slider-value" data-slider-value>70</span>
@@ -529,6 +531,29 @@
                 <div class="shell-config-slider-track" data-slider-track>
                   <div class="shell-config-slider-fill" data-slider-fill style="width:45%"></div>
                   <div class="shell-config-slider-thumb" data-slider-thumb style="left:45%"></div>
+                </div>
+              </div>
+
+              <div class="shell-config-duel-music">
+                <span class="shell-config-slider-label">MÚSICA DE DUELO</span>
+                <div class="shell-config-duel-music-row">
+                  <div class="shell-config-select-wrap">
+                    <select class="shell-config-select" id="configDuelMusicSelect">
+                      <optgroup label="YGOFBM">
+                        <option value="ygofbm_free">Free Duel</option>
+                        <option value="ygofbm_prelim">Preliminar</option>
+                      </optgroup>
+                      <optgroup label="PKMNTCG">
+                        <option value="pkmntcg_duel">Duel</option>
+                        <option value="pkmntcg_club">Club Master Duel</option>
+                        <option value="pkmntcg_ronald">Ronald</option>
+                        <option value="pkmntcg_grand">Gran Master Duel</option>
+                        <option value="pkmntcg_imakuni">Imakuni</option>
+                      </optgroup>
+                    </select>
+                    <span class="shell-config-select-arrow">▾</span>
+                  </div>
+                  <button type="button" class="shell-config-duel-music-play" id="configDuelMusicPlay" title="Escuchar 7 segundos">▶</button>
                 </div>
               </div>
             </div>
