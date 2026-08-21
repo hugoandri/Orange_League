@@ -80,21 +80,21 @@ var CARD_BACK_OPTIONS = [
   { id: 'clasico', name: 'Clásico', img: CARD_BACK_URL },
   { id: 'pocket_monsters', name: 'Pocket Monsters', img: 'Cartas/Cardback_PocketMonsters.png' },
   { id: 'arcoiris', name: 'Arcoíris', img: 'Cartas/Cardback_Arcoiris.png' },
-  { id: 'protector_koffing', name: 'Koffing', img: 'Cartas/Protector_Koffing.png', cost: PROTECTOR_COST },
-  { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png', cost: PROTECTOR_COST },
+  { id: 'protector_koffing', name: 'Koffing', img: 'Cartas/Protector_Koffing.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png?v=2', cost: PROTECTOR_COST },
   // Edge-to-edge black art with no border of its own -- outline:true adds a
   // white frame so it doesn't blend into the shop card's dark background.
-  { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png', cost: PROTECTOR_COST, outline: true },
-  { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png', cost: PROTECTOR_COST },
-  { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png', cost: PROTECTOR_COST },
-  { id: 'protector_perona', name: 'Perona', img: 'Cartas/Protector_Perona.png', cost: PROTECTOR_COST },
-  { id: 'protector_sasuke', name: 'Sasuke', img: 'Cartas/Protector_Sasuke.png', cost: PROTECTOR_COST },
-  { id: 'protector_squirtle', name: 'Squirtle', img: 'Cartas/Protector_Squirtle.png', cost: PROTECTOR_COST },
-  { id: 'protector_charmander', name: 'Charmander', img: 'Cartas/Protector_Charmander.png', cost: PROTECTOR_COST },
-  { id: 'protector_bulbasaur', name: 'Bulbasaur', img: 'Cartas/Protector_Bulbasaur.png', cost: PROTECTOR_COST },
-  { id: 'protector_messi', name: 'Messi', img: 'Cartas/Protector_Messi.png', cost: PROTECTOR_COST },
-  { id: 'protector_ronaldo', name: 'Ronaldo', img: 'Cartas/Protector_Ronaldo.png', cost: PROTECTOR_COST },
-  { id: 'protector_pikachu_sorprendido', name: 'Pikachu Sorprendido', img: 'Cartas/Protector_PikachuSorprendido.png', cost: PROTECTOR_COST }
+  { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png?v=2', cost: PROTECTOR_COST, outline: true },
+  { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_perona', name: 'Perona', img: 'Cartas/Protector_Perona.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_sasuke', name: 'Sasuke', img: 'Cartas/Protector_Sasuke.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_squirtle', name: 'Squirtle', img: 'Cartas/Protector_Squirtle.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_charmander', name: 'Charmander', img: 'Cartas/Protector_Charmander.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_bulbasaur', name: 'Bulbasaur', img: 'Cartas/Protector_Bulbasaur.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_messi', name: 'Messi', img: 'Cartas/Protector_Messi.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_ronaldo', name: 'Ronaldo', img: 'Cartas/Protector_Ronaldo.png?v=2', cost: PROTECTOR_COST },
+  { id: 'protector_pikachu_sorprendido', name: 'Pikachu Sorprendido', img: 'Cartas/Protector_PikachuSorprendido.png?v=2', cost: PROTECTOR_COST }
 ];
 var DEFAULT_CARD_BACK_ID = 'clasico';
 
