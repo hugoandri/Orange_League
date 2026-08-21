@@ -1213,6 +1213,11 @@ document.addEventListener('DOMContentLoaded', function () {
     hideDecksScreen();
     showMenu();
   });
+  document.querySelectorAll('.shell-deck-card[data-card-img]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      openCardModal(el.getAttribute('data-card-name'), el.getAttribute('data-card-img'));
+    });
+  });
   document.getElementById('decksSaveBtn').addEventListener('click', function () {
     var btn = document.getElementById('decksSaveBtn');
     var status = document.getElementById('decksSaveStatus');
