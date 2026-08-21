@@ -313,12 +313,26 @@ function renderEnergyDiscardModal() {
   document.getElementById('energyDiscardConfirm').disabled = s.selected.length !== s.count;
 }
 
+// One small icon per attached energy, overlaid in the card's top-left
+// corner -- same visual trick the hand cards used for their type icon,
+// reused here to show the real attached-energy count/types at a glance
+// (bench cards previously showed no energy info at all; the Active's own
+// separate energy row is retired in favor of this single mechanism).
+function cardEnergiesOverlayHtml(attachedEnergy) {
+  if (!attachedEnergy.length) { return ''; }
+  var icons = attachedEnergy.map(function (e) {
+    var icon = ENERGY_CARD_TYPE_ICON[e];
+    return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
+  }).join('');
+  return '<div class="shell-board-card-energies">' + icons + '</div>';
+}
+
 function benchCardHtml(instance, mine) {
   var stats = CARD_STATS[instance.name];
   var hp = stats.hp - instance.damage;
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
-    cardImageTag(instance.name, '') + '</div>';
+    cardImageTag(instance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
   return '<div class="shell-board-bench-slot">' + cardHtml + hpHtml + nameHtml + '</div>';
@@ -339,8 +353,9 @@ function benchRowHtml(bench, mine) {
 }
 
 // `flipped` rotates the CPU's Active art 180° so it faces the player across
-// the table -- name plate and energy row stay upright/readable, only the
-// illustration flips (see .shell-board-active-card.flipped).
+// the table -- name plate stays upright/readable, only the illustration
+// flips (see .shell-board-active-card.flipped). Attached energy shows as
+// the same top-left icon overlay bench cards use, not a separate row.
 function activeColHtml(activeInstance, mine, flipped) {
   if (!activeInstance) {
     return '<div class="shell-board-active-col"><div class="shell-board-active-empty">SIN ACTIVO</div></div>';
@@ -352,17 +367,11 @@ function activeColHtml(activeInstance, mine, flipped) {
     '<span class="name">' + nameEs + '</span><span class="hp">' + hp + '/' + stats.hp + '</span></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
-    cardImageTag(activeInstance.name, '') +
+    cardImageTag(activeInstance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
     '</div>';
-  var energiesHtml = '<div class="shell-board-active-energies">' +
-    activeInstance.attachedEnergy.map(function (e) {
-      var icon = ENERGY_CARD_TYPE_ICON[e];
-      return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
-    }).join('') +
-    '<div class="shell-board-active-energy-empty"></div></div>';
   var statusHtml = activeInstance.statusConditions.length
     ? '<div class="shell-board-active-status">' + escapeHtml(activeInstance.statusConditions.map(translateStatus).join(', ')) + '</div>' : '';
-  var order = mine ? (energiesHtml + cardHtml + namePlate) : (namePlate + cardHtml + energiesHtml);
+  var order = mine ? (cardHtml + namePlate) : (namePlate + cardHtml);
   return '<div class="shell-board-active-col">' + order + statusHtml + '</div>';
 }
 
@@ -428,25 +437,14 @@ function cpuHandRowHtml(count) {
     '</div>';
 }
 
-function handCardTypeIcon(name) {
-  var stats = CARD_STATS[name];
-  if (!stats) { return null; }
-  if (stats.supertype === 'Energy') { return ENERGY_CARD_TYPE_ICON[name.replace(/ Energy$/, '')]; }
-  if (stats.supertype === 'Pokémon' && stats.types) { return ENERGY_CARD_TYPE_ICON[stats.types[0]]; }
-  return null;
-}
-
 function handBandHtml(state) {
   var p = state.players.player;
   var cardsHtml = p.hand.map(function (card) {
     // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
     // can't be used until the match actually starts.
     var disabled = state.phase === 'setup' && !isBasicPokemon(card.name);
-    var typeIcon = handCardTypeIcon(card.name);
     return '<button type="button" class="shell-board-hand-card-wrap" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
-      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') +
-      (typeIcon ? '<img class="shell-board-hand-card-type" src="Tipos/' + typeIcon + '.png" alt="">' : '') +
-      '</div>' +
+      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') + '</div>' +
       '<div class="shell-board-hand-card-name">' + escapeHtml(translateCardName(card.name)) + '</div>' +
       '</button>';
   }).join('');
