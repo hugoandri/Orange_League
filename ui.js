@@ -194,8 +194,17 @@ function showCardInViewer(name) {
     cardQuickRefAttacksHtml(name);
 }
 
-function openCardModal(name) {
-  var url = CARD_IMAGE_BY_NAME[name];
+// imgUrl is optional: some callers only have a bare card name (e.g. gameplay
+// code working from a deck, where CARD_IMAGE_BY_NAME's name->image lookup is
+// safe because no card name in Overgrowth/Blackout is ambiguous). Callers
+// that already have the specific card object in hand (collection grid,
+// booster result) MUST pass its own img explicitly instead of relying on
+// that lookup -- 34 of the 228 catalog cards share a name with a
+// differently-illustrated reprint in another set or at another rarity (e.g.
+// Haunter: Base Set #29 vs Fossil #6/#21), so the name-keyed table can only
+// ever hold one of them and silently shows the wrong art for the others.
+function openCardModal(name, imgUrl) {
+  var url = imgUrl || CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
   var img = document.getElementById('cardModalImg');
   img.src = url;
@@ -892,7 +901,7 @@ function renderCollectionGrid(all) {
   var html = filtered.map(function (c) {
     var owned = c.count > 0;
     var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
-    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + '" data-card-name="' + escapeHtml(c.name) + '">' +
+    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
@@ -904,10 +913,14 @@ function renderCollectionGrid(all) {
   var grid = document.getElementById('collectionGrid');
   grid.innerHTML = html || '<div class="shell-collection-empty">SIN RESULTADOS</div>';
 
+  // This card's own img is passed through explicitly (see openCardModal) --
+  // several names in the catalog are shared with a differently-illustrated
+  // reprint elsewhere, so looking the art back up by bare name would risk
+  // showing the wrong one, same as the bug this was just fixed to avoid.
   grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img')); }
     });
   });
 }
@@ -983,10 +996,16 @@ function showBoosterResult(cards, setKey) {
   var counts = { holo: 0, rare: 0, uncommon: 0 };
   var html = '';
   cards.forEach(function (c) {
-    var url = CARD_IMAGE_BY_NAME[c.n] || '';
+    // c.img is this exact card's own art (straight from the set that was
+    // actually opened) -- NOT the ambiguous CARD_IMAGE_BY_NAME[c.n] lookup,
+    // which silently picks a different set's/rarity's reprint for any of
+    // the 34 catalog names that aren't unique (see openCardModal's comment).
+    // That mismatch is exactly the "opened a Base pack, got a Fossil-art
+    // Haunter" bug this fixes.
+    var url = c.img || '';
     var rarity = BOOSTER_RESULT_RARITY[c.r] || BOOSTER_RESULT_RARITY.Common;
     if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
-    html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '">' +
+    html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
       '<div class="shell-booster-result-card-art">' +
         (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
         (rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' : '') +
@@ -1009,7 +1028,7 @@ function showBoosterResult(cards, setKey) {
   document.querySelectorAll('.shell-booster-result-card').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img')); }
     });
   });
 }
