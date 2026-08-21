@@ -613,37 +613,38 @@
 
   <div id="editProfileModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="card-modal-content">
-      <h3 class="config-title">👤 Editar perfil</h3>
-      <div class="profile-edit-preview">
-        <img id="editProfilePreviewImg" src="" alt="">
+    <div class="shell-profile-modal">
+      <div class="shell-profile-modal-header">
+        <div class="shell-profile-modal-title">EDITAR PERFIL</div>
+        <button type="button" class="shell-profile-modal-close" id="editProfileCloseX">✕</button>
       </div>
-      <div class="config-controls">
-        <label class="config-label">
-          Foto de perfil
-          <input type="file" id="editProfilePhotoInput" accept="image/*" class="config-file-input">
-        </label>
-        <label class="config-label">
-          Nombre de usuario
-          <input type="text" id="editProfileUsername" class="config-file-input">
-        </label>
+      <div class="shell-profile-modal-body">
+        <div class="shell-profile-modal-avatar-row">
+          <div class="shell-profile-modal-avatar"><img id="editProfilePreviewImg" src="" alt=""></div>
+          <label class="shell-profile-modal-photo-btn">
+            CAMBIAR FOTO
+            <input type="file" id="editProfilePhotoInput" accept="image/*" class="shell-profile-modal-file-input">
+          </label>
+        </div>
+        <div class="shell-profile-modal-field">
+          <span class="shell-profile-modal-field-label">NOMBRE DE USUARIO</span>
+          <input type="text" id="editProfileUsername" class="shell-profile-modal-input">
+        </div>
+        <div class="shell-profile-modal-divider"></div>
+        <div class="shell-profile-modal-note">PARA CAMBIAR LA CONTRASEÑA, COMPLETÁ LOS DOS CAMPOS</div>
+        <div class="shell-profile-modal-field">
+          <span class="shell-profile-modal-field-label">CONTRASEÑA ACTUAL</span>
+          <input type="password" id="editProfileCurrentPassword" class="shell-profile-modal-input" autocomplete="current-password">
+        </div>
+        <div class="shell-profile-modal-field">
+          <span class="shell-profile-modal-field-label">CONTRASEÑA NUEVA</span>
+          <input type="password" id="editProfileNewPassword" class="shell-profile-modal-input" autocomplete="new-password">
+        </div>
+        <p class="shell-profile-modal-error" id="editProfileError"></p>
       </div>
-      <div class="config-divider"></div>
-      <div class="config-controls">
-        <p class="config-desc">Para cambiar la contraseña, completá los dos campos</p>
-        <label class="config-label">
-          Contraseña actual
-          <input type="password" id="editProfileCurrentPassword" class="config-file-input" autocomplete="current-password">
-        </label>
-        <label class="config-label">
-          Contraseña nueva
-          <input type="password" id="editProfileNewPassword" class="config-file-input" autocomplete="new-password">
-        </label>
-      </div>
-      <p class="auth-error" id="editProfileError"></p>
-      <div class="config-actions">
-        <button type="button" class="pause-btn" id="editProfileSave">💾 Guardar</button>
-        <button type="button" class="pause-btn pause-exit" id="editProfileCancel">← Cancelar</button>
+      <div class="shell-profile-modal-footer">
+        <button type="button" class="shell-page-back" id="editProfileCancel">CANCELAR</button>
+        <button type="button" class="shell-shop-card-btn" id="editProfileSave">GUARDAR</button>
       </div>
     </div>
   </div>

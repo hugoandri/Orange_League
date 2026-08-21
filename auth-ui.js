@@ -148,6 +148,9 @@
     document.getElementById('editProfileCancel').addEventListener('click', function () {
       document.getElementById('editProfileModal').classList.add('hidden');
     });
+    document.getElementById('editProfileCloseX').addEventListener('click', function () {
+      document.getElementById('editProfileModal').classList.add('hidden');
+    });
     document.querySelector('#editProfileModal .card-modal-backdrop').addEventListener('click', function () {
       document.getElementById('editProfileModal').classList.add('hidden');
     });
