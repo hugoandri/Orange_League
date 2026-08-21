@@ -294,7 +294,51 @@
 }
 .shell-shop-card-btn:hover{filter:brightness(1.14);}
 .shell-shop-card-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-shop-card-btn:disabled{cursor:default;pointer-events:none;background:linear-gradient(180deg,#413a31,#251f1a);color:#9a8d7c;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 0 #100e0b;}
 .shell-shop-card-disabled{opacity:.45;}
 .shell-shop-card-disabled .shell-shop-card-btn{cursor:default;pointer-events:none;background:linear-gradient(180deg,#413a31,#251f1a);color:#9a8d7c;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 0 #100e0b;}
 
 @keyframes sheen{0%{transform:translateX(-140%) skewX(-18deg);}100%{transform:translateX(240%) skewX(-18deg);}}
+
+/* ===== Booster select modal ("elegí la ilustración del sobre") -- this
+   step has no direct equivalent in the handoff (it only covers the closed/
+   open pack states), so it's built from the same component recipes
+   (metal plate, corner clip, sunken variant tiles) used everywhere else. ===== */
+.shell-booster-modal{
+  position:relative;z-index:1;width:680px;max-width:92vw;display:flex;flex-direction:column;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#3a342c,#221e19);
+  border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 10px 30px rgba(0,0,0,.6);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  font-family:'Silkscreen',monospace;color:#efe9dd;
+}
+.shell-booster-modal-header{
+  display:flex;align-items:center;gap:14px;padding:18px 22px;
+  border-bottom:1px solid #0b0907;background:linear-gradient(180deg,#2c2721,#1d1a15);
+}
+.shell-booster-modal-title{margin:0;flex:1;font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;letter-spacing:.02em;color:#efe9dd;}
+.shell-booster-modal-price{display:flex;align-items:center;gap:8px;}
+.shell-booster-modal-close{
+  width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-size:14px;color:#a49785;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 0 #100e0b;font-family:'Silkscreen',monospace;
+}
+.shell-booster-modal-close:hover{color:#efe9dd;filter:brightness(1.25);}
+.shell-booster-modal-close:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-booster-modal-subtitle{margin:0;text-align:center;padding:16px 22px 0;font-size:11px;letter-spacing:.2em;color:#9a8d7c;}
+.shell-booster-variant-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:18px 22px;}
+.shell-booster-variant{
+  display:flex;flex-direction:column;gap:8px;padding:10px;cursor:pointer;text-align:center;
+  font-family:'Silkscreen',monospace;color:#d6cbb9;
+  background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.8);transition:filter .12s,box-shadow .12s;
+}
+.shell-booster-variant:hover{filter:brightness(1.2);}
+.shell-booster-variant.selected{box-shadow:0 0 0 2px #8dff62,0 0 16px rgba(141,255,98,.5),inset 0 3px 8px rgba(0,0,0,.8);}
+.shell-booster-variant:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-booster-variant-art{display:block;overflow:hidden;}
+.shell-booster-variant-art img{width:100%;display:block;}
+.shell-booster-variant-name{font-size:10px;letter-spacing:.1em;}
+.shell-booster-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;border-top:1px solid #0b0907;}
+.shell-booster-selected-info{font-size:10px;letter-spacing:.1em;color:#9a8d7c;}

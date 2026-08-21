@@ -823,27 +823,28 @@ function openBoosterSelectModal(setKey) {
   packs.forEach(function (src, i) {
     var fileName = src.split('/').pop();
     var name = names[fileName] || BOOSTER_NAMES[setKey];
-    html += '<div class="booster-variant" data-index="' + i + '">' +
-      '<img src="' + src + '" alt="' + name + '">' +
-      '<div class="bv-name">' + name + '</div>' +
-      '</div>';
+    html += '<button type="button" class="shell-booster-variant" data-index="' + i + '">' +
+      '<span class="shell-booster-variant-art"><img src="' + src + '" alt="' + name + '"></span>' +
+      '<span class="shell-booster-variant-name">' + name.toUpperCase() + '</span>' +
+      '</button>';
   });
-  document.getElementById('boosterModalTitle').textContent = 'Sobre ' + BOOSTER_NAMES[setKey];
+  document.getElementById('boosterModalTitle').textContent = 'SOBRE ' + BOOSTER_NAMES[setKey].toUpperCase();
+  document.getElementById('boosterModalPrice').innerHTML = pixelDigitsHtml(100, 'oro', 2);
   document.getElementById('boosterModalGrid').innerHTML = html;
   document.getElementById('boosterOpenBtn').disabled = true;
-  document.querySelector('#boosterSelectModal .bm-selected-info').textContent = 'Toca un sobre para seleccionarlo';
+  document.getElementById('boosterSelectedInfo').textContent = 'TOCÁ UN SOBRE PARA SELECCIONARLO';
   boosterSelectState = { setKey: setKey, selectedPack: null };
 
-  document.querySelectorAll('.booster-variant').forEach(function (el) {
+  document.querySelectorAll('.shell-booster-variant').forEach(function (el) {
     el.addEventListener('click', function () {
-      document.querySelectorAll('.booster-variant').forEach(function (v) { v.classList.remove('selected'); });
+      document.querySelectorAll('.shell-booster-variant').forEach(function (v) { v.classList.remove('selected'); });
       el.classList.add('selected');
       boosterSelectState.selectedPack = parseInt(el.getAttribute('data-index'), 10);
       document.getElementById('boosterOpenBtn').disabled = false;
       var fileName = packs[boosterSelectState.selectedPack].split('/').pop();
       var chosenName = names[fileName] || BOOSTER_NAMES[setKey];
-      document.querySelector('#boosterSelectModal .bm-selected-info').innerHTML =
-        'Seleccionado: <strong>' + chosenName + '</strong>';
+      document.getElementById('boosterSelectedInfo').innerHTML =
+        'SELECCIONADO: <strong>' + chosenName.toUpperCase() + '</strong>';
     });
   });
 
