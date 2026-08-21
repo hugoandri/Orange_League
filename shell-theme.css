@@ -54,12 +54,13 @@
 .shell-decor-ring-outer{width:760px;height:760px;margin:-380px 0 0 -380px;border:1px solid rgba(232,196,106,.10);box-shadow:inset 0 0 120px rgba(141,255,98,.05);}
 .shell-decor-ring-inner{width:520px;height:520px;margin:-260px 0 0 -260px;border:1px solid rgba(232,196,106,.07);}
 .shell-decor-types{position:absolute;left:26px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:30px;opacity:.16;}
+.shell-decor-types.right{left:auto;right:26px;}
 .shell-decor-types img{width:76px;height:76px;display:block;border-radius:50%;}
 
 /* News panel -- replaces the old key-art image slot. Real content (a
    feed), not decorative art; see ui.js renderNewsPanel() for the data. */
 .shell-news-panel{
-  position:absolute;right:256px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
+  position:absolute;right:304px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
   background:
     repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
     linear-gradient(180deg,#3a342c,#221e19);
