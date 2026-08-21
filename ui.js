@@ -1413,6 +1413,10 @@ function toggleDuelMusicPreview() {
   duelMusicPreviewTimeout = setTimeout(stopDuelMusicPreview, 7000);
 }
 
+// Click-to-set AND drag-to-set: mousedown starts tracking mousemove on the
+// whole document (not just the track) so dragging past its edges still
+// works, standard slider UX -- the Música slider updates real playback
+// volume live as it's dragged, not just once on release.
 function initConfigSliders() {
   document.querySelectorAll('.shell-config-slider').forEach(function (el) {
     var track = el.querySelector('[data-slider-track]');
@@ -1420,14 +1424,33 @@ function initConfigSliders() {
     var thumb = el.querySelector('[data-slider-thumb]');
     var valueEl = el.querySelector('[data-slider-value]');
     var isMusic = el.id === 'configMusicSlider';
-    track.addEventListener('click', function (e) {
+
+    function setFromClientX(clientX) {
       var rect = track.getBoundingClientRect();
-      var pct = Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * 100);
+      var pct = Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * 100);
       fill.style.width = pct + '%';
       thumb.style.left = pct + '%';
       valueEl.textContent = pct;
       if (isMusic) { setMusicVolume(pct); }
+    }
+
+    track.addEventListener('mousedown', function (e) {
+      setFromClientX(e.clientX);
+      function onMove(e2) { setFromClientX(e2.clientX); }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
+    track.addEventListener('touchstart', function (e) {
+      if (e.touches[0]) { setFromClientX(e.touches[0].clientX); }
+    });
+    track.addEventListener('touchmove', function (e) {
+      if (e.touches[0]) { setFromClientX(e.touches[0].clientX); }
+      e.preventDefault();
+    }, { passive: false });
   });
 }
 
