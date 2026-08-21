@@ -63,10 +63,57 @@ function playerDisplayName() {
   return (profileState && profileState.username) || 'Tú';
 }
 
-// Real Base Set-era card back, used for every face-down surface on the
-// board (deck, discard, prizes, CPU's hand) -- per user request, a real
-// scan instead of a plain gradient texture.
+// Real Base Set-era card back -- the CPU's hand always shows this one
+// (see cpuHandRowHtml); it's also the fallback/default for the player's own
+// deck/discard/prizes, which the player can instead personalize below.
 var CARD_BACK_URL = 'Cartas/Cardback.jpg';
+
+// Card backs the player can choose for their OWN deck/discard/prizes only
+// -- the rival's cards always show CARD_BACK_URL, per user request. A
+// plain array (not hardcoded selects) so a future shop unlock can just push
+// another entry here without touching the picker markup or logic.
+var CARD_BACK_OPTIONS = [
+  { id: 'clasico', name: 'Clásico', img: CARD_BACK_URL },
+  { id: 'pocket_monsters', name: 'Pocket Monsters', img: 'Cartas/Cardback_PocketMonsters.png' },
+  { id: 'arcoiris', name: 'Arcoíris', img: 'Cartas/Cardback_Arcoiris.png' }
+];
+var DEFAULT_CARD_BACK_ID = 'clasico';
+
+function getCardBackId() {
+  var id = localStorage.getItem('tcg_card_back');
+  return CARD_BACK_OPTIONS.some(function (o) { return o.id === id; }) ? id : DEFAULT_CARD_BACK_ID;
+}
+function setCardBackId(id) {
+  if (!CARD_BACK_OPTIONS.some(function (o) { return o.id === id; })) { return; }
+  try { localStorage.setItem('tcg_card_back', id); } catch (e) {}
+}
+// The rival's face-down cards never change -- only 'player' reads the
+// chosen option; any other owner falls back to the real default.
+function cardBackUrlFor(ownerId) {
+  if (ownerId !== 'player') { return CARD_BACK_URL; }
+  var chosen = CARD_BACK_OPTIONS.filter(function (o) { return o.id === getCardBackId(); })[0];
+  return chosen ? chosen.img : CARD_BACK_URL;
+}
+
+function renderCardBackPicker() {
+  var grid = document.getElementById('configCardBackGrid');
+  if (!grid) { return; }
+  var selected = getCardBackId();
+  grid.innerHTML = CARD_BACK_OPTIONS.map(function (o) {
+    return '<div class="shell-config-cardback-option' + (o.id === selected ? ' selected' : '') +
+      '" data-card-back-id="' + o.id + '" title="' + escapeHtml(o.name) + '">' +
+      '<img src="' + o.img + '" alt="' + escapeHtml(o.name) + '">' +
+      '<span>' + escapeHtml(o.name) + '</span></div>';
+  }).join('');
+  grid.querySelectorAll('.shell-config-cardback-option').forEach(function (el) {
+    el.addEventListener('click', function () {
+      setCardBackId(el.getAttribute('data-card-back-id'));
+      renderCardBackPicker();
+      // Live-update the board if a match is already in progress.
+      if (gameState && gameState.phase === 'playing') { renderBoard(); }
+    });
+  });
+}
 
 // Real card artwork, reused from the same catalog data that backs the
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
@@ -434,9 +481,10 @@ function deckDiscardRowHtml(state, ownerId) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
   var discardCount = p.discard.length;
-  var deckArt = '<div class="shell-board-deckbox-art"><img src="' + CARD_BACK_URL + '" alt="Mazo boca abajo"></div>';
+  var backUrl = cardBackUrlFor(ownerId);
+  var deckArt = '<div class="shell-board-deckbox-art"><img src="' + backUrl + '" alt="Mazo boca abajo"></div>';
   var discardArt = discardCount > 0
-    ? '<div class="shell-board-deckbox-art"><img src="' + CARD_BACK_URL + '" alt="Descarte boca abajo"></div>'
+    ? '<div class="shell-board-deckbox-art"><img src="' + backUrl + '" alt="Descarte boca abajo"></div>'
     : '<div class="shell-board-deckbox-art empty"></div>';
   return '<div class="shell-board-deckrow">' +
     '<div class="shell-board-deckbox" title="Mazo">' + deckArt + '<div class="shell-board-deckbox-label">MAZO ' + p.deck.length + '</div></div>' +
@@ -454,12 +502,13 @@ function prizeGridHtml(state, ownerId) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
   var choosable = mine && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
+  var backUrl = cardBackUrlFor(ownerId);
   var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + p.prizes.length + '</div><div class="shell-board-prize-grid">';
   for (var i = 0; i < 6; i++) {
     if (i < p.prizes.length) {
       var cls = 'shell-board-prize-card' + (choosable ? ' choosable' : '');
       html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
-        '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo"></div>';
+        '<img src="' + backUrl + '" alt="Carta de premio boca abajo"></div>';
     } else {
       html += '<div class="shell-board-prize-card empty"></div>';
     }
@@ -1589,6 +1638,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   initConfigSliders();
+  renderCardBackPicker();
 
   document.getElementById('configModeSelect').addEventListener('change', function () {
     if (this.value === 'fullscreen') {
