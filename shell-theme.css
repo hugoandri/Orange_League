@@ -798,7 +798,7 @@
 .shell-board-turn-divider{width:1px;height:22px;background:#0b0907;}
 .shell-board-turn-value{font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;color:#8dff62;text-shadow:0 0 14px rgba(141,255,98,.6);}
 .shell-board-turn-value.cpu{color:#ff8a72;text-shadow:0 0 14px rgba(255,138,114,.6);}
-.shell-board-clock{font-size:12px;letter-spacing:.14em;color:#e8c46a;padding:9px 16px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-family:'Pixelify Sans',sans-serif;font-weight:700;}
+.shell-board-clock{font-size:18px;letter-spacing:.14em;color:#e8c46a;padding:11px 20px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-family:'Pixelify Sans',sans-serif;font-weight:700;}
 .shell-board-clock.cpu{color:#ff8a72;}
 .shell-board-clock.low{color:#ff6a5a;animation:blink 1s steps(1,end) infinite;}
 
