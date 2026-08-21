@@ -184,6 +184,10 @@ function evolve(state, playerId, handId, targetInstanceId) {
   var target = findInstance(p, targetInstanceId);
   target.name = card.name;
   target.turnEnteredCurrentForm = state.turnCounter;
+  // Per user ruling: evolving clears Special Conditions (Paralyzed,
+  // Poisoned, Asleep, Confused, Burned) -- unlike retreat/Switch/Gust of
+  // Wind, damage and attached energy are untouched here.
+  target.statusConditions = [];
   logEvent(state, translatePlayer(playerId) + ' evoluciona a ' + card.name, playerId);
 }
 

@@ -108,14 +108,15 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('canEvolve is still false on turn 2 for setup-placed Pokémon', !canEvolve(state, pid, 'x2', state.players[pid].active.id));
   state.turnCounter += 1;
   checkTrue('canEvolve is true on turn 3', canEvolve(state, pid, 'x2', state.players[pid].active.id));
-  // Real rule: evolving does not remove Special Conditions, damage, or
-  // attached energy -- only retreating/switching Active does that.
+  // Per user ruling: evolving clears Special Conditions, but leaves damage
+  // and attached energy untouched (only retreat/Switch/Gust of Wind clear
+  // status *and* those stay on the Pokémon regardless of evolving).
   state.players[pid].active.statusConditions = ['Poisoned'];
   state.players[pid].active.damage = 10;
   state.players[pid].active.attachedEnergy = ['Grass'];
   evolve(state, pid, 'x2', state.players[pid].active.id);
   check('active evolved into Ivysaur, same instance id', state.players[pid].active.name, 'Ivysaur');
-  check('evolving does not clear Special Conditions', state.players[pid].active.statusConditions, ['Poisoned']);
+  check('evolving clears Special Conditions', state.players[pid].active.statusConditions, []);
   check('evolving does not reset damage', state.players[pid].active.damage, 10);
   check('evolving does not discard attached energy', state.players[pid].active.attachedEnergy, ['Grass']);
 })();
