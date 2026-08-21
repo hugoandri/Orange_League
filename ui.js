@@ -91,7 +91,10 @@ var CARD_BACK_OPTIONS = [
   { id: 'protector_sasuke', name: 'Sasuke', img: 'Cartas/Protector_Sasuke.png', cost: PROTECTOR_COST },
   { id: 'protector_squirtle', name: 'Squirtle', img: 'Cartas/Protector_Squirtle.png', cost: PROTECTOR_COST },
   { id: 'protector_charmander', name: 'Charmander', img: 'Cartas/Protector_Charmander.png', cost: PROTECTOR_COST },
-  { id: 'protector_bulbasaur', name: 'Bulbasaur', img: 'Cartas/Protector_Bulbasaur.png', cost: PROTECTOR_COST }
+  { id: 'protector_bulbasaur', name: 'Bulbasaur', img: 'Cartas/Protector_Bulbasaur.png', cost: PROTECTOR_COST },
+  { id: 'protector_messi', name: 'Messi', img: 'Cartas/Protector_Messi.png', cost: PROTECTOR_COST },
+  { id: 'protector_ronaldo', name: 'Ronaldo', img: 'Cartas/Protector_Ronaldo.png', cost: PROTECTOR_COST },
+  { id: 'protector_pikachu_sorprendido', name: 'Pikachu Sorprendido', img: 'Cartas/Protector_PikachuSorprendido.png', cost: PROTECTOR_COST }
 ];
 var DEFAULT_CARD_BACK_ID = 'clasico';
 

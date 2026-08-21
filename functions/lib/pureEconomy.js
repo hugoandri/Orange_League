@@ -14,7 +14,10 @@ var PROTECTOR_IDS = [
   'protector_sasuke',
   'protector_squirtle',
   'protector_charmander',
-  'protector_bulbasaur'
+  'protector_bulbasaur',
+  'protector_messi',
+  'protector_ronaldo',
+  'protector_pikachu_sorprendido'
 ];
 
 function computeMatchReward(result) {
