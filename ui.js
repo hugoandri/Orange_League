@@ -82,7 +82,9 @@ var CARD_BACK_OPTIONS = [
   { id: 'arcoiris', name: 'Arcoíris', img: 'Cartas/Cardback_Arcoiris.png' },
   { id: 'protector_koffing', name: 'Koffing', img: 'Cartas/Protector_Koffing.png', cost: PROTECTOR_COST },
   { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png', cost: PROTECTOR_COST },
-  { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png', cost: PROTECTOR_COST },
+  // Edge-to-edge black art with no border of its own -- outline:true adds a
+  // white frame so it doesn't blend into the shop card's dark background.
+  { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png', cost: PROTECTOR_COST, outline: true },
   { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png', cost: PROTECTOR_COST },
   { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png', cost: PROTECTOR_COST },
   { id: 'protector_perona', name: 'Perona', img: 'Cartas/Protector_Perona.png', cost: PROTECTOR_COST },
@@ -124,7 +126,7 @@ function renderCardBackPicker() {
   grid.innerHTML = owned.map(function (o) {
     return '<div class="shell-config-cardback-option' + (o.id === selected ? ' selected' : '') +
       '" data-card-back-id="' + o.id + '" title="' + escapeHtml(o.name) + '">' +
-      '<img src="' + o.img + '" alt="' + escapeHtml(o.name) + '">' +
+      '<img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"' + (o.outline ? ' class="outlined"' : '') + '>' +
       '<span>' + escapeHtml(o.name) + '</span></div>';
   }).join('');
   grid.querySelectorAll('.shell-config-cardback-option').forEach(function (el) {
@@ -1075,7 +1077,7 @@ function renderProtectorsGrid() {
       : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 2) + pixelDigitsHtml(o.cost, 'oro', 3) + '</span>' +
         '<button type="button" class="shell-shop-card-btn" data-buy-back="' + o.id + '">COMPRAR</button>';
     return '<div class="shell-shop-card' + (owned ? ' shell-shop-card-owned' : '') + '">' +
-      '<div class="shell-shop-card-art protector"><img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"></div>' +
+      '<div class="shell-shop-card-art protector"><img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"' + (o.outline ? ' class="outlined"' : '') + '></div>' +
       '<div class="shell-shop-card-text">' +
         '<div class="shell-shop-card-name">' + escapeHtml(o.name.toUpperCase()) + '</div>' +
         '<div class="shell-shop-card-desc">PROTECTOR DE CARTAS</div>' +
