@@ -701,3 +701,59 @@
 }
 .shell-deck-slot:hover{transform:scale(1.14);}
 .shell-deck-slot img{width:100%;height:100%;object-fit:cover;display:block;}
+
+/* ===== Auth (login / crear cuenta / olvidé mi contraseña) ===== */
+/* No handoff mockup covers this (our own app's login flow), so it's built
+   from the same metal-plate card + logo-plate recipe used everywhere else. */
+.shell-auth-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+
+.shell-auth-card{
+  width:400px;max-width:90vw;padding:32px 28px;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),
+    linear-gradient(180deg,#3a342c,#221e19);
+  border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 10px 30px rgba(0,0,0,.6);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
+  font-family:'Silkscreen',monospace;color:#efe9dd;
+}
+
+.shell-auth-logo{
+  width:100%;height:110px;margin:0 0 24px;position:relative;padding:10px;
+  background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;
+  box-shadow:inset 0 3px 10px rgba(0,0,0,.8);
+}
+.shell-auth-logo img{width:100%;height:100%;object-fit:contain;display:block;}
+
+.shell-auth-panel.hidden{display:none;}
+.shell-auth-title{
+  font-family:'Pixelify Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:.04em;
+  color:#efe9dd;margin:0 0 22px;text-align:center;
+}
+.shell-auth-label{display:flex;flex-direction:column;gap:8px;font-size:11px;letter-spacing:.1em;color:#8a7e6f;margin-bottom:16px;}
+.shell-auth-input{
+  height:42px;padding:0 14px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);
+  font-size:13px;color:#efe9dd;font-family:'Silkscreen',monospace;
+}
+.shell-auth-input::placeholder{color:#5c5348;}
+.shell-auth-input:focus{outline:none;box-shadow:inset 0 2px 6px rgba(0,0,0,.9),0 0 0 2px #8dff62;}
+
+.shell-auth-submit{
+  width:100%;height:48px;cursor:pointer;font-size:13px;letter-spacing:.1em;font-family:'Silkscreen',monospace;
+  color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 3px 0 #16480d;
+}
+.shell-auth-submit:hover{filter:brightness(1.14);}
+.shell-auth-submit:focus-visible{box-shadow:inset 0 0 0 2px #efe9dd;}
+.shell-auth-submit:disabled{
+  cursor:default;pointer-events:none;filter:none;color:#9a8d7c;
+  background:linear-gradient(180deg,#413a31,#251f1a);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 0 #100e0b;
+}
+
+.shell-auth-links{display:flex;justify-content:space-between;margin-top:18px;font-size:11px;letter-spacing:.04em;}
+.shell-auth-links a{color:#9a8d7c;text-decoration:none;cursor:pointer;}
+.shell-auth-links a:hover{color:#8dff62;}
+
+.shell-auth-error{color:#ff8a7a;font-size:11px;letter-spacing:.03em;margin:-8px 0 14px;}
+.shell-auth-error:empty{display:none;}
+.shell-auth-message{color:#8dff62;font-size:11px;letter-spacing:.03em;margin:-8px 0 14px;}
+.shell-auth-message:empty{display:none;}

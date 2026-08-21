@@ -12,57 +12,65 @@
 
   <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
   <div id="authScreen">
-    <div class="auth-card">
-      <div class="auth-logo">
-        <img class="auth-logo-img" src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="authStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-auth-center">
+          <div class="shell-auth-card">
+            <div class="shell-auth-logo">
+              <img src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+            </div>
+
+            <form id="authLoginForm" class="shell-auth-panel">
+              <h2 class="shell-auth-title">INICIAR SESIÓN</h2>
+              <label class="shell-auth-label">EMAIL
+                <input type="email" id="authLoginEmail" class="shell-auth-input" autocomplete="email" required>
+              </label>
+              <label class="shell-auth-label">CONTRASEÑA
+                <input type="password" id="authLoginPassword" class="shell-auth-input" autocomplete="current-password" required>
+              </label>
+              <p class="shell-auth-error" id="authLoginError"></p>
+              <button type="submit" class="shell-auth-submit" id="authLoginSubmit">ENTRAR</button>
+              <div class="shell-auth-links">
+                <a href="#" id="authShowForgot">Olvidé mi contraseña</a>
+                <a href="#" id="authShowSignup">Crear cuenta</a>
+              </div>
+            </form>
+
+            <form id="authSignupForm" class="shell-auth-panel hidden">
+              <h2 class="shell-auth-title">CREAR CUENTA</h2>
+              <label class="shell-auth-label">USUARIO
+                <input type="text" id="authSignupUsername" class="shell-auth-input" autocomplete="username" required>
+              </label>
+              <label class="shell-auth-label">EMAIL
+                <input type="email" id="authSignupEmail" class="shell-auth-input" autocomplete="email" required>
+              </label>
+              <label class="shell-auth-label">CONTRASEÑA
+                <input type="password" id="authSignupPassword" class="shell-auth-input" autocomplete="new-password" required>
+              </label>
+              <p class="shell-auth-error" id="authSignupError"></p>
+              <button type="submit" class="shell-auth-submit" id="authSignupSubmit">CREAR CUENTA</button>
+              <div class="shell-auth-links">
+                <a href="#" id="authShowLoginFromSignup">Ya tengo cuenta</a>
+              </div>
+            </form>
+
+            <form id="authForgotForm" class="shell-auth-panel hidden">
+              <h2 class="shell-auth-title">OLVIDÉ MI CONTRASEÑA</h2>
+              <label class="shell-auth-label">EMAIL
+                <input type="email" id="authForgotEmail" class="shell-auth-input" autocomplete="email" required>
+              </label>
+              <p class="shell-auth-error" id="authForgotError"></p>
+              <p class="shell-auth-message" id="authForgotMessage"></p>
+              <button type="submit" class="shell-auth-submit" id="authForgotSubmit">ENVIAR MAIL DE RECUPERACIÓN</button>
+              <div class="shell-auth-links">
+                <a href="#" id="authShowLoginFromForgot">Volver a iniciar sesión</a>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
-
-      <form id="authLoginForm" class="auth-panel">
-        <h2 class="auth-title">Iniciar sesión</h2>
-        <label class="auth-label">Email
-          <input type="email" id="authLoginEmail" class="auth-input" autocomplete="email" required>
-        </label>
-        <label class="auth-label">Contraseña
-          <input type="password" id="authLoginPassword" class="auth-input" autocomplete="current-password" required>
-        </label>
-        <p class="auth-error" id="authLoginError"></p>
-        <button type="submit" class="auth-submit" id="authLoginSubmit">Entrar</button>
-        <div class="auth-links">
-          <a href="#" id="authShowForgot">Olvidé mi contraseña</a>
-          <a href="#" id="authShowSignup">Crear cuenta</a>
-        </div>
-      </form>
-
-      <form id="authSignupForm" class="auth-panel hidden">
-        <h2 class="auth-title">Crear cuenta</h2>
-        <label class="auth-label">Usuario
-          <input type="text" id="authSignupUsername" class="auth-input" autocomplete="username" required>
-        </label>
-        <label class="auth-label">Email
-          <input type="email" id="authSignupEmail" class="auth-input" autocomplete="email" required>
-        </label>
-        <label class="auth-label">Contraseña
-          <input type="password" id="authSignupPassword" class="auth-input" autocomplete="new-password" required>
-        </label>
-        <p class="auth-error" id="authSignupError"></p>
-        <button type="submit" class="auth-submit" id="authSignupSubmit">Crear cuenta</button>
-        <div class="auth-links">
-          <a href="#" id="authShowLoginFromSignup">Ya tengo cuenta</a>
-        </div>
-      </form>
-
-      <form id="authForgotForm" class="auth-panel hidden">
-        <h2 class="auth-title">Olvidé mi contraseña</h2>
-        <label class="auth-label">Email
-          <input type="email" id="authForgotEmail" class="auth-input" autocomplete="email" required>
-        </label>
-        <p class="auth-error" id="authForgotError"></p>
-        <p class="auth-message" id="authForgotMessage"></p>
-        <button type="submit" class="auth-submit" id="authForgotSubmit">Enviar mail de recuperación</button>
-        <div class="auth-links">
-          <a href="#" id="authShowLoginFromForgot">Volver a iniciar sesión</a>
-        </div>
-      </form>
     </div>
   </div>
 
