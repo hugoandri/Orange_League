@@ -732,6 +732,11 @@ function wireBoardButtons() {
         playBasic(gameState, 'player', selectedHandId);
       } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
         evolve(gameState, 'player', selectedHandId, instanceId);
+        // Refresh the viewer to the evolved Pokémon (new name/HP/attacks/
+        // status) -- it was showing a snapshot of the pre-evolution card
+        // from the showCardInViewer() call at the top of this handler.
+        var evolved = findInstanceEitherSide(instanceId);
+        if (evolved) { showCardInViewer(evolved.name, instanceId); }
       } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
         attachEnergy(gameState, 'player', selectedHandId, instanceId);
       } else if (superPotionTarget && superPotionTarget.attachedEnergy.length > 0) {
