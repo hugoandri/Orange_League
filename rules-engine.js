@@ -77,6 +77,19 @@ function dealOpeningHand(state, playerId) {
   return mulligans;
 }
 
+// Chess-clock time bank: each player starts with this many ms and only their
+// own clock ticks down during their own turn (see ui.js's tickGameClock,
+// which calls tickClock() below with real elapsed wall-clock time -- kept
+// out of this pure/deterministic engine on purpose, same reasoning as the
+// rest of this file never touching Date.now()/setInterval itself).
+var DEFAULT_TIME_BANK_MS = 10 * 60 * 1000;
+
+function tickClock(state, ownerId, elapsedMs) {
+  var p = state.players[ownerId];
+  p.timeBankMs = Math.max(0, p.timeBankMs - elapsedMs);
+  return p.timeBankMs;
+}
+
 function createGame(rng) {
   rng = rng || Math.random;
   var state = {
@@ -87,8 +100,8 @@ function createGame(rng) {
     rng: rng,
     log: [],
     players: {
-      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false },
-      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false }
+      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
+      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
     }
   };
 
@@ -541,5 +554,7 @@ function getWinner(state) {
   if (state.players.cpu.hasHadActive && !state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
   if (state.deckedOut === 'player') { return 'cpu'; }
   if (state.deckedOut === 'cpu') { return 'player'; }
+  if (state.players.player.timeBankMs <= 0) { return 'cpu'; }
+  if (state.players.cpu.timeBankMs <= 0) { return 'player'; }
   return null;
 }

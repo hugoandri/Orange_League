@@ -624,6 +624,32 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('all scripted games reached a winner', completed, GAMES);
 })();
 
+(function testCreateGameStartsWithDefaultTimeBank() {
+  var state = createGame(function () { return 0.42; });
+  check('player starts with the default time bank', state.players.player.timeBankMs, DEFAULT_TIME_BANK_MS);
+  check('cpu starts with the default time bank', state.players.cpu.timeBankMs, DEFAULT_TIME_BANK_MS);
+})();
+
+(function testTickClockDecrementsAndClampsAtZero() {
+  var state = createGame(function () { return 0.42; });
+  var remaining = tickClock(state, 'player', 1500);
+  check('tickClock returns the new remaining time', remaining, DEFAULT_TIME_BANK_MS - 1500);
+  check('tickClock only affects the given player', state.players.cpu.timeBankMs, DEFAULT_TIME_BANK_MS);
+  tickClock(state, 'player', DEFAULT_TIME_BANK_MS * 10);
+  check('tickClock clamps at 0 instead of going negative', state.players.player.timeBankMs, 0);
+})();
+
+(function testGetWinnerOnTimeOut() {
+  var state = createGame(function () { return 0.42; });
+  // Both players need an active Pokémon (see testDeckOutLoss above) so the
+  // "no active + empty bench" loss check doesn't fire spuriously here.
+  state.players.player.active = { id: 'pa1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.active = { id: 'ca1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  check('getWinner is null with full time banks', getWinner(state), null);
+  tickClock(state, 'cpu', DEFAULT_TIME_BANK_MS);
+  check('player wins when cpu runs out of time', getWinner(state), 'player');
+})();
+
 (function testComputeStageTransform() {
   // Elastic-width canvas: height always drives the scale, the stage's own
   // width grows to fill whatever real width that leaves (clamped to

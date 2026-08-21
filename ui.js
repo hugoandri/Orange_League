@@ -16,23 +16,20 @@ function layoutShellStages() {
 // Tracked separately from getWinner(gameState) because a surrender ends the
 // match without the underlying game state actually reaching a real win
 // condition (prizes emptied, etc.) -- this is the source of truth the
-// header result text and the Rendirse button's visibility read from.
+// match-end modal and finishMatch() read from.
 var matchWinner = null;
 
 function renderCoinCount() {
   if (!econState) { return; }
   var val = econState.coins;
-  document.getElementById('coin-count').textContent = val;
-  var floatEl = document.getElementById('coin-count-float');
-  if (floatEl) { floatEl.textContent = val; }
   var menuEl = document.getElementById('menuCoinCount');
   if (menuEl) { menuEl.innerHTML = pixelDigitsHtml(val, 'oro', 3); }
 }
 
-// Syncs every static "who am I" spot in the UI (menu widget, floating coin
-// display, shop/collection sidebars) to profileState -- the board's own
-// header re-reads profileState live via playerPhotoUrl()/playerDisplayName()
-// on its next render, so it doesn't need updating here.
+// Syncs every static "who am I" spot in the UI (menu widget, shop/collection
+// sidebars) to profileState -- the board's own profile footer re-reads
+// profileState live via playerPhotoUrl()/playerDisplayName() on its next
+// renderBoardActions(), so it doesn't need updating here.
 function renderProfile() {
   if (!profileState) { return; }
   var name = playerDisplayName();
@@ -42,11 +39,6 @@ function renderProfile() {
   if (menuNameEl) { menuNameEl.textContent = name; }
   var menuPhotoEl = document.getElementById('menuProfilePhoto');
   if (menuPhotoEl) { menuPhotoEl.src = photo; }
-
-  var floatNameEl = document.querySelector('.coin-float-name');
-  if (floatNameEl) { floatNameEl.textContent = name; }
-  var floatPhotoEl = document.querySelector('.coin-float-photo');
-  if (floatPhotoEl) { floatPhotoEl.src = photo; }
 
   document.querySelectorAll('.collection-profile-name').forEach(function (el) { el.textContent = name; });
   document.querySelectorAll('.collection-profile-photo').forEach(function (el) { el.src = photo; });
@@ -58,33 +50,6 @@ function renderProfile() {
   }
 }
 
-// Syncs the header's result text ("Ganaste"/"Perdiste") and the Rendirse
-// button's visibility to matchWinner -- called on every board render plus
-// right after finishMatch() sets it, so both stay consistent everywhere.
-function updateHeaderControls() {
-  var resultEl = document.getElementById('matchResult');
-  var surrenderBtn = document.getElementById('surrenderBtn');
-  resultEl.classList.remove('match-result-win', 'match-result-loss');
-  if (matchWinner) {
-    resultEl.textContent = matchWinner === 'player' ? 'Ganaste' : 'Perdiste';
-    resultEl.classList.add(matchWinner === 'player' ? 'match-result-win' : 'match-result-loss');
-    surrenderBtn.classList.add('hidden');
-  } else {
-    resultEl.textContent = '';
-    surrenderBtn.classList.remove('hidden');
-  }
-}
-
-var ENERGY_ICON = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '🥊', Colorless: '⚪' };
-
-var STATUS_EMOJI = { Asleep: '😴', Paralyzed: '⛓️', Poisoned: '☠️', Burned: '🔥', Confused: '😵' };
-
-function statusBadgeHtml(instance, flipped) {
-  if (!instance.statusConditions.length) { return ''; }
-  var cls = 'status-badge' + (flipped ? ' status-badge-bottom' : '');
-  return '<span class="' + cls + '" title="' + instance.statusConditions.map(translateStatus).join(', ') + '">' +
-    instance.statusConditions.map(function (s) { return STATUS_EMOJI[s] || ''; }).join('') + '</span>';
-}
 
 // Default profile photos (Perfil/) -- the player's own photo/name come from
 // profileState (economy.js) once signed in; these are the fallback until a
@@ -97,12 +62,6 @@ function playerPhotoUrl() {
 function playerDisplayName() {
   return (profileState && profileState.username) || 'Tú';
 }
-
-// Real Base Set-era card back. Originally hotlinked from Bulbapedia
-// (archives.bulbagarden.net) -- moved to a local copy (Cartas/Cardback.jpg)
-// because ad blockers commonly filter that domain, leaving the card back
-// invisible for a meaningful share of players.
-var CARD_BACK_URL = 'Cartas/Cardback.jpg';
 
 // Real card artwork, reused from the same catalog data that backs the
 // booster/collection feature (data-sets.js) -- every card in Overgrowth and
@@ -122,10 +81,10 @@ function escapeHtml(s) {
   });
 }
 
-// Colors each log line by whose side it's about -- yellow for the player,
-// orange for the CPU -- using the ownerId logEvent tagged it with
+// Colors each log line by whose side it's about -- green for the player,
+// red/orange for the CPU -- using the ownerId logEvent tagged it with
 // (rules-engine.js). Lines with no owner (coin flips, setup instructions)
-// render in the log panel's default color.
+// render in the log panel's default (neutral) color.
 function logHtml(s) {
   return s.log.slice(-30).map(function (entry) {
     var cls = entry.ownerId === 'player' ? 'log-line-player' : entry.ownerId === 'cpu' ? 'log-line-cpu' : 'log-line-neutral';
@@ -133,51 +92,133 @@ function logHtml(s) {
   }).join('');
 }
 
-// Small turn indicator next to each heading -- green when it's that side's
-// turn, red otherwise (including during setup, before startMatch() picks
-// who goes first: activePlayerId is null then, so neither side lights up).
-function turnLightHtml(s, ownerId) {
-  var on = s.activePlayerId === ownerId;
-  return '<span class="turn-light ' + (on ? 'turn-light-on' : 'turn-light-off') + '" title="' +
-    (on ? 'Su turno' : 'No es su turno') + '"></span>';
-}
-
 function cardImageTag(name, cls) {
   var url = CARD_IMAGE_BY_NAME[name];
   return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
 }
 
-// Attacks list for the quick-reference card viewer (its own white panel,
-// #card-viewer-panel, to the left of the dark Registro log) -- same
-// translated name/text/energy-cost display as attacksPanelHtml, but with no
-// canAttack/disabled state, since this is just a reference, not an action.
-function cardQuickRefAttacksHtml(name) {
-  var stats = CARD_STATS[name];
-  if (!stats || stats.supertype !== 'Pokémon' || !stats.attacks || !stats.attacks.length) { return ''; }
-  var html = '';
-  stats.attacks.forEach(function (atk) {
-    var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
-    var nameEs = translateAttackName(atk.name);
-    var textEs = translateAttackText(name, atk.name);
-    html += '<div class="attack-option">';
-    html += '<div><strong>' + escapeHtml(nameEs) + '</strong> [' + costLabel + '] · ' + (atk.damage || '0') + ' de daño</div>';
-    if (textEs) { html += '<div class="attack-effect-text">' + escapeHtml(textEs) + '</div>'; }
-    html += '</div>';
-  });
-  return html;
+// Real weakness/resistance/retreat-cost trio (data-cards.js), shown under
+// the attacks panel in the card viewer -- weaknesses/resistances are only
+// ever a single entry for these cards, matching the real Base Set prints.
+function viewerTrioHtml(stats) {
+  var weakness = stats.weaknesses && stats.weaknesses[0];
+  var resistance = stats.resistances && stats.resistances[0];
+  var retreatCost = stats.retreatCost || 0;
+  var weaknessHtml = (weakness && ENERGY_CARD_TYPE_ICON[weakness.type])
+    ? '<img src="Tipos/' + ENERGY_CARD_TYPE_ICON[weakness.type] + '.png" alt="">'
+    : '<div class="shell-board-viewer-trio-dash">—</div>';
+  var resistanceHtml = (resistance && ENERGY_CARD_TYPE_ICON[resistance.type])
+    ? '<img src="Tipos/' + ENERGY_CARD_TYPE_ICON[resistance.type] + '.png" alt="">'
+    : '<div class="shell-board-viewer-trio-dash">—</div>';
+  var retreatHtml = retreatCost > 0
+    ? '<div class="shell-board-viewer-trio-retreat"><img src="Tipos/incoloro.png" alt="">' + (retreatCost > 1 ? '<span>×' + retreatCost + '</span>' : '') + '</div>'
+    : '<div class="shell-board-viewer-trio-dash">—</div>';
+  return '<div class="shell-board-viewer-trio">' +
+    '<div class="shell-board-viewer-trio-box"><div class="shell-board-viewer-trio-label">DEBILIDAD</div>' + weaknessHtml + '</div>' +
+    '<div class="shell-board-viewer-trio-box"><div class="shell-board-viewer-trio-label">RESISTENCIA</div>' + resistanceHtml + '</div>' +
+    '<div class="shell-board-viewer-trio-box"><div class="shell-board-viewer-trio-label">RETIRADA</div>' + retreatHtml + '</div>' +
+    '</div>';
 }
 
-// Fills the quick-reference card viewer with a card's illustration plus
-// (for Pokémon) its attacks -- shown by clicking the card itself (hand or
-// board), instead of a separate magnify button/modal that would cover the
-// board.
-function showCardInViewer(name) {
+// 'BÁSICO' / 'ETAPA 1' / 'ETAPA 2', derived from the real evolvesFrom chain
+// (data-cards.js has no explicit stage field) -- every card actually used by
+// Overgrowth/Blackout only ever reaches Stage 1, but this stays correct for
+// any future deck that goes deeper.
+function pokemonStageLabel(name) {
+  var stats = CARD_STATS[name];
+  if (!stats || !stats.evolvesFrom) { return 'BÁSICO'; }
+  var prev = CARD_STATS[stats.evolvesFrom];
+  if (!prev || !prev.evolvesFrom) { return 'ETAPA 1'; }
+  return 'ETAPA 2';
+}
+
+// actionableState is the live gameState when these rows should be real,
+// clickable attack buttons (viewing your own current Active, during your
+// turn, no pending prize choice) -- null/undefined renders plain read-only
+// rows instead, used when inspecting any other card (hand, bench, rival's).
+function viewerAttacksHtml(name, actionableState) {
+  var stats = CARD_STATS[name];
+  if (!stats || stats.supertype !== 'Pokémon' || !stats.attacks || !stats.attacks.length) { return ''; }
+  var rows = stats.attacks.map(function (atk) {
+    var costHtml = atk.cost.map(function (c) {
+      var icon = ENERGY_CARD_TYPE_ICON[c];
+      return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
+    }).join('');
+    var nameEs = translateAttackName(atk.name);
+    var textEs = translateAttackText(name, atk.name);
+    var body = '<div class="shell-board-viewer-attack-cost">' + costHtml + '</div>' +
+      '<div class="shell-board-viewer-attack-body">' +
+        '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +
+        (textEs ? '<div class="shell-board-viewer-attack-text">' + escapeHtml(textEs) + '</div>' : '') +
+      '</div>' +
+      '<div class="shell-board-viewer-attack-damage">' + (atk.damage || '0') + '</div>';
+    if (actionableState) {
+      var can = canAttack(actionableState, 'player', atk.name);
+      return '<button type="button" class="shell-board-viewer-attack actionable" data-attack-name="' + escapeHtml(atk.name) + '"' + (can ? '' : ' disabled') + '>' + body + '</button>';
+    }
+    return '<div class="shell-board-viewer-attack">' + body + '</div>';
+  }).join('');
+  return '<div class="shell-board-viewer-attacks"><div class="shell-board-viewer-attacks-header">ATAQUES</div>' + rows + '</div>';
+}
+
+// Looks up a live battle instance by id on either side of the board (not
+// just one player's, unlike rules-engine.js's own findInstance) -- the
+// viewer needs this to show real current HP/energy/status for whichever
+// card was clicked, CPU's included.
+function findInstanceEitherSide(instanceId) {
+  if (!instanceId) { return null; }
+  return findInstance(gameState.players.player, instanceId) || findInstance(gameState.players.cpu, instanceId);
+}
+
+// Fills the card viewer (Column A) with a card's illustration, identity, and
+// (for Pokémon) its real attacks + weakness/resistance/retreat -- shown by
+// clicking the card itself (hand or board). Attack rows are only real,
+// clickable buttons when the card being viewed is the player's own current
+// Active during their own turn; otherwise this is a read-only reference,
+// same as it's always been for any card that isn't actionable.
+function showCardInViewer(name, instanceId) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
-  document.getElementById('cardViewer').innerHTML =
-    '<img class="card-viewer-img" src="' + url + '" alt="' + escapeHtml(name) + '">' +
-    '<div class="card-viewer-name">' + escapeHtml(translateCardName(name)) + '</div>' +
-    cardQuickRefAttacksHtml(name);
+  var stats = CARD_STATS[name];
+  var instance = findInstanceEitherSide(instanceId);
+  var isOwnActive = !!(instanceId && gameState.players.player.active && gameState.players.player.active.id === instanceId);
+  var pendingPlayerPrize = gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player';
+  var actionableState = (isOwnActive && gameState.phase === 'playing' && gameState.activePlayerId === 'player' && !pendingPlayerPrize) ? gameState : null;
+
+  var frameHtml = '<div class="shell-board-viewer-frame">' +
+    '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '"></div>' +
+    '<div class="shell-board-viewer-corner tl"></div><div class="shell-board-viewer-corner br"></div>' +
+    '</div>';
+
+  var bodyHtml;
+  if (stats && stats.supertype === 'Pokémon') {
+    var damage = instance ? instance.damage : 0;
+    var hp = stats.hp - damage;
+    var typeIcon = stats.types && ENERGY_CARD_TYPE_ICON[stats.types[0]];
+    var identityHtml = '<div class="shell-board-viewer-identity">' +
+      (typeIcon ? '<img src="Tipos/' + typeIcon + '.png" alt="">' : '') +
+      '<div class="shell-board-viewer-identity-name">' + escapeHtml(translateCardName(name)) + '</div>' +
+      '<div class="shell-board-viewer-identity-stage">' + pokemonStageLabel(name) + '</div>' +
+      '<div class="shell-board-viewer-identity-hp">' + hp + '<span>/' + stats.hp + '</span></div>' +
+      '</div>';
+    var statusHtml = (instance && instance.statusConditions.length)
+      ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(translateStatus).join(', ')) + '</div>'
+      : '';
+    bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + statusHtml + viewerTrioHtml(stats);
+  } else {
+    bodyHtml = '<div class="shell-board-viewer-identity"><div class="shell-board-viewer-identity-name">' + escapeHtml(translateCardName(name)) + '</div></div>';
+  }
+
+  document.getElementById('cardViewer').innerHTML = frameHtml + bodyHtml;
+
+  if (actionableState) {
+    document.querySelectorAll('#cardViewer .shell-board-viewer-attack.actionable').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var atkName = btn.getAttribute('data-attack-name');
+        if (canAttack(gameState, 'player', atkName)) { attack(gameState, 'player', atkName); afterPlayerAction(); }
+      });
+    });
+  }
 }
 
 // imgUrl is optional: some callers only have a bare card name (e.g. gameplay
@@ -272,202 +313,232 @@ function renderEnergyDiscardModal() {
   document.getElementById('energyDiscardConfirm').disabled = s.selected.length !== s.count;
 }
 
-// `flipped` renders the CPU's cards as if facing the player across a table:
-// name/HP/energy above the art (instead of below), and the art itself
-// rotated 180° -- text stays upright/readable, only the illustration flips.
-function pokemonCardHtml(instance, isActive, ownerClass, big, flipped) {
+function benchCardHtml(instance, mine) {
   var stats = CARD_STATS[instance.name];
-  var hpLine = (stats.hp - instance.damage) + '/' + stats.hp + ' HP';
-  var statusLine = instance.statusConditions.length ? ' [' + instance.statusConditions.map(translateStatus).join(', ') + ']' : '';
-  var cls = 'pokemon-card' + (isActive ? ' ' + ownerClass : '') + (big ? ' active-card' : '') + (flipped ? ' flipped' : '');
-  var infoHtml = '<strong>' + instance.name + '</strong><br>' + hpLine + statusLine +
-    '<br>Energía: ' + instance.attachedEnergy.map(function (e) { return ENERGY_ICON[e] || e; }).join(' ');
-  var imgHtml = cardImageTag(instance.name, 'card-thumb' + (flipped ? ' card-thumb-flipped' : ''));
-  var body = flipped ? (infoHtml + imgHtml) : (imgHtml + infoHtml);
-  return '<div class="' + cls + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' + statusBadgeHtml(instance, flipped) + body + '</div>';
+  var hp = stats.hp - instance.damage;
+  var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
+  var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
+    cardImageTag(instance.name, '') + '</div>';
+  var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
+  var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
+  return '<div class="shell-board-bench-slot">' + cardHtml + hpHtml + nameHtml + '</div>';
 }
 
-function activeSlotHtml(activeInstance, ownerClass, flipped) {
-  if (activeInstance) { return '<div class="active-row">' + pokemonCardHtml(activeInstance, true, ownerClass, true, flipped) + '</div>'; }
-  return '<div class="active-row"><div class="bench-slot active-slot-empty">Sin Activo</div></div>';
+function benchEmptyHtml(mine) {
+  var cls = 'shell-board-bench-empty' + (mine ? ' pickable' : '');
+  return '<div class="shell-board-bench-slot"><div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>BANCA</div></div>';
 }
 
-function benchSlotsHtml(bench, ownerId, flipped) {
-  var html = '<div class="bench-row">';
+function benchRowHtml(bench, mine) {
+  var html = '<div class="shell-board-bench-row">';
   for (var i = 0; i < 5; i++) {
-    if (bench[i]) {
-      html += pokemonCardHtml(bench[i], false, '', false, flipped);
-    } else if (ownerId === 'player') {
-      html += '<div class="bench-slot bench-slot-empty" data-owner="player">Vacío</div>';
-    } else {
-      html += '<div class="bench-slot">Vacío</div>';
-    }
+    html += bench[i] ? benchCardHtml(bench[i], mine) : benchEmptyHtml(mine);
   }
   html += '</div>';
   return html;
+}
+
+// `flipped` rotates the CPU's Active art 180° so it faces the player across
+// the table -- name plate and energy row stay upright/readable, only the
+// illustration flips (see .shell-board-active-card.flipped).
+function activeColHtml(activeInstance, mine, flipped) {
+  if (!activeInstance) {
+    return '<div class="shell-board-active-col"><div class="shell-board-active-empty">SIN ACTIVO</div></div>';
+  }
+  var stats = CARD_STATS[activeInstance.name];
+  var hp = stats.hp - activeInstance.damage;
+  var nameEs = escapeHtml(translateCardName(activeInstance.name));
+  var namePlate = '<div class="shell-board-active-name-plate' + (mine ? ' mine' : '') + '">' +
+    '<span class="name">' + nameEs + '</span><span class="hp">' + hp + '/' + stats.hp + '</span></div>';
+  var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
+    '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
+    cardImageTag(activeInstance.name, '') +
+    (activeInstance.damage > 0 ? '<div class="shell-board-active-damage">' + activeInstance.damage + '</div>' : '') +
+    '</div>';
+  var energiesHtml = '<div class="shell-board-active-energies">' +
+    activeInstance.attachedEnergy.map(function (e) {
+      var icon = ENERGY_CARD_TYPE_ICON[e];
+      return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
+    }).join('') +
+    '<div class="shell-board-active-energy-empty"></div></div>';
+  var statusHtml = activeInstance.statusConditions.length
+    ? '<div class="shell-board-active-status">' + escapeHtml(activeInstance.statusConditions.map(translateStatus).join(', ')) + '</div>' : '';
+  var order = mine ? (energiesHtml + cardHtml + namePlate) : (namePlate + cardHtml + energiesHtml);
+  return '<div class="shell-board-active-col">' + order + statusHtml + '</div>';
+}
+
+function sideHeaderHtml(ownerId) {
+  var mine = ownerId === 'player';
+  var name = mine ? escapeHtml(playerDisplayName()) : 'CPU';
+  var avatar = mine ? playerPhotoUrl() : PROFILE_PHOTO_URL.cpu;
+  var on = gameState.activePlayerId === ownerId;
+  return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
+    '<div class="shell-board-side-avatar"><img src="' + avatar + '" alt=""></div>' +
+    '<div class="shell-board-side-name">' + name + '</div>' +
+    '<div class="shell-board-side-led' + (on ? '' : ' off') + '"></div>' +
+    '</div>';
+}
+
+// Deck (always face-down, just a count) and Discard pile -- only the count
+// matters at a glance; the discard's actual cards are one click away (see
+// openDiscardPileModal). Both piles are plain textured boxes, no card-back
+// image, matching every other face-down surface on this board.
+function deckDiscardRowHtml(state, ownerId) {
+  var p = state.players[ownerId];
+  var mine = ownerId === 'player';
+  var discardCount = p.discard.length;
+  var deckArt = '<div class="shell-board-deckbox-art' + (mine ? ' mine' : '') + '"></div>';
+  var discardArt = discardCount > 0
+    ? '<div class="shell-board-deckbox-art' + (mine ? ' mine' : '') + '"></div>'
+    : '<div class="shell-board-deckbox-art empty"></div>';
+  return '<div class="shell-board-deckrow">' +
+    '<div class="shell-board-deckbox" title="Mazo">' + deckArt + '<div class="shell-board-deckbox-label">MAZO ' + p.deck.length + '</div></div>' +
+    '<div class="shell-board-deckbox' + (discardCount > 0 ? ' clickable' : '') + '"' +
+    (discardCount > 0 ? ' data-discard-owner="' + ownerId + '" title="Ver descarte"' : '') + '>' +
+    discardArt + '<div class="shell-board-deckbox-label' + (discardCount === 0 ? ' empty' : '') + '">DESC. ' + discardCount + '</div></div>' +
+    '</div>';
 }
 
 // Each prize is a specific, already-determined face-down card (set aside in
 // createGame). When the player has a pending choice (rules-engine.js's
 // state.pendingPrizeChoice), their own prize cards become clickable so they
 // pick which one to flip -- instead of it being auto-resolved.
-function prizeColumnHtml(state, ownerId) {
+function prizeGridHtml(state, ownerId) {
   var p = state.players[ownerId];
-  var choosable = ownerId === 'player' && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
-  var totalSlots = 6;
-  var html = '<div class="prize-column"><p class="prize-label">Premios (' + p.prizes.length + ')</p><div class="prize-grid">';
-  for (var i = 0; i < totalSlots; i++) {
+  var mine = ownerId === 'player';
+  var choosable = mine && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
+  var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + p.prizes.length + '</div><div class="shell-board-prize-grid">';
+  for (var i = 0; i < 6; i++) {
     if (i < p.prizes.length) {
-      var cls = 'prize-card' + (choosable ? ' prize-choosable' : '');
-      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
-        '<img src="' + CARD_BACK_URL + '" alt="Carta de premio boca abajo" loading="lazy"></div>';
+      var cls = 'shell-board-prize-card' + (mine ? ' mine' : '') + (choosable ? ' choosable' : '');
+      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '></div>';
     } else {
-      html += '<div class="prize-card prize-empty"></div>';
+      html += '<div class="shell-board-prize-card empty"></div>';
     }
   }
-  html += '</div></div>';
-  return html;
-}
-
-// Deck (always face-down, just a count) and Discard pile (face-down too --
-// only the count matters at a glance; the discard's actual cards are one
-// click away, see openDiscardPileModal). The CPU's sits beside its Bench
-// row (above its Active+Premios row); mine sits beside my own Mano row
-// instead (at hand height, below my Active+Premios row), both called from
-// renderBoard.
-function deckDiscardHtml(state, ownerId) {
-  var p = state.players[ownerId];
-  var discardCount = p.discard.length;
-  var html = '<div class="deck-discard-wrap">';
-  html += '<div class="deck-discard-pile" title="Mazo">' +
-    '<img src="' + CARD_BACK_URL + '" alt="Mazo" loading="lazy">' +
-    '<p class="pile-label">Mazo (' + p.deck.length + ')</p></div>';
-  html += '<div class="deck-discard-pile' + (discardCount > 0 ? ' discard-pile-clickable' : '') + '"' +
-    (discardCount > 0 ? ' data-discard-owner="' + ownerId + '" title="Ver descarte"' : '') + '>' +
-    (discardCount > 0 ? '<img src="' + CARD_BACK_URL + '" alt="Descarte" loading="lazy">' : '<div class="pile-empty">Vacío</div>') +
-    '<p class="pile-label">Descarte (' + discardCount + ')</p></div>';
   html += '</div>';
   return html;
 }
 
-function attacksPanelHtml(s) {
-  var p = s.players.player;
-  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
-  if (s.phase === 'setup' || pendingPlayerPrize || !p.active) { return ''; }
-  var html = '<div class="attacks-panel"><h4>Ataques</h4>';
-  (CARD_STATS[p.active.name].attacks || []).forEach(function (atk) {
-    var can = canAttack(s, 'player', atk.name);
-    var costLabel = atk.cost.map(function (c) { return ENERGY_ICON[c] || c; }).join(' ');
-    var nameEs = translateAttackName(atk.name);
-    var textEs = translateAttackText(p.active.name, atk.name);
-    html += '<div class="attack-option">';
-    html += '<button class="action-btn attack-btn" data-attack-name="' + atk.name + '"' + (can ? '' : ' disabled') + '>' +
-      escapeHtml(nameEs) + ' [' + costLabel + '] · ' + (atk.damage || '0') + ' de daño</button>';
-    if (textEs) { html += '<div class="attack-effect-text">' + escapeHtml(textEs) + '</div>'; }
-    html += '</div>';
-  });
-  html += '</div>';
-  return html;
+function cpuHandRowHtml(count) {
+  var cards = '';
+  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card">DORSO</div>'; }
+  return '<div class="shell-board-hand-cpu">' +
+    '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + count + '</span></div>' +
+    '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
+    '</div>';
 }
 
-function setupPanelHtml(s) {
-  if (s.phase !== 'setup') { return ''; }
-  var p = s.players.player;
-  return '<div class="attacks-panel setup-panel coin-flip-panel">' +
-    '<button class="action-btn" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 Lanzar moneda y comenzar</button></div>';
+function handCardTypeIcon(name) {
+  var stats = CARD_STATS[name];
+  if (!stats) { return null; }
+  if (stats.supertype === 'Energy') { return ENERGY_CARD_TYPE_ICON[name.replace(/ Energy$/, '')]; }
+  if (stats.supertype === 'Pokémon' && stats.types) { return ENERGY_CARD_TYPE_ICON[stats.types[0]]; }
+  return null;
 }
 
-// Left-slot controls during normal play: Retirar (above) then Terminar
-// turno (below) -- Retirar starts a "pick a Bench target" mode (see
-// wireBoardButtons' retreatMode), Terminar turno both ends the player's own
-// turn (if it's their turn) and lets the CPU actually take its turn (if
-// it's already the CPU's turn but hasn't moved yet) -- see afterPlayerAction.
-function playControlsHtml(s) {
-  if (s.phase !== 'playing') { return ''; }
-  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
-  if (pendingPlayerPrize) { return ''; }
+function handBandHtml(state) {
+  var p = state.players.player;
+  var cardsHtml = p.hand.map(function (card) {
+    // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
+    // can't be used until the match actually starts.
+    var disabled = state.phase === 'setup' && !isBasicPokemon(card.name);
+    var typeIcon = handCardTypeIcon(card.name);
+    return '<button type="button" class="shell-board-hand-card-wrap" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
+      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') +
+      (typeIcon ? '<img class="shell-board-hand-card-type" src="Tipos/' + typeIcon + '.png" alt="">' : '') +
+      '</div>' +
+      '<div class="shell-board-hand-card-name">' + escapeHtml(translateCardName(card.name)) + '</div>' +
+      '</button>';
+  }).join('');
+  return '<div class="shell-board-hand-band">' +
+    '<div class="shell-board-hand-header"><span>MANO · ' + p.hand.length + '</span><span class="shell-board-hand-header-rule"></span></div>' +
+    '<div class="shell-board-hand-cards">' + cardsHtml + '</div>' +
+    '</div>';
+}
+
+// Column A's lower half: setup's coin-flip button, or (during play) the
+// Retirada/Habilidad/Pasar turno grid, plus the player's own profile footer.
+// Habilidad stays visible but disabled -- there is no Pokémon Powers/
+// Abilities system in this game yet, only attacks/trainers/retreat/energy.
+function renderBoardActions() {
+  var s = gameState;
   var p = s.players.player;
-  var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
-  return '<div class="attacks-panel setup-panel">' +
-    '<button class="action-btn" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>Cambiar Pokémon</button><br>' +
-    '<button class="action-btn" id="endTurnBtn">Terminar turno</button></div>';
+  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  var html = '';
+
+  if (s.phase === 'setup') {
+    html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
+  } else if (s.phase === 'playing' && !pendingPlayerPrize) {
+    var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
+    html += '<div class="shell-board-actions"><div class="shell-board-actions-grid">' +
+      '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>RETIRADA</button>' +
+      '<button type="button" class="shell-board-action" disabled title="Próximamente">HABILIDAD</button>' +
+      '<button type="button" class="shell-board-action-gold" id="endTurnBtn">PASAR TURNO ▶</button>' +
+      '</div></div>';
+  }
+
+  html += '<div class="shell-board-viewer-footer">' +
+    '<div class="shell-board-viewer-footer-avatar"><img src="' + playerPhotoUrl() + '" alt=""></div>' +
+    '<div class="shell-board-viewer-footer-name">' + escapeHtml(playerDisplayName()) + '</div>' +
+    '<div class="shell-board-viewer-footer-coin-dot"></div>' +
+    '<div class="shell-board-viewer-footer-coin-value">' + (econState ? econState.coins : '--') + '</div>' +
+    '</div>';
+
+  document.getElementById('boardActions').innerHTML = html;
 }
 
 function renderBoard() {
   var s = gameState;
   var p = s.players.player;
   var c = s.players.cpu;
-  var html = '';
-  updateHeaderControls();
+
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
-  // same top-to-bottom order as if looking the same direction. The name
-  // photo and Premios column sit on the right of the board, at the height
-  // of that side's own Active row (a separate flex row from the Bench) so
-  // the rival's remaining prizes are always level with mine, easy to
-  // compare at a glance instead of sitting up by their Bench.
-  // CPU sidebar: deck/discard → prizes → profile/name (stacked vertically)
-  html += '<div class="side-row"><div class="side-board">';
-  html += '<div class="cpu-hand-row">';
-  for (var i = 0; i < c.hand.length; i++) {
-    html += '<div class="cpu-hand-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo" loading="lazy"></div>';
-  }
-  html += '</div>';
-  html += benchSlotsHtml(c.bench, 'cpu', true);
-  html += activeSlotHtml(c.active, 'active-cpu', true);
-  html += '</div><div class="cpu-sidebar">' +
-    deckDiscardHtml(s, 'cpu') +
-    '<div class="cpu-sidebar-gap"></div>' +
-    prizeColumnHtml(s, 'cpu') +
-    '<div class="cpu-sidebar-gap"></div>' +
-    '<h3 class="side-heading side-heading-cpu"><img class="profile-photo" src="' + PROFILE_PHOTO_URL.cpu + '" alt="">CPU' + turnLightHtml(s, 'cpu') + '</h3>' +
-    '</div></div>';
-
-  // Player Active + attacks
-  html += '<div class="side-row"><div class="side-board">';
-  html += '<div class="active-with-attacks">';
-  html += '<div class="side-slot">' + setupPanelHtml(s) + playControlsHtml(s) + '</div>';
-  html += '<div class="active-slot">' + activeSlotHtml(p.active, 'active-player') + '</div>';
-  html += '<div class="side-slot">' + attacksPanelHtml(s) + '</div>';
-  html += '</div></div>';
-  // Player sidebar: profile/name → prizes → deck/discard
-  html += '<div class="cpu-sidebar">' +
-    '<h3 class="side-heading side-heading-player"><img class="profile-photo" src="' + playerPhotoUrl() + '" alt="">' + escapeHtml(playerDisplayName()) + turnLightHtml(s, 'player') + '</h3>' +
-    '<div class="cpu-sidebar-gap"></div>' +
-    prizeColumnHtml(s, 'player') +
-    '<div class="cpu-sidebar-gap"></div>' +
-    deckDiscardHtml(s, 'player') +
-    '</div></div>';
-  // Player Bench (below active)
-  html += '<div class="side-row player-bench-row"><div class="side-board">';
-  html += benchSlotsHtml(p.bench, 'player');
-  html += '</div><div class="side-spacer"></div></div>';
+  // same top-to-bottom order as if looking the same direction.
+  var boardHtml = cpuHandRowHtml(c.hand.length) +
+    '<div class="shell-board-zone">' +
+    '<div class="shell-board-centerline"></div><div class="shell-board-centerline-diamond"></div>' +
+    benchRowHtml(c.bench, false) +
+    activeColHtml(c.active, false, true) +
+    activeColHtml(p.active, true, false) +
+    benchRowHtml(p.bench, true) +
+    '</div>';
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
-
   if (pendingPlayerPrize) {
-    html += '<div class="setup-panel"><p>¡Noqueaste un Pokémon! Elige una de tus cartas de premio (boca abajo, arriba) para tomarla.</p></div>';
-    document.getElementById('app').innerHTML = html;
-    document.getElementById('log').innerHTML = logHtml(s);
-    wireBoardButtons();
-    return;
+    boardHtml += '<div class="shell-board-prize-pending">¡Noqueaste un Pokémon! Elige una de tus cartas de premio para tomarla.</div>';
+  } else {
+    boardHtml += handBandHtml(s);
+  }
+  document.getElementById('app').innerHTML = boardHtml;
+
+  // Column C: CPU block (header → deck/discard → prizes) on top, mine
+  // (mirrored) on the bottom, sharing one flexible spacer -- this is what
+  // keeps both sides' prizes/actives level and comparable at a glance.
+  document.getElementById('boardSide').innerHTML =
+    sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu') + prizeGridHtml(s, 'cpu') +
+    '<div class="shell-board-side-spacer"></div>' +
+    prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player') + sideHeaderHtml('player');
+
+  renderBoardActions();
+  document.getElementById('log').innerHTML = logHtml(s);
+
+  document.getElementById('boardPhaseText').textContent = s.phase === 'setup' ? 'PREPARACIÓN' : 'FASE PRINCIPAL';
+  document.getElementById('boardTurnLabel').textContent = 'TURNO ' + s.turnCounter;
+  var turnValueEl = document.getElementById('boardTurnValue');
+  if (s.phase === 'setup') {
+    turnValueEl.textContent = 'PREPARANDO';
+    turnValueEl.classList.remove('cpu');
+  } else if (s.activePlayerId === 'player') {
+    turnValueEl.textContent = 'TU TURNO';
+    turnValueEl.classList.remove('cpu');
+  } else {
+    turnValueEl.textContent = 'TURNO DE LA CPU';
+    turnValueEl.classList.add('cpu');
   }
 
-  html += '<div class="side-row"><div class="side-board">';
-  html += '<h4>Mano</h4><div class="hand-row">';
-  p.hand.forEach(function (card) {
-    // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
-    // can't be used until the match actually starts.
-    var disabled = s.phase === 'setup' && !isBasicPokemon(card.name);
-    html += '<div class="hand-card-wrap">' +
-      '<button class="action-btn hand-card" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
-      cardImageTag(card.name, 'card-thumb-hand') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button></div>';
-  });
-  html += '</div></div></div>';
-
-  document.getElementById('app').innerHTML = html;
-  document.getElementById('log').innerHTML = logHtml(s);
   wireBoardButtons();
 }
 
@@ -488,15 +559,16 @@ function afterPlayerAction() {
 }
 
 // winner is 'player' or 'cpu' -- called both when getWinner(gameState)
-// finds a real win condition and when the player surrenders (see
-// surrenderConfirmBtn's handler), so it doesn't re-derive the winner from
-// game state itself. "Nueva partida" now lives in the header's Jugar
-// button (see tabBtnPlay's handler) instead of a button rendered here.
+// finds a real win condition (including running out of time -- see
+// tickGameClock) and when the player surrenders (see surrenderConfirmBtn's
+// handler), so it doesn't re-derive the winner from game state itself.
+// "Nueva partida" lives on matchEndReplayBtn instead of a button rendered here.
 function finishMatch(winner) {
   matchWinner = winner;
+  stopGameClock();
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
-  renderBoard(); // shows the final board state (last action's results); also syncs the header via updateHeaderControls()
+  renderBoard(); // shows the final board state (last action's results)
   var textEl = document.getElementById('matchEndText');
   textEl.textContent = winner === 'player' ? 'Has Ganado' : 'Has Perdido';
   textEl.classList.remove('win', 'loss');
@@ -505,7 +577,7 @@ function finishMatch(winner) {
 }
 
 function wireBoardButtons() {
-  var handButtons = document.querySelectorAll('.hand-card');
+  var handButtons = document.querySelectorAll('.shell-board-hand-card-wrap');
   var selectedHandId = null;
   var retreatMode = false;
   handButtons.forEach(function (btn) {
@@ -531,7 +603,7 @@ function wireBoardButtons() {
       // Placing your very first Basic Pokémon into an empty Active spot needs
       // no target (playBasic() ignores the target instance in that case) —
       // and when the board is completely empty (true game start), there is
-      // no .pokemon-card element on the page to click as a target anyway.
+      // no board card element on the page to click as a target anyway.
       // So complete the play immediately instead of waiting for a target click.
       if (p.active === null && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
         playBasic(gameState, 'player', handId);
@@ -543,19 +615,13 @@ function wireBoardButtons() {
     });
   });
 
-  var attackButtons = document.querySelectorAll('.attack-btn');
-  attackButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var name = btn.getAttribute('data-attack-name');
-      if (canAttack(gameState, 'player', name)) { attack(gameState, 'player', name); afterPlayerAction(); }
-    });
-  });
-
   var startMatchBtn = document.getElementById('startMatchBtn');
   if (startMatchBtn) {
     startMatchBtn.addEventListener('click', function () {
       if (gameState.phase === 'setup' && gameState.players.player.active) {
         startMatch(gameState);
+        startGameClock();
+        showCardInViewer(gameState.players.player.active.name, gameState.players.player.active.id);
         // If the coin flip hands the CPU the opening turn, there's no turn
         // of mine being cut short here to review -- so, same as ending my
         // own turn, let it play immediately instead of sitting idle until
@@ -587,7 +653,7 @@ function wireBoardButtons() {
 
   // "Retirar" starts a target-selection mode instead of listing one button
   // per Bench Pokémon: click Retirar, then click the Bench Pokémon (below)
-  // you want to swap in -- handled by the shared .pokemon-card handler.
+  // you want to swap in -- handled by the shared bench/active card handler.
   var retreatBtn = document.getElementById('retreatBtn');
   if (retreatBtn) {
     retreatBtn.addEventListener('click', function () {
@@ -596,10 +662,10 @@ function wireBoardButtons() {
     });
   }
 
-  document.querySelectorAll('.pokemon-card').forEach(function (el) {
+  document.querySelectorAll('.shell-board-bench-card, .shell-board-active-card').forEach(function (el) {
     el.addEventListener('click', function () {
-      showCardInViewer(el.getAttribute('data-card-name'));
       var instanceId = el.getAttribute('data-instance-id');
+      showCardInViewer(el.getAttribute('data-card-name'), instanceId);
       if (retreatMode) {
         retreatMode = false;
         if (canRetreat(gameState, 'player', instanceId)) {
@@ -656,7 +722,7 @@ function wireBoardButtons() {
   // exact position" beyond that), but letting the player pick the slot they
   // click on -- instead of having to click their own Active as a stand-in
   // target -- is the intuitive way to choose where a Basic goes.
-  document.querySelectorAll('.bench-slot-empty').forEach(function (el) {
+  document.querySelectorAll('.shell-board-bench-empty.pickable').forEach(function (el) {
     el.addEventListener('click', function () {
       if (!selectedHandId) { return; }
       var p = gameState.players.player;
@@ -670,7 +736,7 @@ function wireBoardButtons() {
     });
   });
 
-  document.querySelectorAll('.prize-choosable').forEach(function (el) {
+  document.querySelectorAll('.shell-board-prize-card.choosable').forEach(function (el) {
     el.addEventListener('click', function () {
       var index = parseInt(el.getAttribute('data-prize-index'), 10);
       var wonCard = gameState.players.player.prizes[index];
@@ -683,19 +749,75 @@ function wireBoardButtons() {
     });
   });
 
-  document.querySelectorAll('.discard-pile-clickable').forEach(function (el) {
+  document.querySelectorAll('.shell-board-deckbox.clickable').forEach(function (el) {
     el.addEventListener('click', function () {
       openDiscardPileModal(el.getAttribute('data-discard-owner'));
     });
   });
 }
 
+// ── Chess clock (both players, real time bank) ──────────────────────
+// The engine (rules-engine.js) stays pure/deterministic: it only knows how
+// to subtract an elapsed duration (tickClock) and treat a depleted bank as
+// a loss (getWinner). Real wall-clock timing lives here.
+var CLOCK_TICK_MS = 250;
+var clockIntervalId = null;
+var clockLastTickAt = null;
+
+function formatClockMs(ms) {
+  var totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  var m = Math.floor(totalSeconds / 60);
+  var sec = totalSeconds % 60;
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function renderClocks() {
+  var s = gameState;
+  var el = document.getElementById('boardClock');
+  if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
+  var activeId = s.activePlayerId;
+  var remaining = s.players[activeId].timeBankMs;
+  el.textContent = formatClockMs(remaining);
+  el.classList.toggle('cpu', activeId === 'cpu');
+  el.classList.toggle('low', remaining <= 30000);
+}
+
+function tickGameClock() {
+  if (!gameState || gameState.phase !== 'playing' || !gameState.activePlayerId) { return; }
+  var now = Date.now();
+  var elapsed = clockLastTickAt ? (now - clockLastTickAt) : 0;
+  clockLastTickAt = now;
+  tickClock(gameState, gameState.activePlayerId, elapsed);
+  renderClocks();
+  var winner = getWinner(gameState);
+  if (winner) { finishMatch(winner); }
+}
+
+function startGameClock() {
+  stopGameClock();
+  clockLastTickAt = Date.now();
+  clockIntervalId = setInterval(tickGameClock, CLOCK_TICK_MS);
+  renderClocks();
+}
+
+function stopGameClock() {
+  if (clockIntervalId) { clearInterval(clockIntervalId); clockIntervalId = null; }
+  clockLastTickAt = null;
+}
+
 function startNewMatch() {
   matchWinner = null;
+  stopGameClock();
   document.getElementById('matchEndModal').classList.add('hidden');
   gameState = createGame(Math.random);
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
+  // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
+  // the clock display is reset here directly -- otherwise it would keep
+  // showing whatever the previous match's clock last read.
+  var clockEl = document.getElementById('boardClock');
+  clockEl.textContent = formatClockMs(DEFAULT_TIME_BANK_MS);
+  clockEl.classList.remove('cpu', 'low');
   renderBoard();
 }
 
@@ -1101,9 +1223,6 @@ function hideDecksScreen() {
 // ── Theme ──────────────────────────────────────────────────────────
 function applyTheme(dark) {
   document.body.classList.toggle('light', !dark);
-  var icon = dark ? '🌙' : '☀️';
-  var t1 = document.getElementById('themeToggle');
-  if (t1) { t1.textContent = icon; }
   var t2 = document.getElementById('configThemeSelect');
   if (t2) { t2.value = dark ? 'dark' : 'light'; }
   try { localStorage.setItem('tcg_theme', dark ? 'dark' : 'light'); } catch (e) {}
@@ -1119,6 +1238,22 @@ function showMenu() {
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
+}
+
+// ── Tablero de duelo ──────────────────────────────────────────────
+function showBoardScreen() {
+  document.getElementById('boardScreen').classList.remove('hidden');
+}
+function hideBoardScreen() {
+  document.getElementById('boardScreen').classList.add('hidden');
+  stopGameClock();
+}
+
+// Restarts the chess clock after anything that covers the board (pause,
+// Configuración, the surrender confirm) closes back to a live match --
+// never while setup/game-over, so it can't resurrect a finished match's clock.
+function resumeGameClockIfNeeded() {
+  if (gameState && gameState.phase === 'playing' && !getWinner(gameState)) { startGameClock(); }
 }
 
 function initMenuParticles() {
@@ -1178,6 +1313,7 @@ function hideConfigScreen() {
 }
 
 function openPauseMenu() {
+  stopGameClock();
   document.getElementById('pauseModal').classList.remove('hidden');
 }
 function closePauseMenu() {
@@ -1203,7 +1339,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // Menu buttons
   document.getElementById('menuPlay').addEventListener('click', function () {
     hideMenu();
-    switchTab('play');
+    showBoardScreen();
+    startNewMatch();
   });
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();
@@ -1250,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('configBackBtn').addEventListener('click', function () {
     hideConfigScreen();
-    if (configReturnTo === 'menu') { showMenu(); }
+    if (configReturnTo === 'menu') { showMenu(); } else { resumeGameClockIfNeeded(); }
   });
 
   initConfigSliders();
@@ -1280,13 +1417,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('menuLogoutBtn').click();
   });
 
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-  // Tab buttons
-  document.getElementById('tabBtnMenu').addEventListener('click', showMenu);
-  document.getElementById('tabBtnPlay').addEventListener('click', function () { switchTab('play'); });
-  document.getElementById('tabBtnShop').addEventListener('click', function () { showShopScreen('game'); });
-  document.getElementById('tabBtnCollection').addEventListener('click', function () { showCollectionScreen('game'); });
+  document.getElementById('boardBackBtn').addEventListener('click', openPauseMenu);
+  document.getElementById('boardCloseBtn').addEventListener('click', function () {
+    stopGameClock();
+    showConfigScreen('game');
+  });
 
   document.getElementById('shopBackBtn').addEventListener('click', function () {
     hideShopScreen();
@@ -1309,14 +1444,13 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
 
-  document.getElementById('surrenderBtn').addEventListener('click', function () {
-    document.getElementById('surrenderModal').classList.remove('hidden');
-  });
   document.getElementById('surrenderCancelBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
+    resumeGameClockIfNeeded();
   });
   document.querySelector('#surrenderModal .card-modal-backdrop').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
+    resumeGameClockIfNeeded();
   });
   document.getElementById('surrenderConfirmBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
@@ -1340,6 +1474,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
+    hideBoardScreen();
     showMenu();
   });
   document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
@@ -1363,31 +1498,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (boosterResultSetKey) { openBoosterSelectModal(boosterResultSetKey); }
   });
 
-  // Music
-  document.getElementById('musicToggle').addEventListener('click', function () {
-    var audio = document.getElementById('bgMusic');
-    if (audio.paused) {
-      audio.play();
-      this.textContent = '🔊 Música';
-    } else {
-      audio.pause();
-      this.textContent = '🔈 Música';
-    }
-  });
-
-  // Pause menu (ESC)
+  // Pause menu (ESC) -- only while the board screen is actually visible.
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      var panelPlay = document.getElementById('panelPlay');
-      if (!panelPlay.classList.contains('active')) { return; }
+      if (document.getElementById('boardScreen').classList.contains('hidden')) { return; }
       if (!document.getElementById('pauseModal').classList.contains('hidden')) {
         closePauseMenu();
+        resumeGameClockIfNeeded();
       } else {
         openPauseMenu();
       }
     }
   });
-  document.getElementById('pauseResume').addEventListener('click', closePauseMenu);
+  document.getElementById('pauseResume').addEventListener('click', function () {
+    closePauseMenu();
+    resumeGameClockIfNeeded();
+  });
   document.getElementById('pauseConfig').addEventListener('click', function () {
     closePauseMenu();
     showConfigScreen('game');
@@ -1408,24 +1534,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseExit').addEventListener('click', function () {
     closePauseMenu();
+    hideBoardScreen();
     showMenu();
   });
 });
-
-function switchTab(tab) {
-  var tabs = { play: 'tabBtnPlay' };
-  var panels = { play: 'panelPlay' };
-  Object.keys(tabs).forEach(function (key) {
-    document.getElementById(tabs[key]).classList.toggle('active', key === tab);
-    document.getElementById(panels[key]).classList.toggle('active', key === tab);
-  });
-  var header = document.querySelector('header.top');
-  var coinFloat = document.getElementById('coinFloat');
-  header.style.display = 'none';
-  if (tab === 'play') {
-    if (coinFloat) { coinFloat.style.display = ''; }
-    startNewMatch();
-  } else {
-    if (coinFloat) { coinFloat.style.display = 'none'; }
-  }
-}

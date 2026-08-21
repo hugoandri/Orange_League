@@ -339,44 +339,73 @@
     </div>
   </div>
 
-  <!-- ===== HEADER (game) ===== -->
-  <header class="top">
-    <h1>Pokémon TCG Simulador</h1>
-    <span id="matchResult" class="match-result"></span>
-    <div id="coin-display">Monedas: <span id="coin-count">--</span></div>
-    <button type="button" id="themeToggle" class="action-btn">🌙</button>
-    <button type="button" id="musicToggle" class="action-btn">🔈 Música</button>
-    <nav class="tabs">
-      <button type="button" id="tabBtnMenu" class="action-btn">Menú</button>
-      <button type="button" id="tabBtnPlay" class="active">Jugar</button>
-      <button type="button" id="tabBtnShop">Tienda</button>
-      <button type="button" id="tabBtnCollection">Colección</button>
-      <button type="button" id="surrenderBtn" class="action-btn">Rendirse</button>
-    </nav>
-  </header>
-
   <audio id="bgMusic" src="Songs/YGO-Free%20Duel.mp3" loop preload="none"></audio>
 
-  <div id="coinFloat" class="coin-float" style="display:none;">
-    <img class="coin-float-photo" src="Perfil/Jugador.jpg" alt="">
-    <span class="coin-float-name">Jugador</span>
-    <span class="coin-float-coins">Monedas: <span id="coin-count-float">--</span></span>
-  </div>
+  <!-- ===== TABLERO DE DUELO ===== -->
+  <div id="boardScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="boardStage">
+        <div class="shell-stage-overlay"></div>
 
-  <main>
-    <section id="panelPlay" class="tab-panel active play-layout">
-      <aside id="card-viewer-panel">
-        <div id="cardViewer" class="card-viewer">
-          <p class="card-viewer-placeholder">Toca una carta para verla aquí.</p>
+        <div class="shell-board-page">
+          <div class="shell-board-header">
+            <button type="button" class="shell-board-back" id="boardBackBtn" title="Pausa">◀</button>
+            <div class="shell-board-phase-pill">
+              <span class="shell-board-phase-led"></span>
+              <span class="shell-board-phase-text" id="boardPhaseText">FASE PRINCIPAL</span>
+            </div>
+            <div class="shell-board-spacer"></div>
+            <div class="shell-board-turn-plate">
+              <span class="shell-board-turn-label" id="boardTurnLabel">TURNO 1</span>
+              <span class="shell-board-turn-divider"></span>
+              <span class="shell-board-turn-value" id="boardTurnValue">TU TURNO</span>
+            </div>
+            <div class="shell-board-spacer"></div>
+            <div class="shell-board-clock" id="boardClock">10:00</div>
+            <button type="button" class="shell-board-close" id="boardCloseBtn" title="Configuración">✕</button>
+          </div>
+
+          <div class="shell-board-body">
+
+            <!-- A · VISOR DE CARTA -->
+            <div class="shell-board-viewer">
+              <div class="shell-board-viewer-kicker">
+                <span class="shell-board-viewer-kicker-dot"></span>
+                <span>CARTA SELECCIONADA</span>
+              </div>
+              <div id="cardViewer" class="shell-board-viewer-scroll">
+                <div class="shell-board-viewer-placeholder">Toca una carta para verla aquí.</div>
+              </div>
+              <div id="boardActions"></div>
+            </div>
+
+            <!-- B · TABLERO -->
+            <div class="shell-board-table-wrap">
+              <div class="shell-board-table-bg">
+                <div class="shell-board-table-plane"></div>
+                <div class="shell-board-table-veil"></div>
+              </div>
+              <div id="app">Cargando...</div>
+            </div>
+
+            <!-- C · PREMIOS Y MAZOS -->
+            <div id="boardSide" class="shell-board-side"></div>
+
+            <!-- D · REGISTRO -->
+            <div class="shell-board-log">
+              <div class="shell-board-log-panel">
+                <div class="shell-board-log-header">
+                  <span class="shell-board-log-dot"></span>
+                  <span>REGISTRO</span>
+                </div>
+                <div id="log" class="shell-board-log-body"></div>
+              </div>
+            </div>
+          </div>
         </div>
-      </aside>
-      <div id="app">Cargando...</div>
-      <aside id="log-panel">
-        <h4>Registro</h4>
-        <pre id="log"></pre>
-      </aside>
-    </section>
-  </main>
+      </div>
+    </div>
+  </div>
 
   <div id="cardModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
