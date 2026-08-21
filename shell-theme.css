@@ -60,7 +60,7 @@
 /* News panel -- replaces the old key-art image slot. Real content (a
    feed), not decorative art; see ui.js renderNewsPanel() for the data. */
 .shell-news-panel{
-  position:absolute;right:304px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
+  position:absolute;right:336px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
   background:
     repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
     linear-gradient(180deg,#3a342c,#221e19);
