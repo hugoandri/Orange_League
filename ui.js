@@ -800,20 +800,116 @@ function renderShopScreen() {
   });
 }
 
-function renderCollection() {
-  if (!econState) { document.getElementById('collectionStats').innerHTML = '<div>Cargando…</div>'; return; }
-  var total = 0, owned = 0;
+// Tracks where the collection screen was opened from, mirroring shopReturnTo.
+var collectionReturnTo = 'menu';
+var collectionFilters = { search: '', rarity: null };
+
+var COLLECTION_RARITIES = [
+  { key: 'Common', label: 'COMÚN', color: '#8dff62' },
+  { key: 'Uncommon', label: 'INFRECUENTE', color: '#8dff62' },
+  { key: 'Rare', label: 'RARA', color: '#e8c46a' },
+  { key: 'Rare Holo', label: 'HOLOGRÁFICA', color: '#ff8a72' }
+];
+
+function showCollectionScreen(returnTo) {
+  collectionReturnTo = returnTo;
+  collectionFilters = { search: '', rarity: null };
+  var searchInput = document.getElementById('collectionSearch');
+  if (searchInput) { searchInput.value = ''; }
+  document.getElementById('collectionScreen').classList.remove('hidden');
+  renderCollectionScreen();
+}
+
+function hideCollectionScreen() {
+  document.getElementById('collectionScreen').classList.add('hidden');
+}
+
+// Flattens the 3-set catalog into one list, joined with real owned counts.
+function collectionAllCards() {
+  var all = [];
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+    var setTotal = CARD_CATALOG[setKey].length;
     CARD_CATALOG[setKey].forEach(function (c) {
-      total++;
       var key = setKey + '-' + c.num;
-      if ((econState.collection[key] || 0) > 0) { owned++; }
+      all.push({
+        setKey: setKey, setTotal: setTotal, num: c.num, name: c.n, rarity: c.r, img: c.img,
+        count: (econState.collection[key] || 0)
+      });
     });
   });
-  document.getElementById('collectionStats').innerHTML =
-    '<div>' + owned + ' / ' + total + ' cartas</div>' +
-    '<div>' + Math.round(owned / total * 100) + '% completado</div>';
-  renderCollectionOwned();
+  return all;
+}
+
+// Builds the header progress bar, the rarity filter list (with real owned/
+// total per rarity), and the real duplicates count. Called once per
+// screen-open; the grid itself (renderCollectionGrid) re-renders on every
+// filter change without rebuilding any of this.
+function renderCollectionScreen() {
+  if (!econState) { return; }
+  var all = collectionAllCards();
+  var owned = all.filter(function (c) { return c.count > 0; });
+
+  var pct = all.length ? Math.round(owned.length / all.length * 100) : 0;
+  document.getElementById('collectionProgressFill').style.width = pct + '%';
+  document.getElementById('collectionProgressCount').innerHTML =
+    pixelDigitsHtml(owned.length, 'fosforo', 2) +
+    '<span class="shell-collection-progress-total">/' + all.length + '</span>';
+
+  var rarityHtml = COLLECTION_RARITIES.map(function (r) {
+    var ofThisRarity = all.filter(function (c) { return c.rarity === r.key; });
+    var ownedOfThisRarity = ofThisRarity.filter(function (c) { return c.count > 0; }).length;
+    var active = collectionFilters.rarity === r.key;
+    return '<button type="button" class="shell-collection-rarity-row' + (active ? ' active' : '') + '" data-rarity="' + r.key + '">' +
+      '<span class="shell-collection-rarity-name">' + r.label + '</span>' +
+      '<span class="shell-collection-rarity-count" style="color:' + r.color + ';">' + ownedOfThisRarity + '/' + ofThisRarity.length + '</span>' +
+      '</button>';
+  }).join('');
+  document.getElementById('collectionRarityList').innerHTML = rarityHtml;
+  document.querySelectorAll('.shell-collection-rarity-row').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var r = btn.getAttribute('data-rarity');
+      collectionFilters.rarity = collectionFilters.rarity === r ? null : r;
+      renderCollectionScreen();
+    });
+  });
+
+  var dupCount = owned.reduce(function (sum, c) { return sum + Math.max(0, c.count - 1); }, 0);
+  document.getElementById('collectionDuplicates').innerHTML = pixelDigitsHtml(dupCount, 'oro', 3);
+
+  renderCollectionGrid(all);
+}
+
+function renderCollectionGrid(all) {
+  all = all || collectionAllCards();
+  var search = collectionFilters.search;
+  var rarity = collectionFilters.rarity;
+  var filtered = all.filter(function (c) {
+    if (rarity && c.rarity !== rarity) { return false; }
+    if (search && translateCardName(c.name).toLowerCase().indexOf(search) === -1) { return false; }
+    return true;
+  });
+
+  var html = filtered.map(function (c) {
+    var owned = c.count > 0;
+    var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
+    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + '" data-card-name="' + escapeHtml(c.name) + '">' +
+      '<div class="shell-collection-cell-art">' +
+        (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
+        (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
+      '</div>' +
+      '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
+      '</div>';
+  }).join('');
+
+  var grid = document.getElementById('collectionGrid');
+  grid.innerHTML = html || '<div class="shell-collection-empty">SIN RESULTADOS</div>';
+
+  grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      if (name) { openCardModal(name); }
+    });
+  });
 }
 
 function openBoosterSelectModal(setKey) {
@@ -918,45 +1014,6 @@ function showBoosterResult(cards, setKey) {
   });
 }
 
-function renderCollectionCards(filter) {
-  if (!econState) { return; }
-  var html = '';
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
-    var cards = [];
-    CARD_CATALOG[setKey].forEach(function (c) {
-      var key = setKey + '-' + c.num;
-      var count = econState.collection[key] || 0;
-      if (filter === 'owned' && count === 0) { return; }
-      cards.push({ c: c, count: count });
-    });
-    if (cards.length === 0 && filter === 'owned') { return; }
-    html += '<h4>' + setKey.charAt(0).toUpperCase() + setKey.slice(1) + ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.75rem;">(' + cards.length + ')</span></h4><div class="collection-grid">';
-    cards.forEach(function (item) {
-      var url = item.c.img || '';
-      var countCls = item.count > 0 ? '' : ' zero';
-      html += '<div class="collection-card" data-card-name="' + escapeHtml(item.c.n) + '">' +
-        (url ? '<img src="' + url + '" alt="' + escapeHtml(item.c.n) + '" loading="lazy">' : '') +
-        '<div class="collection-card-name">' + escapeHtml(translateCardName(item.c.n)) + '</div>' +
-        '<div class="collection-card-count' + countCls + '">x' + item.count + '</div>' +
-        '</div>';
-    });
-    html += '</div>';
-  });
-  if (!html) {
-    html = '<p style="color:var(--ink-soft);padding:20px;text-align:center;">Aún no tenés cartas. ¡Comprá sobres en la Tienda!</p>';
-  }
-  document.getElementById('collection-content').innerHTML = html;
-
-  document.querySelectorAll('#collection-content .collection-card').forEach(function (el) {
-    el.addEventListener('click', function () {
-      var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name); }
-    });
-  });
-}
-
-function renderCollectionOwned() { renderCollectionCards('owned'); }
-function renderCollectionAll() { renderCollectionCards('all'); }
 
 // ── Theme ──────────────────────────────────────────────────────────
 function applyTheme(dark) {
@@ -1135,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('menuCollection').addEventListener('click', function () {
     hideMenu();
-    switchTab('collection');
+    showCollectionScreen('menu');
   });
   document.getElementById('menuConfig').addEventListener('click', function () {
     openConfigModal();
@@ -1213,30 +1270,24 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
-  // Collection sidebar
-  document.getElementById('navOwned').addEventListener('click', function () {
-    document.getElementById('navOwned').classList.add('active');
-    document.getElementById('navAll').classList.remove('active');
-    renderCollectionOwned();
-  });
-  document.getElementById('navAll').addEventListener('click', function () {
-    document.getElementById('navAll').classList.add('active');
-    document.getElementById('navOwned').classList.remove('active');
-    renderCollectionAll();
-  });
-  document.getElementById('navExit').addEventListener('click', function () {
-    showMenu();
-  });
-
   // Tab buttons
   document.getElementById('tabBtnMenu').addEventListener('click', showMenu);
   document.getElementById('tabBtnPlay').addEventListener('click', function () { switchTab('play'); });
   document.getElementById('tabBtnShop').addEventListener('click', function () { showShopScreen('game'); });
-  document.getElementById('tabBtnCollection').addEventListener('click', function () { switchTab('collection'); });
+  document.getElementById('tabBtnCollection').addEventListener('click', function () { showCollectionScreen('game'); });
 
   document.getElementById('shopBackBtn').addEventListener('click', function () {
     hideShopScreen();
     if (shopReturnTo === 'menu') { showMenu(); }
+  });
+
+  document.getElementById('collectionBackBtn').addEventListener('click', function () {
+    hideCollectionScreen();
+    if (collectionReturnTo === 'menu') { showMenu(); }
+  });
+  document.getElementById('collectionSearch').addEventListener('input', function () {
+    collectionFilters.search = this.value.trim().toLowerCase();
+    renderCollectionGrid();
   });
 
   // ── Modals ───────────────────────────────────────────────────────
@@ -1277,7 +1328,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
-    switchTab('collection');
     showMenu();
   });
   document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
@@ -1292,15 +1342,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // Booster result modal
   document.getElementById('boosterResultClose').addEventListener('click', function () {
     document.getElementById('boosterResultModal').classList.add('hidden');
-    renderCollection();
   });
   document.querySelector('#boosterResultModal .card-modal-backdrop').addEventListener('click', function () {
     document.getElementById('boosterResultModal').classList.add('hidden');
-    renderCollection();
   });
   document.getElementById('boosterResultAgain').addEventListener('click', function () {
     document.getElementById('boosterResultModal').classList.add('hidden');
-    renderCollection();
     if (boosterResultSetKey) { openBoosterSelectModal(boosterResultSetKey); }
   });
 
@@ -1349,14 +1396,13 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseExit').addEventListener('click', function () {
     closePauseMenu();
-    switchTab('collection');
     showMenu();
   });
 });
 
 function switchTab(tab) {
-  var tabs = { play: 'tabBtnPlay', collection: 'tabBtnCollection' };
-  var panels = { play: 'panelPlay', collection: 'panelCollection' };
+  var tabs = { play: 'tabBtnPlay' };
+  var panels = { play: 'panelPlay' };
   Object.keys(tabs).forEach(function (key) {
     document.getElementById(tabs[key]).classList.toggle('active', key === tab);
     document.getElementById(panels[key]).classList.toggle('active', key === tab);
@@ -1370,5 +1416,4 @@ function switchTab(tab) {
   } else {
     if (coinFloat) { coinFloat.style.display = 'none'; }
   }
-  if (tab === 'collection') { renderCollection(); }
 }

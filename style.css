@@ -48,6 +48,10 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #shopScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+#collectionScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#collectionScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
 /* ===================== HEADER ===================== */
 header.top{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:12px 20px;
   background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap;}
@@ -217,7 +221,7 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
 /* ===================== MODALS ===================== */
 .card-modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;}
 .card-modal.hidden{display:none;}
-#cardModal{z-index:120;}
+#cardModal{z-index:210;}
 #configModal{z-index:210;}
 #editProfileModal{z-index:210;}
 #boosterSelectModal{z-index:210;}
@@ -242,44 +246,6 @@ button.action-btn:hover{border-color:var(--primary);color:var(--primary);}
   gap:8px;max-height:60vh;overflow-y:auto;width:100%;}
 .discard-pile-card{text-align:center;font-size:0.65rem;}
 .discard-pile-card img{width:100%;border-radius:6px;display:block;margin-bottom:2px;}
-
-/* ===================== COLLECTION ===================== */
-#panelCollection{padding:0;}
-#panelCollection.active{overflow:hidden;}
-.collection-layout{display:flex;height:100%;}
-.collection-sidebar{flex:0 0 180px;background:var(--panel);border-right:1px solid var(--border);
-  padding:16px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;}
-.collection-sidebar h4{margin:0 0 8px;font-family:'Sora',sans-serif;font-weight:700;
-  font-size:0.85rem;color:var(--ink);}
-.collection-nav{display:block;width:100%;text-align:left;padding:10px 12px;border:1px solid transparent;
-  border-radius:8px;background:transparent;color:var(--ink-soft);font-size:0.8rem;font-weight:600;
-  cursor:pointer;transition:all 0.15s ease;}
-.collection-nav:hover{color:var(--ink);background:var(--primary-soft);}
-.collection-nav.active{background:var(--primary);color:#fff;border-color:var(--primary);}
-.collection-nav-exit{color:var(--destructive);margin-top:8px;border-top:1px solid var(--border);padding-top:12px;border-radius:0;}
-.collection-nav-exit:hover{background:rgba(212,9,36,0.1);color:var(--destructive);}
-.collection-profile{display:flex;align-items:center;gap:10px;margin-top:auto;
-  padding-top:12px;border-top:1px solid var(--border);}
-.collection-profile-photo{width:36px;height:36px;border-radius:50%;object-fit:cover;
-  border:2px solid var(--primary);}
-.collection-profile-name{font-weight:700;font-size:0.85rem;color:var(--ink);}
-.collection-stats{padding-top:8px;font-size:0.72rem;color:var(--ink-soft);line-height:1.6;}
-.collection-content{flex:1;min-width:0;overflow-y:auto;}
-#collection-view{padding:0 16px 16px;}
-#collection-view h4{font-family:'Sora',sans-serif;font-weight:700;margin:16px 0 8px;
-  color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;font-size:0.85rem;}
-.collection-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;}
-.collection-card{position:relative;border:1px solid var(--border);border-radius:8px;
-  overflow:hidden;background:var(--card-bg);text-align:center;cursor:pointer;
-  transition:all 0.15s ease;}
-.collection-card:hover{border-color:var(--primary);transform:scale(1.03);
-  box-shadow:0 4px 12px rgba(81,110,255,0.12);}
-.collection-card img{width:100%;display:block;border-radius:6px 6px 0 0;}
-.collection-card-name{font-size:0.65rem;color:var(--ink-soft);padding:4px 4px 2px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.collection-card-count{font-family:'Sora',sans-serif;font-weight:700;font-size:0.75rem;
-  color:var(--primary);padding-bottom:4px;}
-.collection-card-count.zero{color:var(--ink-muted);}
 
 
 /* ===================== PAUSE MENU ===================== */

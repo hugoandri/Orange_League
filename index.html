@@ -280,6 +280,50 @@
     </div>
   </div>
 
+  <!-- ===== COLLECTION (Mi Colección) ===== -->
+  <div id="collectionScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="collectionStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <button type="button" class="shell-page-back" id="collectionBackBtn">◀ VOLVER</button>
+            <div class="shell-page-title">MI COLECCIÓN</div>
+            <div class="shell-page-spacer"></div>
+            <div class="shell-collection-progress">
+              <div class="shell-collection-progress-track"><div class="shell-collection-progress-fill" id="collectionProgressFill"></div></div>
+              <div class="shell-collection-progress-count" id="collectionProgressCount"></div>
+            </div>
+          </div>
+
+          <div class="shell-collection-body">
+            <aside class="shell-collection-filters">
+              <div class="shell-filter-group">
+                <label class="shell-filter-label" for="collectionSearch">BUSCAR</label>
+                <input type="text" id="collectionSearch" class="shell-filter-search" placeholder="NOMBRE DE CARTA…" autocomplete="off">
+              </div>
+              <div class="shell-filter-group">
+                <div class="shell-filter-label">RAREZA</div>
+                <div id="collectionRarityList" class="shell-collection-rarity-list"></div>
+              </div>
+              <div class="shell-collection-spacer"></div>
+              <div class="shell-collection-duplicates">
+                <div class="shell-collection-duplicates-label">DUPLICADAS</div>
+                <div class="shell-collection-duplicates-value" id="collectionDuplicates"></div>
+                <div class="shell-collection-duplicates-note">Copias de más de cartas que ya tenés.</div>
+              </div>
+            </aside>
+
+            <div class="shell-collection-grid-panel">
+              <div class="shell-collection-grid" id="collectionGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== HEADER (game) ===== -->
   <header class="top">
     <h1>Pokémon TCG Simulador</h1>
@@ -316,22 +360,6 @@
         <h4>Registro</h4>
         <pre id="log"></pre>
       </aside>
-    </section>
-    <section id="panelCollection" class="tab-panel">
-      <div class="collection-layout">
-        <aside class="collection-sidebar">
-          <h4>Mi Colección</h4>
-          <button type="button" class="collection-nav active" id="navOwned">Mis Cartas</button>
-          <button type="button" class="collection-nav" id="navAll">Colección Completa</button>
-          <button type="button" class="collection-nav collection-nav-exit" id="navExit">Volver al menú</button>
-          <div class="collection-profile">
-            <img class="collection-profile-photo" src="Perfil/Jugador.jpg" alt="">
-            <span class="collection-profile-name">Jugador</span>
-          </div>
-          <div id="collectionStats" class="collection-stats"></div>
-        </aside>
-        <div id="collection-content" class="collection-content"></div>
-      </div>
     </section>
   </main>
 
