@@ -1348,6 +1348,9 @@ function setMusicVolume(pct) {
   if (bg) { bg.volume = vol; }
   var endEl = document.getElementById('matchEndMusic');
   if (endEl) { endEl.volume = vol; }
+  // Also live while the 7s preview (Configuración) is playing.
+  var previewEl = document.getElementById('duelMusicPreview');
+  if (previewEl) { previewEl.volume = vol; }
 }
 
 function getDuelMusicKey() {
