@@ -17,7 +17,10 @@ var PROTECTOR_IDS = [
   'protector_bulbasaur',
   'protector_messi',
   'protector_ronaldo',
-  'protector_pikachu_sorprendido'
+  'protector_pikachu_sorprendido',
+  'protector_six_seven',
+  'protector_trollface',
+  'protector_fuuuu'
 ];
 
 function computeMatchReward(result) {
