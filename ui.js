@@ -464,6 +464,10 @@ var turnFlashFadeTimeout = null;
 // resolves instead (see renderActiveChoiceModal's click handler) so it
 // doesn't flash while they're mid-decision. { text, colorClass } or null.
 var pendingTurnFlash = null;
+// True while runCpuTurn is holding off starting the CPU's turn because the
+// checkup it just ran left a prize or new-Active choice open for the
+// player -- see hasPendingPlayerChoice/maybeResumeCpuTurn.
+var cpuTurnAwaitingPlayerChoice = false;
 // #turnFlashOverlay is position:fixed at the page level (so it renders
 // above any modal, e.g. #activeChoiceModal after a KO -- see the CSS
 // comment), so it needs its own top/left/width/height set here to still
@@ -591,6 +595,11 @@ function renderActiveChoiceModal() {
         showTurnFlash(pendingTurnFlash.text, pendingTurnFlash.colorClass);
         pendingTurnFlash = null;
       }
+      // If a checkup at "Terminar turno" is what triggered this (the
+      // player's own poisoned/burned Active dying), let the CPU's turn
+      // actually start now that the player has picked their replacement --
+      // see runCpuTurn/maybeResumeCpuTurn.
+      maybeResumeCpuTurn();
     });
   });
   document.getElementById('activeChoiceModal').classList.remove('hidden');
@@ -623,6 +632,11 @@ function renderPrizeChoiceModal() {
       // the deck's guaranteed Rare Holo (Gyarados for Overgrowth) with its
       // foil here too, same as everywhere else its front face renders.
       if (wonCardName) { openCardModal(wonCardName, null, isHoloInMatch('player', wonCardName) ? 'holo' : null); }
+      // If a checkup at "Terminar turno" is what triggered this prize (the
+      // CPU's own poisoned Active finishing itself off), let the CPU's
+      // turn actually start now that the player has made their choice --
+      // see runCpuTurn/maybeResumeCpuTurn.
+      maybeResumeCpuTurn();
     });
   });
   document.getElementById('prizeChoiceModal').classList.remove('hidden');
@@ -1020,6 +1034,35 @@ function runCpuTurn() {
   // "choose a new Active" modal (renderBoard's pendingActiveChoice check)
   // right away too, rather than only once the CPU's turn later resolves.
   renderBoard();
+  // The checkup that just ran can knock something out and leave the player
+  // with their own choice to make first -- a prize to take (their own
+  // Pokémon's poison finishing off the CPU's Active) or a new Active to
+  // pick (their own poisoned/burned Active dying instead). Don't let
+  // "TURNO DEL RIVAL" and the CPU's whole turn play out while that's still
+  // sitting open and untouched -- wait for it to resolve first (see
+  // maybeResumeCpuTurn, called from wherever those choices get made).
+  if (hasPendingPlayerChoice()) {
+    cpuTurnAwaitingPlayerChoice = true;
+    return;
+  }
+  proceedWithCpuTurn();
+}
+
+function hasPendingPlayerChoice() {
+  return !!gameState.pendingPrizeChoice || gameState.pendingActiveChoice === 'player';
+}
+
+// Called after the prize-choice and active-choice modals resolve -- a
+// no-op unless runCpuTurn is specifically waiting on one of them (see its
+// own comment), and even then only once every such choice is cleared (a
+// single checkup can leave both a prize AND a new Active pending at once).
+function maybeResumeCpuTurn() {
+  if (!cpuTurnAwaitingPlayerChoice || hasPendingPlayerChoice()) { return; }
+  cpuTurnAwaitingPlayerChoice = false;
+  proceedWithCpuTurn();
+}
+
+function proceedWithCpuTurn() {
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
   var endTurnBtn = document.getElementById('endTurnBtn');
@@ -1050,7 +1093,7 @@ function runCpuTurn() {
       // A KO during the CPU's turn can leave the player forced to pick a
       // new Active (see renderActiveChoiceModal) -- hold the flash for
       // that choice to resolve instead of flashing over their decision.
-      if (gameState.pendingActiveChoice === 'player') {
+      if (hasPendingPlayerChoice()) {
         pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
       } else {
         showTurnFlash('TU TURNO', 'mine');
