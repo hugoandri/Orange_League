@@ -681,7 +681,7 @@ function cpuHandRowHtml(count) {
   var cards = '';
   for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
   return '<div class="shell-board-hand-cpu">' +
-    '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + count + '</span></div>' +
+    '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
     '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
     '</div>';
 }
@@ -715,8 +715,7 @@ function handBandHtml(state) {
   }).join('');
   return '<div class="shell-board-hand-band">' +
     '<div class="shell-board-hand-header"><span class="shell-board-hand-label">TU MANO</span>' +
-      '<span class="shell-board-hand-count">' + p.hand.length + '</span>' +
-      '<span class="shell-board-hand-header-rule"></span></div>' +
+      '<span class="shell-board-hand-count">' + pixelDigitsHtml(p.hand.length, 'fosforo', 2) + '</span></div>' +
     '<div class="shell-board-hand-cards">' + cardsHtml + '</div>' +
     '</div>';
 }

@@ -1003,7 +1003,7 @@
 .shell-board-hand-cpu-label{position:absolute;left:16px;top:12px;display:flex;align-items:center;gap:9px;z-index:2;}
 .shell-board-hand-cpu-label span:first-child{font-size:10px;letter-spacing:.2em;color:#ff8a72;}
 .shell-board-hand-cpu-count{
-  width:28px;height:28px;display:grid;place-items:center;font-family:'Pixelify Sans',sans-serif;font-size:16px;font-weight:700;color:#ffd9cf;
+  min-width:28px;height:28px;padding:0 4px;display:grid;place-items:center;
   background:linear-gradient(180deg,#4a2a24,#2a1714);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 6px rgba(0,0,0,.6);
 }
 .shell-board-hand-cpu-fan{position:absolute;left:0;right:0;top:-64px;display:flex;justify-content:center;}
@@ -1092,16 +1092,20 @@
   position:relative;flex:none;height:192px;overflow:hidden;display:flex;flex-direction:column;
   background:linear-gradient(180deg,rgba(11,10,9,0),rgba(20,18,15,.92) 32%,#17140f);border-top:1px solid rgba(255,255,255,.06);
 }
-.shell-board-hand-header{display:flex;align-items:center;gap:12px;padding:7px 20px 0;flex:none;}
 /* Mirrors the CPU hand's label + count-box treatment (.shell-board-hand-cpu-
    label/-count) so both hands read the same, just in the player's green
-   instead of the CPU's red. */
-.shell-board-hand-label{font-size:10px;letter-spacing:.24em;color:#8dff62;}
+   instead of the CPU's red -- position:absolute like .shell-board-hand-cpu-
+   label too, not in the flex flow, so growing the count box (e.g. to fit a
+   2-digit pixel-glyph count) never shrinks .shell-board-hand-cards' share of
+   the band's fixed height. It used to be an in-flow flex row, and the count
+   box growing when this switched to pixel digits ate into the cards' space,
+   pushing their tops up under the header -- exactly what covered them. */
+.shell-board-hand-header{position:absolute;left:16px;top:12px;display:flex;align-items:center;gap:9px;z-index:2;}
+.shell-board-hand-label{font-size:10px;letter-spacing:.2em;color:#8dff62;}
 .shell-board-hand-count{
-  width:28px;height:28px;display:grid;place-items:center;font-family:'Pixelify Sans',sans-serif;font-size:16px;font-weight:700;color:#dcffc9;
+  min-width:28px;height:28px;padding:0 4px;display:grid;place-items:center;
   background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 6px rgba(0,0,0,.6);
 }
-.shell-board-hand-header-rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(141,255,98,.35),transparent);}
 .shell-board-hand-cards{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;padding-bottom:10px;overflow-x:auto;}
 .shell-board-hand-card-wrap{width:100px;flex:none;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s,opacity .14s;background:transparent;border:none;font-family:'Silkscreen',monospace;}
 .shell-board-hand-card-wrap.armed{transform:translateY(-10px);}
