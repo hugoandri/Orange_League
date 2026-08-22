@@ -363,7 +363,11 @@
    implying that's still pending would be fake. "ABRIR OTRO" is real --
    it reopens the pack-select modal for the same set. ===== */
 .shell-booster-result{
-  position:relative;z-index:1;width:900px;max-width:94vw;max-height:88vh;
+  /* Wide enough for 6 cards per row (6*142px + 5*14px gaps = 922px content,
+     plus 80px of padding) so an 11-card pack wraps 6+5 across two rows
+     instead of 5+5+1, where that lone 11th card forced a third row and
+     pushed ABRIR OTRO/CERRAR below the fold. */
+  position:relative;z-index:1;width:1040px;max-width:94vw;max-height:88vh;
   display:flex;flex-direction:column;align-items:center;gap:28px;padding:40px 40px 32px;overflow-y:auto;
   background:radial-gradient(70% 60% at 50% 44%,#2a2418 0%,#141210 55%,#080807 100%);
   border:1px solid #0b0907;box-shadow:0 20px 50px rgba(0,0,0,.7);
