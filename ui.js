@@ -459,6 +459,11 @@ function drainTrainerPlaysQueue(onAllDone) {
 // call sites. colorClass is 'rival' or 'mine' (see the matching CSS).
 var turnFlashHoldTimeout = null;
 var turnFlashFadeTimeout = null;
+// Holds "TU TURNO" back when a KO leaves the player forced to pick a new
+// Active (gameState.pendingActiveChoice) -- shown right after that choice
+// resolves instead (see renderActiveChoiceModal's click handler) so it
+// doesn't flash while they're mid-decision. { text, colorClass } or null.
+var pendingTurnFlash = null;
 // #turnFlashOverlay is position:fixed at the page level (so it renders
 // above any modal, e.g. #activeChoiceModal after a KO -- see the CSS
 // comment), so it needs its own top/left/width/height set here to still
@@ -577,6 +582,15 @@ function renderActiveChoiceModal() {
     btn.addEventListener('click', function () {
       chooseNewActive(gameState, 'player', btn.getAttribute('data-instance-id'));
       afterPlayerAction();
+      // Now that the choice is made and the modal is closing, show whatever
+      // turn flash runCpuTurn held back for this exact moment (see its own
+      // comment) -- if any; a Trainer-triggered active choice (Gust of
+      // Wind sniping a Bench Pokémon into a fight it loses, say) never set
+      // one, so this is a no-op there.
+      if (pendingTurnFlash) {
+        showTurnFlash(pendingTurnFlash.text, pendingTurnFlash.colorClass);
+        pendingTurnFlash = null;
+      }
     });
   });
   document.getElementById('activeChoiceModal').classList.remove('hidden');
@@ -1011,7 +1025,15 @@ function runCpuTurn() {
       // Skip the flash if that turn just won/lost the match -- there's no
       // "tu turno" coming next (afterPlayerAction already showed the
       // win/loss modal instead of a normal board render above).
-      if (!getWinner(gameState)) { showTurnFlash('TU TURNO', 'mine'); }
+      if (getWinner(gameState)) { return; }
+      // A KO during the CPU's turn can leave the player forced to pick a
+      // new Active (see renderActiveChoiceModal) -- hold the flash for
+      // that choice to resolve instead of flashing over their decision.
+      if (gameState.pendingActiveChoice === 'player') {
+        pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
+      } else {
+        showTurnFlash('TU TURNO', 'mine');
+      }
     });
   }, delay);
 }
