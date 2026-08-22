@@ -57,6 +57,18 @@ var PIXEL_DIGIT_GLYPHS = {
   // digits so it shares their bevel/outline instead of falling back to a
   // plain-font glyph (buildPixelDigitCells' generic non-digit fallback).
   ':': ['......', '......', '.11...', '.11...', '......', '......', '.11...', '.11...', '......'],
+  // Attack-damage modifiers from data-cards.js ("30×", "50-") -- same 6x9
+  // bevel treatment as the digits instead of the plain-text fallback, which
+  // rendered them in a different font/size/baseline than the digit right
+  // next to them and looked broken (this is what the user meant by "el X
+  // no quedó bien"). '×' is the real multiplication-sign character the data
+  // uses; plain 'x'/'X' and '+' (not in the data yet, but the same family
+  // of modifier) share the same shapes for when they show up.
+  '×': ['1....1', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '.1..1.', '.1..1.', '1....1'],
+  'x': ['1....1', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '.1..1.', '.1..1.', '1....1'],
+  'X': ['1....1', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '.1..1.', '.1..1.', '1....1'],
+  '-': ['......', '......', '......', '111111', '111111', '......', '......', '......', '......'],
+  '+': ['......', '..11..', '..11..', '111111', '111111', '..11..', '..11..', '......', '......'],
   // Coin icon -- same 6x9 stroke/outline box as the digits, the disc sits on
   // the same baseline. rampOffset (buildPixelDigitCells' 4th arg) shifts it
   // down 1 ramp row so the metal starts on a lighter tone, like a numeral.

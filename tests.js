@@ -842,8 +842,10 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var withOutline = buildPixelDigitCells('1', 'dano', 'rgba(58,8,2,.92)');
   check('buildPixelDigitCells honors a custom outline color', withOutline[3].bg, 'rgba(58,8,2,.92)');
 
-  // Unknown glyph (not 0-9) renders nothing, not a crash.
-  check('buildPixelDigitCells rejects a non-digit', buildPixelDigitCells('X', 'oro').length, 0);
+  // Unknown glyph renders nothing, not a crash. 'X'/'x'/'×'/'-'/'+' are real
+  // glyphs now (attack-damage modifiers like "30×"/"50-"), so this uses a
+  // genuinely unmapped character instead.
+  check('buildPixelDigitCells rejects an unmapped character', buildPixelDigitCells('Q', 'oro').length, 0);
 
   // pixelDigitsHtml wraps one grid per character, all at the requested block
   // size, with a gap proportional to it.
