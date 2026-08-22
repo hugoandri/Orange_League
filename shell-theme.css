@@ -1089,7 +1089,14 @@
 
 /* --- Mano propia --- */
 .shell-board-hand-band{
-  position:relative;flex:none;height:192px;overflow:hidden;display:flex;flex-direction:column;
+  /* 216px, not 192px: .shell-board-hand-header floats over the top-left
+     corner (see below) at top:8px + ~28px tall, so it needs the cards'
+     own top edge (bottom-anchored via align-items:flex-end) to start at
+     y>=36 to never touch them. At 192px the cards' top edge sat at y=25 --
+     fine while few enough cards stayed centered away from the left edge,
+     but once a 2-digit hand (10 cards) filled the row edge to edge, the
+     leftmost card's top ~15px sat right under the label. */
+  position:relative;flex:none;height:216px;overflow:hidden;display:flex;flex-direction:column;
   background:linear-gradient(180deg,rgba(11,10,9,0),rgba(20,18,15,.92) 32%,#17140f);border-top:1px solid rgba(255,255,255,.06);
 }
 /* Mirrors the CPU hand's label + count-box treatment (.shell-board-hand-cpu-
@@ -1100,7 +1107,7 @@
    the band's fixed height. It used to be an in-flow flex row, and the count
    box growing when this switched to pixel digits ate into the cards' space,
    pushing their tops up under the header -- exactly what covered them. */
-.shell-board-hand-header{position:absolute;left:16px;top:12px;display:flex;align-items:center;gap:9px;z-index:2;}
+.shell-board-hand-header{position:absolute;left:16px;top:8px;display:flex;align-items:center;gap:9px;z-index:2;}
 .shell-board-hand-label{font-size:10px;letter-spacing:.2em;color:#8dff62;}
 .shell-board-hand-count{
   min-width:28px;height:28px;padding:0 4px;display:grid;place-items:center;
