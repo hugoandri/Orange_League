@@ -446,6 +446,27 @@ function drainTrainerPlaysQueue() {
   showTrainerPlaysSequence(queue);
 }
 
+// Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
+// a second whenever control actually changes hands -- see runCpuTurn's two
+// call sites. colorClass is 'rival' or 'mine' (see the matching CSS).
+var turnFlashHoldTimeout = null;
+var turnFlashFadeTimeout = null;
+function showTurnFlash(text, colorClass) {
+  var el = document.getElementById('turnFlashOverlay');
+  if (!el) { return; }
+  clearTimeout(turnFlashHoldTimeout);
+  clearTimeout(turnFlashFadeTimeout);
+  el.textContent = text;
+  el.className = 'shell-turn-flash ' + colorClass; // resets any stale fading/hidden from a previous flash
+  turnFlashHoldTimeout = setTimeout(function () {
+    el.classList.add('fading');
+    turnFlashFadeTimeout = setTimeout(function () {
+      el.classList.add('hidden');
+      el.classList.remove('fading');
+    }, 250);
+  }, 1000);
+}
+
 // Every card actually discarded this duel, face-up -- opened by clicking
 // the Discard pile (see deckDiscardHtml), only ever shown when non-empty.
 function openDiscardPileModal(ownerId) {
@@ -945,6 +966,7 @@ function runCpuTurn() {
   var delay = cpuThinkDelayMs(difficulty);
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) { endTurnBtn.disabled = true; }
+  showTurnFlash('TURNO DEL RIVAL', 'rival');
   if (delay > 0) { showCpuThinkingIndicator(); }
   // From here on the CPU's own clock should be the one draining (including
   // through the "thinking" delay itself -- see currentClockOwner's comment)
@@ -954,6 +976,10 @@ function runCpuTurn() {
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
     cpuTurnInProgress = false;
+    // Skip the flash if that turn just won/lost the match -- there's no
+    // "tu turno" coming next (afterPlayerAction shows the win/loss modal
+    // instead of a normal board render right below).
+    if (!getWinner(gameState)) { showTurnFlash('TU TURNO', 'mine'); }
     afterPlayerAction();
   }, delay);
 }

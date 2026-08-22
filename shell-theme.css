@@ -1234,6 +1234,21 @@
   text-shadow:0 2px 8px rgba(0,0,0,.85);text-align:center;
 }
 
+/* ===== Turn-change flash (see showTurnFlash, ui.js) ===== */
+/* Same non-blocking/always-on-top recipe as .shell-trainer-played, just
+   plain centered text instead of a card image -- "TURNO DEL RIVAL" in the
+   CPU's red, "TU TURNO" in the player's green, matching every other
+   mine-vs-rival color pairing in the shell (hand counts, board glow). */
+.shell-turn-flash{
+  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:1;transition:opacity .25s ease;
+  font-family:'Pixelify Sans',sans-serif;font-size:52px;font-weight:700;letter-spacing:.04em;text-align:center;
+}
+.shell-turn-flash.fading{opacity:0;}
+.shell-turn-flash.hidden{display:none;}
+.shell-turn-flash.rival{color:#ff8a72;text-shadow:0 0 30px rgba(255,138,114,.7),0 4px 12px rgba(0,0,0,.8);}
+.shell-turn-flash.mine{color:#8dff62;text-shadow:0 0 30px rgba(141,255,98,.7),0 4px 12px rgba(0,0,0,.8);}
+
 /* ===== Card zoom modal (prize pick, discard pile, hand/board cards) ===== */
 /* No handoff mockup covers this (a plain image-zoom utility), so it's built
    from the same floating dark-plate recipe as .shell-profile-modal. */
