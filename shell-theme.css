@@ -488,6 +488,22 @@
   background-image:linear-gradient(115deg,rgba(255,120,220,.28),rgba(120,220,255,.28),rgba(255,240,120,.28),rgba(160,255,140,.28),rgba(255,120,220,.28));
 }
 
+/* Twinkling four-pointed stars on top of the holo rainbow sweep, matching the
+   "Holos.html" design reference's sparkle field (chispa keyframe). Positions
+   come from ui.js's holoStarsHtml() -- deterministic per star index, so the
+   same card always draws the same field. */
+.shell-holo-stars{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.shell-holo-star{
+  position:absolute;
+  clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
+  filter:drop-shadow(0 0 4px rgba(255,255,255,.6));
+  animation-name:chispa;animation-iteration-count:infinite;animation-timing-function:ease-in-out;
+}
+@keyframes chispa{
+  0%,100%{opacity:.12;transform:scale(.55) rotate(0deg);}
+  50%{opacity:1;transform:scale(1.2) rotate(45deg);}
+}
+
 /* ===== Configuración ===== */
 .shell-config-body{
   flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,880px));gap:26px;

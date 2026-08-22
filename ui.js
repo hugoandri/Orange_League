@@ -174,6 +174,31 @@ function logHtml(s) {
   }).join('');
 }
 
+// Twinkling four-pointed star field for holo cards, matching the "Holos.html"
+// design reference's campoEstrellas/chispa technique. Deterministic (sine-based
+// instead of Math.random) so the same card always draws the same field instead
+// of reshuffling on every re-render. Capped at 10 stars/card (the reference
+// used 26) since holo cards can appear by the dozen at once in the Collection
+// grid -- 10 already reads as "sparkling" without animating hundreds of nodes.
+function holoStarsHtml(n) {
+  n = n || 10;
+  var stars = '';
+  for (var i = 0; i < n; i++) {
+    var a = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1;
+    var b = Math.abs(Math.sin((i + 1) * 78.233) * 12345.6789) % 1;
+    var c = Math.abs(Math.sin((i + 1) * 39.425) * 9876.5432) % 1;
+    var w = c < 0.12 ? 9 : c < 0.38 ? 6 : 4;
+    var x = (6 + a * 88).toFixed(2) + '%';
+    var y = (5 + b * 90).toFixed(2) + '%';
+    var off = (-w / 2) + 'px';
+    var dur = (2.2 + c * 3.4).toFixed(2) + 's';
+    var delay = (-c * 5.5).toFixed(2) + 's';
+    var tone = a < 0.34 ? '#ffffff' : a < 0.58 ? '#bdf0ff' : a < 0.8 ? '#ffd0f2' : '#fff0b8';
+    stars += '<div class="shell-holo-star" style="left:' + x + ';top:' + y + ';width:' + w + 'px;height:' + w + 'px;margin-left:' + off + ';margin-top:' + off + ';background:' + tone + ';animation-duration:' + dur + ';animation-delay:' + delay + ';"></div>';
+  }
+  return '<div class="shell-holo-stars">' + stars + '</div>';
+}
+
 // isHolo is real, not decorative: the historical Overgrowth/Blackout theme
 // decks each ship exactly one guaranteed Rare Holo (Gyarados / Hitmonchan --
 // see isHoloInMatch), so this reuses the same shimmering foil overlay the
@@ -183,7 +208,7 @@ function cardImageTag(name, cls, isHolo) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return ''; }
   var img = '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">';
-  return isHolo ? '<span class="shell-card-holo-wrap">' + img + '<div class="shell-collection-cell-foil"></div></span>' : img;
+  return isHolo ? '<span class="shell-card-holo-wrap">' + img + '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() + '</span>' : img;
 }
 
 // Whether ownerId's copy of this exact card name is the deck's one
@@ -293,7 +318,7 @@ function showCardInViewer(name, instanceId) {
 
   var frameHtml = '<div class="shell-board-viewer-frame">' +
     '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '">' +
-    (viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' : '') + '</div>' +
+    (viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') + '</div>' +
     '<div class="shell-board-viewer-corner tl"></div><div class="shell-board-viewer-corner br"></div>' +
     '</div>';
 
@@ -356,6 +381,7 @@ function openCardModal(name, imgUrl, foilTier) {
   var modal = document.getElementById('cardModal');
   modal.classList.toggle('holo', foilTier === 'holo');
   modal.classList.toggle('secret', foilTier === 'secret');
+  document.getElementById('cardModalStars').innerHTML = foilTier === 'holo' ? holoStarsHtml() : '';
   modal.classList.remove('hidden');
 }
 
@@ -1471,7 +1497,7 @@ function renderCollectionGrid(all) {
     return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
-        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' : '')) +
+        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
@@ -1585,7 +1611,7 @@ function showBoosterResult(cards, setKey) {
     var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
     if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
     var foilHtml = rarity.cls === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>'
-      : rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' : '';
+      : rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' + holoStarsHtml() : '';
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
       '<div class="shell-booster-result-card-art">' +
         (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
@@ -1677,7 +1703,7 @@ function renderDeckDetail(deckKey) {
     var holo = card.name === deckHoloCard;
     return '<div class="shell-deck-slot' + (holo ? ' holo' : '') + '" data-card-name="' + escapeHtml(card.name) + '">' +
       (img ? '<img src="' + img + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' : '') +
-      (holo ? '<div class="shell-collection-cell-foil"></div>' : '') +
+      (holo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') +
       '</div>';
   }).join('');
   var grid = document.getElementById('deckGrid');
