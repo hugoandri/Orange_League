@@ -459,6 +459,20 @@ function drainTrainerPlaysQueue(onAllDone) {
 // call sites. colorClass is 'rival' or 'mine' (see the matching CSS).
 var turnFlashHoldTimeout = null;
 var turnFlashFadeTimeout = null;
+// #turnFlashOverlay is position:fixed at the page level (so it renders
+// above any modal, e.g. #activeChoiceModal after a KO -- see the CSS
+// comment), so it needs its own top/left/width/height set here to still
+// land centered on the board specifically, not the whole viewport.
+function positionTurnFlash(el) {
+  var boardEl = document.querySelector('.shell-board-table-wrap');
+  if (!boardEl) { return; }
+  var rect = boardEl.getBoundingClientRect();
+  el.style.top = rect.top + 'px';
+  el.style.left = rect.left + 'px';
+  el.style.width = rect.width + 'px';
+  el.style.height = rect.height + 'px';
+}
+
 function showTurnFlash(text, colorClass) {
   var el = document.getElementById('turnFlashOverlay');
   if (!el) { return; }
@@ -466,6 +480,7 @@ function showTurnFlash(text, colorClass) {
   clearTimeout(turnFlashFadeTimeout);
   el.textContent = text;
   el.className = 'shell-turn-flash ' + colorClass; // resets any stale fading/hidden from a previous flash
+  positionTurnFlash(el);
   turnFlashHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
     turnFlashFadeTimeout = setTimeout(function () {
