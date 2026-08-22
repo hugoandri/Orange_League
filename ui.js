@@ -285,7 +285,7 @@ function viewerAttacksHtml(name, actionableState) {
         '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +
         (textEs ? '<div class="shell-board-viewer-attack-text">' + escapeHtml(textEs) + '</div>' : '') +
       '</div>' +
-      '<div class="shell-board-viewer-attack-damage">' + (atk.damage || '0') + '</div>';
+      '<div class="shell-board-viewer-attack-damage">' + pixelDigitsHtml(atk.damage || '0', 'fosforo', 2) + '</div>';
     if (actionableState) {
       var can = canAttack(actionableState, 'player', atk.name);
       return '<button type="button" class="shell-board-viewer-attack actionable" data-attack-name="' + escapeHtml(atk.name) + '"' + (can ? '' : ' disabled') + '>' + body + '</button>';
@@ -342,7 +342,8 @@ function showCardInViewer(name, instanceId) {
       (typeIcon ? '<img src="Tipos/' + typeIcon + '.png" alt="">' : '') +
       '<div class="shell-board-viewer-identity-name">' + escapeHtml(translateCardName(name)) + '</div>' +
       '<div class="shell-board-viewer-identity-stage">' + pokemonStageLabel(name) + '</div>' +
-      '<div class="shell-board-viewer-identity-hp">' + hp + '<span>/' + stats.hp + '</span></div>' +
+      '<div class="shell-board-viewer-identity-hp">' + pixelDigitsHtml(hp, 'fosforo', 2) +
+        '<span>/' + stats.hp + '</span></div>' +
       '</div>';
     var statusHtml = (instance && instance.statusConditions.length)
       ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(translateStatus).join(', ')) + '</div>'
@@ -744,7 +745,7 @@ function renderBoardActions() {
     '<div class="shell-board-viewer-footer-avatar"><img src="' + playerPhotoUrl() + '" alt=""></div>' +
     '<div class="shell-board-viewer-footer-name">' + escapeHtml(playerDisplayName()) + '</div>' +
     '<div class="shell-board-viewer-footer-coin-dot">' + pixelCoinHtml('oro', 2) + '</div>' +
-    '<div class="shell-board-viewer-footer-coin-value">' + (econState ? econState.coins : '--') + '</div>' +
+    '<div class="shell-board-viewer-footer-coin-value">' + (econState ? pixelDigitsHtml(econState.coins, 'oro', 2) : '--') + '</div>' +
     '</div>';
 
   document.getElementById('boardActions').innerHTML = html;
