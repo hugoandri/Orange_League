@@ -397,8 +397,18 @@ function openCardModal(name, imgUrl, foilTier) {
   modal.classList.remove('hidden');
 }
 
+// Fires once, the next time #cardModal closes -- used by the prize-choice
+// flow to hold the CPU's turn until the player has actually looked at (and
+// dismissed) the zoom of the card they just won, not the instant they pick
+// the prize slot (see renderPrizeChoiceModal). null the rest of the time.
+var onCardModalClose = null;
 function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
+  if (onCardModalClose) {
+    var cb = onCardModalClose;
+    onCardModalClose = null;
+    cb();
+  }
 }
 
 // Flashes a just-played Trainer card big in the middle of the screen for
@@ -631,12 +641,17 @@ function renderPrizeChoiceModal() {
       // the player's own, so isHoloInMatch('player', ...) is enough to show
       // the deck's guaranteed Rare Holo (Gyarados for Overgrowth) with its
       // foil here too, same as everywhere else its front face renders.
-      if (wonCardName) { openCardModal(wonCardName, null, isHoloInMatch('player', wonCardName) ? 'holo' : null); }
       // If a checkup at "Terminar turno" is what triggered this prize (the
       // CPU's own poisoned Active finishing itself off), let the CPU's
-      // turn actually start now that the player has made their choice --
-      // see runCpuTurn/maybeResumeCpuTurn.
-      maybeResumeCpuTurn();
+      // turn actually start once the player closes the card-zoom below --
+      // not the instant they pick the prize, while they're still looking
+      // at what they won (see closeCardModal/maybeResumeCpuTurn).
+      if (wonCardName) {
+        openCardModal(wonCardName, null, isHoloInMatch('player', wonCardName) ? 'holo' : null);
+        onCardModalClose = maybeResumeCpuTurn;
+      } else {
+        maybeResumeCpuTurn();
+      }
     });
   });
   document.getElementById('prizeChoiceModal').classList.remove('hidden');
