@@ -70,12 +70,38 @@ function aiSetupBoard(state, playerId) {
   while (aiTryPlayBasic(state, playerId)) {}
 }
 
-function aiTryAttachEnergy(state, playerId) {
+// Whether instance has any attack this energy type would actually pay
+// toward -- either the cost lists this exact type, or it has an open
+// Colorless slot any type can fill. A Pokémon with neither gets no value
+// at all from one more of this type (e.g. Water energy on a Machop, whose
+// only attack costs pure Fighting).
+function energyTypeHelpsAttacks(instance, energyType) {
+  var stats = CARD_STATS[instance.name];
+  return (stats.attacks || []).some(function (a) {
+    return a.cost.indexOf(energyType) !== -1 || a.cost.indexOf('Colorless') !== -1;
+  });
+}
+
+// Easy/Normal: always attaches to the Active, exactly as before difficulty
+// tiers existed -- Normal isn't meant to be this strategic (per the user).
+// Hard: if the Active can't actually use this energy type for any of its
+// attacks but a Bench Pokémon can, attaches it there instead -- both
+// building toward a real attacker for later (after a retreat, or once the
+// Active is knocked out) and not wasting the turn's one attach on a type
+// that does nothing for whoever's out front right now.
+function aiTryAttachEnergy(state, playerId, difficulty) {
   var p = state.players[playerId];
   if (!p.active || p.energyAttachedThisTurn) { return false; }
-  var handCard = p.hand.find(function (c) { return canAttachEnergy(state, playerId, c.id, p.active.id); });
-  if (handCard) { attachEnergy(state, playerId, handCard.id, p.active.id); return true; }
-  return false;
+  var handCard = p.hand.find(function (c) { return ENERGY_TYPE_BY_CARD_NAME[c.name]; });
+  if (!handCard) { return false; }
+  var target = p.active;
+  if (difficulty === 'hard' && !energyTypeHelpsAttacks(p.active, ENERGY_TYPE_BY_CARD_NAME[handCard.name])) {
+    var benchMatch = p.bench.find(function (b) { return b && energyTypeHelpsAttacks(b, ENERGY_TYPE_BY_CARD_NAME[handCard.name]); });
+    if (benchMatch) { target = benchMatch; }
+  }
+  if (!canAttachEnergy(state, playerId, handCard.id, target.id)) { return false; }
+  attachEnergy(state, playerId, handCard.id, target.id);
+  return true;
 }
 
 function aiTryUseTrainer(state, playerId) {
@@ -222,7 +248,7 @@ function cpuTakeTurn(state, difficulty) {
   while (guard < 20) {
     guard++;
     if (aiTryEvolveBench(state, playerId)) { continue; }
-    if (aiTryAttachEnergy(state, playerId)) { continue; }
+    if (aiTryAttachEnergy(state, playerId, difficulty)) { continue; }
     if (aiTryPlayBasic(state, playerId)) { continue; }
     if (difficulty !== 'easy' && aiTryGustSnipe(state, playerId)) { continue; }
     if (difficulty === 'hard' && aiTryEnergyDisruption(state, playerId)) { continue; }

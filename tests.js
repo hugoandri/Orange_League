@@ -912,6 +912,56 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check("Normal retreats on a flat low-HP threshold, regardless of the actual threat", choice && choice.id, bench.id);
 })();
 
+(function testAiTryAttachEnergyRedirectsToBenchOnHard() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'az_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  function setup() {
+    var state = createGame(function () { return 0.42; });
+    state.activePlayerId = 'cpu';
+    var p = state.players.cpu;
+    // Machop's only attack (Low Kick) costs pure Fighting, no Colorless
+    // slot -- Water energy does nothing for it. Staryu's Slap costs pure
+    // Water, so it's the real beneficiary.
+    p.active = mk('Machop');
+    var staryu = mk('Staryu');
+    p.bench = [staryu, null, null, null, null];
+    p.hand = [{ id: 'we1', name: 'Water Energy' }];
+    return { state: state, p: p, staryu: staryu };
+  }
+
+  var easy = setup();
+  checkTrue('Easy attaches energy', aiTryAttachEnergy(easy.state, 'cpu', 'easy'));
+  check('Easy always attaches to the Active, even when it is useless there', easy.p.active.attachedEnergy, ['Water']);
+  check("Easy's Bench Pokémon is untouched", easy.staryu.attachedEnergy, []);
+
+  var normal = setup();
+  checkTrue('Normal attaches energy', aiTryAttachEnergy(normal.state, 'cpu', 'normal'));
+  check('Normal is not that strategic -- still attaches to the Active', normal.p.active.attachedEnergy, ['Water']);
+
+  var hard = setup();
+  checkTrue('Hard attaches energy', aiTryAttachEnergy(hard.state, 'cpu', 'hard'));
+  check("Hard redirects to the Bench Pokémon that can actually use this energy type", hard.p.active.attachedEnergy, []);
+  check('the Staryu on Bench got the Water Energy instead', hard.staryu.attachedEnergy, ['Water']);
+})();
+
+(function testAiTryAttachEnergyStaysOnActiveWhenItHelps() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'ah_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  // Staryu's own Slap costs Water -- Hard has no reason to redirect away
+  // from an Active that already benefits from this exact type.
+  p.active = mk('Staryu');
+  var bench = mk('Machop');
+  p.bench = [bench, null, null, null, null];
+  p.hand = [{ id: 'we2', name: 'Water Energy' }];
+  checkTrue('Hard attaches energy', aiTryAttachEnergy(state, 'cpu', 'hard'));
+  check('Hard keeps it on the Active when the Active can actually use it', p.active.attachedEnergy, ['Water']);
+})();
+
 (function testCpuTakeTurnAcceptsAllDifficulties() {
   ['easy', 'normal', 'hard'].forEach(function (difficulty) {
     var state = createGame(function () { return 0.37; });
