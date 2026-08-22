@@ -496,7 +496,7 @@
 .shell-holo-star{
   position:absolute;
   clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
-  filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px currentColor);
+  filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px currentColor);
   color:inherit;
   animation-name:chispa;animation-iteration-count:infinite;animation-timing-function:ease-in-out;
 }

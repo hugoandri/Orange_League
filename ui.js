@@ -195,7 +195,7 @@ function holoStarsHtml(n) {
     var a = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1;
     var b = Math.abs(Math.sin((i + 1) * 78.233) * 12345.6789) % 1;
     var c = Math.abs(Math.sin((i + 1) * 39.425) * 9876.5432) % 1;
-    var w = c < 0.12 ? 20 : c < 0.38 ? 14 : 9;
+    var w = c < 0.12 ? 34 : c < 0.38 ? 24 : 16;
     var x = (6 + a * 88).toFixed(2) + '%';
     var y = (5 + b * 90).toFixed(2) + '%';
     var off = (-w / 2) + 'px';
