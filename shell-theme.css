@@ -1235,14 +1235,15 @@
 }
 
 /* ===== Turn-change flash (see showTurnFlash, ui.js) ===== */
-/* Same non-blocking/always-on-top recipe as .shell-trainer-played, just
-   plain centered text instead of a card image -- "TURNO DEL RIVAL" in the
-   CPU's red, "TU TURNO" in the player's green, matching every other
-   mine-vs-rival color pairing in the shell (hand counts, board glow). */
+/* Lives inside .shell-board-table-wrap now (index.html), not as a fixed
+   full-viewport overlay -- position:absolute centers it over the actual
+   board/table area instead of the whole page (which includes the side
+   panel and hand band, throwing off "the middle" the user meant). z-index
+   only needs to clear #app's own (1), not the page-wide 200s/300 tiers. */
 .shell-turn-flash{
-  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;
   pointer-events:none;opacity:1;transition:opacity .25s ease;
-  font-family:'Pixelify Sans',sans-serif;font-size:52px;font-weight:700;letter-spacing:.04em;text-align:center;
+  font-family:'Pixelify Sans',sans-serif;font-size:64px;font-weight:700;letter-spacing:.04em;text-align:center;
 }
 .shell-turn-flash.fading{opacity:0;}
 .shell-turn-flash.hidden{display:none;}
