@@ -685,7 +685,7 @@ function cpuHandRowHtml(count) {
   for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
   return '<div class="shell-board-hand-cpu">' +
     '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
-    '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
+    '<div class="shell-board-hand-cpu-fan-viewport"><div class="shell-board-hand-cpu-fan">' + cards + '</div></div>' +
     '</div>';
 }
 
