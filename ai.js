@@ -266,13 +266,18 @@ function cpuTakeTurn(state, difficulty) {
 
   var p = state.players[playerId];
   var op = state.players[opponentOf(playerId)];
+  // A retreat swaps who's Active (and pays its cost from the Pokémon
+  // LEAVING, not the one coming in) -- it doesn't end the turn on its own,
+  // real rules let the same turn's attack still happen with whoever's
+  // Active afterward. This used to return right after retreating here,
+  // which meant a Bench Pokémon switched in with plenty of energy attached
+  // (its own, untouched by the retreat cost) never got to attack the very
+  // turn it came in.
   if (p.active) {
     var proactive = aiProactiveRetreat(state, playerId, difficulty);
-    if (proactive) {
-      retreat(state, playerId, proactive.id);
-      endTurn(state);
-      return;
-    }
+    if (proactive) { retreat(state, playerId, proactive.id); }
+  }
+  if (p.active) {
     var best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active);
     if (best && canAttack(state, playerId, best.name)) {
       attack(state, playerId, best.name);

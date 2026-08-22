@@ -980,6 +980,42 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   });
 })();
 
+(function testCpuTakeTurnAttacksAfterAProactiveRetreat() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'pr_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  // 0.9 (not 0.42): Beedrill's Poison Sting flips a coin to also poison the
+  // defender (ATTACK_EFFECTS['Beedrill']), and 0.42 lands on heads --
+  // poison's own end-of-turn checkup damage stacks with the 40 from the hit
+  // itself and exactly finishes off Machop's 50 HP, which is a fine real
+  // outcome but not what this test means to isolate. 0.9 is tails, so
+  // Machop just takes the 40 and survives to be asserted on below.
+  var state = createGame(function () { return 0.9; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  var op = state.players.player;
+  // Same fixture as aiShouldRetreatInsteadOfAttack's own test: Squirtle at
+  // 30 damage (10 HP left) is a likely KO for Machop's Low Kick next turn,
+  // so Hard retreats to Beedrill instead of attacking with Squirtle. Unlike
+  // that isolated unit test, this drives the real cpuTakeTurn end to end --
+  // Beedrill already has its own 3 Grass energy attached (untouched by the
+  // retreat, which only costs Squirtle's own energy), so it should still
+  // attack THIS turn instead of the turn just ending on the retreat alone.
+  p.active = mk('Squirtle', { damage: 30, attachedEnergy: ['Water'] });
+  op.active = mk('Machop', { attachedEnergy: ['Fighting'] });
+  var beedrill = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  p.bench = [beedrill, null, null, null, null];
+  op.bench = [null, null, null, null, null];
+  // Empty both hands -- createGame's real dealt cards (Trainers, PlusPower,
+  // more energy...) would add uncontrolled extra actions on top of the
+  // exact retreat-then-attack sequence this test means to isolate.
+  p.hand = [];
+  op.hand = [];
+  cpuTakeTurn(state, 'hard');
+  check('retreated to Beedrill instead of attacking with the doomed Squirtle', state.players.cpu.active.id, beedrill.id);
+  checkTrue('Beedrill also attacked this same turn instead of the turn just ending on the retreat', op.active.damage > 0);
+})();
+
 (function testCpuTakeTurnDefaultsToEasy() {
   // Card ids come from a global incrementing counter shared across the
   // whole process (data-decks.js), so two independent createGame() calls
