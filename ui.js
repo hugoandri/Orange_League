@@ -427,7 +427,7 @@ function showTrainerPlayedOverlay(play, onDone) {
       el.classList.remove('fading');
       if (onDone) { onDone(); }
     }, 220);
-  }, 800);
+  }, 1280); // 1280ms hold + 220ms fade-out = ~1.5s total on screen
 }
 
 // Drains gameState.trainerPlaysQueue (see card-effects.js's TRAINER_EFFECTS
