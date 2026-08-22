@@ -79,6 +79,7 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 #boosterSelectModal{z-index:210;}
 #boosterResultModal{z-index:210;}
 #activeChoiceModal{z-index:210;}
+#prizeChoiceModal{z-index:210;}
 #pauseModal{z-index:210;}
 #surrenderModal{z-index:210;}
 #energyDiscardModal{z-index:210;}

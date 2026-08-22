@@ -11,6 +11,14 @@ function shuffle(arr, rng) {
   return a;
 }
 
+// p.prizes stays a fixed 6-slot array for the whole match -- a taken prize
+// becomes null in place rather than being spliced out, so remaining prizes
+// never shift position (the UI's prize row/modal renders taken slots as a
+// gap in the same spot instead of everything sliding left).
+function remainingPrizes(p) {
+  return p.prizes.filter(function (c) { return c; }).length;
+}
+
 function isBasicPokemon(name) {
   var stats = CARD_STATS[name];
   return !!stats && stats.supertype === 'Pokémon' && !stats.evolvesFrom;
@@ -410,7 +418,7 @@ function knockOutIfNeeded(state, ownerId, instance) {
   owner.discard.push({ id: instance.id, name: instance.name });
   instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
   var attackerPlayer = state.players[attackerId];
-  if (attackerPlayer.prizes.length > 0) {
+  if (remainingPrizes(attackerPlayer) > 0) {
     if (attackerId === 'player') {
       // The player's own prizes are specific, already-determined cards (set
       // aside face down in createGame) -- let them pick which face-down slot
@@ -422,9 +430,11 @@ function knockOutIfNeeded(state, ownerId, instance) {
       state.pendingPrizeChoice.count += 1;
       logEvent(state, 'Jugador debe elegir una carta de premio', 'player');
     } else {
-      var prize = attackerPlayer.prizes.shift();
+      var prizeIndex = attackerPlayer.prizes.findIndex(function (c) { return c; });
+      var prize = attackerPlayer.prizes[prizeIndex];
+      attackerPlayer.prizes[prizeIndex] = null;
       attackerPlayer.hand.push(prize);
-      logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + attackerPlayer.prizes.length + ' restantes)', attackerId);
+      logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + remainingPrizes(attackerPlayer) + ' restantes)', attackerId);
     }
   }
 }
@@ -434,10 +444,11 @@ function knockOutIfNeeded(state, ownerId, instance) {
 // eventually clears) state.pendingPrizeChoice as choices are resolved.
 function takePrize(state, playerId, prizeIndex) {
   var p = state.players[playerId];
-  if (prizeIndex < 0 || prizeIndex >= p.prizes.length) { return; }
-  var card = p.prizes.splice(prizeIndex, 1)[0];
+  if (prizeIndex < 0 || prizeIndex >= p.prizes.length || !p.prizes[prizeIndex]) { return; }
+  var card = p.prizes[prizeIndex];
+  p.prizes[prizeIndex] = null;
   p.hand.push(card);
-  logEvent(state, translatePlayer(playerId) + ' toma un premio (' + p.prizes.length + ' restantes)', playerId);
+  logEvent(state, translatePlayer(playerId) + ' toma un premio (' + remainingPrizes(p) + ' restantes)', playerId);
   if (state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === playerId) {
     state.pendingPrizeChoice.count -= 1;
     if (state.pendingPrizeChoice.count <= 0) { state.pendingPrizeChoice = null; }
@@ -574,8 +585,8 @@ function endTurn(state) {
 }
 
 function getWinner(state) {
-  if (state.players.player.prizes.length === 0) { return 'player'; }
-  if (state.players.cpu.prizes.length === 0) { return 'cpu'; }
+  if (state.players.player.prizes.length > 0 && remainingPrizes(state.players.player) === 0) { return 'player'; }
+  if (state.players.cpu.prizes.length > 0 && remainingPrizes(state.players.cpu) === 0) { return 'cpu'; }
   if (state.players.player.hasHadActive && !state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
   if (state.players.cpu.hasHadActive && !state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
   if (state.deckedOut === 'player') { return 'cpu'; }

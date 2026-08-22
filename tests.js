@@ -241,11 +241,42 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   attack(state, 'player', 'Dragon Rage'); // 50 damage, Weedle has 40 HP -> KO
   check('Weedle was knocked out and removed as cpu active', state.players.cpu.active, null);
   checkTrue('KO defers the prize to a pending player choice instead of auto-taking', !!state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player');
-  check('prize not yet taken until the choice is resolved', state.players.player.prizes.length, 1);
+  check('prize not yet taken until the choice is resolved', remainingPrizes(state.players.player), 1);
   takePrize(state, 'player', 0);
-  check('player took their 1 remaining prize once resolved', state.players.player.prizes.length, 0);
+  // The taken slot becomes null in place (not spliced out) so remaining
+  // prizes never shift position -- .length stays 1, only the real count drops.
+  check('the taken slot becomes null, not removed', state.players.player.prizes.length, 1);
+  check('player took their 1 remaining prize once resolved', remainingPrizes(state.players.player), 0);
   check('pendingPrizeChoice clears once resolved', state.pendingPrizeChoice, null);
   check('getWinner declares player the winner', getWinner(state), 'player');
+})();
+
+(function testTakenPrizesStayInPlaceAsAGap() {
+  // Real UI requirement: picking prize slot 2, then slot 4, must leave prizes
+  // 0/1/3/5 exactly where they were -- not shifted left to fill the gaps --
+  // so the on-board row and the choice modal always show taken slots in the
+  // same spot they always occupied.
+  var state = createGame(function () { return 0.42; });
+  var p = state.players.player;
+  var original = p.prizes.slice();
+
+  takePrize(state, 'player', 2);
+  check('slot 2 becomes null', p.prizes[2], null);
+  check('slot 0 is untouched by taking slot 2', p.prizes[0], original[0]);
+  check('slot 5 is untouched by taking slot 2', p.prizes[5], original[5]);
+  check('remainingPrizes drops to 5', remainingPrizes(p), 5);
+
+  takePrize(state, 'player', 4);
+  check('slot 4 becomes null too', p.prizes[4], null);
+  check('slot 2 stays null (not reused)', p.prizes[2], null);
+  check('slot 1 is still the original card, same position', p.prizes[1], original[1]);
+  check('slot 3 is still the original card, same position', p.prizes[3], original[3]);
+  check('the array never shrinks', p.prizes.length, 6);
+  check('remainingPrizes drops to 4', remainingPrizes(p), 4);
+
+  // Taking an already-taken slot is a no-op, not a crash or a double-decrement.
+  takePrize(state, 'player', 2);
+  check('re-taking an already-empty slot changes nothing', remainingPrizes(p), 4);
 })();
 
 (function testKnockoutDefersActiveChoiceToPlayerWhenBenchIsNonEmpty() {
@@ -667,9 +698,15 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
     while (!winner && turns < TURN_CAP) {
       cpuTakeTurn(state);
       // The player's own prizes are a choice in real play (see takePrize());
-      // this fully-automated simulation just always takes the first one, the
-      // same way the CPU's own prizes are auto-taken with no real choice.
-      while (state.pendingPrizeChoice) { takePrize(state, state.pendingPrizeChoice.playerId, 0); }
+      // this fully-automated simulation just always takes the first still-
+      // available slot, the same way the CPU's own prizes are auto-taken
+      // with no real choice. Slots go null in place instead of shifting, so
+      // "the first one" means the first non-null slot, not index 0.
+      while (state.pendingPrizeChoice) {
+        var pid = state.pendingPrizeChoice.playerId;
+        var idx = state.players[pid].prizes.findIndex(function (c) { return c; });
+        takePrize(state, pid, idx);
+      }
       winner = getWinner(state);
       turns++;
     }

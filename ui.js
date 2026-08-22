@@ -417,6 +417,35 @@ function renderActiveChoiceModal() {
   document.getElementById('activeChoiceModal').classList.remove('hidden');
 }
 
+// Shows all 6 prize slots (real face-down backs for the ones still on the
+// board, an empty gap for ones already taken -- p.prizes is a fixed 6-slot
+// array with nulls in place, see rules-engine.js's remainingPrizes) so the
+// player picks a specific slot instead of it being auto-resolved. The hand
+// stays visible behind this modal (see renderBoard).
+function renderPrizeChoiceModal() {
+  var p = gameState.players.player;
+  var backUrl = cardBackUrlFor('player');
+  var grid = document.getElementById('prizeChoiceGrid');
+  grid.innerHTML = p.prizes.map(function (card, index) {
+    if (!card) { return '<div class="shell-prize-choice-slot taken"></div>'; }
+    return '<button type="button" class="shell-prize-choice-slot" data-prize-index="' + index + '">' +
+      '<img src="' + backUrl + '" alt="Carta de premio boca abajo"></button>';
+  }).join('');
+  grid.querySelectorAll('.shell-prize-choice-slot:not(.taken)').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var index = parseInt(btn.getAttribute('data-prize-index'), 10);
+      var wonCard = gameState.players.player.prizes[index];
+      var wonCardName = wonCard && wonCard.name;
+      takePrize(gameState, 'player', index);
+      afterPlayerAction();
+      // Zoom the card just taken so it's clear which prize was won -- reuses
+      // the same enlarge modal as the hand's 🔍 buttons.
+      if (wonCardName) { openCardModal(wonCardName); }
+    });
+  });
+  document.getElementById('prizeChoiceModal').classList.remove('hidden');
+}
+
 // One small icon per attached energy, overlaid in the card's top-left
 // corner -- same visual trick the hand cards used for their type icon,
 // reused here to show the real attached-energy count/types at a glance
@@ -525,20 +554,18 @@ function deckDiscardRowHtml(state, ownerId) {
 }
 
 // Each prize is a specific, already-determined face-down card (set aside in
-// createGame). When the player has a pending choice (rules-engine.js's
-// state.pendingPrizeChoice), their own prize cards become clickable so they
-// pick which one to flip -- instead of it being auto-resolved.
+// createGame). p.prizes is a fixed 6-slot array for the whole match -- a
+// taken prize is null in place (see rules-engine.js's remainingPrizes), so
+// the slots here never shift; picking which one to take happens in
+// renderPrizeChoiceModal(), not by clicking these directly.
 function prizeGridHtml(state, ownerId) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
-  var choosable = mine && state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player';
   var backUrl = cardBackUrlFor(ownerId);
-  var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + p.prizes.length + '</div><div class="shell-board-prize-grid">';
+  var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + remainingPrizes(p) + '</div><div class="shell-board-prize-grid">';
   for (var i = 0; i < 6; i++) {
-    if (i < p.prizes.length) {
-      var cls = 'shell-board-prize-card' + (choosable ? ' choosable' : '');
-      html += '<div class="' + cls + '"' + (choosable ? ' data-prize-index="' + i + '" title="Elegir esta carta de premio"' : '') + '>' +
-        '<img src="' + backUrl + '" alt="Carta de premio boca abajo"></div>';
+    if (p.prizes[i]) {
+      html += '<div class="shell-board-prize-card"><img src="' + backUrl + '" alt="Carta de premio boca abajo"></div>';
     } else {
       html += '<div class="shell-board-prize-card empty"></div>';
     }
@@ -625,9 +652,10 @@ function renderBoard() {
 
   var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
   var pendingActive = s.pendingActiveChoice === 'player';
-  if (pendingPlayerPrize) {
-    boardHtml += '<div class="shell-board-prize-pending">¡Noqueaste un Pokémon! Elige una de tus cartas de premio para tomarla.</div>';
-  } else if (!pendingActive) {
+  // The hand stays visible during a pending prize choice -- only the
+  // Active-choice modal (a full board takeover after being wiped out) hides
+  // it, per real rules the hand is never touched by taking a prize.
+  if (!pendingActive) {
     boardHtml += handBandHtml(s);
   }
   document.getElementById('app').innerHTML = boardHtml;
@@ -636,6 +664,12 @@ function renderBoard() {
     renderActiveChoiceModal();
   } else {
     document.getElementById('activeChoiceModal').classList.add('hidden');
+  }
+
+  if (pendingPlayerPrize) {
+    renderPrizeChoiceModal();
+  } else {
+    document.getElementById('prizeChoiceModal').classList.add('hidden');
   }
 
   // Column C: CPU block (header → deck/discard → prizes) on top, mine
@@ -864,19 +898,6 @@ function wireBoardButtons() {
       }
       selectedHandId = null;
       renderBoard();
-    });
-  });
-
-  document.querySelectorAll('.shell-board-prize-card.choosable').forEach(function (el) {
-    el.addEventListener('click', function () {
-      var index = parseInt(el.getAttribute('data-prize-index'), 10);
-      var wonCard = gameState.players.player.prizes[index];
-      var wonCardName = wonCard && wonCard.name;
-      takePrize(gameState, 'player', index);
-      afterPlayerAction();
-      // Zoom the card just taken so it's clear which prize was won -- reuses
-      // the same enlarge modal as the hand's 🔍 buttons.
-      if (wonCardName) { openCardModal(wonCardName); }
     });
   });
 
