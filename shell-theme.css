@@ -744,11 +744,12 @@
 .shell-deck-grid-panel{flex:1;min-height:0;overflow-y:auto;}
 .shell-deck-grid{display:grid;grid-template-columns:repeat(12,96px);gap:9px;align-content:start;justify-content:center;}
 .shell-deck-slot{
-  width:96px;height:134px;overflow:hidden;background:#0a0806;border:1px solid rgba(0,0,0,.6);
+  position:relative;width:96px;height:134px;overflow:hidden;background:#0a0806;border:1px solid rgba(0,0,0,.6);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.08);cursor:pointer;transition:transform .1s;
 }
 .shell-deck-slot:hover{transform:scale(1.14);}
 .shell-deck-slot img{width:100%;height:100%;object-fit:cover;display:block;}
+.shell-deck-slot.holo{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px #e8c46a,0 0 16px rgba(232,196,106,.5);}
 
 /* ===== Auth (login / crear cuenta / olvidé mi contraseña) ===== */
 /* No handoff mockup covers this (our own app's login flow), so it's built
@@ -864,7 +865,7 @@
   background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),linear-gradient(180deg,#413a31,#221e19);
   border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 26px rgba(0,0,0,.7);
 }
-.shell-board-viewer-frame-inner{width:100%;height:100%;overflow:hidden;background:#241f1a;border:1px solid #0a0806;}
+.shell-board-viewer-frame-inner{position:relative;width:100%;height:100%;overflow:hidden;background:#241f1a;border:1px solid #0a0806;}
 .shell-board-viewer-frame-inner img{width:100%;height:100%;object-fit:cover;display:block;}
 .shell-board-viewer-corner{position:absolute;width:16px;height:16px;border-color:#e8c46a;}
 .shell-board-viewer-corner.tl{left:-1px;top:-1px;border-left:2px solid;border-top:2px solid;}
@@ -1022,6 +1023,13 @@
    descendant selector) so the energy-icon overlay below can't inherit this
    full-size/flip styling by accident. */
 .shell-board-card-art{width:100%;height:100%;object-fit:cover;display:block;}
+/* Wraps a holo card's <img> (see cardImageTag) -- display:contents makes it
+   layout-transparent, so the image keeps whatever sizing its own class/
+   context already gave it (100%/100%, or a fixed px size in the Active-
+   choice grid) instead of needing that sizing duplicated here. The foil
+   overlay it adds anchors to the nearest position:relative ancestor, which
+   every card wrapper that can hold one already is. */
+.shell-card-holo-wrap{display:contents;}
 
 /* Attached-energy icons, overlaid top-left on bench/active card art -- the
    same small-icon-in-a-corner trick the hand cards used for their type icon
@@ -1169,7 +1177,7 @@
 .shell-active-choice-header{font-family:'Pixelify Sans',sans-serif;font-size:18px;font-weight:700;letter-spacing:.02em;color:#ff8a72;text-align:center;}
 .shell-active-choice-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;}
 .shell-active-choice-card{
-  width:110px;display:flex;flex-direction:column;gap:8px;align-items:center;cursor:pointer;
+  position:relative;width:110px;display:flex;flex-direction:column;gap:8px;align-items:center;cursor:pointer;
   background:transparent;border:none;font-family:'Silkscreen',monospace;color:#a49785;
   padding:0;transition:transform .12s;
 }

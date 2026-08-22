@@ -174,9 +174,25 @@ function logHtml(s) {
   }).join('');
 }
 
-function cardImageTag(name, cls) {
+// isHolo is real, not decorative: the historical Overgrowth/Blackout theme
+// decks each ship exactly one guaranteed Rare Holo (Gyarados / Hitmonchan --
+// see isHoloInMatch), so this reuses the same shimmering foil overlay the
+// Collection screen uses for those, front face only -- the card back never
+// changes regardless of holo.
+function cardImageTag(name, cls, isHolo) {
   var url = CARD_IMAGE_BY_NAME[name];
-  return url ? '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '';
+  if (!url) { return ''; }
+  var img = '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">';
+  return isHolo ? '<span class="shell-card-holo-wrap">' + img + '<div class="shell-collection-cell-foil"></div></span>' : img;
+}
+
+// Whether ownerId's copy of this exact card name is the deck's one
+// guaranteed Rare Holo -- Gyarados for the player's Overgrowth, Hitmonchan
+// for the CPU's Blackout (both real, single-copy Rare Holos in the actual
+// 1999 preconstructed decks, not an arbitrary pick).
+var DECK_HOLO_CARD = { player: 'Gyarados', cpu: 'Hitmonchan' };
+function isHoloInMatch(ownerId, cardName) {
+  return DECK_HOLO_CARD[ownerId] === cardName;
 }
 
 // Real weakness/resistance/retreat-cost trio (data-cards.js), shown under
@@ -267,8 +283,17 @@ function showCardInViewer(name, instanceId) {
   var pendingPlayerPrize = gameState.pendingPrizeChoice && gameState.pendingPrizeChoice.playerId === 'player';
   var actionableState = (isOwnActive && gameState.phase === 'playing' && gameState.activePlayerId === 'player' && !pendingPlayerPrize) ? gameState : null;
 
+  // A hand-card view has no instanceId and is always the player's own hand
+  // (the CPU's hand only ever shows as face-down backs); a board-card view
+  // carries a real instanceId that belongs to one side or the other.
+  var viewerOwnerId = !instanceId ? 'player'
+    : findInstance(gameState.players.player, instanceId) ? 'player'
+    : findInstance(gameState.players.cpu, instanceId) ? 'cpu' : null;
+  var viewerIsHolo = !!(viewerOwnerId && isHoloInMatch(viewerOwnerId, name));
+
   var frameHtml = '<div class="shell-board-viewer-frame">' +
-    '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '"></div>' +
+    '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '">' +
+    (viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' : '') + '</div>' +
     '<div class="shell-board-viewer-corner tl"></div><div class="shell-board-viewer-corner br"></div>' +
     '</div>';
 
@@ -405,7 +430,7 @@ function renderActiveChoiceModal() {
   var grid = document.getElementById('activeChoiceGrid');
   grid.innerHTML = p.bench.filter(function (instance) { return instance; }).map(function (instance) {
     return '<button type="button" class="shell-active-choice-card" data-instance-id="' + instance.id + '">' +
-      cardImageTag(instance.name, 'shell-board-card-art') +
+      cardImageTag(instance.name, 'shell-board-card-art', isHoloInMatch('player', instance.name)) +
       '<span>' + escapeHtml(translateCardName(instance.name)) + '</span>' +
       '</button>';
   }).join('');
@@ -480,7 +505,8 @@ function benchCardHtml(instance, mine, flipped) {
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
-    cardImageTag(instance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
+    cardImageTag(instance.name, 'shell-board-card-art', isHoloInMatch(mine ? 'player' : 'cpu', instance.name)) +
+    cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
   return '<div class="shell-board-bench-slot">' + cardHtml + hpHtml + nameHtml + '</div>';
@@ -540,7 +566,8 @@ function activeColHtml(activeInstance, mine, flipped) {
     '<div class="shell-board-active-hp"><div class="shell-board-active-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
-    cardImageTag(activeInstance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
+    cardImageTag(activeInstance.name, 'shell-board-card-art', isHoloInMatch(mine ? 'player' : 'cpu', activeInstance.name)) +
+    cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
     cardStatusOverlayHtml(activeInstance.statusConditions) +
     '</div>';
   var order = mine ? (cardHtml + namePlate) : (namePlate + cardHtml);
@@ -632,7 +659,7 @@ function handBandHtml(state) {
     var draggable = !disabled && (isPokemonCard(card.name) || isEnergyCard(card.name));
     return '<button type="button" class="shell-board-hand-card-wrap"' + (draggable ? ' draggable="true"' : '') +
       ' data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
-      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') + '</div>' +
+      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '', isHoloInMatch('player', card.name)) + '</div>' +
       '<div class="shell-board-hand-card-name">' + escapeHtml(translateCardName(card.name)) + '</div>' +
       '</button>';
   }).join('');
@@ -1614,10 +1641,16 @@ function renderDeckDetail(deckKey) {
   }).join('');
   document.getElementById('deckEnergies').innerHTML = energiesHtml;
 
+  // Same real Rare Holo this deck guarantees in an actual match (see
+  // DECK_HOLO_CARD/isHoloInMatch) -- keyed by deckKey here instead of
+  // ownerId since this screen shows a decklist, not a live gameState side.
+  var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan' }[deckKey];
   var html = expandDecklist(DECKLISTS[deckKey]).map(function (card) {
     var img = CARD_IMAGE_BY_NAME[card.name] || '';
-    return '<div class="shell-deck-slot" data-card-name="' + escapeHtml(card.name) + '">' +
+    var holo = card.name === deckHoloCard;
+    return '<div class="shell-deck-slot' + (holo ? ' holo' : '') + '" data-card-name="' + escapeHtml(card.name) + '">' +
       (img ? '<img src="' + img + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' : '') +
+      (holo ? '<div class="shell-collection-cell-foil"></div>' : '') +
       '</div>';
   }).join('');
   var grid = document.getElementById('deckGrid');
@@ -1625,7 +1658,7 @@ function renderDeckDetail(deckKey) {
   grid.querySelectorAll('.shell-deck-slot').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name); }
+      if (name) { openCardModal(name, null, el.classList.contains('holo')); }
     });
   });
 }
