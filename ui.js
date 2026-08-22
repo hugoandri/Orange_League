@@ -770,6 +770,15 @@ function afterPlayerAction() {
 // "Nueva partida" lives on matchEndReplayBtn instead of a button rendered here.
 function finishMatch(winner) {
   matchWinner = winner;
+  // A simultaneous double-knockout (e.g. the CPU's own Active also falls to
+  // a status-condition checkup right after its attack KOs the player's last
+  // Pokémon) can leave a pendingPrizeChoice/pendingActiveChoice sitting
+  // unresolved at the exact moment the match ends -- real rules don't care
+  // who still owes a prize once someone has already lost, so clear both
+  // instead of letting renderBoard() below pop that modal over "Has
+  // Perdido"/"Has Ganado".
+  gameState.pendingPrizeChoice = null;
+  gameState.pendingActiveChoice = null;
   stopGameClock();
   playMatchEndMusic(winner);
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
