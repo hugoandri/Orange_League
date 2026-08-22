@@ -8,7 +8,7 @@ function initEconomyListener(uid) {
     .onSnapshot(function (snap) {
       var data = snap.data();
       if (!data) { return; }
-      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [] };
+      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [] };
       profileState = { username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();

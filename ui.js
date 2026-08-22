@@ -337,14 +337,26 @@ function showCardInViewer(name, instanceId) {
 // differently-illustrated reprint in another set or at another rarity (e.g.
 // Haunter: Base Set #29 vs Fossil #6/#21), so the name-keyed table can only
 // ever hold one of them and silently shows the wrong art for the others.
-function openCardModal(name, imgUrl, isHolo) {
+// Reads which foil tier a rendered card element ended up with (see
+// renderCollectionGrid/showBoosterResult/renderDeckDetail, which all apply
+// .secret/.holo the same way) so the zoom modal it opens into matches.
+function cellFoilTier(el) {
+  if (el.classList.contains('secret')) { return 'secret'; }
+  if (el.classList.contains('holo')) { return 'holo'; }
+  return null;
+}
+
+// foilTier: 'holo', 'secret', or falsy for a plain card.
+function openCardModal(name, imgUrl, foilTier) {
   var url = imgUrl || CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
   var img = document.getElementById('cardModalImg');
   img.src = url;
   img.alt = name;
-  document.getElementById('cardModal').classList.toggle('holo', !!isHolo);
-  document.getElementById('cardModal').classList.remove('hidden');
+  var modal = document.getElementById('cardModal');
+  modal.classList.toggle('holo', foilTier === 'holo');
+  modal.classList.toggle('secret', foilTier === 'secret');
+  modal.classList.remove('hidden');
 }
 
 function closeCardModal() {
@@ -1383,14 +1395,16 @@ function collectionAllCards() {
     var setTotal = CARD_CATALOG[setKey].length;
     CARD_CATALOG[setKey].forEach(function (c) {
       var key = setKey + '-' + c.num;
-      // A card counts as holo either because its own catalog rarity already
-      // is Rare Holo, or because at least one owned copy rolled the bonus
-      // upgrade (collectionHolo, written server-side by openBooster --
-      // see functions/index.js/pureEconomy.js's HOLO_UPGRADE_CHANCE).
-      var holo = c.r === 'Rare Holo' || (econState.collectionHolo[key] || 0) > 0;
+      // The catalog's own r tag no longer locks in the displayed rarity --
+      // every star-tier pull rolls Rare/Holo/Secret independently (see
+      // openBooster/pureEconomy.js's RARITY_ROLL), so whether *this* card
+      // counts as holo/secret depends only on whether at least one owned
+      // copy actually rolled that tier (collectionHolo/collectionSecret).
+      var holo = (econState.collectionHolo[key] || 0) > 0;
+      var secret = (econState.collectionSecret[key] || 0) > 0;
       all.push({
         setKey: setKey, setTotal: setTotal, num: c.num, name: c.n, rarity: c.r, img: c.img,
-        count: (econState.collection[key] || 0), holo: holo
+        count: (econState.collection[key] || 0), holo: holo, secret: secret
       });
     });
   });
@@ -1448,12 +1462,16 @@ function renderCollectionGrid(all) {
 
   var html = filtered.map(function (c) {
     var owned = c.count > 0;
-    var isHolo = owned && c.holo;
+    // Secret takes priority over holo when a card somehow has both counts
+    // (e.g. one holo copy and one secret copy owned) -- shows the rarer one.
+    var isSecret = owned && c.secret;
+    var isHolo = owned && c.holo && !isSecret;
+    var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
     var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
-    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + (isHolo ? ' holo' : '') + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
+    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
-        (isHolo ? '<div class="shell-collection-cell-foil"></div>' : '') +
+        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' : '')) +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
@@ -1470,7 +1488,7 @@ function renderCollectionGrid(all) {
   grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, el.getAttribute('data-card-img'), el.classList.contains('holo')); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img'), cellFoilTier(el)); }
     });
   });
 }
@@ -1531,6 +1549,7 @@ function openBoosterAndPurchase() {
 }
 
 var BOOSTER_RESULT_RARITY = {
+  Secret: { cls: 'secret', label: 'SECRETA' },
   'Rare Holo': { cls: 'holo', label: 'HOLOGRÁFICA' },
   Rare: { cls: 'rare', label: 'RARA' },
   Uncommon: { cls: 'uncommon', label: 'INFRECUENTE' },
@@ -1543,7 +1562,7 @@ var boosterResultSetKey = null;
 
 function showBoosterResult(cards, setKey) {
   boosterResultSetKey = setKey;
-  var counts = { holo: 0, rare: 0, uncommon: 0 };
+  var counts = { secret: 0, holo: 0, rare: 0, uncommon: 0 };
   var html = '';
   cards.forEach(function (c) {
     // c.img is this exact card's own art (straight from the set that was
@@ -1553,17 +1572,24 @@ function showBoosterResult(cards, setKey) {
     // That mismatch is exactly the "opened a Base pack, got a Fossil-art
     // Haunter" bug this fixes.
     var url = c.img || '';
-    // c.holo is the real, server-decided upgrade (functions/index.js's
-    // openBooster, via drawBoosterCards' HOLO_UPGRADE_CHANCE roll) -- this
-    // reveal has to match what actually got persisted into collectionHolo,
-    // not a separate client-side roll of its own.
-    var displayRarityKey = c.holo ? 'Rare Holo' : c.r;
+    // c.pulledRarity is the real, server-decided roll (functions/index.js's
+    // openBooster, via drawBoosterCards' RARITY_ROLL) for the pack's one
+    // Rare/Rare Holo slot -- this reveal has to match what actually got
+    // persisted into collectionHolo/collectionSecret, not a separate
+    // client-side roll. Uncommons/Commons have no pulledRarity and fall
+    // back to their plain catalog rarity.
+    var displayRarityKey = c.pulledRarity === 'secret' ? 'Secret'
+      : c.pulledRarity === 'holo' ? 'Rare Holo'
+      : c.pulledRarity === 'rare' ? 'Rare'
+      : c.r;
     var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
     if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
+    var foilHtml = rarity.cls === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>'
+      : rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' : '';
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
       '<div class="shell-booster-result-card-art">' +
         (url ? '<img src="' + url + '" alt="' + escapeHtml(c.n) + '" loading="lazy">' : '') +
-        (rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' : '') +
+        foilHtml +
       '</div>' +
       '<div class="shell-booster-result-card-label">' + rarity.label + '</div>' +
       '</div>';
@@ -1573,6 +1599,7 @@ function showBoosterResult(cards, setKey) {
     pixelDigitsHtml(cards.length, 'fosforo', 3) + ' CARTAS NUEVAS';
 
   var subtitleParts = [];
+  if (counts.secret) { subtitleParts.push(counts.secret + (counts.secret > 1 ? ' SECRETAS' : ' SECRETA')); }
   if (counts.holo) { subtitleParts.push(counts.holo + (counts.holo > 1 ? ' HOLOGRÁFICAS' : ' HOLOGRÁFICA')); }
   if (counts.rare) { subtitleParts.push(counts.rare + (counts.rare > 1 ? ' RARAS' : ' RARA')); }
   if (counts.uncommon) { subtitleParts.push(counts.uncommon + ' INFRECUENTES'); }
@@ -1583,7 +1610,7 @@ function showBoosterResult(cards, setKey) {
   document.querySelectorAll('.shell-booster-result-card').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, el.getAttribute('data-card-img'), el.classList.contains('holo')); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img'), cellFoilTier(el)); }
     });
   });
 }
@@ -1658,7 +1685,7 @@ function renderDeckDetail(deckKey) {
   grid.querySelectorAll('.shell-deck-slot').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, null, el.classList.contains('holo')); }
+      if (name) { openCardModal(name, null, cellFoilTier(el)); }
     });
   });
 }

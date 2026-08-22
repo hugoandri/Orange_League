@@ -387,6 +387,10 @@
 .shell-booster-result-card.holo .shell-booster-result-card-art{
   box-shadow:0 0 0 1px #e8c46a,0 0 30px rgba(232,196,106,.55),0 8px 18px rgba(0,0,0,.7);
 }
+.shell-booster-result-card.secret .shell-booster-result-card-label{color:#ffe89a;}
+.shell-booster-result-card.secret .shell-booster-result-card-art{
+  box-shadow:0 0 0 1px #ffe89a,0 0 34px rgba(255,232,154,.65),0 8px 18px rgba(0,0,0,.7);
+}
 .shell-booster-result-foil{
   position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
   animation:holo 3.4s linear infinite;
@@ -394,6 +398,24 @@
 }
 .shell-booster-result-actions{display:flex;align-items:center;justify-content:center;gap:16px;}
 @keyframes holo{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
+
+/* Secret Rare foil: same rainbow-sweep idea as holo but faster/brighter,
+   plus a second panning checkerboard/damero layer -- the two-layer combo
+   from the "Holos.html" design reference, reimplemented as a plain overlay
+   on the real card photo (that mockup drew a whole fake card; ours photos
+   are real, so only the foil layers themselves carry over). Shared by every
+   context that shows a Secret pull: booster reveal, Collection, card zoom. */
+.shell-secret-foil-a{
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
+  animation:holo 1.8s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,90,220,.4),rgba(90,210,255,.4),rgba(255,230,90,.4),rgba(120,255,170,.4),rgba(255,90,220,.4));
+}
+.shell-secret-foil-b{
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:22px 22px;
+  animation:damero 3.6s linear infinite;
+  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.65) 0% 25%,transparent 0% 50%);
+}
+@keyframes damero{0%{background-position:0 0;}100%{background-position:22px 22px;}}
 
 /* ===== Mi Colección ===== */
 .shell-collection-progress{display:flex;align-items:center;gap:14px;font-family:'Silkscreen',monospace;}
@@ -459,6 +481,7 @@
    as a fresh booster pull, so it stays visibly holo everywhere it's shown,
    not just at the moment it was opened. */
 .shell-collection-cell.holo .shell-collection-cell-art{box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.5),0 4px 10px rgba(0,0,0,.55);}
+.shell-collection-cell.secret .shell-collection-cell-art{box-shadow:0 0 0 1px #ffe89a,0 0 26px rgba(255,232,154,.6),0 4px 10px rgba(0,0,0,.55);}
 .shell-collection-cell-foil{
   position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
   animation:holo 3.4s linear infinite;
@@ -1155,6 +1178,20 @@
   content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
   animation:holo 3.4s linear infinite;
   background-image:linear-gradient(115deg,rgba(255,120,220,.22),rgba(120,220,255,.22),rgba(255,240,120,.22),rgba(160,255,140,.22),rgba(255,120,220,.22));
+}
+/* Secret zoom -- brighter/faster rainbow (::after) plus a second, panning
+   checkerboard layer (::before, the only other pseudo-element available on
+   this same node) -- same two-layer idea as .shell-secret-foil-a/-b. */
+#cardModal.secret .shell-card-zoom img{box-shadow:0 0 0 1px #ffe89a,0 0 46px rgba(255,232,154,.7);}
+#cardModal.secret .shell-card-zoom::after{
+  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
+  animation:holo 1.8s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,90,220,.32),rgba(90,210,255,.32),rgba(255,230,90,.32),rgba(120,255,170,.32),rgba(255,90,220,.32));
+}
+#cardModal.secret .shell-card-zoom::before{
+  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:22px 22px;
+  animation:damero 3.6s linear infinite;
+  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.5) 0% 25%,transparent 0% 50%);
 }
 .shell-card-zoom-close{
   padding:12px 28px;cursor:pointer;font-size:12px;letter-spacing:.14em;color:#efe9dd;

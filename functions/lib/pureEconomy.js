@@ -31,17 +31,27 @@ function pickRandom(list, rng) {
   return list[Math.floor(rng() * list.length)];
 }
 
-// A drawn plain Rare (not already Rare Holo -- that tier is holo by its own
-// catalog rarity already) has this chance of a bonus holo upgrade that
-// actually persists on that collection copy (see openBooster in index.js,
-// which stores it in collectionHolo) -- not just a cosmetic reveal-screen
-// flourish. guaranteedHolo (the account being "Darkspoon") skips the roll
-// and always upgrades.
-var HOLO_UPGRADE_CHANCE = 0.10;
+// Every star-tier pull (the pack's one Rare/Rare Holo slot) rolls its own
+// displayed/persisted rarity independently of what the catalog happens to
+// tag that print as -- the same Clefairy can come out Rare one pack and
+// Secret Rare the next, no card is locked to one tier. Order matters: check
+// secret first (rarest), then holo, whatever's left is plain rare.
+var RARITY_ROLL = {
+  normal: { secret: 0.01, holo: 0.10 },   // + 89% plain rare
+  darkspoon: { secret: 0.45, holo: 0.50 } // + 5% plain rare
+};
+
+function rollPulledRarity(rng, useDarkspoonOdds) {
+  var table = useDarkspoonOdds ? RARITY_ROLL.darkspoon : RARITY_ROLL.normal;
+  var roll = rng();
+  if (roll < table.secret) { return 'secret'; }
+  if (roll < table.secret + table.holo) { return 'holo'; }
+  return 'rare';
+}
 
 // Mirrors the pack composition of the original client-side buyBooster():
 // 1 Rare/Rare Holo + 3 Uncommon + 7 Common, drawn with replacement.
-function drawBoosterCards(pool, rng, guaranteedHolo) {
+function drawBoosterCards(pool, rng, useDarkspoonOdds) {
   var rares = pool.filter(function (c) { return c.r === 'Rare' || c.r === 'Rare Holo'; });
   var uncommons = pool.filter(function (c) { return c.r === 'Uncommon'; });
   var commons = pool.filter(function (c) { return c.r === 'Common'; });
@@ -50,10 +60,10 @@ function drawBoosterCards(pool, rng, guaranteedHolo) {
   var rareCard = pickRandom(rares, rng);
   // Clone before tagging -- rareCard is a reference into the shared, in-
   // memory CARD_CATALOG, and mutating it directly would leak this one
-  // draw's holo flag onto every future draw of the same card, for every
+  // draw's pulledRarity onto every future draw of the same card, for every
   // user, for the lifetime of this function instance.
-  var holo = rareCard.r === 'Rare' && (guaranteedHolo || rng() < HOLO_UPGRADE_CHANCE);
-  cards.push(Object.assign({}, rareCard, { holo: holo }));
+  var pulledRarity = rollPulledRarity(rng, useDarkspoonOdds);
+  cards.push(Object.assign({}, rareCard, { pulledRarity: pulledRarity }));
   for (var i = 0; i < 3; i++) { cards.push(pickRandom(uncommons, rng)); }
   for (var j = 0; j < 7; j++) { cards.push(pickRandom(commons, rng)); }
   return cards;
@@ -63,7 +73,7 @@ module.exports = {
   BOOSTER_COST: BOOSTER_COST,
   PROTECTOR_COST: PROTECTOR_COST,
   PROTECTOR_IDS: PROTECTOR_IDS,
-  HOLO_UPGRADE_CHANCE: HOLO_UPGRADE_CHANCE,
+  RARITY_ROLL: RARITY_ROLL,
   computeMatchReward: computeMatchReward,
   drawBoosterCards: drawBoosterCards
 };
