@@ -292,5 +292,10 @@ function cpuTakeTurn(state, difficulty) {
       if (betterBench) { retreat(state, playerId, betterBench.id); }
     }
   }
+  // The CPU's own turn genuinely, immediately ends here (no click involved,
+  // unlike the player's -- see rules-engine.js's applyEndOfTurnCheckup),
+  // so the Pokémon Checkup applies right away, same as its attack() path
+  // already does.
   endTurn(state);
+  applyEndOfTurnCheckup(state);
 }

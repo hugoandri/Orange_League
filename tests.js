@@ -202,6 +202,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   p2.bench = [];
   state2.activePlayerId = 'player';
   endTurn(state2);
+  applyEndOfTurnCheckup(state2); // checkup no longer lives inside endTurn() itself -- see its own comment
   check('a benched Pokemon (none here, but active poisoned) still ticks normally when it stays active', p2.active.damage, 10);
 
   var state3 = createGame(function () { return 0.42; });
@@ -460,7 +461,44 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   state.players.player.bench = [];
   state.activePlayerId = 'player';
   endTurn(state);
+  applyEndOfTurnCheckup(state); // checkup no longer lives inside endTurn() itself -- see its own comment
   check('poison on the opponent\'s active ticks at the same checkup, not a turn late', state.players.cpu.active.damage, 10);
+})();
+
+(function testPlayerAttackDefersCheckupUntilTerminarTurno() {
+  // Regression: attacking already ends the player's turn engine-side
+  // (attack() calls endTurn() internally), but the Pokémon Checkup itself
+  // (Poison/Burned/Asleep, both sides) should still wait for the real
+  // "Terminar turno" click (ui.js's runCpuTurn calls applyEndOfTurnCheckup
+  // directly) -- not resolve the instant the player attacks, before
+  // they've actually handed the turn over.
+  var state = createGame(function () { return 0.42; });
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = { id: 'atk1', name: 'Squirtle', attachedEnergy: ['Water'], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  op.active = { id: 'def1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+  attack(state, 'player', 'Bubble'); // ends the player's turn engine-side
+  check("the player's own poisoned Pokémon hasn't ticked yet -- checkup is held until the real click", p.active.damage, 0);
+  check("the attack's own 10 damage landed, but the CPU's poison hasn't ticked on top of it yet", op.active.damage, 10);
+  applyEndOfTurnCheckup(state); // simulates ui.js's runCpuTurn, called right at the "Terminar turno" click
+  check('the player\'s own poison now ticks, right at the click', p.active.damage, 10);
+  check("the CPU's poison now ticks too, same click, same checkup", op.active.damage, 20);
+})();
+
+(function testCpuAttackAppliesCheckupImmediately() {
+  // The CPU's own turn genuinely, immediately ends the instant it attacks
+  // -- no click involved, unlike the player's -- so checkup applies right
+  // away, same as it always has.
+  var state = createGame(function () { return 0.42; });
+  var p = state.players.cpu;
+  p.active = { id: 'atk2', name: 'Squirtle', attachedEnergy: ['Water'], damage: 0, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.active = { id: 'def2', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.activePlayerId = 'cpu';
+  state.turnCounter = 3;
+  attack(state, 'cpu', 'Bubble');
+  check("the CPU's own poison ticks immediately, no click to wait for", p.active.damage, 10);
 })();
 
 (function testTrainerEffects() {
@@ -718,6 +756,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   p.active = { id: 'burn1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Burned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
   state.activePlayerId = 'player';
   endTurn(state);
+  applyEndOfTurnCheckup(state); // checkup no longer lives inside endTurn() itself -- see its own comment
   check('Burned deals 10 damage at checkup', p.active.damage, 10);
   checkTrue('Burned heals on a heads coin flip', p.active.statusConditions.indexOf('Burned') === -1);
 })();
@@ -728,6 +767,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   p.active = { id: 'sleep1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: ['Asleep'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
   state.activePlayerId = 'player';
   endTurn(state);
+  applyEndOfTurnCheckup(state); // checkup no longer lives inside endTurn() itself -- see its own comment
   checkTrue('Asleep wakes up on a heads coin flip', p.active.statusConditions.indexOf('Asleep') === -1);
 })();
 

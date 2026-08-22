@@ -517,13 +517,28 @@ function attack(state, playerId, attackName) {
   var stats = CARD_STATS[attacker.name];
   var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
 
+  // endTurn() itself no longer runs the Pokémon Checkup (see its own
+  // comment) -- the CPU's own turn genuinely, immediately ends the instant
+  // it attacks (no click involved), so checkup applies right here, same as
+  // always. The player's attack also ends their turn engine-side right
+  // away (real rules -- attacking is your last action), but the *visible*
+  // effects of that stay held back until they actually click "Terminar
+  // turno" (ui.js's runCpuTurn calls applyEndOfTurnCheckup itself, right at
+  // the click) -- otherwise the player would see status damage resolve on
+  // either side the instant they attacked, before they'd done anything to
+  // actually hand the turn over.
+  function endThisTurn() {
+    endTurn(state);
+    if (playerId === 'cpu') { applyEndOfTurnCheckup(state); }
+  }
+
   logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName), playerId);
 
   if (attacker.missChanceUntilTurn === state.turnCounter) {
     attacker.missChanceUntilTurn = null;
     if (coinFlip(state) === 'T') {
       logEvent(state, attacker.name + ' falla el ataque (efecto de ' + translateAttackName('Sand-attack') + ')', playerId);
-      endTurn(state);
+      endThisTurn();
       return;
     }
   }
@@ -539,13 +554,13 @@ function attack(state, playerId, attackName) {
       attacker.damage += 30;
       logEvent(state, attacker.name + ' se hace daño por Confusión', playerId);
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
-      endTurn(state);
+      endThisTurn();
       return;
     }
   }
 
   var defender = op.active;
-  if (!defender) { endTurn(state); return; }
+  if (!defender) { endThisTurn(); return; }
   var beforeDamage = defender.damage;
   var beforeStatus = defender.statusConditions.slice();
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
@@ -562,7 +577,7 @@ function attack(state, playerId, attackName) {
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
-  endTurn(state);
+  endThisTurn();
 }
 
 function applyCheckupDamage(state, playerId) {
@@ -589,10 +604,20 @@ function applyCheckupDamage(state, playerId) {
   p.bench.filter(function (b) { return b; }).forEach(function (b) { knockOutIfNeeded(state, playerId, b); });
 }
 
-function endTurn(state) {
-  var justFinished = state.activePlayerId;
+// Both sides' Poison/Burned/Asleep resolve at the same Pokémon Checkup,
+// whichever side's turn is ending (see testCheckupAppliesToOpponents
+// PoisonedActiveSameTurn) -- but WHEN that checkup actually runs now
+// depends on who ended the turn (see attack()'s own comment): immediately
+// for the CPU's own turn-end, or held until the player's explicit
+// "Terminar turno" click for theirs (ui.js's runCpuTurn calls this
+// directly). No longer folded into endTurn() itself for that reason.
+function applyEndOfTurnCheckup(state) {
   applyCheckupDamage(state, 'player');
   applyCheckupDamage(state, 'cpu');
+}
+
+function endTurn(state) {
+  var justFinished = state.activePlayerId;
   if (state.players[justFinished].active) {
     state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
   }

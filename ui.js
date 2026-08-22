@@ -999,6 +999,17 @@ function showCpuThinkingIndicator() {
 // endTurnBtn is disabled for the duration so a second click during the
 // wait can't invoke this twice.
 function runCpuTurn() {
+  // The player's turn already ended engine-side the moment they attacked
+  // (attack() calls endTurn() internally) -- or, if they didn't attack,
+  // right here via the click handler's own endTurn(gameState) call, just
+  // before this function runs. Either way, this is genuinely "Terminar
+  // turno" being processed for real, so the Pokémon Checkup (Poison/
+  // Burned/Asleep, both sides) applies now -- attack() itself deliberately
+  // held it back when the attacker was the player (see its own comment),
+  // so the player never saw status damage resolve before they'd actually
+  // handed the turn over. Harmless no-op on turn 1 (coin flip handing the
+  // CPU the opening turn): nobody has a status condition yet.
+  applyEndOfTurnCheckup(gameState);
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
   var endTurnBtn = document.getElementById('endTurnBtn');
