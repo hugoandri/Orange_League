@@ -923,7 +923,7 @@
 .shell-board-viewer-identity-name{font-family:'Pixelify Sans',sans-serif;font-size:24px;font-weight:700;letter-spacing:.02em;flex:1;color:#efe9dd;}
 .shell-board-viewer-identity-stage{font-size:10px;letter-spacing:.12em;color:#8a7e6f;}
 .shell-board-viewer-identity-hp{font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;color:#8dff62;}
-.shell-board-viewer-identity-hp span{font-size:12px;color:#6d6155;}
+.shell-board-viewer-identity-hp span{font-size:17px;color:#6d6155;}
 
 .shell-board-viewer-attacks{display:flex;flex-direction:column;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 10px rgba(0,0,0,.85);}
 .shell-board-viewer-attacks-header{padding:8px 12px;border-bottom:1px solid #0a0806;background:linear-gradient(180deg,#2c2721,#1d1a15);font-size:10px;letter-spacing:.22em;color:#a49785;}
@@ -1093,8 +1093,15 @@
   background:linear-gradient(180deg,rgba(11,10,9,0),rgba(20,18,15,.92) 32%,#17140f);border-top:1px solid rgba(255,255,255,.06);
 }
 .shell-board-hand-header{display:flex;align-items:center;gap:12px;padding:7px 20px 0;flex:none;}
-.shell-board-hand-header span{font-size:10px;letter-spacing:.24em;color:#e8c46a;}
-.shell-board-hand-header-rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(232,196,106,.35),transparent);}
+/* Mirrors the CPU hand's label + count-box treatment (.shell-board-hand-cpu-
+   label/-count) so both hands read the same, just in the player's green
+   instead of the CPU's red. */
+.shell-board-hand-label{font-size:10px;letter-spacing:.24em;color:#8dff62;}
+.shell-board-hand-count{
+  width:28px;height:28px;display:grid;place-items:center;font-family:'Pixelify Sans',sans-serif;font-size:16px;font-weight:700;color:#dcffc9;
+  background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 6px rgba(0,0,0,.6);
+}
+.shell-board-hand-header-rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(141,255,98,.35),transparent);}
 .shell-board-hand-cards{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;padding-bottom:10px;overflow-x:auto;}
 .shell-board-hand-card-wrap{width:100px;flex:none;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s,opacity .14s;background:transparent;border:none;font-family:'Silkscreen',monospace;}
 .shell-board-hand-card-wrap.armed{transform:translateY(-10px);}

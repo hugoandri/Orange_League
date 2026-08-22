@@ -714,7 +714,9 @@ function handBandHtml(state) {
       '</button>';
   }).join('');
   return '<div class="shell-board-hand-band">' +
-    '<div class="shell-board-hand-header"><span>MANO · ' + p.hand.length + '</span><span class="shell-board-hand-header-rule"></span></div>' +
+    '<div class="shell-board-hand-header"><span class="shell-board-hand-label">TU MANO</span>' +
+      '<span class="shell-board-hand-count">' + p.hand.length + '</span>' +
+      '<span class="shell-board-hand-header-rule"></span></div>' +
     '<div class="shell-board-hand-cards">' + cardsHtml + '</div>' +
     '</div>';
 }
