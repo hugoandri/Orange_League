@@ -724,7 +724,7 @@ function handBandHtml(state) {
 }
 
 // Column A's lower half: setup's coin-flip button, or (during play) the
-// Retirada/Habilidad/Pasar turno grid, plus the player's own profile footer.
+// Retirada/Habilidad/Terminar turno grid, plus the player's own profile footer.
 // Habilidad stays visible but disabled -- there is no Pokémon Powers/
 // Abilities system in this game yet, only attacks/trainers/retreat/energy.
 function renderBoardActions() {
@@ -741,7 +741,7 @@ function renderBoardActions() {
     html += '<div class="shell-board-actions"><div class="shell-board-actions-grid">' +
       '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>CAMBIAR POKÉMON</button>' +
       '<button type="button" class="shell-board-action" disabled title="Próximamente">HABILIDAD</button>' +
-      '<button type="button" class="shell-board-action-gold" id="endTurnBtn">PASAR TURNO ▶</button>' +
+      '<button type="button" class="shell-board-action-gold" id="endTurnBtn">TERMINAR TURNO ▶</button>' +
       '</div></div>';
   }
 
@@ -825,7 +825,7 @@ function renderBoard() {
     // only still read 'cpu' here in the window right after the player's
     // OWN action already ended their turn engine-side (attack() calls
     // endTurn() internally -- see afterPlayerAction's comment above) but
-    // before they've clicked "PASAR TURNO" to actually hand control over.
+    // before they've clicked "TERMINAR TURNO" to actually hand control over.
     // The board hasn't changed and the CPU hasn't moved yet in that
     // window, so the header stays "TU TURNO" instead of flipping the
     // instant an attack lands, before the player did anything to end it
