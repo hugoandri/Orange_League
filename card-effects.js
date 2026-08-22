@@ -49,16 +49,20 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
-  var benchIdx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
+  var benchIdx = p.bench.findIndex(function (b) { return b && b.id === benchInstanceId; });
   if (benchIdx === -1) { return { legal: false, reason: 'ese Pokémon no está en tu banca' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
-  var incoming = p.bench.splice(benchIdx, 1)[0];
+  var incoming = p.bench[benchIdx];
+  // Swap in place -- the outgoing Active (if there is one) takes over the
+  // exact slot the incoming one is leaving, same as a real retreat
+  // (rules-engine.js); with no Active yet, the slot just empties out.
+  p.bench[benchIdx] = null;
   if (p.active) {
     p.active.statusConditions = [];
     p.active.shield = null;
     p.active.missChanceUntilTurn = null;
-    p.bench.push(p.active);
+    p.bench[benchIdx] = p.active;
   }
   p.active = incoming;
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Switch'), playerId);
@@ -82,18 +86,20 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
-  var idx = op.bench.findIndex(function (b) { return b.id === opponentBenchInstanceId; });
+  var idx = op.bench.findIndex(function (b) { return b && b.id === opponentBenchInstanceId; });
   if (idx === -1) { return { legal: false, reason: 'ese Pokémon no está en la banca rival' }; }
   var handIdx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (handIdx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(handIdx, 1)[0];
   p.discard.push(card);
-  var incoming = op.bench.splice(idx, 1)[0];
+  var incoming = op.bench[idx];
+  // Swap in place, same reasoning as Switch above.
+  op.bench[idx] = null;
   if (op.active) {
     op.active.statusConditions = [];
     op.active.shield = null;
     op.active.missChanceUntilTurn = null;
-    op.bench.push(op.active);
+    op.bench[idx] = op.active;
   }
   op.active = incoming;
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Gust of Wind'), playerId);

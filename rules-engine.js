@@ -109,8 +109,8 @@ function createGame(rng) {
     rng: rng,
     log: [],
     players: {
-      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
-      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
+      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
+      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
     }
   };
 
@@ -156,21 +156,40 @@ function canPlayBasic(state, playerId, handId) {
   var card = p.hand.find(function (c) { return c.id === handId; });
   if (!card || !isBasicPokemon(card.name)) { return false; }
   if (p.active === null) { return true; }
-  return p.bench.length < 5;
+  return benchCount(p) < 5;
 }
 
-function playBasic(state, playerId, handId) {
+// playBasic optionally takes a specific benchIndex (0-4) so the player can
+// drag/click a Basic into whichever empty slot they want -- p.bench is a
+// fixed 5-slot array (nulls = empty, see benchCount) for the whole match, so
+// a chosen slot never gets renumbered by other Pokémon leaving the bench.
+// An invalid/already-occupied index (or none at all -- the CPU never
+// specifies one) falls back to the first free slot.
+function playBasic(state, playerId, handId, benchIndex) {
   var p = state.players[playerId];
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   var card = p.hand.splice(idx, 1)[0];
   var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
-  if (p.active === null) { p.active = instance; p.hasHadActive = true; } else { p.bench.push(instance); }
+  if (p.active === null) {
+    p.active = instance;
+    p.hasHadActive = true;
+  } else {
+    var slot = (typeof benchIndex === 'number' && p.bench[benchIndex] === null) ? benchIndex : p.bench.indexOf(null);
+    p.bench[slot] = instance;
+  }
   logEvent(state, translatePlayer(playerId) + ' juega ' + card.name + ' de básico', playerId);
+}
+
+// Real, non-null Bench Pokémon count -- p.bench.length is always 5 once the
+// match starts (empty slots are null in place, not removed), so any "how
+// many are actually benched" check needs this instead of .length.
+function benchCount(p) {
+  return p.bench.filter(function (b) { return b; }).length;
 }
 
 function findInstance(p, instanceId) {
   if (p.active && p.active.id === instanceId) { return p.active; }
-  return p.bench.find(function (b) { return b.id === instanceId; }) || null;
+  return p.bench.find(function (b) { return b && b.id === instanceId; }) || null;
 }
 
 function canEvolve(state, playerId, handId, targetInstanceId) {
@@ -244,7 +263,7 @@ function canRetreat(state, playerId, benchInstanceId) {
   if (!p.active || p.retreatedThisTurn) { return false; }
   if (p.active.statusConditions.indexOf('Asleep') !== -1) { return false; }
   if (p.active.statusConditions.indexOf('Paralyzed') !== -1) { return false; }
-  var bench = p.bench.find(function (b) { return b.id === benchInstanceId; });
+  var bench = p.bench.find(function (b) { return b && b.id === benchInstanceId; });
   if (!bench) { return false; }
   var cost = CARD_STATS[p.active.name].retreatCost;
   return p.active.attachedEnergy.length >= cost;
@@ -263,15 +282,18 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   var discardedEnergy = indices.slice().sort(function (a, b) { return b - a; })
     .map(function (i) { return p.active.attachedEnergy.splice(i, 1)[0]; });
   discardedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
-  var idx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
-  var incoming = p.bench.splice(idx, 1)[0];
+  var idx = p.bench.findIndex(function (b) { return b && b.id === benchInstanceId; });
+  var incoming = p.bench[idx];
   // Special Conditions (and shield/miss-chance debuffs, which are also
   // active-only mechanics) are removed the instant a Pokémon leaves Active
   // (1998-99 rules) -- only the Active Pokémon can ever carry them.
   p.active.statusConditions = [];
   p.active.shield = null;
   p.active.missChanceUntilTurn = null;
-  p.bench.push(p.active);
+  // The retreating Pokémon takes over the exact slot the incoming one is
+  // leaving (a straight swap) rather than being pushed to the end -- every
+  // other Bench Pokémon's position is untouched.
+  p.bench[idx] = p.active;
   p.active = incoming;
   p.retreatedThisTurn = true;
   logEvent(state, translatePlayer(playerId) + ' se retira a ' + p.active.name, playerId);
@@ -401,19 +423,25 @@ function knockOutIfNeeded(state, ownerId, instance) {
   var attackerId = opponentOf(ownerId);
   logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado', ownerId);
   if (owner.active && owner.active.id === instance.id) {
-    if (ownerId === 'player' && owner.bench.length > 0) {
+    if (ownerId === 'player' && benchCount(owner) > 0) {
       // Let the player choose which Bench Pokémon becomes their new Active
       // instead of auto-promoting the first one -- see chooseNewActive(),
       // resolved from the UI's active-choice modal. The CPU still
-      // auto-promotes (bench.shift()): no player input to wait on there.
+      // auto-promotes (first non-null slot): no player input to wait on there.
       owner.active = null;
       state.pendingActiveChoice = 'player';
       logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
     } else {
-      owner.active = owner.bench.length > 0 ? owner.bench.shift() : null;
+      var promoteIdx = owner.bench.findIndex(function (b) { return b; });
+      owner.active = promoteIdx !== -1 ? owner.bench[promoteIdx] : null;
+      if (promoteIdx !== -1) { owner.bench[promoteIdx] = null; }
     }
   } else {
-    owner.bench = owner.bench.filter(function (b) { return b.id !== instance.id; });
+    // The KO'd Bench Pokémon's slot goes null in place -- every other Bench
+    // Pokémon (and the player-facing gap where this one used to sit) keeps
+    // its exact position, same reasoning as the fixed-slot prizes array.
+    var koIdx = owner.bench.findIndex(function (b) { return b && b.id === instance.id; });
+    if (koIdx !== -1) { owner.bench[koIdx] = null; }
   }
   owner.discard.push({ id: instance.id, name: instance.name });
   instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
@@ -459,9 +487,10 @@ function takePrize(state, playerId, prizeIndex) {
 // the chosen Bench Pokémon into the now-empty Active slot.
 function chooseNewActive(state, playerId, benchInstanceId) {
   var p = state.players[playerId];
-  var idx = p.bench.findIndex(function (b) { return b.id === benchInstanceId; });
+  var idx = p.bench.findIndex(function (b) { return b && b.id === benchInstanceId; });
   if (idx === -1) { return; }
-  p.active = p.bench.splice(idx, 1)[0];
+  p.active = p.bench[idx];
+  p.bench[idx] = null;
   if (state.pendingActiveChoice === playerId) { state.pendingActiveChoice = null; }
   logEvent(state, translatePlayer(playerId) + ' elige a ' + p.active.name + ' como Activo', playerId);
 }
@@ -557,7 +586,7 @@ function applyCheckupDamage(state, playerId) {
   // knock out a benched Pokémon directly) even though status-condition
   // damage itself is active-only.
   if (p.active) { knockOutIfNeeded(state, playerId, p.active); }
-  p.bench.slice().forEach(function (b) { knockOutIfNeeded(state, playerId, b); });
+  p.bench.filter(function (b) { return b; }).forEach(function (b) { knockOutIfNeeded(state, playerId, b); });
 }
 
 function endTurn(state) {
@@ -587,8 +616,8 @@ function endTurn(state) {
 function getWinner(state) {
   if (state.players.player.prizes.length > 0 && remainingPrizes(state.players.player) === 0) { return 'player'; }
   if (state.players.cpu.prizes.length > 0 && remainingPrizes(state.players.cpu) === 0) { return 'cpu'; }
-  if (state.players.player.hasHadActive && !state.players.player.active && state.players.player.bench.length === 0) { return 'cpu'; }
-  if (state.players.cpu.hasHadActive && !state.players.cpu.active && state.players.cpu.bench.length === 0) { return 'player'; }
+  if (state.players.player.hasHadActive && !state.players.player.active && benchCount(state.players.player) === 0) { return 'cpu'; }
+  if (state.players.cpu.hasHadActive && !state.players.cpu.active && benchCount(state.players.cpu) === 0) { return 'player'; }
   if (state.deckedOut === 'player') { return 'cpu'; }
   if (state.deckedOut === 'cpu') { return 'player'; }
   if (state.players.player.timeBankMs <= 0) { return 'cpu'; }

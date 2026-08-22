@@ -978,7 +978,11 @@
 .shell-board-bench-name{font-size:10px;letter-spacing:.04em;color:#a49785;}
 .shell-board-bench-empty{width:84px;height:112px;border:1px dashed #3a342c;display:grid;place-items:center;font-size:10px;color:#4a4239;cursor:default;}
 .shell-board-bench-empty.pickable{cursor:pointer;}
-.shell-board-bench-empty.pickable:hover{border-color:#8dff62;color:#8dff62;}
+.shell-board-bench-empty.pickable:hover,.shell-board-bench-empty.pickable.drag-over{border-color:#8dff62;color:#8dff62;}
+/* Evolution drop target: a hand card being dragged over its own Active/Bench
+   Pokémon lights up the same way an empty slot does. */
+.shell-board-bench-card.drag-over,.shell-board-active-card.drag-over{box-shadow:0 0 0 2px #8dff62,0 0 18px rgba(141,255,98,.5);}
+.shell-board-hand-card-wrap.dragging{opacity:.4;}
 
 .shell-board-active-col{display:flex;flex-direction:column;gap:5px;align-items:center;}
 .shell-board-active-name-plate{
@@ -990,6 +994,9 @@
 .shell-board-active-name-plate .name{font-size:11px;letter-spacing:.06em;color:#f6f1e6;}
 .shell-board-active-name-plate .hp{font-size:11px;color:#ff8a72;}
 .shell-board-active-name-plate.mine .hp{color:#8dff62;}
+.shell-board-active-hp{width:200px;height:6px;background:#0f0d0b;border:1px solid #0a0806;padding:1px;}
+.shell-board-active-hp-fill{height:100%;background:linear-gradient(180deg,#ff8a72,#c0392b);}
+.shell-board-active-hp-fill.mine{background:linear-gradient(180deg,#8dff62,#2c8a1c);}
 .shell-board-active-card{
   position:relative;width:116px;height:162px;overflow:hidden;background:#241f1a;cursor:pointer;
   box-shadow:0 0 0 1px rgba(255,138,114,.55),0 0 22px rgba(255,138,114,.28),0 8px 20px rgba(0,0,0,.75);
@@ -998,6 +1005,8 @@
 .shell-board-active-card:hover{filter:brightness(1.2);}
 .shell-board-active-card.flipped .shell-board-card-art{transform:rotate(180deg);}
 .shell-board-active-empty{width:116px;height:162px;border:1px dashed #3a342c;display:grid;place-items:center;font-size:11px;color:#4a4239;text-align:center;}
+.shell-board-active-empty.pickable{cursor:pointer;}
+.shell-board-active-empty.pickable:hover,.shell-board-active-empty.pickable.drag-over{border-color:#8dff62;color:#8dff62;}
 
 /* Shared by bench + active card art -- a dedicated class (not a bare `img`
    descendant selector) so the energy-icon overlay below can't inherit this
@@ -1026,7 +1035,28 @@
 .shell-board-hand-header span{font-size:10px;letter-spacing:.24em;color:#e8c46a;}
 .shell-board-hand-header-rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(232,196,106,.35),transparent);}
 .shell-board-hand-cards{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;padding-bottom:10px;overflow-x:auto;}
-.shell-board-hand-card-wrap{width:100px;flex:none;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s;background:transparent;border:none;font-family:'Silkscreen',monospace;}
+.shell-board-hand-card-wrap{width:100px;flex:none;display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;transition:transform .14s,opacity .14s;background:transparent;border:none;font-family:'Silkscreen',monospace;}
+.shell-board-hand-card-wrap.armed{transform:translateY(-10px);}
+.shell-board-hand-card-wrap.armed .shell-board-hand-card{box-shadow:0 0 0 2px #8dff62,0 0 16px rgba(141,255,98,.5);}
+
+/* Small popup next to an Energy/Trainer hand card -- USAR/UNIR ENERGÍA
+   confirms the action (then awaits a target click, same as before); CANCELAR
+   just closes it. Positioned in JS (position:fixed, next to the card's own
+   bounding rect) since it needs to float above the hand row regardless of
+   where in the row the card sits. */
+.shell-hand-card-menu{
+  position:fixed;z-index:60;display:flex;flex-direction:column;gap:2px;padding:6px;min-width:150px;
+  background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 20px rgba(0,0,0,.6);font-family:'Silkscreen',monospace;
+}
+.shell-hand-card-menu.hidden{display:none;}
+.shell-hand-card-menu-btn{
+  padding:10px 14px;text-align:left;cursor:pointer;font-size:12px;letter-spacing:.08em;color:#efe9dd;
+  background:transparent;border:none;font-family:'Silkscreen',monospace;
+}
+.shell-hand-card-menu-btn:hover{background:rgba(255,255,255,.08);}
+.shell-hand-card-menu-btn.confirm{color:#8dff62;}
+.shell-hand-card-menu-btn.cancel{color:#a49785;}
 .shell-board-hand-card-wrap:hover{transform:translateY(-20px);}
 .shell-board-hand-card-wrap:disabled{cursor:default;opacity:.45;}
 .shell-board-hand-card-wrap:disabled:hover{transform:none;}
@@ -1144,7 +1174,10 @@
   font-family:'Silkscreen',monospace;
 }
 .shell-prize-choice-header{font-family:'Pixelify Sans',sans-serif;font-size:24px;font-weight:700;letter-spacing:.03em;color:#e8c46a;text-align:center;}
-.shell-prize-choice-grid{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;max-width:640px;}
+/* 2 columns x 3 rows, same shape as the board's own prize row
+   (.shell-board-prize-grid) so the modal reads as a zoomed-in version of it,
+   not a different layout. */
+.shell-prize-choice-grid{display:grid;grid-template-columns:repeat(2,130px);gap:20px;justify-content:center;}
 .shell-prize-choice-slot{
   width:130px;height:182px;padding:0;cursor:pointer;overflow:hidden;
   background:#241f1a;border:1px solid #0a0806;box-shadow:0 6px 16px rgba(0,0,0,.6);transition:transform .12s,box-shadow .12s;

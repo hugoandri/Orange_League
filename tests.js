@@ -121,6 +121,44 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('evolving does not discard attached energy', state.players[pid].active.attachedEnergy, ['Grass']);
 })();
 
+(function testBenchPositionalPlacementStaysPutAndLeavesGaps() {
+  // Real UI requirement: the player drags/clicks a Basic onto a *specific*
+  // empty Bench slot -- it must land exactly there, not just "the next free
+  // one", and everything already benched must stay exactly where it was.
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  state.activePlayerId = pid;
+  var p = state.players[pid];
+  p.active = { id: 'a0', name: 'Onix', attachedEnergy: ['Fighting', 'Fighting', 'Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [null, null, null, null, null];
+  p.hand = [{ id: 'h1', name: 'Bulbasaur' }, { id: 'h2', name: 'Squirtle' }];
+
+  playBasic(state, pid, 'h1', 3);
+  check('Bulbasaur lands in the exact requested slot (3), not slot 0', p.bench[3].name, 'Bulbasaur');
+  check('slot 0 stays empty -- placement did not default to first-free', p.bench[0], null);
+  check('benchCount reflects the 1 real Pokémon benched', benchCount(p), 1);
+
+  playBasic(state, pid, 'h2', 0);
+  check('Squirtle lands in its own requested slot (0)', p.bench[0].name, 'Squirtle');
+  check('Bulbasaur at slot 3 is undisturbed by a later placement', p.bench[3].name, 'Bulbasaur');
+  check('bench array is still exactly 5 slots', p.bench.length, 5);
+
+  // Retreating swaps in place: the outgoing Active takes over the exact
+  // slot the incoming Bench Pokémon is leaving, nothing shifts.
+  retreat(state, pid, p.bench[3].id); // Bulbasaur (slot 3) becomes Active
+  check('Bulbasaur is now Active', state.players[pid].active.name, 'Bulbasaur');
+  check('Onix (retreated) takes over slot 3, the exact slot vacated', p.bench[3].name, 'Onix');
+  check('Squirtle at slot 0 is untouched by the retreat', p.bench[0].name, 'Squirtle');
+
+  // A benched Pokémon knocked out (e.g. by a bench-hitting effect) leaves a
+  // null gap in its own slot -- the other one does not shift to fill it.
+  p.bench[0].damage = 999; // Squirtle, force a KO
+  knockOutIfNeeded(state, pid, p.bench[0]);
+  check('knocked-out bench slot goes null in place', p.bench[0], null);
+  check('the other benched Pokémon (slot 3) is untouched', p.bench[3].name, 'Onix');
+  check('benchCount drops to 1', benchCount(p), 1);
+})();
+
 (function testAttachEnergyOncePerTurn() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
@@ -298,8 +336,10 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 
   chooseNewActive(state, 'player', 'p3');
   check('chosen Bench Pokémon becomes the new Active', state.players.player.active.id, 'p3');
-  check('chosen Pokémon is removed from the bench', state.players.player.bench.length, 1);
-  check('remaining bench still has the other Pokémon', state.players.player.bench[0].id, 'p2');
+  // The vacated slot goes null in place (not spliced out) -- same
+  // position-stability guarantee as prizes/retreat elsewhere.
+  check('chosen Pokémon leaves its bench slot null, not shrinking the array', benchCount(state.players.player), 1);
+  check('remaining bench still has the other Pokémon, same position', state.players.player.bench[0].id, 'p2');
   check('pendingActiveChoice clears once resolved', state.pendingActiveChoice, null);
 })();
 

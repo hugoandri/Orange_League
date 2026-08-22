@@ -10,7 +10,7 @@ function aiBestAffordableAttack(instance) {
 
 function aiTryEvolveBench(state, playerId) {
   var p = state.players[playerId];
-  var all = (p.active ? [p.active] : []).concat(p.bench);
+  var all = (p.active ? [p.active] : []).concat(p.bench.filter(function (b) { return b; }));
   for (var i = 0; i < all.length; i++) {
     var target = all[i];
     var handCard = p.hand.find(function (c) { return canEvolve(state, playerId, c.id, target.id); });
@@ -80,8 +80,9 @@ function cpuTakeTurn(state) {
       attack(state, playerId, best.name);
       return;
     }
-    if (p.bench.length > 0 && canRetreat(state, playerId, p.bench[0].id)) {
-      var betterBench = p.bench.find(function (b) { return aiBestAffordableAttack(b) !== null; });
+    var firstBenched = p.bench.filter(function (b) { return b; })[0];
+    if (firstBenched && canRetreat(state, playerId, firstBenched.id)) {
+      var betterBench = p.bench.find(function (b) { return b && aiBestAffordableAttack(b) !== null; });
       if (betterBench) { retreat(state, playerId, betterBench.id); }
     }
   }

@@ -402,7 +402,7 @@ function renderEnergyDiscardModal() {
 function renderActiveChoiceModal() {
   var p = gameState.players.player;
   var grid = document.getElementById('activeChoiceGrid');
-  grid.innerHTML = p.bench.map(function (instance) {
+  grid.innerHTML = p.bench.filter(function (instance) { return instance; }).map(function (instance) {
     return '<button type="button" class="shell-active-choice-card" data-instance-id="' + instance.id + '">' +
       cardImageTag(instance.name, 'shell-board-card-art') +
       '<span>' + escapeHtml(translateCardName(instance.name)) + '</span>' +
@@ -485,15 +485,19 @@ function benchCardHtml(instance, mine, flipped) {
   return '<div class="shell-board-bench-slot">' + cardHtml + hpHtml + nameHtml + '</div>';
 }
 
-function benchEmptyHtml(mine) {
+// data-bench-index carries the exact slot this empty spot is -- both the
+// click-to-place handler and the drag-and-drop drop handler use it so a
+// Basic lands in whichever specific slot the player picked/dropped on,
+// not just "the next free one" (see playBasic's benchIndex param).
+function benchEmptyHtml(mine, index) {
   var cls = 'shell-board-bench-empty' + (mine ? ' pickable' : '');
-  return '<div class="shell-board-bench-slot"><div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>BANCA</div></div>';
+  return '<div class="shell-board-bench-slot"><div class="' + cls + '"' + (mine ? ' data-owner="player" data-bench-index="' + index + '"' : '') + '>BANCA</div></div>';
 }
 
 function benchRowHtml(bench, mine, flipped) {
   var html = '<div class="shell-board-bench-row">';
   for (var i = 0; i < 5; i++) {
-    html += bench[i] ? benchCardHtml(bench[i], mine, flipped) : benchEmptyHtml(mine);
+    html += bench[i] ? benchCardHtml(bench[i], mine, flipped) : benchEmptyHtml(mine, i);
   }
   html += '</div>';
   return html;
@@ -505,13 +509,19 @@ function benchRowHtml(bench, mine, flipped) {
 // the same top-left icon overlay bench cards use, not a separate row.
 function activeColHtml(activeInstance, mine, flipped) {
   if (!activeInstance) {
-    return '<div class="shell-board-active-col"><div class="shell-board-active-empty">SIN ACTIVO</div></div>';
+    // Only the player's own empty Active spot is a real drop target (for the
+    // very first Basic, or after a knockout with no Bench left) -- the
+    // CPU's side renders the exact same "SIN ACTIVO" placeholder inertly.
+    var cls = 'shell-board-active-empty' + (mine ? ' pickable' : '');
+    return '<div class="shell-board-active-col"><div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>SIN ACTIVO</div></div>';
   }
   var stats = CARD_STATS[activeInstance.name];
   var hp = stats.hp - activeInstance.damage;
+  var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var nameEs = escapeHtml(translateCardName(activeInstance.name));
   var namePlate = '<div class="shell-board-active-name-plate' + (mine ? ' mine' : '') + '">' +
-    '<span class="name">' + nameEs + '</span><span class="hp">' + hp + '/' + stats.hp + '</span></div>';
+    '<span class="name">' + nameEs + '</span><span class="hp">' + hp + '/' + stats.hp + '</span></div>' +
+    '<div class="shell-board-active-hp"><div class="shell-board-active-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
     cardImageTag(activeInstance.name, 'shell-board-card-art') + cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
@@ -583,13 +593,23 @@ function cpuHandRowHtml(count) {
     '</div>';
 }
 
+function isPokemonCard(name) {
+  var stats = CARD_STATS[name];
+  return !!stats && stats.supertype === 'Pokémon';
+}
+
 function handBandHtml(state) {
   var p = state.players.player;
   var cardsHtml = p.hand.map(function (card) {
     // During setup, only Basic Pokémon can be placed -- Energy/Trainer cards
     // can't be used until the match actually starts.
     var disabled = state.phase === 'setup' && !isBasicPokemon(card.name);
-    return '<button type="button" class="shell-board-hand-card-wrap" data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
+    // Basics and Evolutions are draggable straight onto the board (a Bench
+    // slot, the empty Active spot, or the Pokémon they evolve) -- Energy and
+    // Trainer cards stay click-only (see the mini-menu in wireBoardButtons).
+    var draggable = !disabled && isPokemonCard(card.name);
+    return '<button type="button" class="shell-board-hand-card-wrap"' + (draggable ? ' draggable="true"' : '') +
+      ' data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
       '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') + '</div>' +
       '<div class="shell-board-hand-card-name">' + escapeHtml(translateCardName(card.name)) + '</div>' +
       '</button>';
@@ -614,7 +634,7 @@ function renderBoardActions() {
   if (s.phase === 'setup') {
     html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
   } else if (s.phase === 'playing' && !pendingPlayerPrize && !pendingActive) {
-    var canRetreatAny = p.bench.some(function (b) { return canRetreat(s, 'player', b.id); });
+    var canRetreatAny = p.bench.some(function (b) { return b && canRetreat(s, 'player', b.id); });
     html += '<div class="shell-board-actions"><div class="shell-board-actions-grid">' +
       '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>CAMBIAR POKÉMON</button>' +
       '<button type="button" class="shell-board-action" disabled title="Próximamente">HABILIDAD</button>' +
@@ -636,6 +656,12 @@ function renderBoard() {
   var s = gameState;
   var p = s.players.player;
   var c = s.players.cpu;
+
+  // #handCardMenu lives outside #app (see index.html), so it survives the
+  // innerHTML replacement below on its own -- close it explicitly so a
+  // render triggered by something else (e.g. the CPU's turn) can't leave it
+  // open and pointing at a card that may no longer even be in hand.
+  hideHandCardMenu();
 
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
@@ -735,6 +761,38 @@ function finishMatch(winner) {
   document.getElementById('matchEndModal').classList.remove('hidden');
 }
 
+// Closes the Energy/Trainer mini-menu (see wireBoardButtons) -- also called
+// at the top of renderBoard() since #handCardMenu lives outside #app and so
+// survives a normal re-render on its own.
+function hideHandCardMenu() {
+  var menu = document.getElementById('handCardMenu');
+  if (menu) { menu.classList.add('hidden'); }
+  document.querySelectorAll('.shell-board-hand-card-wrap.armed').forEach(function (el) {
+    el.classList.remove('armed');
+  });
+}
+
+// A small popup next to the card with one confirm action (USAR for Trainers,
+// UNIR ENERGÍA for Energy) plus CANCELAR. Confirming calls onConfirm, which
+// is responsible for whatever happens next (dispatching immediately for a
+// no-target Trainer, or arming selectedHandId to await a target click).
+function showHandCardMenu(anchorBtn, actionLabel, onConfirm) {
+  var menu = document.getElementById('handCardMenu');
+  menu.innerHTML =
+    '<button type="button" class="shell-hand-card-menu-btn confirm" data-menu-action="confirm">' + escapeHtml(actionLabel) + '</button>' +
+    '<button type="button" class="shell-hand-card-menu-btn cancel" data-menu-action="cancel">CANCELAR</button>';
+  var rect = anchorBtn.getBoundingClientRect();
+  menu.style.left = Math.round(rect.left) + 'px';
+  menu.style.bottom = Math.round(window.innerHeight - rect.top + 8) + 'px';
+  menu.classList.remove('hidden');
+  anchorBtn.classList.add('armed');
+  menu.querySelector('[data-menu-action="confirm"]').addEventListener('click', function () {
+    hideHandCardMenu();
+    onConfirm();
+  });
+  menu.querySelector('[data-menu-action="cancel"]').addEventListener('click', hideHandCardMenu);
+}
+
 function wireBoardButtons() {
   var handButtons = document.querySelectorAll('.shell-board-hand-card-wrap');
   var selectedHandId = null;
@@ -743,19 +801,30 @@ function wireBoardButtons() {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
       retreatMode = false;
+      hideHandCardMenu();
       var handId = btn.getAttribute('data-hand-id');
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === handId; });
       if (!handCard) { return; }
+      var stats = CARD_STATS[handCard.name];
 
-      // Bill and Professor Oak ignore their target argument entirely (they
-      // don't need one) -- dispatch them immediately instead of waiting for
-      // a board-Pokémon click, since the board can even be completely empty.
-      if (handCard.name === 'Bill' || handCard.name === 'Professor Oak') {
-        var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
-        if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-        selectedHandId = null;
-        renderBoard();
+      if (stats.supertype !== 'Pokémon') {
+        // Energy/Trainer cards get an explicit "USAR"/"UNIR ENERGÍA" +
+        // CANCELAR menu next to the card instead of silently entering
+        // target-selection mode the instant the card is clicked.
+        var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak';
+        var label = stats.supertype === 'Energy' ? 'UNIR ENERGÍA' : 'USAR';
+        showHandCardMenu(btn, label, function () {
+          if (isNoTargetTrainer) {
+            var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
+            if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+            selectedHandId = null;
+            renderBoard();
+          } else {
+            selectedHandId = handId;
+            btn.classList.add('armed');
+          }
+        });
         return;
       }
 
@@ -772,7 +841,42 @@ function wireBoardButtons() {
       }
       selectedHandId = handId;
     });
+
+    // Pokémon (Basic or Evolution) can be dragged straight onto the board --
+    // Energy/Trainer stay click+menu-only (see above).
+    if (btn.getAttribute('draggable') === 'true') {
+      btn.addEventListener('dragstart', function (e) {
+        e.dataTransfer.setData('text/plain', btn.getAttribute('data-hand-id'));
+        e.dataTransfer.effectAllowed = 'move';
+        btn.classList.add('dragging');
+      });
+      btn.addEventListener('dragend', function () {
+        btn.classList.remove('dragging');
+      });
+    }
   });
+
+  // Shared by every drop target below. isEmptySlotDrop/benchIndex describe a
+  // drop onto an empty Bench slot or the empty Active spot (benchIndex is
+  // only meaningful for the former); targetInstanceId describes a drop onto
+  // an existing Pokémon (an evolution). Branching on which kind of spot this
+  // actually was -- not just on the dragged card's type -- means a Basic
+  // dropped on an existing Pokémon does nothing instead of quietly landing
+  // in some other slot than the one actually dropped on.
+  function resolveHandDrop(handId, isEmptySlotDrop, benchIndex, targetInstanceId) {
+    var p = gameState.players.player;
+    var handCard = p.hand.find(function (c) { return c.id === handId; });
+    if (!handCard) { return; }
+    if (isEmptySlotDrop && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
+      playBasic(gameState, 'player', handId, benchIndex);
+      afterPlayerAction();
+    } else if (targetInstanceId && canEvolve(gameState, 'player', handId, targetInstanceId)) {
+      evolve(gameState, 'player', handId, targetInstanceId);
+      var evolved = findInstanceEitherSide(targetInstanceId);
+      if (evolved) { showCardInViewer(evolved.name, targetInstanceId); }
+      afterPlayerAction();
+    }
+  }
 
   var startMatchBtn = document.getElementById('startMatchBtn');
   if (startMatchBtn) {
@@ -880,13 +984,29 @@ function wireBoardButtons() {
       selectedHandId = null;
       renderBoard();
     });
+
+    // Drag an Evolution card from hand onto its own Active/Bench Pokémon to
+    // evolve it (the rival's board is never a legal drop target -- only
+    // your own cards render with the .mine class in the first place).
+    if (el.classList.contains('mine')) {
+      el.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('drag-over');
+      });
+      el.addEventListener('dragleave', function () { el.classList.remove('drag-over'); });
+      el.addEventListener('drop', function (e) {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        var handId = e.dataTransfer.getData('text/plain');
+        resolveHandDrop(handId, false, null, el.getAttribute('data-instance-id'));
+      });
+    }
   });
 
-  // Click an empty Bench slot to place the selected Basic there. Placement
-  // always lands in the next free slot (the bench has no meaningful "which
-  // exact position" beyond that), but letting the player pick the slot they
-  // click on -- instead of having to click their own Active as a stand-in
-  // target -- is the intuitive way to choose where a Basic goes.
+  // Click an empty Bench slot to place the selected Basic there, landing in
+  // that exact slot (data-bench-index) instead of just the next free one --
+  // same target that a drag-and-drop onto this slot resolves to below.
   document.querySelectorAll('.shell-board-bench-empty.pickable').forEach(function (el) {
     el.addEventListener('click', function () {
       if (!selectedHandId) { return; }
@@ -894,12 +1014,46 @@ function wireBoardButtons() {
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
-        playBasic(gameState, 'player', selectedHandId);
+        var benchIndex = parseInt(el.getAttribute('data-bench-index'), 10);
+        playBasic(gameState, 'player', selectedHandId, benchIndex);
       }
       selectedHandId = null;
       renderBoard();
     });
+    el.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', function () { el.classList.remove('drag-over'); });
+    el.addEventListener('drop', function (e) {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      var handId = e.dataTransfer.getData('text/plain');
+      var benchIndex = parseInt(el.getAttribute('data-bench-index'), 10);
+      resolveHandDrop(handId, true, benchIndex, null);
+    });
   });
+
+  // Drop a Basic straight onto the empty Active spot -- the click flow
+  // already auto-completes this the instant a Basic is clicked with no
+  // Active out (see the hand-card click handler above), but a drag needs an
+  // actual drop target since there's no equivalent "pick it up" moment.
+  var emptyActive = document.querySelector('.shell-board-active-empty.pickable');
+  if (emptyActive) {
+    emptyActive.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      emptyActive.classList.add('drag-over');
+    });
+    emptyActive.addEventListener('dragleave', function () { emptyActive.classList.remove('drag-over'); });
+    emptyActive.addEventListener('drop', function (e) {
+      e.preventDefault();
+      emptyActive.classList.remove('drag-over');
+      var handId = e.dataTransfer.getData('text/plain');
+      resolveHandDrop(handId, true, null, null);
+    });
+  }
 
   document.querySelectorAll('.shell-board-deckbox.clickable').forEach(function (el) {
     el.addEventListener('click', function () {
@@ -1673,6 +1827,17 @@ document.addEventListener('DOMContentLoaded', function () {
   applyMenuLogo();
   layoutShellStages();
   window.addEventListener('resize', layoutShellStages);
+
+  // Clicking anywhere outside the Energy/Trainer mini-menu (or its own
+  // hand card, which handles closing it another way) closes it -- wired
+  // once here, not inside wireBoardButtons(), since that reruns on every
+  // renderBoard() and would otherwise stack up a fresh listener each time.
+  document.addEventListener('click', function (e) {
+    var menu = document.getElementById('handCardMenu');
+    if (!menu || menu.classList.contains('hidden')) { return; }
+    if (menu.contains(e.target) || e.target.closest('.shell-board-hand-card-wrap')) { return; }
+    hideHandCardMenu();
+  });
 
   // News panel dates -- static placeholder content (no real feed exists
   // yet), so a one-time pass at load is enough; a live feed would call this
