@@ -434,16 +434,24 @@ function showTrainerPlayedOverlay(play, onDone) {
 // wrapper), showing each queued play in sequence rather than all at once --
 // a single CPU turn can play more than one Trainer before this ever gets a
 // chance to run.
-function showTrainerPlaysSequence(queue) {
-  if (!queue.length) { return; }
+// onAllDone (optional): called once every queued play has finished
+// showing (immediately, synchronously, if the queue was already empty) --
+// runCpuTurn uses this to hold "TU TURNO" until any Trainer(s) the CPU just
+// played are done flashing, instead of both appearing over each other in
+// the same spot.
+function showTrainerPlaysSequence(queue, onAllDone) {
+  if (!queue.length) { if (onAllDone) { onAllDone(); } return; }
   var play = queue.shift();
-  showTrainerPlayedOverlay(play, function () { showTrainerPlaysSequence(queue); });
+  showTrainerPlayedOverlay(play, function () { showTrainerPlaysSequence(queue, onAllDone); });
 }
-function drainTrainerPlaysQueue() {
-  if (!gameState || !gameState.trainerPlaysQueue || !gameState.trainerPlaysQueue.length) { return; }
+function drainTrainerPlaysQueue(onAllDone) {
+  if (!gameState || !gameState.trainerPlaysQueue || !gameState.trainerPlaysQueue.length) {
+    if (onAllDone) { onAllDone(); }
+    return;
+  }
   var queue = gameState.trainerPlaysQueue;
   gameState.trainerPlaysQueue = [];
-  showTrainerPlaysSequence(queue);
+  showTrainerPlaysSequence(queue, onAllDone);
 }
 
 // Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
@@ -976,11 +984,20 @@ function runCpuTurn() {
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
     cpuTurnInProgress = false;
-    // Skip the flash if that turn just won/lost the match -- there's no
-    // "tu turno" coming next (afterPlayerAction shows the win/loss modal
-    // instead of a normal board render right below).
-    if (!getWinner(gameState)) { showTurnFlash('TU TURNO', 'mine'); }
+    // Drain any Trainer(s) the CPU just played ourselves, before
+    // afterPlayerAction's own renderBoard() gets a chance to (its own
+    // drainTrainerPlaysQueue() call finds nothing left and no-ops) -- "TU
+    // TURNO" waits until that whole sequence is done, instead of showing
+    // at the same time in the same spot as a Trainer flash.
+    var queuedTrainerPlays = gameState.trainerPlaysQueue || [];
+    gameState.trainerPlaysQueue = [];
     afterPlayerAction();
+    showTrainerPlaysSequence(queuedTrainerPlays, function () {
+      // Skip the flash if that turn just won/lost the match -- there's no
+      // "tu turno" coming next (afterPlayerAction already showed the
+      // win/loss modal instead of a normal board render above).
+      if (!getWinner(gameState)) { showTurnFlash('TU TURNO', 'mine'); }
+    });
   }, delay);
 }
 
