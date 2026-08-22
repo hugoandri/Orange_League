@@ -1010,6 +1010,16 @@ function runCpuTurn() {
   // handed the turn over. Harmless no-op on turn 1 (coin flip handing the
   // CPU the opening turn): nobody has a status condition yet.
   applyEndOfTurnCheckup(gameState);
+  // Render right now so the checkup's damage/status changes actually show
+  // up on screen at the click, instead of sitting invisible in state until
+  // afterPlayerAction's render much later (after the CPU's whole turn) --
+  // which is what made 10+10 poison damage look like it appeared as a
+  // single jump of 20 once the CPU's own turn ended, instead of two
+  // separate ticks (one now, one then). If this checkup happened to knock
+  // out the player's own Active, this same render is what surfaces the
+  // "choose a new Active" modal (renderBoard's pendingActiveChoice check)
+  // right away too, rather than only once the CPU's turn later resolves.
+  renderBoard();
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
   var endTurnBtn = document.getElementById('endTurnBtn');
