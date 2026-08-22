@@ -371,7 +371,6 @@
   font-family:'Silkscreen',monospace;color:#efe9dd;text-align:center;
 }
 .shell-booster-result-title{margin:0;font-family:'Pixelify Sans',sans-serif;font-size:34px;font-weight:700;letter-spacing:.02em;color:#efe9dd;display:flex;align-items:center;justify-content:center;gap:14px;}
-.shell-booster-result-subtitle{margin:0;font-size:11px;letter-spacing:.24em;color:#e8c46a;min-height:1em;}
 .shell-booster-result-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;}
 .shell-booster-result-card{width:142px;cursor:pointer;display:flex;flex-direction:column;gap:8px;font-family:'Silkscreen',monospace;transition:transform .14s;}
 .shell-booster-result-card:hover{transform:translateY(-14px);}

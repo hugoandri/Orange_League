@@ -1596,7 +1596,6 @@ var boosterResultSetKey = null;
 
 function showBoosterResult(cards, setKey) {
   boosterResultSetKey = setKey;
-  var counts = { secret: 0, holo: 0, rare: 0, uncommon: 0 };
   var html = '';
   cards.forEach(function (c) {
     // c.img is this exact card's own art (straight from the set that was
@@ -1617,7 +1616,6 @@ function showBoosterResult(cards, setKey) {
       : c.pulledRarity === 'rare' ? 'Rare'
       : c.r;
     var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
-    if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
     var foilHtml = rarity.cls === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>'
       : rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' + holoStarsHtml() : '';
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
@@ -1631,13 +1629,6 @@ function showBoosterResult(cards, setKey) {
   document.getElementById('boosterResultGrid').innerHTML = html;
   document.getElementById('boosterResultTitle').innerHTML =
     pixelDigitsHtml(cards.length, 'fosforo', 3) + ' CARTAS NUEVAS';
-
-  var subtitleParts = [];
-  if (counts.secret) { subtitleParts.push(counts.secret + (counts.secret > 1 ? ' SECRETAS' : ' SECRETA')); }
-  if (counts.holo) { subtitleParts.push(counts.holo + (counts.holo > 1 ? ' HOLOGRÁFICAS' : ' HOLOGRÁFICA')); }
-  if (counts.rare) { subtitleParts.push(counts.rare + (counts.rare > 1 ? ' RARAS' : ' RARA')); }
-  if (counts.uncommon) { subtitleParts.push(counts.uncommon + ' INFRECUENTES'); }
-  document.getElementById('boosterResultSubtitle').textContent = subtitleParts.join(' · ');
 
   document.getElementById('boosterResultModal').classList.remove('hidden');
 
