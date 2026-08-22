@@ -401,6 +401,51 @@ function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
 }
 
+// Flashes a just-played Trainer card big in the middle of the screen for
+// about a second, then calls onDone -- added because Trainer plays (both
+// the player's own and the CPU's) were easy to miss entirely, buried in the
+// text log. Non-blocking (pointer-events:none) since it's a notice, not a
+// modal the player has to dismiss.
+var trainerPlayedHoldTimeout = null;
+var trainerPlayedFadeTimeout = null;
+function showTrainerPlayedOverlay(play, onDone) {
+  var el = document.getElementById('trainerPlayedOverlay');
+  var img = document.getElementById('trainerPlayedImg');
+  var label = document.getElementById('trainerPlayedLabel');
+  var url = CARD_IMAGE_BY_NAME[play.name];
+  if (!el || !img || !label || !url) { if (onDone) { onDone(); } return; }
+  clearTimeout(trainerPlayedHoldTimeout);
+  clearTimeout(trainerPlayedFadeTimeout);
+  img.src = url;
+  img.alt = play.name;
+  label.textContent = (play.playerId === 'player' ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name);
+  el.classList.remove('hidden', 'fading');
+  trainerPlayedHoldTimeout = setTimeout(function () {
+    el.classList.add('fading');
+    trainerPlayedFadeTimeout = setTimeout(function () {
+      el.classList.add('hidden');
+      el.classList.remove('fading');
+      if (onDone) { onDone(); }
+    }, 220);
+  }, 800);
+}
+
+// Drains gameState.trainerPlaysQueue (see card-effects.js's TRAINER_EFFECTS
+// wrapper), showing each queued play in sequence rather than all at once --
+// a single CPU turn can play more than one Trainer before this ever gets a
+// chance to run.
+function showTrainerPlaysSequence(queue) {
+  if (!queue.length) { return; }
+  var play = queue.shift();
+  showTrainerPlayedOverlay(play, function () { showTrainerPlaysSequence(queue); });
+}
+function drainTrainerPlaysQueue() {
+  if (!gameState || !gameState.trainerPlaysQueue || !gameState.trainerPlaysQueue.length) { return; }
+  var queue = gameState.trainerPlaysQueue;
+  gameState.trainerPlaysQueue = [];
+  showTrainerPlaysSequence(queue);
+}
+
 // Every card actually discarded this duel, face-up -- opened by clicking
 // the Discard pile (see deckDiscardHtml), only ever shown when non-empty.
 function openDiscardPileModal(ownerId) {
@@ -872,6 +917,7 @@ function renderBoard() {
   }
 
   wireBoardButtons();
+  drainTrainerPlaysQueue();
 }
 
 // Shows "CPU PENSANDO..." (animated dots, see .shell-cpu-thinking-dots) in

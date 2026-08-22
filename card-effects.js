@@ -158,6 +158,29 @@ TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId)
   return { legal: true };
 };
 
+// Queues every successful Trainer play on state (name + who played it) so
+// ui.js's renderBoard() can flash each one big for a moment in turn -- both
+// the player's own plays (ui.js's various USAR/target-click handlers) and
+// the CPU's (ai.js's aiTryUseTrainer/aiTryPlusPower/aiTryGustSnipe/
+// aiTryEnergyDisruption) route through these same functions, so wrapping
+// them all here covers every case without touching either caller. A queue
+// (not a single last-play slot) because cpuTakeTurn can play more than one
+// Trainer in the same turn before ui.js ever gets to render in between --
+// a single slot would silently drop every play but the last. Card names in
+// TRAINER_EFFECTS are never called with a `this` of their own, so
+// forwarding through .apply(null, ...) is safe.
+Object.keys(TRAINER_EFFECTS).forEach(function (name) {
+  var original = TRAINER_EFFECTS[name];
+  TRAINER_EFFECTS[name] = function (state, playerId) {
+    var result = original.apply(null, arguments);
+    if (result && result.legal) {
+      state.trainerPlaysQueue = state.trainerPlaysQueue || [];
+      state.trainerPlaysQueue.push({ name: name, playerId: playerId });
+    }
+    return result;
+  };
+});
+
 var ATTACK_EFFECTS = {};
 
 ATTACK_EFFECTS['Weedle'] = {

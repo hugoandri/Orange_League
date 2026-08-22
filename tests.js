@@ -1027,6 +1027,24 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   });
 })();
 
+(function testTrainerPlaysQueue() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'bill1', name: 'Bill' }];
+  check('no queue exists before any Trainer is played', state.trainerPlaysQueue, undefined);
+  var result = TRAINER_EFFECTS['Bill'](state, 'player', 'bill1');
+  checkTrue('Bill plays legally', result.legal);
+  check('a successful Trainer play is queued with its name and player', state.trainerPlaysQueue, [{ name: 'Bill', playerId: 'player' }]);
+
+  // An illegal play (wrong active player) must not queue anything.
+  state.activePlayerId = 'cpu';
+  p.hand = [{ id: 'bill2', name: 'Bill' }];
+  var illegal = TRAINER_EFFECTS['Bill'](state, 'player', 'bill2');
+  check('an illegal play is correctly rejected', illegal.legal, false);
+  check('the queue is untouched by the illegal play', state.trainerPlaysQueue.length, 1);
+})();
+
 (function testCreateGameStartsWithDefaultTimeBank() {
   var state = createGame(function () { return 0.42; });
   check('player starts with the default time bank', state.players.player.timeBankMs, DEFAULT_TIME_BANK_MS);

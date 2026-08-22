@@ -1217,6 +1217,23 @@
 .shell-board-log-body .log-line-cpu{font-size:11px;line-height:1.5;color:#ff8a72;}
 .shell-board-log-body .log-line-player{font-size:11px;line-height:1.5;color:#8dff62;}
 
+/* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */
+/* Not a .card-modal -- deliberately non-blocking (pointer-events:none) and
+   above everything (z-index:300, same tier as #authScreen) since it's a
+   momentary notice, not something the player dismisses. */
+.shell-trainer-played{
+  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:1;transition:opacity .22s ease;
+}
+.shell-trainer-played.fading{opacity:0;}
+.shell-trainer-played.hidden{display:none;}
+.shell-trainer-played-card{display:flex;flex-direction:column;align-items:center;gap:16px;filter:drop-shadow(0 20px 50px rgba(0,0,0,.75));}
+.shell-trainer-played-card img{width:300px;display:block;border-radius:10px;box-shadow:0 0 0 3px #e8c46a,0 0 60px rgba(232,196,106,.55);}
+.shell-trainer-played-label{
+  font-family:'Pixelify Sans',sans-serif;font-size:20px;font-weight:700;letter-spacing:.03em;color:#efe9dd;
+  text-shadow:0 2px 8px rgba(0,0,0,.85);text-align:center;
+}
+
 /* ===== Card zoom modal (prize pick, discard pile, hand/board cards) ===== */
 /* No handoff mockup covers this (a plain image-zoom utility), so it's built
    from the same floating dark-plate recipe as .shell-profile-modal. */
