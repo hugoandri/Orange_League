@@ -598,6 +598,11 @@ function isPokemonCard(name) {
   return !!stats && stats.supertype === 'Pokémon';
 }
 
+function isEnergyCard(name) {
+  var stats = CARD_STATS[name];
+  return !!stats && stats.supertype === 'Energy';
+}
+
 function handBandHtml(state) {
   var p = state.players.player;
   var cardsHtml = p.hand.map(function (card) {
@@ -605,9 +610,10 @@ function handBandHtml(state) {
     // can't be used until the match actually starts.
     var disabled = state.phase === 'setup' && !isBasicPokemon(card.name);
     // Basics and Evolutions are draggable straight onto the board (a Bench
-    // slot, the empty Active spot, or the Pokémon they evolve) -- Energy and
-    // Trainer cards stay click-only (see the mini-menu in wireBoardButtons).
-    var draggable = !disabled && isPokemonCard(card.name);
+    // slot, the empty Active spot, or the Pokémon they evolve); Energy is
+    // draggable onto the Pokémon it attaches to. Trainer cards stay
+    // click-only (see the USAR/CANCELAR mini-menu in wireBoardButtons).
+    var draggable = !disabled && (isPokemonCard(card.name) || isEnergyCard(card.name));
     return '<button type="button" class="shell-board-hand-card-wrap"' + (draggable ? ' draggable="true"' : '') +
       ' data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
       '<div class="shell-board-hand-card">' + cardImageTag(card.name, '') + '</div>' +
@@ -761,8 +767,8 @@ function finishMatch(winner) {
   document.getElementById('matchEndModal').classList.remove('hidden');
 }
 
-// Closes the Energy/Trainer mini-menu (see wireBoardButtons) -- also called
-// at the top of renderBoard() since #handCardMenu lives outside #app and so
+// Closes the Trainer mini-menu (see wireBoardButtons) -- also called at the
+// top of renderBoard() since #handCardMenu lives outside #app and so
 // survives a normal re-render on its own.
 function hideHandCardMenu() {
   var menu = document.getElementById('handCardMenu');
@@ -772,10 +778,11 @@ function hideHandCardMenu() {
   });
 }
 
-// A small popup next to the card with one confirm action (USAR for Trainers,
-// UNIR ENERGÍA for Energy) plus CANCELAR. Confirming calls onConfirm, which
-// is responsible for whatever happens next (dispatching immediately for a
-// no-target Trainer, or arming selectedHandId to await a target click).
+// A small popup next to the card with one confirm action (USAR, currently
+// the only card type that still uses this -- Energy is drag-and-drop only,
+// see handBandHtml/resolveHandDrop) plus CANCELAR. Confirming calls
+// onConfirm, responsible for whatever happens next (dispatching immediately
+// for a no-target Trainer, or arming selectedHandId to await a target click).
 function showHandCardMenu(anchorBtn, actionLabel, onConfirm) {
   var menu = document.getElementById('handCardMenu');
   menu.innerHTML =
@@ -808,13 +815,13 @@ function wireBoardButtons() {
       if (!handCard) { return; }
       var stats = CARD_STATS[handCard.name];
 
-      if (stats.supertype !== 'Pokémon') {
-        // Energy/Trainer cards get an explicit "USAR"/"UNIR ENERGÍA" +
-        // CANCELAR menu next to the card instead of silently entering
-        // target-selection mode the instant the card is clicked.
+      if (stats.supertype === 'Trainer') {
+        // Trainer cards get an explicit "USAR" + CANCELAR menu next to the
+        // card instead of silently entering target-selection mode the
+        // instant the card is clicked. Energy is drag-and-drop only now (see
+        // handBandHtml/resolveHandDrop) -- no menu, no click-to-select.
         var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak';
-        var label = stats.supertype === 'Energy' ? 'UNIR ENERGÍA' : 'USAR';
-        showHandCardMenu(btn, label, function () {
+        showHandCardMenu(btn, 'USAR', function () {
           if (isNoTargetTrainer) {
             var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
             if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
@@ -827,6 +834,10 @@ function wireBoardButtons() {
         });
         return;
       }
+
+      // Energy falls through to here too (drag-and-drop is the main way to
+      // attach it now, but click-to-select-then-click-target still works as
+      // a fallback, same as Basics/Evolutions below).
 
       // Placing your very first Basic Pokémon into an empty Active spot needs
       // no target (playBasic() ignores the target instance in that case) —
@@ -842,8 +853,8 @@ function wireBoardButtons() {
       selectedHandId = handId;
     });
 
-    // Pokémon (Basic or Evolution) can be dragged straight onto the board --
-    // Energy/Trainer stay click+menu-only (see above).
+    // Pokémon (Basic/Evolution) and Energy can be dragged straight onto the
+    // board -- Trainer stays click+menu-only (see above).
     if (btn.getAttribute('draggable') === 'true') {
       btn.addEventListener('dragstart', function (e) {
         e.dataTransfer.setData('text/plain', btn.getAttribute('data-hand-id'));
@@ -874,6 +885,9 @@ function wireBoardButtons() {
       evolve(gameState, 'player', handId, targetInstanceId);
       var evolved = findInstanceEitherSide(targetInstanceId);
       if (evolved) { showCardInViewer(evolved.name, targetInstanceId); }
+      afterPlayerAction();
+    } else if (targetInstanceId && canAttachEnergy(gameState, 'player', handId, targetInstanceId)) {
+      attachEnergy(gameState, 'player', handId, targetInstanceId);
       afterPlayerAction();
     }
   }
@@ -1828,8 +1842,8 @@ document.addEventListener('DOMContentLoaded', function () {
   layoutShellStages();
   window.addEventListener('resize', layoutShellStages);
 
-  // Clicking anywhere outside the Energy/Trainer mini-menu (or its own
-  // hand card, which handles closing it another way) closes it -- wired
+  // Clicking anywhere outside the Trainer mini-menu (or its own hand card,
+  // which handles closing it another way) closes it -- wired
   // once here, not inside wireBoardButtons(), since that reruns on every
   // renderBoard() and would otherwise stack up a fresh listener each time.
   document.addEventListener('click', function (e) {
