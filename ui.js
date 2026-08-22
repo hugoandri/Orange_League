@@ -180,6 +180,14 @@ function logHtml(s) {
 // of reshuffling on every re-render. Capped at 10 stars/card (the reference
 // used 26) since holo cards can appear by the dozen at once in the Collection
 // grid -- 10 already reads as "sparkling" without animating hundreds of nodes.
+//
+// Real Base/Jungle/Fossil Rare Holo art already has small pale star sparkles
+// painted into the illustration itself (see e.g. Gyarados) -- the first pass
+// at this used the same soft white/pastel tones at 4-9px, which camouflaged
+// completely against that existing print pattern and looked like nothing had
+// changed. Sizes and colors below are deliberately bigger and more saturated
+// than the card's own baked-in stars so the overlay reads as a distinct
+// effect, and the opacity floor is raised so they never fully fade out.
 function holoStarsHtml(n) {
   n = n || 10;
   var stars = '';
@@ -187,14 +195,14 @@ function holoStarsHtml(n) {
     var a = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1;
     var b = Math.abs(Math.sin((i + 1) * 78.233) * 12345.6789) % 1;
     var c = Math.abs(Math.sin((i + 1) * 39.425) * 9876.5432) % 1;
-    var w = c < 0.12 ? 9 : c < 0.38 ? 6 : 4;
+    var w = c < 0.12 ? 20 : c < 0.38 ? 14 : 9;
     var x = (6 + a * 88).toFixed(2) + '%';
     var y = (5 + b * 90).toFixed(2) + '%';
     var off = (-w / 2) + 'px';
     var dur = (2.2 + c * 3.4).toFixed(2) + 's';
     var delay = (-c * 5.5).toFixed(2) + 's';
-    var tone = a < 0.34 ? '#ffffff' : a < 0.58 ? '#bdf0ff' : a < 0.8 ? '#ffd0f2' : '#fff0b8';
-    stars += '<div class="shell-holo-star" style="left:' + x + ';top:' + y + ';width:' + w + 'px;height:' + w + 'px;margin-left:' + off + ';margin-top:' + off + ';background:' + tone + ';animation-duration:' + dur + ';animation-delay:' + delay + ';"></div>';
+    var tone = a < 0.34 ? '#ffffff' : a < 0.58 ? '#4fd6ff' : a < 0.8 ? '#ff5fd6' : '#ffe14f';
+    stars += '<div class="shell-holo-star" style="left:' + x + ';top:' + y + ';width:' + w + 'px;height:' + w + 'px;margin-left:' + off + ';margin-top:' + off + ';background:' + tone + ';color:' + tone + ';animation-duration:' + dur + ';animation-delay:' + delay + ';"></div>';
   }
   return '<div class="shell-holo-stars">' + stars + '</div>';
 }

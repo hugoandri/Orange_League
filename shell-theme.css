@@ -496,12 +496,13 @@
 .shell-holo-star{
   position:absolute;
   clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);
-  filter:drop-shadow(0 0 4px rgba(255,255,255,.6));
+  filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px currentColor);
+  color:inherit;
   animation-name:chispa;animation-iteration-count:infinite;animation-timing-function:ease-in-out;
 }
 @keyframes chispa{
-  0%,100%{opacity:.12;transform:scale(.55) rotate(0deg);}
-  50%{opacity:1;transform:scale(1.2) rotate(45deg);}
+  0%,100%{opacity:.55;transform:scale(.7) rotate(0deg);}
+  50%{opacity:1;transform:scale(1.3) rotate(45deg);}
 }
 
 /* ===== Configuración ===== */
