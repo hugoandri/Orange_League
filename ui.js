@@ -1283,7 +1283,16 @@ function wireBoardButtons() {
         // of mine being cut short here to review -- so, same as ending my
         // own turn, let it play immediately instead of sitting idle until
         // a click.
-        if (gameState.activePlayerId === 'cpu') { runCpuTurn(); } else { afterPlayerAction(); }
+        if (gameState.activePlayerId === 'cpu') {
+          runCpuTurn();
+        } else {
+          // runCpuTurn's own 'TURNO DEL RIVAL' flash covers the other
+          // branch -- this one needs its own "TU TURNO" for the same
+          // reason, since winning the opening coin flip never otherwise
+          // passes through runCpuTurn/proceedWithCpuTurn at all.
+          showTurnFlash('TU TURNO', 'mine');
+          afterPlayerAction();
+        }
       }
     });
   }
