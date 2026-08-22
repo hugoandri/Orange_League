@@ -14,6 +14,12 @@ function initEconomyListener(uid) {
       renderProfile();
       updateShopBalance();
       renderCardBackPicker();
+      // Real-time-updates econState.cardBacks whenever a purchase actually
+      // lands, independent of the buyCardBack callable's own response --
+      // that response can resolve before this snapshot arrives, so without
+      // this the just-bought protector kept showing "COMPRAR" until the
+      // player left the tab and came back (which forces a fresh render).
+      renderProtectorsGrid();
     }, function (err) {
       console.error('No se pudo escuchar los datos de la cuenta', err);
     });
