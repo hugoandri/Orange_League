@@ -1009,7 +1009,7 @@
    line up with the bench Pokémon names (see positionCpuHandLabel in ui.js).
    top:12px here is only the pre-JS fallback; positionCpuHandLabel overrides
    it with an inline style on every render. */
-.shell-board-hand-cpu-label{position:absolute;left:16px;top:12px;display:flex;align-items:center;gap:9px;z-index:2;}
+.shell-board-hand-cpu-label{position:absolute;left:56px;top:12px;display:flex;align-items:center;gap:9px;z-index:2;}
 .shell-board-hand-cpu-label span:first-child{font-size:10px;letter-spacing:.2em;color:#ff8a72;}
 .shell-board-hand-cpu-count{
   min-width:28px;height:28px;padding:0 4px;display:grid;place-items:center;
