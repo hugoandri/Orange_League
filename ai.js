@@ -243,13 +243,14 @@ function aiProactiveRetreat(state, playerId, difficulty) {
 function cpuTakeTurn(state, difficulty) {
   difficulty = difficulty || 'easy';
   var playerId = state.activePlayerId;
-  // Logged here (rather than in drawForTurnStart(), which can run well
-  // before the CPU actually acts -- e.g. right when the player attacks,
-  // which ends their turn internally but waits for an explicit "Terminar
-  // turno" click before the CPU moves) so the line only appears once the
-  // CPU's turn is actually being played out. state.turnDrewCard (set by
-  // drawForTurnStart(), rules-engine.js) tells us whether this turn actually
-  // had a card to draw, vs. the deck being empty.
+  // The CPU's turn-start draw happens here (rather than in endTurn(),
+  // rules-engine.js, which can run well before the CPU actually acts --
+  // e.g. right when the player attacks, which ends their turn internally
+  // but waits for an explicit "Terminar turno" click before the CPU moves)
+  // so the player never sees the CPU's hand count go up before its turn is
+  // actually being played out. Skipped on turn 1 (nobody draws going
+  // first), matching endTurn()'s own condition for the player's side.
+  if (state.turnCounter > 1) { drawForTurnStart(state, playerId); }
   if (state.turnDrewCard) { logEvent(state, 'Turno del Rival - Roba 1 Carta', 'cpu'); }
   var guard = 0;
   while (guard < 20) {

@@ -603,14 +603,16 @@ function endTurn(state) {
   state.players[justFinished].energyAttachedThisTurn = false;
   state.players[justFinished].retreatedThisTurn = false;
 
-  // drawForTurnStart logs immediately for the player; the CPU's turn-start
-  // line is logged separately, at the top of cpuTakeTurn() (ai.js) instead
-  // of here -- endTurn() can flip activePlayerId to 'cpu' well before the
-  // CPU actually acts (e.g. right when the player attacks, which ends their
-  // turn internally but waits for an explicit "Terminar turno" click before
-  // the CPU moves -- see ui.js's afterPlayerAction). Logging it here would
-  // leak "Turno del Rival" into the log before the CPU has done anything.
-  if (state.turnCounter > 1) { drawForTurnStart(state, state.activePlayerId); }
+  // Only draws here for the player -- their upcoming turn starts playing
+  // immediately, no click needed, so there's nothing wrong with drawing
+  // right away. The CPU's turn-start draw happens later, at the top of
+  // cpuTakeTurn() (ai.js) instead: endTurn() can flip activePlayerId to
+  // 'cpu' well before the CPU actually acts (e.g. right when the player
+  // attacks, which ends their turn internally but waits for an explicit
+  // "Terminar turno" click before the CPU moves -- see ui.js's
+  // runCpuTurn/afterPlayerAction). Drawing here for the CPU would let the
+  // player see its hand count go up before it's actually taken its turn.
+  if (state.turnCounter > 1 && state.activePlayerId === 'player') { drawForTurnStart(state, 'player'); }
 }
 
 function getWinner(state) {

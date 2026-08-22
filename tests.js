@@ -389,14 +389,49 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   state.players.cpu.active = { id: 'ca1', name: 'Weedle', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
   state.players.cpu.deck = [];
   check('getWinner is null before anyone is forced to draw from empty deck', getWinner(state), null);
-  // endTurn's ordering is "flip active player, then the flipped-to player is who
-  // must have cards to draw" -- so to simulate cpu being the one handed the turn
-  // (and thus forced to draw from their empty deck), activePlayerId must be
-  // 'player' (the player finishing their turn) right before endTurn is called.
+  // endTurn only draws immediately for the player's own upcoming turn now --
+  // the CPU's turn-start draw (and thus its deck-out check) happens later,
+  // once cpuTakeTurn() actually runs (see its own comment), not inside
+  // endTurn() itself anymore.
   state.activePlayerId = 'player';
   state.turnCounter = 3; // not turn 1, so a draw is attempted
-  endTurn(state); // endTurn hands the turn to cpu and triggers their draw-phase check internally via getWinner after draw attempt -- see implementation
+  endTurn(state); // hands the turn to cpu; activePlayerId is now 'cpu'
+  cpuTakeTurn(state); // cpu's turn actually starts, forced to draw from its empty deck
   check('cpu loses by decking out, player wins', getWinner(state), 'player');
+})();
+
+(function testCpuTurnStartDrawIsDeferredUntilCpuTakeTurn() {
+  // Regression: attacking ends the player's turn engine-side (attack()
+  // calls endTurn() internally) well before the CPU actually takes its
+  // turn -- that only happens once the player clicks "Terminar turno"
+  // (ui.js's runCpuTurn). The CPU's own turn-start draw used to happen
+  // right there in endTurn(), so the player would see the CPU's hand count
+  // go up the instant they attacked, before the CPU had done anything.
+  var state = createGame(function () { return 0.42; });
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = { id: 'atk1', name: 'Squirtle', attachedEnergy: ['Water'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  op.active = { id: 'def1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  // Empty CPU hand -- createGame's real dealt cards (Trainers that draw
+  // more, energy to attach...) would add uncontrolled hand-count changes
+  // during cpuTakeTurn's own action loop, confusing what this test means
+  // to isolate: exactly one card drawn, and only once cpuTakeTurn runs.
+  op.hand = [];
+  state.activePlayerId = 'player';
+  state.turnCounter = 3; // not turn 1, so a draw is actually attempted
+  var cpuDeckBefore = op.deck.length;
+  attack(state, 'player', 'Bubble'); // ends the player's turn internally
+  check('attacking hands the turn to the CPU engine-side', state.activePlayerId, 'cpu');
+  check("the CPU's hand hasn't drawn yet -- its turn hasn't actually started", op.hand.length, 0);
+  check("the CPU's deck is untouched too", op.deck.length, cpuDeckBefore);
+  cpuTakeTurn(state); // the CPU's turn actually starts now
+  // Not a strict hand.length/deck.length delta check -- whatever single
+  // card the CPU draws here might itself be immediately played (a Basic,
+  // an Energy, even Professor Oak/Bill drawing more), so those counts
+  // aren't deterministic. turnDrewCard is: drawForTurnStart sets it
+  // regardless of what happens to the card afterward.
+  checkTrue('the CPU only draws once its turn actually starts playing out', state.turnDrewCard);
+  checkTrue("the draw came from its own deck", op.deck.length < cpuDeckBefore);
 })();
 
 (function testDeckOutOnlyTriggersWhenForcedToDrawWithEmptyDeck() {
