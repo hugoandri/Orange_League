@@ -882,6 +882,19 @@
 .shell-board-turn-divider{width:1px;height:22px;background:#0b0907;}
 .shell-board-turn-value{font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;color:#8dff62;text-shadow:0 0 14px rgba(141,255,98,.6);}
 .shell-board-turn-value.cpu{color:#ff8a72;text-shadow:0 0 14px rgba(255,138,114,.6);}
+/* "CPU PENSANDO..." dots (see showCpuThinkingIndicator, ui.js) -- one dot
+   appears, then the next, then the third, all three hold, then all three
+   drop out together and the cycle repeats. Three separate keyframes (not
+   one shared keyframe with staggered animation-delay) so the "all three
+   disappear at once" moment is exact every loop instead of drifting. */
+.shell-board-turn-value.cpu .shell-cpu-thinking-dots{display:inline-flex;gap:2px;margin-left:2px;}
+.shell-board-turn-value.cpu .shell-cpu-thinking-dots span{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.shell-board-turn-value.cpu .shell-cpu-thinking-dots span:nth-child(1){animation:cpuThinkingDot1 1.4s infinite;}
+.shell-board-turn-value.cpu .shell-cpu-thinking-dots span:nth-child(2){animation:cpuThinkingDot2 1.4s infinite;}
+.shell-board-turn-value.cpu .shell-cpu-thinking-dots span:nth-child(3){animation:cpuThinkingDot3 1.4s infinite;}
+@keyframes cpuThinkingDot1{0%,74%{opacity:1;}75%,100%{opacity:0;}}
+@keyframes cpuThinkingDot2{0%,24%{opacity:0;}25%,74%{opacity:1;}75%,100%{opacity:0;}}
+@keyframes cpuThinkingDot3{0%,49%{opacity:0;}50%,74%{opacity:1;}75%,100%{opacity:0;}}
 .shell-board-clock{padding:11px 20px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);}
 .shell-board-clock.low{animation:blink 1s steps(1,end) infinite;}
 

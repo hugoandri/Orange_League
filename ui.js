@@ -874,13 +874,45 @@ function renderBoard() {
   wireBoardButtons();
 }
 
+// Shows "CPU PENSANDO..." (animated dots, see .shell-cpu-thinking-dots) in
+// the turn header for the rest of this render cycle -- afterPlayerAction's
+// own renderBoard() call overwrites #boardTurnValue's text/class from real
+// game state right after runCpuTurn's delay ends, so nothing needs to
+// explicitly undo this.
+function showCpuThinkingIndicator() {
+  var el = document.getElementById('boardTurnValue');
+  if (!el) { return; }
+  el.innerHTML = 'CPU PENSANDO<span class="shell-cpu-thinking-dots"><span></span><span></span><span></span></span>';
+  el.classList.add('cpu');
+}
+
+// Runs the CPU's turn after a "thinking" delay whose length depends on the
+// chosen difficulty (see CPU_THINK_DELAY_MS/cpuThinkDelayMs) -- Easy
+// resolves instantly (0ms), matching its behavior from before difficulty
+// tiers existed. The delay is purely a UI-layer pacing effect: ai.js's
+// cpuTakeTurn itself stays fully synchronous regardless of difficulty (see
+// its own comment), so this is the only place the "thinking" wait lives.
+// endTurnBtn is disabled for the duration so a second click during the
+// wait can't invoke this twice.
+function runCpuTurn() {
+  var difficulty = getCpuDifficulty();
+  var delay = cpuThinkDelayMs(difficulty);
+  var endTurnBtn = document.getElementById('endTurnBtn');
+  if (endTurnBtn) { endTurnBtn.disabled = true; }
+  if (delay > 0) { showCpuThinkingIndicator(); }
+  setTimeout(function () {
+    cpuTakeTurn(gameState, difficulty);
+    afterPlayerAction();
+  }, delay);
+}
+
 // Deliberately does NOT auto-run the CPU's turn. Whatever the player just
 // did (attack, retreat, play a Trainer...) may already have ended their
 // turn engine-side (attack() calls endTurn() internally), but the CPU only
 // actually moves once the player clicks "Terminar turno" -- see
-// wireBoardButtons' endTurnBtn handler. This lets the player review the
-// result of their own action (damage dealt, effects applied, etc. in the
-// log) before the board changes again.
+// wireBoardButtons' endTurnBtn handler (runCpuTurn). This lets the player
+// review the result of their own action (damage dealt, effects applied,
+// etc. in the log) before the board changes again.
 function afterPlayerAction() {
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
@@ -1055,8 +1087,7 @@ function wireBoardButtons() {
         // of mine being cut short here to review -- so, same as ending my
         // own turn, let it play immediately instead of sitting idle until
         // a click.
-        if (gameState.activePlayerId === 'cpu') { cpuTakeTurn(gameState); }
-        afterPlayerAction();
+        if (gameState.activePlayerId === 'cpu') { runCpuTurn(); } else { afterPlayerAction(); }
       }
     });
   }
@@ -1064,19 +1095,18 @@ function wireBoardButtons() {
   // "Terminar turno" is context-aware: if it's still the player's turn it
   // ends it (endTurn); if it's already the CPU's turn (their turn started
   // but they haven't moved yet -- see afterPlayerAction's comment) it lets
-  // them actually take it (cpuTakeTurn). Same button, same label, either
+  // them actually take it (runCpuTurn). Same button, same label, either
   // way the player has to click it before the game state advances again.
   // The two checks are sequential (not else-if) so a single click always
-  // fully hands the turn to the CPU and plays it out immediately -- ending
-  // my own turn here (if it was still mine) makes activePlayerId 'cpu'
-  // right away, and the very same click already covers that case below,
-  // instead of requiring a second press just for the CPU to actually move.
+  // fully hands the turn to the CPU -- ending my own turn here (if it was
+  // still mine) makes activePlayerId 'cpu' right away, and the very same
+  // click already covers that case below, instead of requiring a second
+  // press just for the CPU to actually move.
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
       if (gameState.activePlayerId === 'player') { endTurn(gameState); }
-      if (gameState.activePlayerId === 'cpu') { cpuTakeTurn(gameState); }
-      afterPlayerAction();
+      if (gameState.activePlayerId === 'cpu') { runCpuTurn(); } else { afterPlayerAction(); }
     });
   }
 
@@ -1880,6 +1910,32 @@ function setDuelMusicKey(key) {
   try { localStorage.setItem('tcg_duel_track', key); } catch (e) {}
 }
 
+// 'easy' (default, unchanged from before difficulty tiers existed), 'normal',
+// or 'hard' -- see ai.js's cpuTakeTurn. Kept in this browser only
+// (localStorage), same as the rest of Configuración's settings.
+var CPU_THINK_DELAY_MS = { easy: 0, normal: [1000, 2000], hard: [2000, 5000] };
+function getCpuDifficulty() {
+  var v = localStorage.getItem('tcg_cpu_difficulty');
+  return (v === 'normal' || v === 'hard') ? v : 'easy';
+}
+function setCpuDifficulty(v) {
+  if (v !== 'easy' && v !== 'normal' && v !== 'hard') { return; }
+  try { localStorage.setItem('tcg_cpu_difficulty', v); } catch (e) {}
+}
+function renderCpuDifficultyControl() {
+  var current = getCpuDifficulty();
+  document.querySelectorAll('#cpuDifficultyControl [data-difficulty]').forEach(function (el) {
+    el.classList.toggle('active', el.getAttribute('data-difficulty') === current);
+  });
+}
+// A random delay within the difficulty's range, so the CPU doesn't "think"
+// for a suspiciously identical amount of time every single turn.
+function cpuThinkDelayMs(difficulty) {
+  var range = CPU_THINK_DELAY_MS[difficulty] || 0;
+  if (typeof range === 'number') { return range; }
+  return Math.round(range[0] + Math.random() * (range[1] - range[0]));
+}
+
 // Called once the coin flip actually starts the duel (startMatchBtn) --
 // loops for the whole match, real volume from the Música slider.
 function startDuelMusic() {
@@ -1988,6 +2044,7 @@ function showConfigScreen(returnTo) {
   document.getElementById('configLogoSelect').value = localStorage.getItem('tcg_menu_logo') === 'hidden' ? 'hide' : 'show';
   document.getElementById('configModeSelect').value = document.fullscreenElement ? 'fullscreen' : 'window';
   document.getElementById('configDuelMusicSelect').value = getDuelMusicKey();
+  renderCpuDifficultyControl();
   var musicPct = getMusicVolume();
   var musicSlider = document.getElementById('configMusicSlider');
   musicSlider.querySelector('[data-slider-fill]').style.width = musicPct + '%';
@@ -2117,6 +2174,12 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('configLogoSelect').addEventListener('change', function () {
     localStorage.setItem('tcg_menu_logo', this.value === 'hide' ? 'hidden' : 'visible');
     applyMenuLogo();
+  });
+  document.querySelectorAll('#cpuDifficultyControl [data-difficulty]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      setCpuDifficulty(el.getAttribute('data-difficulty'));
+      renderCpuDifficultyControl();
+    });
   });
   document.getElementById('configDuelMusicSelect').addEventListener('change', function () {
     setDuelMusicKey(this.value);

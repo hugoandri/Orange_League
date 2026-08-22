@@ -756,6 +756,219 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('all scripted games reached a winner', completed, GAMES);
 })();
 
+(function testEstimateDamage() {
+  // Beedrill (Grass) vs Gyarados, which is weak to Grass -- doubles.
+  check('estimateDamage doubles on a real weakness match', estimateDamage('Beedrill', 40, 'Gyarados', false), 80);
+  // Machop (Fighting) vs Beedrill, which resists Fighting by -30, clamped at 0.
+  check('estimateDamage applies -30 resistance, clamped at 0', estimateDamage('Machop', 20, 'Beedrill', false), 0);
+  // Beedrill vs Wartortle: no weakness/resistance interaction, just +10 for PlusPower.
+  check('estimateDamage adds +10 for PlusPower with no other interaction', estimateDamage('Beedrill', 40, 'Wartortle', true), 50);
+  // Gyarados (Water) vs Bulbasaur, which is weak to Fire only -- no interaction.
+  check('estimateDamage with no weakness/resistance/plusPower is just the base', estimateDamage('Gyarados', 50, 'Bulbasaur', false), 50);
+  check('estimateDamage of 0 base damage stays 0', estimateDamage('Beedrill', 0, 'Gyarados', false), 0);
+})();
+
+(function testAiBestAttackAgainst() {
+  var beedrill = { id: 'b1', name: 'Beedrill', attachedEnergy: ['Grass', 'Grass', 'Grass'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var gyarados = { id: 'g1', name: 'Gyarados', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var best = aiBestAttackAgainst(beedrill, gyarados);
+  check('aiBestAttackAgainst picks the attack with the highest real damage vs this defender', best.name, 'Poison Sting');
+  check('aiBestAttackAgainst with no defender returns null', aiBestAttackAgainst(beedrill, null), null);
+})();
+
+(function testAiTryPlusPower() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'z_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  // Beedrill's Poison Sting is a flat 40 vs Wartortle (no weakness/
+  // resistance interaction between them).
+  function setup(defenderDamage) {
+    var state = createGame(function () { return 0.42; });
+    state.activePlayerId = 'cpu';
+    var p = state.players.cpu;
+    var op = state.players.player;
+    p.active = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+    op.active = mk('Wartortle', { damage: defenderDamage });
+    p.hand = [{ id: 'pp1', name: 'PlusPower' }];
+    return { state: state, p: p, op: op };
+  }
+
+  // Wartortle has 70 HP; 21 damage taken leaves 49 remaining. Poison Sting
+  // alone (40) falls short; +10 from PlusPower (50) secures it.
+  var needed = setup(21);
+  checkTrue('Normal plays PlusPower when it turns a non-lethal hit lethal', aiTryPlusPower(needed.state, 'cpu', false));
+  checkTrue('PlusPower actually got attached', needed.p.active.plusPowerAttached);
+
+  // 40 damage taken leaves 30 remaining -- Poison Sting (40) is already
+  // lethal on its own.
+  var alreadyLethalHard = setup(40);
+  check('Hard (onlyIfNeeded) does not waste PlusPower when the plain attack already KOs', aiTryPlusPower(alreadyLethalHard.state, 'cpu', true), false);
+  check('PlusPower stayed in hand', alreadyLethalHard.p.active.plusPowerAttached, false);
+
+  var alreadyLethalNormal = setup(40);
+  checkTrue('Normal (not onlyIfNeeded) still plays it even though already lethal', aiTryPlusPower(alreadyLethalNormal.state, 'cpu', false));
+
+  // 0 damage taken leaves 70 remaining -- not even 50 (40+10) reaches that.
+  var hopeless = setup(0);
+  check('neither tier plays PlusPower when it still would not secure the KO', aiTryPlusPower(hopeless.state, 'cpu', false), false);
+})();
+
+(function testAiTryGustSnipe() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'gz_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  var op = state.players.player;
+  p.active = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  op.active = mk('Machop');
+  // Onix (Fighting, 90 HP, weak to Grass) with 75 damage taken -- 15 HP
+  // left. Beedrill's Poison Sting (40, Grass) doubles to 80 vs that
+  // weakness, way past 15.
+  var onix = mk('Onix', { damage: 75 });
+  op.bench = [onix, null, null, null, null];
+  p.hand = [{ id: 'gust1', name: 'Gust of Wind' }];
+  checkTrue('aiTryGustSnipe pulls a benched Pokémon it can knock out', aiTryGustSnipe(state, 'cpu'));
+  check('the sniped Pokémon becomes the opponent\'s new Active', op.active.id, onix.id);
+})();
+
+(function testAiTryEnergyDisruption() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'ez_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  function setup(oppEnergyCount) {
+    var state = createGame(function () { return 0.42; });
+    state.activePlayerId = 'cpu';
+    var p = state.players.cpu;
+    var op = state.players.player;
+    p.active = mk('Onix');
+    // Machop's Low Kick costs exactly 1 Fighting.
+    op.active = mk('Machop', { attachedEnergy: Array(oppEnergyCount).fill('Fighting') });
+    p.hand = [{ id: 'er1', name: 'Energy Removal' }];
+    return { state: state, p: p, op: op };
+  }
+
+  // Exactly 1 Fighting attached -- Machop can attack right now. Removing
+  // that one energy denies Low Kick next turn: the precise moment to strike.
+  var precise = setup(1);
+  checkTrue("plays Energy Removal the exact turn it denies the opponent's next attack", aiTryEnergyDisruption(precise.state, 'cpu'));
+  check('the energy is actually gone', precise.op.active.attachedEnergy.length, 0);
+
+  // 2 Fighting attached -- removing 1 still leaves 1, which still pays for
+  // Low Kick. No value in playing it yet.
+  var tooEarly = setup(2);
+  check('does not play Energy Removal when it would not actually deny anything', aiTryEnergyDisruption(tooEarly.state, 'cpu'), false);
+})();
+
+(function testAiShouldRetreatInsteadOfAttack() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'rz_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+
+  // Squirtle at 30 damage (10 HP left) can only Bubble for 10 (no
+  // weakness interaction vs Machop) -- nowhere near a KO. Machop's Low
+  // Kick (20, no interaction vs Squirtle either) would far exceed
+  // Squirtle's remaining 10 HP next turn.
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  var op = state.players.player;
+  p.active = mk('Squirtle', { damage: 30, attachedEnergy: ['Water'] });
+  op.active = mk('Machop', { attachedEnergy: ['Fighting'] });
+  var saferBench = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  p.bench = [saferBench, null, null, null, null];
+  var choice = aiShouldRetreatInsteadOfAttack(state, 'cpu');
+  check('retreats to a Bench Pokémon that can still fight when staying Active risks a KO next turn', choice && choice.id, saferBench.id);
+
+  // Beedrill's Poison Sting easily finishes a Machop already at 40 damage
+  // (10 HP left, no weakness interaction needed) -- securing that KO
+  // always wins over running away, regardless of what's on the Bench.
+  var state2 = createGame(function () { return 0.42; });
+  state2.activePlayerId = 'cpu';
+  var p2 = state2.players.cpu;
+  var op2 = state2.players.player;
+  p2.active = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  op2.active = mk('Machop', { damage: 40 });
+  check('never retreats away from a KO it can secure this turn', aiShouldRetreatInsteadOfAttack(state2, 'cpu'), null);
+})();
+
+(function testAiProactiveRetreatNormalThreshold() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'nz_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  var op = state.players.player;
+  // Wartortle (70 HP) at 45 damage leaves 25 -- at or under Normal's flat
+  // 30-HP threshold, regardless of what the opponent can actually do.
+  p.active = mk('Wartortle', { damage: 45, attachedEnergy: ['Water'] });
+  op.active = mk('Weedle');
+  var bench = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  p.bench = [bench, null, null, null, null];
+  check('Easy never proactively retreats', aiProactiveRetreat(state, 'cpu', 'easy'), null);
+  var choice = aiProactiveRetreat(state, 'cpu', 'normal');
+  check("Normal retreats on a flat low-HP threshold, regardless of the actual threat", choice && choice.id, bench.id);
+})();
+
+(function testCpuTakeTurnAcceptsAllDifficulties() {
+  ['easy', 'normal', 'hard'].forEach(function (difficulty) {
+    var state = createGame(function () { return 0.37; });
+    state.activePlayerId = 'cpu';
+    var beforeTurn = state.turnCounter;
+    cpuTakeTurn(state, difficulty);
+    checkTrue('cpuTakeTurn(' + difficulty + ') advances the turn without throwing', state.turnCounter > beforeTurn);
+  });
+})();
+
+(function testCpuTakeTurnDefaultsToEasy() {
+  // Card ids come from a global incrementing counter shared across the
+  // whole process (data-decks.js), so two independent createGame() calls
+  // never produce identical ids even with the same rng -- strip them
+  // before comparing; everything else (names, order, damage, log) should
+  // still match exactly for the same seed.
+  var stripIds = function (state) { return JSON.stringify(state).replace(/"id":"c\d+"/g, '"id":"X"'); };
+  var stateDefault = createGame(function () { return 0.37; });
+  stateDefault.activePlayerId = 'cpu';
+  var stateExplicitEasy = createGame(function () { return 0.37; });
+  stateExplicitEasy.activePlayerId = 'cpu';
+  cpuTakeTurn(stateDefault);
+  cpuTakeTurn(stateExplicitEasy, 'easy');
+  check('cpuTakeTurn(state) with no difficulty behaves identically to explicit easy', stripIds(stateDefault), stripIds(stateExplicitEasy));
+})();
+
+(function testScriptedCpuVsCpuStabilityRunHigherDifficulties() {
+  ['normal', 'hard'].forEach(function (difficulty) {
+    var GAMES = 5;
+    var TURN_CAP = 400;
+    var completed = 0;
+    for (var g = 0; g < GAMES; g++) {
+      var seed = g;
+      var rng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
+      var state = createGame(rng);
+      aiSetupBoard(state, 'player');
+      aiSetupBoard(state, 'cpu');
+      startMatch(state);
+      var turns = 0;
+      var winner = null;
+      while (!winner && turns < TURN_CAP) {
+        cpuTakeTurn(state, difficulty);
+        while (state.pendingPrizeChoice) {
+          var pid = state.pendingPrizeChoice.playerId;
+          var idx = state.players[pid].prizes.findIndex(function (c) { return c; });
+          takePrize(state, pid, idx);
+        }
+        winner = getWinner(state);
+        turns++;
+      }
+      checkTrue(difficulty + ' game ' + g + ' finished within ' + TURN_CAP + ' turns', turns < TURN_CAP);
+      if (winner) { completed++; }
+    }
+    check('all scripted ' + difficulty + ' games reached a winner', completed, GAMES);
+  });
+})();
+
 (function testCreateGameStartsWithDefaultTimeBank() {
   var state = createGame(function () { return 0.42; });
   check('player starts with the default time bank', state.players.player.timeBankMs, DEFAULT_TIME_BANK_MS);
