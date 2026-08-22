@@ -491,7 +491,14 @@ function benchCardHtml(instance, mine, flipped) {
 // not just "the next free one" (see playBasic's benchIndex param).
 function benchEmptyHtml(mine, index) {
   var cls = 'shell-board-bench-empty' + (mine ? ' pickable' : '');
-  return '<div class="shell-board-bench-slot"><div class="' + cls + '"' + (mine ? ' data-owner="player" data-bench-index="' + index + '"' : '') + '>BANCA</div></div>';
+  var cardHtml = '<div class="' + cls + '"' + (mine ? ' data-owner="player" data-bench-index="' + index + '"' : '') + '>BANCA</div>';
+  // Reserves the exact same total height as a filled slot (card + HP bar +
+  // name label, see benchCardHtml) so placing/removing a Bench Pokémon
+  // never changes the row's height -- that mismatch was what made the whole
+  // board visibly resize/shrink every time a Pokémon went down.
+  var hpHtml = '<div class="shell-board-bench-hp" style="visibility:hidden"></div>';
+  var nameHtml = '<div class="shell-board-bench-name" style="visibility:hidden">&nbsp;</div>';
+  return '<div class="shell-board-bench-slot">' + cardHtml + hpHtml + nameHtml + '</div>';
 }
 
 function benchRowHtml(bench, mine, flipped) {
@@ -513,7 +520,15 @@ function activeColHtml(activeInstance, mine, flipped) {
     // very first Basic, or after a knockout with no Bench left) -- the
     // CPU's side renders the exact same "SIN ACTIVO" placeholder inertly.
     var cls = 'shell-board-active-empty' + (mine ? ' pickable' : '');
-    return '<div class="shell-board-active-col"><div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>SIN ACTIVO</div></div>';
+    var emptyCardHtml = '<div class="' + cls + '"' + (mine ? ' data-owner="player"' : '') + '>SIN ACTIVO</div>';
+    // Reserves the same total height as a real Active (card + name plate +
+    // HP bar) -- otherwise the whole column got shorter with no Active out,
+    // which made the board visibly resize every time a Pokémon went down.
+    var emptyPlate = '<div class="shell-board-active-name-plate" style="visibility:hidden">' +
+      '<span class="name">&nbsp;</span><span class="hp">&nbsp;</span></div>' +
+      '<div class="shell-board-active-hp" style="visibility:hidden"></div>';
+    var emptyOrder = mine ? (emptyCardHtml + emptyPlate) : (emptyPlate + emptyCardHtml);
+    return '<div class="shell-board-active-col">' + emptyOrder + '</div>';
   }
   var stats = CARD_STATS[activeInstance.name];
   var hp = stats.hp - activeInstance.damage;
