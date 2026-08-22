@@ -718,7 +718,9 @@ function positionCpuHandLabel() {
   var benchTop = cpuBenchRow.getBoundingClientRect().top;
   var gapCenter = (handBottom + benchTop) / 2;
   var labelHeight = label.getBoundingClientRect().height;
-  label.style.top = Math.round(gapCenter - appTop - labelHeight / 2) + 'px';
+  // +8px nudges it down slightly from dead-center of the gap, per user
+  // preference.
+  label.style.top = Math.round(gapCenter - appTop - labelHeight / 2 + 8) + 'px';
 }
 
 function isPokemonCard(name) {
