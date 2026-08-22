@@ -74,7 +74,6 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 /* All of these sit above #boardScreen's z-index:200 (or #menuScreen's, for
    editProfileModal/boosterSelectModal reached from the menu) -- the plain
    z-index:110 default would otherwise render them invisible behind it. */
-#cardModal{z-index:210;}
 #editProfileModal{z-index:210;}
 #boosterSelectModal{z-index:210;}
 #boosterResultModal{z-index:210;}
@@ -85,6 +84,15 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 #energyDiscardModal{z-index:210;}
 #matchEndModal{z-index:210;}
 #discardPileModal{z-index:210;}
+/* #cardModal is a "zoom on top of whatever's already open" utility -- it
+   gets triggered from several other modals that stay open behind it
+   (booster result, discard pile, etc.), not just bare screens. At the same
+   z-index:210 as those, same-z stacking falls back to DOM order, and
+   #cardModal happens to sit earlier in the markup than most of them --
+   so e.g. clicking a card in the booster-result modal opened the zoom
+   *behind* it, invisible, until closing the booster modal revealed it.
+   One level higher guarantees it always wins regardless of DOM order. */
+#cardModal{z-index:220;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 
 /* ===================== AUTH SCREEN ===================== */
