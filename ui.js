@@ -312,12 +312,13 @@ function showCardInViewer(name, instanceId) {
 // differently-illustrated reprint in another set or at another rarity (e.g.
 // Haunter: Base Set #29 vs Fossil #6/#21), so the name-keyed table can only
 // ever hold one of them and silently shows the wrong art for the others.
-function openCardModal(name, imgUrl) {
+function openCardModal(name, imgUrl, isHolo) {
   var url = imgUrl || CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
   var img = document.getElementById('cardModalImg');
   img.src = url;
   img.alt = name;
+  document.getElementById('cardModal').classList.toggle('holo', !!isHolo);
   document.getElementById('cardModal').classList.remove('hidden');
 }
 
@@ -1355,9 +1356,14 @@ function collectionAllCards() {
     var setTotal = CARD_CATALOG[setKey].length;
     CARD_CATALOG[setKey].forEach(function (c) {
       var key = setKey + '-' + c.num;
+      // A card counts as holo either because its own catalog rarity already
+      // is Rare Holo, or because at least one owned copy rolled the bonus
+      // upgrade (collectionHolo, written server-side by openBooster --
+      // see functions/index.js/pureEconomy.js's HOLO_UPGRADE_CHANCE).
+      var holo = c.r === 'Rare Holo' || (econState.collectionHolo[key] || 0) > 0;
       all.push({
         setKey: setKey, setTotal: setTotal, num: c.num, name: c.n, rarity: c.r, img: c.img,
-        count: (econState.collection[key] || 0)
+        count: (econState.collection[key] || 0), holo: holo
       });
     });
   });
@@ -1415,10 +1421,12 @@ function renderCollectionGrid(all) {
 
   var html = filtered.map(function (c) {
     var owned = c.count > 0;
+    var isHolo = owned && c.holo;
     var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
-    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
+    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + (isHolo ? ' holo' : '') + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
+        (isHolo ? '<div class="shell-collection-cell-foil"></div>' : '') +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
@@ -1435,7 +1443,7 @@ function renderCollectionGrid(all) {
   grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, el.getAttribute('data-card-img')); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img'), el.classList.contains('holo')); }
     });
   });
 }
@@ -1506,16 +1514,6 @@ var BOOSTER_RESULT_RARITY = {
 // knows which pack-select modal to reopen.
 var boosterResultSetKey = null;
 
-// A pulled Rare (not already Rare Holo) has a real-money-free, purely
-// cosmetic chance of revealing with the holo foil treatment -- doesn't
-// touch the actual card/rarity that gets recorded in the collection
-// (economy.js/functions), just how this one reveal renders. Darkspoon
-// always gets the holo reveal; everyone else gets it 10% of the time.
-function rollsHoloReveal() {
-  if (profileState && (profileState.username || '').toLowerCase() === 'darkspoon') { return true; }
-  return Math.random() < 0.10;
-}
-
 function showBoosterResult(cards, setKey) {
   boosterResultSetKey = setKey;
   var counts = { holo: 0, rare: 0, uncommon: 0 };
@@ -1528,7 +1526,11 @@ function showBoosterResult(cards, setKey) {
     // That mismatch is exactly the "opened a Base pack, got a Fossil-art
     // Haunter" bug this fixes.
     var url = c.img || '';
-    var displayRarityKey = (c.r === 'Rare' && rollsHoloReveal()) ? 'Rare Holo' : c.r;
+    // c.holo is the real, server-decided upgrade (functions/index.js's
+    // openBooster, via drawBoosterCards' HOLO_UPGRADE_CHANCE roll) -- this
+    // reveal has to match what actually got persisted into collectionHolo,
+    // not a separate client-side roll of its own.
+    var displayRarityKey = c.holo ? 'Rare Holo' : c.r;
     var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
     if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
@@ -1554,7 +1556,7 @@ function showBoosterResult(cards, setKey) {
   document.querySelectorAll('.shell-booster-result-card').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, el.getAttribute('data-card-img')); }
+      if (name) { openCardModal(name, el.getAttribute('data-card-img'), el.classList.contains('holo')); }
     });
   });
 }

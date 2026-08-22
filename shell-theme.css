@@ -454,6 +454,16 @@
 .shell-collection-cell-veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,8,7,.66);font-size:16px;color:#4a4239;}
 .shell-collection-cell-num{font-size:10px;letter-spacing:.06em;color:#8a7e6f;text-align:center;}
 .shell-collection-cell.locked .shell-collection-cell-num{color:#3a342c;}
+/* A holo copy (real Rare Holo rarity, or a plain Rare that rolled the bonus
+   upgrade -- see collectionAllCards) gets the same shimmering foil treatment
+   as a fresh booster pull, so it stays visibly holo everywhere it's shown,
+   not just at the moment it was opened. */
+.shell-collection-cell.holo .shell-collection-cell-art{box-shadow:0 0 0 1px #e8c46a,0 0 22px rgba(232,196,106,.5),0 4px 10px rgba(0,0,0,.55);}
+.shell-collection-cell-foil{
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
+  animation:holo 3.4s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,120,220,.28),rgba(120,220,255,.28),rgba(255,240,120,.28),rgba(160,255,140,.28),rgba(255,120,220,.28));
+}
 
 /* ===== Configuración ===== */
 .shell-config-body{
@@ -1128,6 +1138,16 @@
   clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
 }
 .shell-card-zoom img{max-width:80vw;max-height:75vh;display:block;}
+/* Holo zoom (a real Rare Holo, or a Rare that rolled/owns the bonus
+   upgrade -- see openCardModal's isHolo param) -- a pseudo-element instead
+   of a new wrapper div, since .shell-card-zoom is already position:relative
+   and covers the image + close button padding it needs to sweep over. */
+#cardModal.holo .shell-card-zoom img{box-shadow:0 0 0 1px #e8c46a,0 0 40px rgba(232,196,106,.6);}
+#cardModal.holo .shell-card-zoom::after{
+  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
+  animation:holo 3.4s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,120,220,.22),rgba(120,220,255,.22),rgba(255,240,120,.22),rgba(160,255,140,.22),rgba(255,120,220,.22));
+}
 .shell-card-zoom-close{
   padding:12px 28px;cursor:pointer;font-size:12px;letter-spacing:.14em;color:#efe9dd;
   background:linear-gradient(180deg,#413a31,#251f1a);border:1px solid #0b0907;

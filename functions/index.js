@@ -116,13 +116,19 @@ exports.openBooster = onCall(async (request) => {
     if (!data || data.coins < BOOSTER_COST) {
       throw new HttpsError('failed-precondition', 'No tienes suficientes monedas.');
     }
-    const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random);
+    // Darkspoon's own account always gets the bonus holo upgrade on a
+    // pulled Rare instead of the normal 10% roll -- checked server-side
+    // (not just at reveal time) since this is what actually gets persisted.
+    const guaranteedHolo = (data.username || '').toLowerCase() === 'darkspoon';
+    const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random, guaranteedHolo);
     const newCollection = Object.assign({}, data.collection);
+    const newCollectionHolo = Object.assign({}, data.collectionHolo);
     drawn.forEach(function (c) {
       const key = setKey + '-' + c.num;
       newCollection[key] = (newCollection[key] || 0) + 1;
+      if (c.holo) { newCollectionHolo[key] = (newCollectionHolo[key] || 0) + 1; }
     });
-    tx.update(userRef, { coins: data.coins - BOOSTER_COST, collection: newCollection });
+    tx.update(userRef, { coins: data.coins - BOOSTER_COST, collection: newCollection, collectionHolo: newCollectionHolo });
     return drawn;
   });
 
