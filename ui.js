@@ -680,13 +680,38 @@ function prizeGridHtml(state, ownerId) {
   return html;
 }
 
+// The "MANO CPU" label lives directly under #app (not nested inside
+// .shell-board-hand-cpu) so it isn't clipped by that band's own
+// overflow:hidden -- positionCpuHandLabel() (called once the board is in
+// the DOM) moves it down to line up with the bench Pokémon names, well
+// below the 56px hand band's own bounds, without touching the bench or
+// hand-card markup/sizing at all.
 function cpuHandRowHtml(count) {
   var cards = '';
   for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
-  return '<div class="shell-board-hand-cpu">' +
-    '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
+  return '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
+    '<div class="shell-board-hand-cpu">' +
     '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
     '</div>';
+}
+
+// Lines up "MANO CPU"'s vertical center with the CPU bench Pokémon names'
+// -- .shell-board-bench-row always renders one (see benchEmptyHtml: even an
+// empty slot reserves a hidden .shell-board-bench-name placeholder), and
+// the CPU's bench row is unconditionally the first one in the DOM (see
+// renderBoard's own comment on the Bench-then-Active vs Active-then-Bench
+// ordering), so this never needs to touch bench markup to find it.
+function positionCpuHandLabel() {
+  var label = document.querySelector('.shell-board-hand-cpu-label');
+  var appEl = document.getElementById('app');
+  var cpuBenchRow = document.querySelector('.shell-board-bench-row');
+  var cpuNameEl = cpuBenchRow && cpuBenchRow.querySelector('.shell-board-bench-name');
+  if (!label || !appEl || !cpuNameEl) { return; }
+  var appTop = appEl.getBoundingClientRect().top;
+  var nameRect = cpuNameEl.getBoundingClientRect();
+  var nameCenter = nameRect.top + nameRect.height / 2;
+  var labelHeight = label.getBoundingClientRect().height;
+  label.style.top = Math.round(nameCenter - appTop - labelHeight / 2) + 'px';
 }
 
 function isPokemonCard(name) {
@@ -788,6 +813,7 @@ function renderBoard() {
     boardHtml += handBandHtml(s);
   }
   document.getElementById('app').innerHTML = boardHtml;
+  positionCpuHandLabel();
 
   if (pendingActive) {
     renderActiveChoiceModal();
