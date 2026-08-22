@@ -515,8 +515,11 @@ function renderPrizeChoiceModal() {
       takePrize(gameState, 'player', index);
       afterPlayerAction();
       // Zoom the card just taken so it's clear which prize was won -- reuses
-      // the same enlarge modal as the hand's 🔍 buttons.
-      if (wonCardName) { openCardModal(wonCardName); }
+      // the same enlarge modal as the hand's 🔍 buttons. Prizes are always
+      // the player's own, so isHoloInMatch('player', ...) is enough to show
+      // the deck's guaranteed Rare Holo (Gyarados for Overgrowth) with its
+      // foil here too, same as everywhere else its front face renders.
+      if (wonCardName) { openCardModal(wonCardName, null, isHoloInMatch('player', wonCardName) ? 'holo' : null); }
     });
   });
   document.getElementById('prizeChoiceModal').classList.remove('hidden');
@@ -815,12 +818,22 @@ function renderBoard() {
   if (s.phase === 'setup') {
     turnValueEl.textContent = 'PREPARANDO';
     turnValueEl.classList.remove('cpu');
-  } else if (s.activePlayerId === 'player') {
+  } else {
+    // cpuTakeTurn() (ai.js) always finishes by calling endTurn() itself
+    // before returning, so by the time any render happens after it
+    // actually ran, s.activePlayerId is already back to 'player' -- it can
+    // only still read 'cpu' here in the window right after the player's
+    // OWN action already ended their turn engine-side (attack() calls
+    // endTurn() internally -- see afterPlayerAction's comment above) but
+    // before they've clicked "PASAR TURNO" to actually hand control over.
+    // The board hasn't changed and the CPU hasn't moved yet in that
+    // window, so the header stays "TU TURNO" instead of flipping the
+    // instant an attack lands, before the player did anything to end it
+    // themselves. (.shell-board-turn-value.cpu's red styling is unused as
+    // a result -- left in place in case a future async CPU-turn animation
+    // gives it a real moment to show.)
     turnValueEl.textContent = 'TU TURNO';
     turnValueEl.classList.remove('cpu');
-  } else {
-    turnValueEl.textContent = 'TURNO DE LA CPU';
-    turnValueEl.classList.add('cpu');
   }
 
   wireBoardButtons();
