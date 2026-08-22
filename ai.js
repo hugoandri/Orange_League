@@ -82,21 +82,28 @@ function energyTypeHelpsAttacks(instance, energyType) {
   });
 }
 
-// Easy/Normal: always attaches to the Active, exactly as before difficulty
-// tiers existed -- Normal isn't meant to be this strategic (per the user).
-// Hard: if the Active can't actually use this energy type for any of its
-// attacks but a Bench Pokémon can, attaches it there instead -- both
-// building toward a real attacker for later (after a retreat, or once the
-// Active is knocked out) and not wasting the turn's one attach on a type
-// that does nothing for whoever's out front right now.
+// Easy: always attaches to the Active, exactly as before difficulty tiers
+// existed, regardless of whether the type actually helps it.
+// Hard: always reasons about it -- if the Active can't actually use this
+// energy type for any of its attacks but a Bench Pokémon can, attaches it
+// there instead, both building toward a real attacker for later (after a
+// retreat, or once the Active is knocked out) and not wasting the turn's
+// one attach on a type that does nothing for whoever's out front right now.
+// Normal reasons about it too, but only about half the time (rolled off
+// state.rng(), same deterministic source as coin flips/shuffles) -- the
+// rest of the time it just attaches to the Active like Easy, regardless of
+// type fit. Per the user: Normal shouldn't be *consistently* this
+// strategic, just occasionally get it right.
 function aiTryAttachEnergy(state, playerId, difficulty) {
   var p = state.players[playerId];
   if (!p.active || p.energyAttachedThisTurn) { return false; }
   var handCard = p.hand.find(function (c) { return ENERGY_TYPE_BY_CARD_NAME[c.name]; });
   if (!handCard) { return false; }
+  var energyType = ENERGY_TYPE_BY_CARD_NAME[handCard.name];
   var target = p.active;
-  if (difficulty === 'hard' && !energyTypeHelpsAttacks(p.active, ENERGY_TYPE_BY_CARD_NAME[handCard.name])) {
-    var benchMatch = p.bench.find(function (b) { return b && energyTypeHelpsAttacks(b, ENERGY_TYPE_BY_CARD_NAME[handCard.name]); });
+  var actsSmart = difficulty === 'hard' || (difficulty === 'normal' && state.rng() < 0.5);
+  if (actsSmart && !energyTypeHelpsAttacks(p.active, energyType)) {
+    var benchMatch = p.bench.find(function (b) { return b && energyTypeHelpsAttacks(b, energyType); });
     if (benchMatch) { target = benchMatch; }
   }
   if (!canAttachEnergy(state, playerId, handCard.id, target.id)) { return false; }

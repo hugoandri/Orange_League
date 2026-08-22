@@ -916,8 +916,8 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var mk = function (name, extra) {
     return Object.assign({ id: 'az_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
   };
-  function setup() {
-    var state = createGame(function () { return 0.42; });
+  function setup(rng) {
+    var state = createGame(rng || function () { return 0.42; });
     state.activePlayerId = 'cpu';
     var p = state.players.cpu;
     // Machop's only attack (Low Kick) costs pure Fighting, no Colorless
@@ -935,9 +935,17 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Easy always attaches to the Active, even when it is useless there', easy.p.active.attachedEnergy, ['Water']);
   check("Easy's Bench Pokémon is untouched", easy.staryu.attachedEnergy, []);
 
-  var normal = setup();
-  checkTrue('Normal attaches energy', aiTryAttachEnergy(normal.state, 'cpu', 'normal'));
-  check('Normal is not that strategic -- still attaches to the Active', normal.p.active.attachedEnergy, ['Water']);
+  // Normal only reasons about it ~half the time (state.rng() < 0.5) --
+  // 0.9 fails that roll (dumb, straight to the Active), 0.1 passes it
+  // (smart, redirects to the Bench Pokémon that can actually use it).
+  var normalDumb = setup(function () { return 0.9; });
+  checkTrue('Normal attaches energy (dumb roll)', aiTryAttachEnergy(normalDumb.state, 'cpu', 'normal'));
+  check('Normal sometimes just attaches to the Active regardless of type fit', normalDumb.p.active.attachedEnergy, ['Water']);
+
+  var normalSmart = setup(function () { return 0.1; });
+  checkTrue('Normal attaches energy (smart roll)', aiTryAttachEnergy(normalSmart.state, 'cpu', 'normal'));
+  check('Normal sometimes gets it right and redirects to the Bench', normalSmart.p.active.attachedEnergy, []);
+  check("Normal's smart roll put it on the Staryu", normalSmart.staryu.attachedEnergy, ['Water']);
 
   var hard = setup();
   checkTrue('Hard attaches energy', aiTryAttachEnergy(hard.state, 'cpu', 'hard'));
