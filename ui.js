@@ -946,8 +946,14 @@ function runCpuTurn() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) { endTurnBtn.disabled = true; }
   if (delay > 0) { showCpuThinkingIndicator(); }
+  // From here on the CPU's own clock should be the one draining (including
+  // through the "thinking" delay itself -- see currentClockOwner's comment)
+  // instead of the player's, which is what tickGameClock's interval was
+  // charging up until now click.
+  cpuTurnInProgress = true;
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
+    cpuTurnInProgress = false;
     afterPlayerAction();
   }, delay);
 }
@@ -1311,6 +1317,22 @@ var CLOCK_TICK_MS = 250;
 var clockIntervalId = null;
 var clockLastTickAt = null;
 
+// Whose clock is really running right now. gameState.activePlayerId flips
+// to 'cpu' the instant the player's own action ends their turn (attack()
+// calls endTurn() internally), well before the CPU is actually handed
+// control -- that only happens once the player clicks "TERMINAR TURNO"
+// (runCpuTurn sets this true for the duration of the delay + the CPU's
+// actual turn). Until then it's still functionally the player's turn --
+// same reasoning as the header staying "TU TURNO" during that window (see
+// renderBoard's own comment) -- so their own clock should keep draining,
+// not the CPU's. Without this, the CPU's bank was already ticking down
+// while the player was still reviewing the board, before they'd even
+// clicked to hand the turn over.
+var cpuTurnInProgress = false;
+function currentClockOwner() {
+  return (gameState.activePlayerId === 'cpu' && !cpuTurnInProgress) ? 'player' : gameState.activePlayerId;
+}
+
 function formatClockMs(ms) {
   var totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   var m = Math.floor(totalSeconds / 60);
@@ -1332,7 +1354,7 @@ function renderClocks() {
   var s = gameState;
   var el = document.getElementById('boardClock');
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
-  var activeId = s.activePlayerId;
+  var activeId = currentClockOwner();
   var remaining = s.players[activeId].timeBankMs;
   renderClockDisplay(el, remaining, activeId === 'cpu');
 }
@@ -1342,7 +1364,7 @@ function tickGameClock() {
   var now = Date.now();
   var elapsed = clockLastTickAt ? (now - clockLastTickAt) : 0;
   clockLastTickAt = now;
-  tickClock(gameState, gameState.activePlayerId, elapsed);
+  tickClock(gameState, currentClockOwner(), elapsed);
   renderClocks();
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); }
@@ -1362,6 +1384,7 @@ function stopGameClock() {
 
 function startNewMatch() {
   matchWinner = null;
+  cpuTurnInProgress = false;
   stopGameClock();
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();
