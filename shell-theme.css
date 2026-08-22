@@ -987,7 +987,11 @@
 .shell-board-table-wrap{flex:1;position:relative;min-width:0;display:flex;flex-direction:column;}
 .shell-board-table-bg{position:absolute;inset:0;overflow:hidden;perspective:1400px;pointer-events:none;}
 .shell-board-table-plane{
-  position:absolute;left:-10%;right:-10%;top:5%;bottom:17%;transform:rotateX(24deg);transform-origin:50% 100%;
+  /* top was 5%, leaving the CPU's bench row (near the top of #app, which
+     this plane sits behind) poking out above the felt graphic instead of
+     resting on it. Matches the -10% already used for left/right instead of
+     a bare 0, extending it past the wrapper's own top edge for margin. */
+  position:absolute;left:-10%;right:-10%;top:-10%;bottom:17%;transform:rotateX(24deg);transform-origin:50% 100%;
   background:
     radial-gradient(70% 60% at 50% 50%,rgba(141,255,98,.06),transparent 70%),
     repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 92px),
