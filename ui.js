@@ -1506,6 +1506,16 @@ var BOOSTER_RESULT_RARITY = {
 // knows which pack-select modal to reopen.
 var boosterResultSetKey = null;
 
+// A pulled Rare (not already Rare Holo) has a real-money-free, purely
+// cosmetic chance of revealing with the holo foil treatment -- doesn't
+// touch the actual card/rarity that gets recorded in the collection
+// (economy.js/functions), just how this one reveal renders. Darkspoon
+// always gets the holo reveal; everyone else gets it 10% of the time.
+function rollsHoloReveal() {
+  if (profileState && (profileState.username || '').toLowerCase() === 'darkspoon') { return true; }
+  return Math.random() < 0.10;
+}
+
 function showBoosterResult(cards, setKey) {
   boosterResultSetKey = setKey;
   var counts = { holo: 0, rare: 0, uncommon: 0 };
@@ -1518,7 +1528,8 @@ function showBoosterResult(cards, setKey) {
     // That mismatch is exactly the "opened a Base pack, got a Fossil-art
     // Haunter" bug this fixes.
     var url = c.img || '';
-    var rarity = BOOSTER_RESULT_RARITY[c.r] || BOOSTER_RESULT_RARITY.Common;
+    var displayRarityKey = (c.r === 'Rare' && rollsHoloReveal()) ? 'Rare Holo' : c.r;
+    var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
     if (counts[rarity.cls] !== undefined) { counts[rarity.cls]++; }
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
       '<div class="shell-booster-result-card-art">' +
