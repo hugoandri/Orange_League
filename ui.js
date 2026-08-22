@@ -177,9 +177,9 @@ function logHtml(s) {
 // Twinkling four-pointed star field for holo cards, matching the "Holos.html"
 // design reference's campoEstrellas/chispa technique. Deterministic (sine-based
 // instead of Math.random) so the same card always draws the same field instead
-// of reshuffling on every re-render. Capped at 10 stars/card (the reference
+// of reshuffling on every re-render. Capped at 20 stars/card (the reference
 // used 26) since holo cards can appear by the dozen at once in the Collection
-// grid -- 10 already reads as "sparkling" without animating hundreds of nodes.
+// grid -- 20 already reads as "sparkling" without animating hundreds of nodes.
 //
 // Real Base/Jungle/Fossil Rare Holo art already has small pale star sparkles
 // painted into the illustration itself (see e.g. Gyarados) -- the first pass
@@ -189,7 +189,7 @@ function logHtml(s) {
 // than the card's own baked-in stars so the overlay reads as a distinct
 // effect, and the opacity floor is raised so they never fully fade out.
 function holoStarsHtml(n) {
-  n = n || 10;
+  n = n || 20;
   var stars = '';
   for (var i = 0; i < n; i++) {
     var a = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1;
