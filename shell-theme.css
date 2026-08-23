@@ -479,6 +479,13 @@
 .shell-collection-cell-veil{position:absolute;inset:0;display:grid;place-items:center;background:rgba(8,8,7,.66);font-size:16px;color:#4a4239;}
 .shell-collection-cell-num{font-size:10px;letter-spacing:.06em;color:#8a7e6f;text-align:center;}
 .shell-collection-cell.locked .shell-collection-cell-num{color:#3a342c;}
+/* Only shown on owned cells -- a card owned across multiple rolled tiers
+   (see expandCollectionEntryByTier, ui.js) now gets one cell per tier, so
+   this is what actually tells them apart at a glance instead of relying on
+   the foil glow alone. */
+.shell-collection-cell-tier{font-size:9px;letter-spacing:.12em;text-align:center;color:#8a7e6f;}
+.shell-collection-cell.holo .shell-collection-cell-tier{color:#e8c46a;}
+.shell-collection-cell.secret .shell-collection-cell-tier{color:#ffe89a;}
 /* A holo copy (real Rare Holo rarity, or a plain Rare that rolled the bonus
    upgrade -- see collectionAllCards) gets the same shimmering foil treatment
    as a fresh booster pull, so it stays visibly holo everywhere it's shown,

@@ -1804,6 +1804,27 @@ function renderCollectionScreen() {
   renderCollectionGrid(all);
 }
 
+// A catalog entry's collection/collectionHolo/collectionSecret counts are
+// independent per-copy rolls (see collectionAllCards' own comment) -- the
+// same card can genuinely be owned as plain Rare, Rare Holo, AND Secret
+// Rare at once. The grid used to show only the single highest tier owned
+// (secret > holo > plain), completely hiding whatever other tiers were
+// also owned. This splits one catalog entry into one grid cell per tier
+// actually owned, each with that tier's own copy count -- an unowned card
+// stays a single locked placeholder cell, same as before.
+function expandCollectionEntryByTier(c) {
+  if (!c.count) { return [c]; }
+  var key = c.setKey + '-' + c.num;
+  var secretCount = (econState.collectionSecret[key] || 0);
+  var holoCount = (econState.collectionHolo[key] || 0);
+  var plainCount = c.count - secretCount - holoCount;
+  var out = [];
+  if (plainCount > 0) { out.push(Object.assign({}, c, { count: plainCount, holo: false, secret: false })); }
+  if (holoCount > 0) { out.push(Object.assign({}, c, { count: holoCount, holo: true, secret: false })); }
+  if (secretCount > 0) { out.push(Object.assign({}, c, { count: secretCount, holo: false, secret: true })); }
+  return out.length ? out : [c];
+}
+
 function renderCollectionGrid(all) {
   all = all || collectionAllCards();
   var search = collectionFilters.search;
@@ -1813,14 +1834,15 @@ function renderCollectionGrid(all) {
     if (search && translateCardName(c.name).toLowerCase().indexOf(search) === -1) { return false; }
     return true;
   });
+  var expanded = [];
+  filtered.forEach(function (c) { expandCollectionEntryByTier(c).forEach(function (e) { expanded.push(e); }); });
 
-  var html = filtered.map(function (c) {
+  var html = expanded.map(function (c) {
     var owned = c.count > 0;
-    // Secret takes priority over holo when a card somehow has both counts
-    // (e.g. one holo copy and one secret copy owned) -- shows the rarer one.
     var isSecret = owned && c.secret;
     var isHolo = owned && c.holo && !isSecret;
     var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
+    var tierLabel = isSecret ? 'SECRETA' : (isHolo ? 'HOLOGRÁFICA' : (owned ? 'RARA' : ''));
     var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
     return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
@@ -1828,6 +1850,7 @@ function renderCollectionGrid(all) {
         (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
+      (owned ? '<div class="shell-collection-cell-tier">' + tierLabel + '</div>' : '') +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
       '</div>';
   }).join('');
