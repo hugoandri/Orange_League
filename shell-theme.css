@@ -1407,6 +1407,15 @@
 .shell-energy-discard-option:hover{filter:brightness(1.2);}
 .shell-energy-discard-option.selected{box-shadow:0 0 0 2px #8dff62,0 0 14px rgba(141,255,98,.5),inset 0 3px 8px rgba(0,0,0,.8);}
 
+/* One .shell-collection-cell per tier actually owned (rare/holo/secret) --
+   reuses the exact same cell markup/styling as the main Colección grid
+   (renderCollectionVersionsModal, ui.js), just laid out in a row instead
+   of the grid, and always unlocked (there's nothing to show here if
+   nothing's owned -- the modal only opens when 2+ tiers are). */
+.shell-collection-versions-card{width:auto;max-width:90vw;}
+.shell-collection-versions-grid{display:flex;gap:16px;justify-content:center;}
+.shell-collection-versions-grid .shell-collection-cell{cursor:pointer;background:none;border:none;padding:0;font-family:inherit;}
+
 .shell-discard-pile-card{width:640px;max-width:90vw;}
 .shell-discard-pile-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;

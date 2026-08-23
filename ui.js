@@ -1834,23 +1834,24 @@ function renderCollectionGrid(all) {
     if (search && translateCardName(c.name).toLowerCase().indexOf(search) === -1) { return false; }
     return true;
   });
-  var expanded = [];
-  filtered.forEach(function (c) { expandCollectionEntryByTier(c).forEach(function (e) { expanded.push(e); }); });
 
-  var html = expanded.map(function (c) {
+  var html = filtered.map(function (c) {
     var owned = c.count > 0;
+    // Secret takes priority over holo when a card is owned across more
+    // than one independently-rolled tier at once (see collectionAllCards)
+    // -- the grid cell itself always shows the rarest one owned; click it
+    // to see every version (openCollectionVersionsModal, when there's more
+    // than one to show).
     var isSecret = owned && c.secret;
     var isHolo = owned && c.holo && !isSecret;
     var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
-    var tierLabel = isSecret ? 'SECRETA' : (isHolo ? 'HOLOGRÁFICA' : (owned ? 'RARA' : ''));
     var numLabel = ('000' + c.num).slice(-3) + '/' + c.setTotal;
-    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
+    return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-set-key="' + c.setKey + '" data-num="' + c.num + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
         (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
-      (owned ? '<div class="shell-collection-cell-tier">' + tierLabel + '</div>' : '') +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
       '</div>';
   }).join('');
@@ -1865,9 +1866,49 @@ function renderCollectionGrid(all) {
   grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      if (name) { openCardModal(name, el.getAttribute('data-card-img'), cellFoilTier(el)); }
+      if (!name) { return; }
+      var setKey = el.getAttribute('data-set-key');
+      var num = el.getAttribute('data-num');
+      var entry = filtered.find(function (c) { return c.setKey === setKey && String(c.num) === num; });
+      var tiers = entry ? expandCollectionEntryByTier(entry) : [];
+      if (tiers.length > 1) {
+        openCollectionVersionsModal(entry, tiers);
+      } else {
+        openCardModal(name, el.getAttribute('data-card-img'), cellFoilTier(el));
+      }
     });
   });
+}
+
+// Shows every tier actually owned of one card (rare/holo/secret), each its
+// own .shell-collection-cell -- only ever opened from the main grid's click
+// handler when there's more than one to show (renderCollectionGrid).
+function openCollectionVersionsModal(entry, tiers) {
+  document.getElementById('collectionVersionsTitle').textContent = translateCardName(entry.name);
+  var grid = document.getElementById('collectionVersionsGrid');
+  grid.innerHTML = tiers.map(function (t) {
+    var isSecret = t.secret;
+    var isHolo = t.holo && !isSecret;
+    var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
+    var tierLabel = isSecret ? 'SECRETA' : (isHolo ? 'HOLOGRÁFICA' : 'RARA');
+    return '<button type="button" class="shell-collection-cell' + tierClass + '" data-card-img="' + escapeHtml(entry.img || '') + '">' +
+      '<div class="shell-collection-cell-art">' +
+        (entry.img ? '<img src="' + entry.img + '" alt="' + escapeHtml(entry.name) + '" loading="lazy">' : '') +
+        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
+        '<span class="shell-collection-cell-count">' + t.count + '</span>' +
+      '</div>' +
+      '<div class="shell-collection-cell-tier">' + tierLabel + '</div>' +
+      '</button>';
+  }).join('');
+  grid.querySelectorAll('.shell-collection-cell').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openCardModal(entry.name, btn.getAttribute('data-card-img'), cellFoilTier(btn));
+    });
+  });
+  document.getElementById('collectionVersionsModal').classList.remove('hidden');
+}
+function closeCollectionVersionsModal() {
+  document.getElementById('collectionVersionsModal').classList.add('hidden');
 }
 
 function openBoosterSelectModal(setKey) {
@@ -2482,6 +2523,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
+
+  document.getElementById('collectionVersionsClose').addEventListener('click', closeCollectionVersionsModal);
+  document.querySelector('#collectionVersionsModal .card-modal-backdrop').addEventListener('click', closeCollectionVersionsModal);
 
   document.getElementById('surrenderCancelBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
