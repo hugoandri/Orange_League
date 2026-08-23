@@ -66,7 +66,7 @@ function playerDisplayName() {
 // Real Base Set-era card back -- the CPU's hand always shows this one
 // (see cpuHandRowHtml); it's also the fallback/default for the player's own
 // deck/discard/prizes, which the player can instead personalize below.
-var CARD_BACK_URL = 'Cartas/Cardback.jpg';
+var CARD_BACK_URL = 'Cartas/Cardback.jpg?v=2';
 
 // Card backs the player can choose for their OWN deck/discard/prizes only
 // -- the rival's cards always show CARD_BACK_URL, per user request. A
