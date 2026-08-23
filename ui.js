@@ -2181,7 +2181,9 @@ var DUEL_MUSIC_TRACKS = {
   pkmntcg_grand: { label: 'Gran Master Duel', file: 'Songs/20 Grand Master Duel.mp3' },
   pkmntcg_imakuni: { label: 'Imakuni', file: "Songs/17. Imakuni_'s Theme.mp3" },
   ygofbm_free: { label: 'Free Duel', file: 'Songs/Yugioh_Free_Duel.mp3' },
-  ygofbm_prelim: { label: 'Preliminar', file: 'Songs/Yugioh_Preliminares.mp3' }
+  ygofbm_prelim: { label: 'Preliminar', file: 'Songs/Yugioh_Preliminares.mp3' },
+  ygodlk_tag: { label: 'Tag Duel', file: 'Songs/Ygodlk - Tag Duel.mp3' },
+  ygomsd_duel: { label: 'Duel', file: 'Songs/YGOMSD - Duel.mp3' }
 };
 var DUEL_MUSIC_DEFAULT = 'ygofbm_free';
 var MATCH_END_MUSIC = { win: 'Songs/06 Win!.mp3', loss: 'Songs/08 Lost.mp3' };
