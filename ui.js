@@ -160,6 +160,32 @@ var CARD_SUPERTYPE_BY_NAME = {};
   });
 });
 
+// Every unique card image a real match could ever need -- both fixed
+// preset decks (DECKLISTS.overgrowth/blackout) are Base Set only, so this
+// is a small, fixed set (~30-40 unique names) despite each deck actually
+// holding 60 cards with plenty of duplicates. Warms the browser's own HTTP
+// cache well before a match starts, so a card's <img> only ever needs to
+// paint an already-downloaded image instead of starting a fresh fetch the
+// first time it's inserted mid-duel -- that fetch is what showed up as a
+// ~1s pop-in the user noticed on a card's first appearance. Card backs
+// (the default plus every Protector, since the player could have any one
+// of them picked) are included too.
+var matchImagePreloadDone = false;
+function preloadMatchImages() {
+  if (matchImagePreloadDone) { return; }
+  matchImagePreloadDone = true;
+  var urls = {};
+  ['overgrowth', 'blackout'].forEach(function (deckKey) {
+    (DECKLISTS[deckKey] || []).forEach(function (entry) {
+      var url = CARD_IMAGE_BY_NAME[entry.name];
+      if (url) { urls[url] = true; }
+    });
+  });
+  urls[CARD_BACK_URL] = true;
+  CARD_BACK_OPTIONS.forEach(function (o) { if (o.img) { urls[o.img] = true; } });
+  Object.keys(urls).forEach(function (url) { var img = new Image(); img.src = url; });
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, function (c) {
     return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
@@ -2368,6 +2394,11 @@ function closePauseMenu() {
   document.getElementById('pauseModal').classList.add('hidden');
 }
 document.addEventListener('DOMContentLoaded', function () {
+  // As early as possible -- see preloadMatchImages' own comment -- so the
+  // browser has as much lead time as it can get before a real match ever
+  // starts needing these images.
+  preloadMatchImages();
+
   // Theme init
   var savedTheme = null;
   try { savedTheme = localStorage.getItem('tcg_theme'); } catch (e) {}
