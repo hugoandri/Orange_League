@@ -594,6 +594,31 @@ var ENERGY_CARD_NAME_BY_TYPE = {
   Lightning: 'Lightning Energy', Psychic: 'Psychic Energy', Fighting: 'Fighting Energy'
 };
 
+// Which side of the board the player must click next for a given armed
+// Trainer -- shown via showTargetHintModal right when the card is armed,
+// so the player isn't left guessing which side to click (e.g. Gust of Wind
+// needs the RIVAL's Bench specifically, Potion needs one of the player's
+// OWN Pokémon). Bill/Professor Oak need no target at all (isNoTargetTrainer
+// below), so they're not listed. Super Energy Removal's two separate steps
+// (own Pokémon, then the rival's) show their own hint per step instead --
+// see its own handler in wireBoardButtons.
+var TRAINER_TARGET_HINT = {
+  'Potion': 'Elige uno de tus Pokémon',
+  'Super Potion': 'Elige uno de tus Pokémon',
+  'Switch': 'Elige uno de tus Pokémon de la Banca',
+  'PlusPower': 'Elige tu Pokémon Activo',
+  'Gust of Wind': 'Elige un Pokémon de la Banca del Rival',
+  'Energy Removal': 'Elige un Pokémon del Rival'
+};
+
+function showTargetHintModal(text) {
+  document.getElementById('targetHintText').textContent = text;
+  document.getElementById('targetHintModal').classList.remove('hidden');
+}
+function closeTargetHintModal() {
+  document.getElementById('targetHintModal').classList.add('hidden');
+}
+
 // Holds the in-progress choice while the energy-discard modal is open:
 // which energy types are offered, how many must be picked, and what to do
 // with the chosen indices once confirmed. null when the modal is closed.
@@ -1302,6 +1327,12 @@ function wireBoardButtons() {
           } else {
             selectedHandId = handId;
             btn.classList.add('armed');
+            // Super Energy Removal's own hint is shown per-step instead
+            // (see its own handler below) -- its first step is always
+            // "one of your own Pokémon", same text TRAINER_TARGET_HINT
+            // would give it anyway.
+            var hint = handCard.name === 'Super Energy Removal' ? 'Elige uno de tus Pokémon' : TRAINER_TARGET_HINT[handCard.name];
+            if (hint) { showTargetHintModal(hint); }
           }
         });
         return;
@@ -1483,6 +1514,7 @@ function wireBoardButtons() {
             pendingSuperEnergyRemoval = { handId: superRemovalHandId, ownInstanceId: superRemovalOwnId, ownEnergyIndex: indices[0] };
             logEvent(gameState, 'Elige el Pokémon rival al que quitarle energía', 'player');
             document.getElementById('log').innerHTML = logHtml(gameState);
+            showTargetHintModal('Elige un Pokémon del Rival');
           });
         } else {
           logEvent(gameState, 'Elige uno de tus Pokémon con energía adjunta', 'player');
@@ -2687,6 +2719,9 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
     finishMatch('cpu');
   });
+
+  document.getElementById('targetHintOkBtn').addEventListener('click', closeTargetHintModal);
+  document.querySelector('#targetHintModal .card-modal-backdrop').addEventListener('click', closeTargetHintModal);
 
   document.getElementById('energyDiscardCancel').addEventListener('click', closeEnergyDiscardModal);
   document.querySelector('#energyDiscardModal .card-modal-backdrop').addEventListener('click', closeEnergyDiscardModal);
