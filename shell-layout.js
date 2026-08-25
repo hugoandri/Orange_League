@@ -89,7 +89,13 @@ var PIXEL_DIGIT_GLYPHS = {
   'A': ['..11..', '.1111.', '11..11', '11..11', '111111', '111111', '11..11', '11..11', '11..11'],
   'C': ['.1111.', '11..11', '11....', '11....', '11....', '11....', '11....', '11..11', '.1111.'],
   'F': ['111111', '11....', '11....', '11111.', '11111.', '11....', '11....', '11....', '11....'],
-  '?': ['.1111.', '11..11', '11..11', '....11', '...11.', '..11..', '..11..', '......', '..11..']
+  '?': ['.1111.', '11..11', '11..11', '....11', '...11.', '..11..', '..11..', '......', '..11..'],
+  // Added for the PlusPower/Defender badges ("+10ATK"/"+20DEF") -- same
+  // 6x9 stroke as the letters above.
+  'D': ['11111.', '11..11', '11...1', '11...1', '11...1', '11...1', '11...1', '11..11', '11111.'],
+  'E': ['111111', '11....', '11....', '11111.', '11111.', '11....', '11....', '11....', '111111'],
+  'T': ['111111', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..'],
+  'K': ['11...1', '11..1.', '11.1..', '111...', '1111..', '11.1..', '11..1.', '11...1', '11...1']
 };
 
 var PIXEL_DIGIT_PALETTES = {
@@ -259,12 +265,16 @@ function pixelStatusBadgeHtml(statusKey, blockPx) {
 }
 
 // Same badge style as the Special Condition ones above, but for PlusPower
-// (a Trainer effect, not a real Special Condition -- kept out of
-// PIXEL_STATUS_BADGES so "every real Special Condition has a status badge"
-// stays a meaningful invariant) -- shows "+10" on whichever Active has it
-// attached this turn, per user request ("una ficha con el mismo estilo de
-// los estados pero que diga +10").
-var PIXEL_PLUSPOWER_BADGE = { letters: '+10', plateFrom: '#ff7ad1', plateTo: '#c8258f', outline: '#4a0d38' };
+// and Defender (Trainer effects, not real Special Conditions -- kept out
+// of PIXEL_STATUS_BADGES so "every real Special Condition has a status
+// badge" stays a meaningful invariant) -- shows "+10ATK"/"+20DEF" on
+// whichever Pokémon has each attached, per user request.
+var PIXEL_PLUSPOWER_BADGE = { letters: '+10ATK', plateFrom: '#ff7ad1', plateTo: '#c8258f', outline: '#4a0d38' };
 function pixelPlusPowerBadgeHtml(blockPx) {
   return renderPixelBadgePlate(PIXEL_PLUSPOWER_BADGE, blockPx, 'Más Potencia');
+}
+
+var PIXEL_DEFENDER_BADGE = { letters: '+20DEF', plateFrom: '#7ab8ff', plateTo: '#1f5fa8', outline: '#0d2d54' };
+function pixelDefenderBadgeHtml(blockPx) {
+  return renderPixelBadgePlate(PIXEL_DEFENDER_BADGE, blockPx, 'Defensor');
 }

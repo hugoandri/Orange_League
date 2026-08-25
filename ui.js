@@ -804,6 +804,7 @@ function cardEnergiesOverlayHtml(attachedEnergy) {
 function cardStatusOverlayHtml(activeInstance) {
   var badges = activeInstance.statusConditions.map(function (s) { return pixelStatusBadgeHtml(s, 2); }).join('');
   if (activeInstance.plusPowerAttached) { badges += pixelPlusPowerBadgeHtml(2); }
+  if (activeInstance.shield && activeInstance.shield.type === 'reduceFlat') { badges += pixelDefenderBadgeHtml(2); }
   if (!badges) { return ''; }
   return '<div class="shell-board-active-status-badges">' + badges + '</div>';
 }

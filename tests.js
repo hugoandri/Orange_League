@@ -1598,8 +1598,12 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   // badge (renderPixelBadgePlate) but lives outside PIXEL_STATUS_BADGES,
   // since it isn't a real Special Condition.
   var plusPowerHtml = pixelPlusPowerBadgeHtml(2);
-  check('pixelPlusPowerBadgeHtml renders one glyph per character (+10 = 3)', (plusPowerHtml.match(/display:grid/g) || []).length, 3);
+  check('pixelPlusPowerBadgeHtml renders one glyph per character (+10ATK = 6)', (plusPowerHtml.match(/display:grid/g) || []).length, 6);
   check('pixelPlusPowerBadgeHtml uses its own plate gradient colors', plusPowerHtml.indexOf('#ff7ad1') !== -1 && plusPowerHtml.indexOf('#c8258f') !== -1, true);
+
+  var defenderHtml = pixelDefenderBadgeHtml(2);
+  check('pixelDefenderBadgeHtml renders one glyph per character (+20DEF = 6)', (defenderHtml.match(/display:grid/g) || []).length, 6);
+  check('pixelDefenderBadgeHtml uses its own plate gradient colors', defenderHtml.indexOf('#7ab8ff') !== -1 && defenderHtml.indexOf('#1f5fa8') !== -1, true);
 
   // The duel timer's colon is a real glyph (not the generic non-digit
   // fallback) so mm:ss renders in the same pixel style as the digits either
