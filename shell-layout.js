@@ -223,14 +223,10 @@ function pixelCoinHtml(paletteName, blockPx) {
     inner + '</span>';
 }
 
-// One small pixel-glyph badge per real Special Condition (rules-engine.js),
-// each its own colored plate with the 3-letter/symbol code in bone. Meant
-// to sit at the *bottom* of the Active Pokémon's card art (see
-// .shell-board-active-status-badges in shell-theme.css) -- opposite corner
-// from the attached-energy icons so the two overlays never collide.
-function pixelStatusBadgeHtml(statusKey, blockPx) {
-  var cfg = PIXEL_STATUS_BADGES[statusKey];
-  if (!cfg) { return ''; }
+// Shared by pixelStatusBadgeHtml and pixelPlusPowerBadgeHtml below: renders
+// any {letters, plateFrom, plateTo, outline} config as one colored plate
+// with its glyphs in bone.
+function renderPixelBadgePlate(cfg, blockPx, titleText) {
   var gap = Math.max(1, Math.round(blockPx * 0.6));
   var glyphs = cfg.letters.split('').map(function (ch) {
     var cells = buildPixelDigitCells(ch, 'hueso', cfg.outline);
@@ -239,7 +235,29 @@ function pixelStatusBadgeHtml(statusKey, blockPx) {
     }).join('');
     return '<div style="display:grid;grid-template-columns:repeat(8,' + blockPx + 'px);grid-auto-rows:' + blockPx + 'px;">' + inner + '</div>';
   }).join('');
-  return '<div class="shell-status-badge" style="background:linear-gradient(180deg,' + cfg.plateFrom + ',' + cfg.plateTo + ');" title="' + statusKey + '">' +
+  return '<div class="shell-status-badge" style="background:linear-gradient(180deg,' + cfg.plateFrom + ',' + cfg.plateTo + ');" title="' + titleText + '">' +
     '<div style="display:flex;gap:' + gap + 'px;">' + glyphs + '</div>' +
     '</div>';
+}
+
+// One small pixel-glyph badge per real Special Condition (rules-engine.js),
+// each its own colored plate with the 3-letter/symbol code in bone. Meant
+// to sit at the *bottom* of the Active Pokémon's card art (see
+// .shell-board-active-status-badges in shell-theme.css) -- opposite corner
+// from the attached-energy icons so the two overlays never collide.
+function pixelStatusBadgeHtml(statusKey, blockPx) {
+  var cfg = PIXEL_STATUS_BADGES[statusKey];
+  if (!cfg) { return ''; }
+  return renderPixelBadgePlate(cfg, blockPx, statusKey);
+}
+
+// Same badge style as the Special Condition ones above, but for PlusPower
+// (a Trainer effect, not a real Special Condition -- kept out of
+// PIXEL_STATUS_BADGES so "every real Special Condition has a status badge"
+// stays a meaningful invariant) -- shows "+10" on whichever Active has it
+// attached this turn, per user request ("una ficha con el mismo estilo de
+// los estados pero que diga +10").
+var PIXEL_PLUSPOWER_BADGE = { letters: '+10', plateFrom: '#ff7ad1', plateTo: '#c8258f', outline: '#4a0d38' };
+function pixelPlusPowerBadgeHtml(blockPx) {
+  return renderPixelBadgePlate(PIXEL_PLUSPOWER_BADGE, blockPx, 'Más Potencia');
 }

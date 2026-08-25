@@ -440,6 +440,18 @@ function openCardModal(name, imgUrl, foilTier) {
   modal.classList.toggle('holo', foilTier === 'holo');
   modal.classList.toggle('secret', foilTier === 'secret');
   document.getElementById('cardModalStars').innerHTML = foilTier === 'holo' ? holoStarsHtml() : '';
+  // A real Trainer card's printed rules text is too small to read even
+  // zoomed in (unlike a Pokémon's attack name/damage, which prints large
+  // enough on the card itself) -- show the Spanish translation
+  // (translateTrainerText, rules-engine.js) as real text underneath.
+  // CARD_STATS[name] is undefined for anything that isn't a real card by
+  // that exact name (e.g. a face-down prize's generic label), so this is
+  // naturally a no-op for those.
+  var stats = CARD_STATS[name];
+  var textEl = document.getElementById('cardModalText');
+  var trainerText = (stats && stats.supertype === 'Trainer') ? translateTrainerText(name) : '';
+  textEl.textContent = trainerText;
+  textEl.classList.toggle('hidden', !trainerText);
   modal.classList.remove('hidden');
 }
 
@@ -720,10 +732,12 @@ function cardEnergiesOverlayHtml(attachedEnergy) {
 // Same overlay mechanic as the attached-energy icons, but anchored to the
 // card's bottom edge (see .shell-board-active-status-badges) so it never
 // collides with the energy icons sitting up top. Only the Active shows this
-// -- the Bench doesn't display Special Conditions in the real rules.
-function cardStatusOverlayHtml(statusConditions) {
-  if (!statusConditions.length) { return ''; }
-  var badges = statusConditions.map(function (s) { return pixelStatusBadgeHtml(s, 2); }).join('');
+// -- the Bench doesn't display Special Conditions in the real rules (and
+// PlusPower can only ever be attached to an Active in the first place).
+function cardStatusOverlayHtml(activeInstance) {
+  var badges = activeInstance.statusConditions.map(function (s) { return pixelStatusBadgeHtml(s, 2); }).join('');
+  if (activeInstance.plusPowerAttached) { badges += pixelPlusPowerBadgeHtml(2); }
+  if (!badges) { return ''; }
   return '<div class="shell-board-active-status-badges">' + badges + '</div>';
 }
 
@@ -799,7 +813,7 @@ function activeColHtml(activeInstance, mine, flipped) {
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
     cardImageTag(activeInstance.name, 'shell-board-card-art', isHoloInMatch(mine ? 'player' : 'cpu', activeInstance.name)) +
     cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
-    cardStatusOverlayHtml(activeInstance.statusConditions) +
+    cardStatusOverlayHtml(activeInstance) +
     '</div>';
   var order = mine ? (cardHtml + namePlate) : (namePlate + cardHtml);
   return '<div class="shell-board-active-col">' + order + '</div>';
@@ -841,7 +855,10 @@ function deckDiscardRowHtml(state, ownerId) {
 // createGame). p.prizes is a fixed 6-slot array for the whole match -- a
 // taken prize is null in place (see rules-engine.js's remainingPrizes), so
 // the slots here never shift; picking which one to take happens in
-// renderPrizeChoiceModal(), not by clicking these directly.
+// renderPrizeChoiceModal(), not by clicking these directly. Clicking one
+// here just zooms its face-down back (real prizes stay secret even to
+// their own owner until taken, so there's no card front to reveal) --
+// mostly so the player can admire their own chosen Protector up close.
 function prizeGridHtml(state, ownerId) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
@@ -849,7 +866,7 @@ function prizeGridHtml(state, ownerId) {
   var html = '<div class="shell-board-prize-label' + (mine ? ' mine' : '') + '">PREMIOS · ' + remainingPrizes(p) + '</div><div class="shell-board-prize-grid">';
   for (var i = 0; i < 6; i++) {
     if (p.prizes[i]) {
-      html += '<div class="shell-board-prize-card"><img src="' + backUrl + '" alt="Carta de premio boca abajo"></div>';
+      html += '<div class="shell-board-prize-card" data-prize-back-url="' + escapeHtml(backUrl) + '"><img src="' + backUrl + '" alt="Carta de premio boca abajo"></div>';
     } else {
       html += '<div class="shell-board-prize-card empty"></div>';
     }
@@ -1527,6 +1544,12 @@ function wireBoardButtons() {
   document.querySelectorAll('.shell-board-deckbox.clickable').forEach(function (el) {
     el.addEventListener('click', function () {
       openDiscardPileModal(el.getAttribute('data-discard-owner'));
+    });
+  });
+
+  document.querySelectorAll('.shell-board-prize-card[data-prize-back-url]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      openCardModal('Carta de premio (boca abajo)', el.getAttribute('data-prize-back-url'));
     });
   });
 }

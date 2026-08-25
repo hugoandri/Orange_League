@@ -382,6 +382,25 @@ function translateAttackText(pokemonName, attackName) {
   return ATTACK_TEXT_ES.hasOwnProperty(attackName) ? ATTACK_TEXT_ES[attackName] : '';
 }
 
+// Spanish translations of the 9 real Trainer cards' printed effect text
+// (CARD_STATS[name].text has the verbatim English from pokemontcg.io) --
+// shown in the card zoom modal (#cardModal, see ui.js's openCardModal),
+// since the actual printed rules text on a real Trainer card's scanned
+// art is too small to read even zoomed in, unlike a Pokémon's attack
+// name/damage which prints large enough on the card itself.
+var TRAINER_TEXT_ES = {
+  'Bill': 'Roba 2 cartas.',
+  'Potion': 'Quita hasta 2 fichas de daño de uno de tus Pokémon.',
+  'Super Potion': 'Descarta 1 carta de Energía adjunta a uno de tus Pokémon para quitar hasta 4 fichas de daño de ese Pokémon.',
+  'Switch': 'Cambia 1 de tus Pokémon de la Banca con tu Pokémon Activo.',
+  'Professor Oak': 'Descarta tu mano y luego roba 7 cartas.',
+  'Gust of Wind': 'Elige 1 Pokémon de la Banca de tu rival e intercámbialo con su Pokémon Activo.',
+  'Energy Removal': 'Elige 1 carta de Energía adjunta a un Pokémon de tu rival y descártala.',
+  'Super Energy Removal': 'Descarta 1 carta de Energía adjunta a uno de tus Pokémon para elegir 1 Pokémon de tu rival y hasta 2 cartas de Energía adjuntas a él. Descarta esas cartas de Energía.',
+  'PlusPower': 'Adjunta Más Potencia a tu Pokémon Activo. Al final de tu turno, descarta Más Potencia. Si el ataque de este Pokémon hace daño al Pokémon Defensor (tras aplicar Debilidad y Resistencia), el ataque hace 10 de daño más al Pokémon Defensor.'
+};
+function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
+
 function typeHasMatch(list, types) {
   return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
 }

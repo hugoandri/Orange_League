@@ -1171,6 +1171,14 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('the queue is untouched by the illegal play', state.trainerPlaysQueue.length, 1);
 })();
 
+(function testTranslateTrainerText() {
+  var realTrainers = Object.keys(TRAINER_EFFECTS);
+  realTrainers.forEach(function (name) {
+    checkTrue('translateTrainerText has real text for ' + name, translateTrainerText(name).length > 0);
+  });
+  check('translateTrainerText returns empty for a non-Trainer/unknown name', translateTrainerText('Not A Real Card'), '');
+})();
+
 (function testCreateGameStartsWithDefaultTimeBank() {
   var state = createGame(function () { return 0.42; });
   check('player starts with the default time bank', state.players.player.timeBankMs, DEFAULT_TIME_BANK_MS);
@@ -1290,6 +1298,13 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('pixelStatusBadgeHtml renders one glyph per letter (PSN = 3)', (poisonedHtml.match(/display:grid/g) || []).length, 3);
   check('pixelStatusBadgeHtml uses the plate gradient colors', poisonedHtml.indexOf('#b47ce4') !== -1 && poisonedHtml.indexOf('#6a2f9e') !== -1, true);
   check('pixelStatusBadgeHtml on an unknown status renders nothing', pixelStatusBadgeHtml('Frozen', 2), '');
+
+  // PlusPower's badge reuses the same plate-rendering path as a status
+  // badge (renderPixelBadgePlate) but lives outside PIXEL_STATUS_BADGES,
+  // since it isn't a real Special Condition.
+  var plusPowerHtml = pixelPlusPowerBadgeHtml(2);
+  check('pixelPlusPowerBadgeHtml renders one glyph per character (+10 = 3)', (plusPowerHtml.match(/display:grid/g) || []).length, 3);
+  check('pixelPlusPowerBadgeHtml uses its own plate gradient colors', plusPowerHtml.indexOf('#ff7ad1') !== -1 && plusPowerHtml.indexOf('#c8258f') !== -1, true);
 
   // The duel timer's colon is a real glyph (not the generic non-digit
   // fallback) so mm:ss renders in the same pixel style as the digits either
