@@ -150,12 +150,22 @@ function renderCardBackPicker() {
 }
 
 // Real card artwork, reused from the same catalog data that backs the
-// booster/collection feature (data-sets.js) -- every card in Overgrowth and
-// Blackout is a Base Set card, so this lookup covers the whole game.
+// booster/collection feature (data-sets.js) -- every real deck (Overgrowth/
+// Blackout/Zap!, and Brushfire to come) is built entirely from Base Set
+// cards, so Base Set's own print must always win here. ~34 names are
+// reprinted with different art in Jungle/Fossil (e.g. Pikachu, Haunter,
+// Gastly) -- first-wins (not overwriting an already-set name) combined
+// with 'base' being first in this list is what makes that guarantee hold;
+// a plain overwrite loop let whichever set was iterated LAST win instead,
+// which is exactly what silently swapped Zap!'s Haunter/Gastly/Pikachu to
+// their Fossil/Jungle art (this lookup has no set/num to disambiguate by,
+// unlike the Collection grid, which reads each pulled card's own img
+// directly instead of going through this by-name lookup at all).
 var CARD_IMAGE_BY_NAME = {};
 var CARD_SUPERTYPE_BY_NAME = {};
 ['base', 'jungle', 'fossil'].forEach(function (setKey) {
   (CARD_CATALOG[setKey] || []).forEach(function (c) {
+    if (CARD_IMAGE_BY_NAME.hasOwnProperty(c.n)) { return; }
     CARD_IMAGE_BY_NAME[c.n] = c.img;
     CARD_SUPERTYPE_BY_NAME[c.n] = c.st;
   });
