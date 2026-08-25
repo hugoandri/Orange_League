@@ -70,13 +70,13 @@ var PIXEL_DIGIT_GLYPHS = {
   '-': ['......', '......', '......', '111111', '111111', '......', '......', '......', '......'],
   '+': ['......', '..11..', '..11..', '111111', '111111', '..11..', '..11..', '......', '......'],
   // Currency glyph (pixelCoinHtml) -- same 6x9 stroke/outline box as every
-  // digit. First pass reused digit '5' as the base curve, but its flat top
-  // bar read as a "5" instead of a "$" (user feedback: "parece un 5").
-  // Rebuilt off '3' instead (both ends curved, no flat bar), with the top
-  // and bottom rows narrowed to just the center spine -- the vertical bar
-  // visibly poking out past the S-curve's ends is the actual "$" tell a
-  // flat-topped shape doesn't have.
-  '$': ['..11..', '111.11', '..1.11', '..111.', '..111.', '..1.11', '..1.11', '111.11', '..11..'],
+  // digit. Two earlier passes tried an S-curve (off '5', then off '3'),
+  // but a smooth curve doesn't read clearly at this resolution -- user
+  // asked for something blockier instead: an "M" with a "|" through it
+  // (two verticals + a short diagonal notch near the top, like the 'N'
+  // glyph above, plus a single-column vertical bar straight through the
+  // whole height).
+  '$': ['1.1..1', '111.11', '1.11.1', '1.1..1', '1.1..1', '1.1..1', '1.1..1', '1.1..1', '1.1..1'],
   // Status-condition badge letters (SLP/BRN/PAR/PSN) plus '?' for Confused's
   // "???" -- same 6x9 stroke, rendered in the 'hueso' palette on a colored
   // plate (see PIXEL_STATUS_BADGES).
