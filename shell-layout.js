@@ -72,11 +72,11 @@ var PIXEL_DIGIT_GLYPHS = {
   // Currency glyph (pixelCoinHtml) -- same 6x9 stroke/outline box as every
   // digit. Two earlier passes tried an S-curve (off '5', then off '3'),
   // but a smooth curve doesn't read clearly at this resolution -- user
-  // asked for something blockier instead: an "M" with a "|" through it
-  // (two verticals + a short diagonal notch near the top, like the 'N'
-  // glyph above, plus a single-column vertical bar straight through the
-  // whole height).
-  '$': ['1.1..1', '111.11', '1.11.1', '1.1..1', '1.1..1', '1.1..1', '1.1..1', '1.1..1', '1.1..1'],
+  // asked for something blockier instead: an "M" (two outer verticals,
+  // cols 0/5) crossed by a "|" through the middle, later asked to make
+  // that crossbar thicker -- it's 2 full columns wide (cols 2-3) instead
+  // of 1, merging into a solid top row where the M's shoulders meet it.
+  '$': ['1.11.1', '111111', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1'],
   // Status-condition badge letters (SLP/BRN/PAR/PSN) plus '?' for Confused's
   // "???" -- same 6x9 stroke, rendered in the 'hueso' palette on a colored
   // plate (see PIXEL_STATUS_BADGES).
