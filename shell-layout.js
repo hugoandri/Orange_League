@@ -69,10 +69,13 @@ var PIXEL_DIGIT_GLYPHS = {
   'X': ['1....1', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '.1..1.', '.1..1.', '1....1'],
   '-': ['......', '......', '......', '111111', '111111', '......', '......', '......', '......'],
   '+': ['......', '..11..', '..11..', '111111', '111111', '..11..', '..11..', '......', '......'],
-  // Coin icon -- same 6x9 stroke/outline box as the digits, the disc sits on
-  // the same baseline. rampOffset (buildPixelDigitCells' 4th arg) shifts it
-  // down 1 ramp row so the metal starts on a lighter tone, like a numeral.
-  'moneda': ['......', '.1111.', '111111', '111111', '11..11', '11..11', '111111', '111111', '.1111.'],
+  // Currency glyph (pixelCoinHtml) -- same 6x9 stroke/outline box as every
+  // digit, an S-curve (built off the digit '5' shape, whose top bar +
+  // curve already reads as a currency-symbol "S") with a full-height
+  // vertical stroke through the center column replacing the old round
+  // coin-disc icon, per user request ("dorado pixeleado con borde negro,
+  // igual que los números").
+  '$': ['111111', '111...', '111...', '11111.', '..1.11', '..1.11', '..1.11', '111.11', '.1111.'],
   // Status-condition badge letters (SLP/BRN/PAR/PSN) plus '?' for Confused's
   // "???" -- same 6x9 stroke, rendered in the 'hueso' palette on a colored
   // plate (see PIXEL_STATUS_BADGES).
@@ -210,11 +213,14 @@ function pixelDigitsHtml(str, paletteName, blockPx, outlineColor) {
     parts.join('') + '</span>';
 }
 
-// Same pixel-glyph coin icon used throughout the shell (menu balance, shop
-// header, booster price, board profile footer) -- replaces the old plain
-// gradient-circle divs those spots used before.
+// Same pixel-glyph currency icon used throughout the shell (menu balance,
+// shop header, booster price, board profile footer) -- replaces the old
+// plain gradient-circle divs those spots used before. Renders the '$'
+// glyph (see PIXEL_DIGIT_GLYPHS) with no rampOffset, same as a normal
+// digit -- the old round coin-disc icon used rampOffset=1 for its own
+// shading, which no longer applies now that this is a stroke glyph.
 function pixelCoinHtml(paletteName, blockPx) {
-  var cells = buildPixelDigitCells('moneda', paletteName, null, 1);
+  var cells = buildPixelDigitCells('$', paletteName);
   var inner = cells.map(function (c) {
     return '<div style="width:' + blockPx + 'px;height:' + blockPx + 'px;background:' + c.bg + ';"></div>';
   }).join('');

@@ -1313,9 +1313,9 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('rampOffset shifts an on-cell to the previous ramp row', shifted[25].bg, plain[18].bg);
   check('rampOffset clamps at the ramp\'s first row instead of going negative', buildPixelDigitCells('8', 'oro', null, 8)[18].bg, PIXEL_DIGIT_PALETTES.oro.ramp[0]);
 
-  // The coin icon reuses the same 8x11 cell grid as every digit.
-  var coin = buildPixelDigitCells('moneda', 'oro', null, 1);
-  check('the coin glyph is a real, known glyph (not the non-digit fallback)', coin.length, 88);
+  // The currency ($) glyph reuses the same 8x11 cell grid as every digit.
+  var dollar = buildPixelDigitCells('$', 'oro');
+  check('the $ glyph is a real, known glyph (not the non-digit fallback)', dollar.length, 88);
   var coinHtml = pixelCoinHtml('oro', 3);
   check('pixelCoinHtml renders one 8x11 grid at the requested block size', (coinHtml.match(/width:3px/g) || []).length, 88);
 
