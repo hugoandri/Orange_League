@@ -167,14 +167,22 @@ var CARD_SUPERTYPE_BY_NAME = {};
 // share a name with a different set's art still each get their own image
 // preloaded, not just whichever one that lookup happened to keep last),
 // plus every card back (the default plus every Protector, since the
-// player could have any one of them picked). Both a match's two fixed
-// preset decks (Base Set only) and the Collection grid (which can show
-// any real print from any of the three sets) draw straight from this same
-// set. Warms the browser's own HTTP cache well before any of these
-// screens are actually opened, so a card's <img> only ever needs to paint
-// an already-downloaded image instead of starting a fresh fetch the first
-// time it's inserted -- that fetch is what showed up as a ~1s pop-in the
-// user noticed both mid-duel and in their Collection.
+// player could have any one of them picked), plus every booster-pack box
+// art variant (BOOSTER_PACKS, read lazily below since it's declared later
+// in this file -- only ever inserted into the DOM dynamically via
+// innerHTML in the Tienda tab / booster-select modal, so without this it
+// showed the exact same pop-in the cards used to) and the two match-deck
+// box arts (Mazos/*.png -- already static <img> tags in index.html so the
+// browser fetches them on page load regardless, but listed here too for
+// consistency and in case that markup ever becomes dynamic). Both a
+// match's two fixed preset decks (Base Set only) and the Collection grid
+// (which can show any real print from any of the three sets) draw
+// straight from this same set. Warms the browser's own HTTP cache well
+// before any of these screens are actually opened, so a card's <img> only
+// ever needs to paint an already-downloaded image instead of starting a
+// fresh fetch the first time it's inserted -- that fetch is what showed
+// up as a ~1s pop-in the user noticed both mid-duel and in their
+// Collection.
 var cardImagePreloadDone = false;
 function preloadCardImages() {
   if (cardImagePreloadDone) { return; }
@@ -185,6 +193,11 @@ function preloadCardImages() {
   });
   urls[CARD_BACK_URL] = true;
   CARD_BACK_OPTIONS.forEach(function (o) { if (o.img) { urls[o.img] = true; } });
+  Object.keys(BOOSTER_PACKS).forEach(function (setKey) {
+    BOOSTER_PACKS[setKey].forEach(function (src) { urls[src] = true; });
+  });
+  urls['Mazos/overgrowth.png'] = true;
+  urls['Mazos/blackout.png'] = true;
   Object.keys(urls).forEach(function (url) { var img = new Image(); img.src = url; });
 }
 
