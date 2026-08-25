@@ -70,12 +70,13 @@ var PIXEL_DIGIT_GLYPHS = {
   '-': ['......', '......', '......', '111111', '111111', '......', '......', '......', '......'],
   '+': ['......', '..11..', '..11..', '111111', '111111', '..11..', '..11..', '......', '......'],
   // Currency glyph (pixelCoinHtml) -- same 6x9 stroke/outline box as every
-  // digit, an S-curve (built off the digit '5' shape, whose top bar +
-  // curve already reads as a currency-symbol "S") with a full-height
-  // vertical stroke through the center column replacing the old round
-  // coin-disc icon, per user request ("dorado pixeleado con borde negro,
-  // igual que los números").
-  '$': ['111111', '111...', '111...', '11111.', '..1.11', '..1.11', '..1.11', '111.11', '.1111.'],
+  // digit. First pass reused digit '5' as the base curve, but its flat top
+  // bar read as a "5" instead of a "$" (user feedback: "parece un 5").
+  // Rebuilt off '3' instead (both ends curved, no flat bar), with the top
+  // and bottom rows narrowed to just the center spine -- the vertical bar
+  // visibly poking out past the S-curve's ends is the actual "$" tell a
+  // flat-topped shape doesn't have.
+  '$': ['..11..', '111.11', '..1.11', '..111.', '..111.', '..1.11', '..1.11', '111.11', '..11..'],
   // Status-condition badge letters (SLP/BRN/PAR/PSN) plus '?' for Confused's
   // "???" -- same 6x9 stroke, rendered in the 'hueso' palette on a colored
   // plate (see PIXEL_STATUS_BADGES).

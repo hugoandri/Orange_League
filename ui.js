@@ -1797,7 +1797,7 @@ function renderShopScreen() {
           '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
         '</div>' +
         '<div class="shell-shop-card-footer">' +
-          '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 2) + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
+          '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
           '<button type="button" class="shell-shop-card-btn">ABRIR</button>' +
         '</div>' +
       '</div>';
@@ -1834,7 +1834,7 @@ function renderProtectorsGrid() {
     var owned = ownsCardBack(o.id);
     var footer = owned
       ? '<span class="shell-shop-card-owned-label">EN TU COLECCIÓN</span>'
-      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 2) + pixelDigitsHtml(o.cost, 'oro', 3) + '</span>' +
+      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(o.cost, 'oro', 3) + '</span>' +
         '<button type="button" class="shell-shop-card-btn" data-buy-back="' + o.id + '">COMPRAR</button>';
     return '<div class="shell-shop-card' + (owned ? ' shell-shop-card-owned' : '') + '">' +
       '<div class="shell-shop-card-art protector"><img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"' + (o.outline ? ' class="outlined"' : '') + '></div>' +
@@ -2573,8 +2573,15 @@ document.addEventListener('DOMContentLoaded', function () {
   // Static coin-icon spots (menu balance, shop header, booster modal price) --
   // replaced once here with the pixel-glyph coin; the shop-card and board-
   // footer coins are rendered per-instance in their own template strings
-  // since those elements get rebuilt on every render.
-  document.querySelectorAll('.shell-player-coin, .shell-page-coin-dot, .shell-shop-coin').forEach(function (el) {
+  // since those elements get rebuilt on every render. Sized to match each
+  // spot's own balance/price digits right next to it (menuCoinCount/
+  // shopCoinBalance render at blockPx 3, boosterModalPrice at 2) -- these
+  // used to all share blockPx 2 regardless, so the icon read visibly
+  // smaller than its own number in the two bigger spots.
+  document.querySelectorAll('.shell-player-coin, .shell-page-coin-dot').forEach(function (el) {
+    el.innerHTML = pixelCoinHtml('oro', 3);
+  });
+  document.querySelectorAll('.shell-shop-coin').forEach(function (el) {
     el.innerHTML = pixelCoinHtml('oro', 2);
   });
 
