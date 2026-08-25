@@ -1,8 +1,11 @@
-// Exact 60-card decklists for the Base Set preconstructed theme decks
-// "Overgrowth" (player) and "Blackout" (CPU), sourced from Bulbapedia:
+// Exact 60-card decklists for real Base Set preconstructed theme decks,
+// sourced from Bulbapedia:
 //   https://bulbapedia.bulbagarden.net/wiki/Overgrowth_(TCG)
 //   https://bulbapedia.bulbagarden.net/wiki/Blackout_(TCG)
-// (fetched via action=raw wikitext, current stable revisions as of 2026-08-16)
+//   https://bulbapedia.bulbagarden.net/wiki/Zap!_(TCG)
+// (Overgrowth/Blackout fetched via action=raw wikitext, 2026-08-16; Zap!
+// fetched 2026-08-25 -- Brushfire is real too but not yet added, see the
+// "zap first, brushfire second" phased plan)
 //
 // Overgrowth: 23 Pokemon + 9 Trainer + 28 Energy = 60
 // Blackout:   24 Pokemon + 8 Trainer + 28 Energy = 60
@@ -14,6 +17,12 @@
 //   appears to have been an arithmetic error in the earlier note, not a
 //   different decklist -- the correct total (60) and the correct set of
 //   card names/quantities below are what actually ships.
+// Zap!:       21 Pokemon + 11 Trainer + 28 Energy = 60
+//   NOTE: an earlier informal collector's-reference note claimed "23
+//   Trainer / 16 Energy" for this deck (would sum to 72, not 60 -- an
+//   impossible real decklist). The itemized row-by-row Bulbapedia listing
+//   (fetched twice, independently, both times agreeing on every card name
+//   and quantity) sums correctly to 60 and is what's used below.
 
 const DECKLISTS = {
   overgrowth: [
@@ -51,5 +60,26 @@ const DECKLISTS = {
     { name: "Energy Removal", count: 4 },
     { name: "Fighting Energy", count: 16 },
     { name: "Water Energy", count: 12 }
+  ],
+  zap: [
+    { name: "Mewtwo", count: 1 },
+    { name: "Kadabra", count: 1 },
+    { name: "Jynx", count: 2 },
+    { name: "Haunter", count: 2 },
+    { name: "Gastly", count: 3 },
+    { name: "Drowzee", count: 2 },
+    { name: "Abra", count: 3 },
+    { name: "Pikachu", count: 4 },
+    { name: "Magnemite", count: 3 },
+    { name: "Computer Search", count: 1 },
+    { name: "Defender", count: 1 },
+    { name: "Super Potion", count: 1 },
+    { name: "Professor Oak", count: 1 },
+    { name: "Switch", count: 2 },
+    { name: "Potion", count: 1 },
+    { name: "Gust of Wind", count: 2 },
+    { name: "Bill", count: 2 },
+    { name: "Lightning Energy", count: 12 },
+    { name: "Psychic Energy", count: 16 }
   ]
 };

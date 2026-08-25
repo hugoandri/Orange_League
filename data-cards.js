@@ -673,5 +673,237 @@ const CARD_STATS = {
     ],
     "resistances": [],
     "retreatCost": 1
+  },
+  "Mewtwo": {
+    "supertype": "Pokémon",
+    "hp": 60,
+    "types": ["Psychic"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Psychic",
+        "cost": ["Psychic", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "10+",
+        "text": "Does 10 damage plus 10 more damage for each Energy card attached to the Defending Pokémon."
+      },
+      {
+        "name": "Barrier",
+        "cost": ["Psychic", "Psychic"],
+        "convertedEnergyCost": 2,
+        "damage": "0",
+        "text": "Discard 1 Psychic Energy card attached to Mewtwo in order to use this attack. During your opponent's next turn, prevent all effects of attacks, including damage, done to Mewtwo."
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 3
+  },
+  "Kadabra": {
+    "supertype": "Pokémon",
+    "hp": 60,
+    "types": ["Psychic"],
+    "evolvesFrom": "Abra",
+    "attacks": [
+      {
+        "name": "Recover",
+        "cost": ["Psychic", "Psychic"],
+        "convertedEnergyCost": 2,
+        "damage": "0",
+        "text": "Discard 1 Psychic Energy card attached to Kadabra in order to use this attack. Remove all damage counters from Kadabra."
+      },
+      {
+        "name": "Super Psy",
+        "cost": ["Psychic", "Psychic", "Colorless"],
+        "convertedEnergyCost": 3,
+        "damage": "50",
+        "text": ""
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 3
+  },
+  "Jynx": {
+    "supertype": "Pokémon",
+    "hp": 70,
+    "types": ["Psychic"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Doubleslap",
+        "cost": ["Psychic"],
+        "convertedEnergyCost": 1,
+        "damage": "10×",
+        "text": "Flip 2 coins. This attack does 10 damage times the number of heads."
+      },
+      {
+        "name": "Meditate",
+        "cost": ["Psychic", "Psychic", "Colorless"],
+        "convertedEnergyCost": 3,
+        "damage": "20+",
+        "text": "Does 20 damage plus 10 more damage for each damage counter on the Defending Pokémon."
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 2
+  },
+  "Haunter": {
+    "supertype": "Pokémon",
+    "hp": 60,
+    "types": ["Psychic"],
+    "evolvesFrom": "Gastly",
+    "attacks": [
+      {
+        "name": "Hypnosis",
+        "cost": ["Psychic"],
+        "convertedEnergyCost": 1,
+        "damage": "0",
+        "text": "The Defending Pokémon is now Asleep."
+      },
+      {
+        "name": "Dream Eater",
+        "cost": ["Psychic", "Psychic"],
+        "convertedEnergyCost": 2,
+        "damage": "50",
+        "text": "You can't use this attack unless the Defending Pokémon is Asleep."
+      }
+    ],
+    "weaknesses": [],
+    "resistances": [{ "type": "Fighting", "value": "-30" }],
+    "retreatCost": 1
+  },
+  "Gastly": {
+    "supertype": "Pokémon",
+    "hp": 30,
+    "types": ["Psychic"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Sleeping Gas",
+        "cost": ["Psychic"],
+        "convertedEnergyCost": 1,
+        "damage": "0",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Asleep."
+      },
+      {
+        "name": "Destiny Bond",
+        "cost": ["Psychic", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "0",
+        "text": "Discard 1 Psychic Energy card attached to Gastly in order to use this attack. If a Pokémon Knocks Out Gastly during your opponent's next turn, Knock Out that Pokémon."
+      }
+    ],
+    "weaknesses": [],
+    "resistances": [{ "type": "Fighting", "value": "-30" }],
+    "retreatCost": 0
+  },
+  "Drowzee": {
+    "supertype": "Pokémon",
+    "hp": 50,
+    "types": ["Psychic"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Pound",
+        "cost": ["Colorless"],
+        "convertedEnergyCost": 1,
+        "damage": "10",
+        "text": ""
+      },
+      {
+        "name": "Confuse Ray",
+        "cost": ["Psychic", "Psychic"],
+        "convertedEnergyCost": 2,
+        "damage": "10",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Confused."
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Abra": {
+    "supertype": "Pokémon",
+    "hp": 30,
+    "types": ["Psychic"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Psyshock",
+        "cost": ["Psychic"],
+        "convertedEnergyCost": 1,
+        "damage": "10",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Paralyzed."
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 0
+  },
+  "Pikachu": {
+    "supertype": "Pokémon",
+    "hp": 40,
+    "types": ["Lightning"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Gnaw",
+        "cost": ["Colorless"],
+        "convertedEnergyCost": 1,
+        "damage": "10",
+        "text": ""
+      },
+      {
+        "name": "Thunder Jolt",
+        "cost": ["Lightning", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "30",
+        "text": "Flip a coin. If tails, Pikachu does 10 damage to itself."
+      }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Magnemite": {
+    "supertype": "Pokémon",
+    "hp": 40,
+    "types": ["Lightning"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Thunder Wave",
+        "cost": ["Lightning"],
+        "convertedEnergyCost": 1,
+        "damage": "10",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Paralyzed."
+      },
+      {
+        "name": "Selfdestruct",
+        "cost": ["Lightning", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "40",
+        "text": "Does 10 damage to each Pokémon on each player's Bench. (Don't apply Weakness and Resistance for Benched Pokémon.) Magnemite does 40 damage to itself."
+      }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Computer Search": {
+    "supertype": "Trainer",
+    "text": "Search your deck for a card and put it into your hand. Then, shuffle your deck."
+  },
+  "Defender": {
+    "supertype": "Trainer",
+    "text": "Attach Defender to 1 of your Pokémon. At the end of your opponent's next turn, discard Defender. Damage done to that Pokémon by attacks is reduced by 20 (after applying Weakness and Resistance)."
+  },
+  "Lightning Energy": {
+    "supertype": "Energy"
+  },
+  "Psychic Energy": {
+    "supertype": "Energy"
   }
 };

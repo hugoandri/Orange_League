@@ -107,7 +107,12 @@ function tickClock(state, ownerId, elapsedMs) {
 function createGame(rng, playerDeckKey) {
   rng = rng || Math.random;
   playerDeckKey = DECKLISTS[playerDeckKey] ? playerDeckKey : 'overgrowth';
-  var cpuDeckKey = playerDeckKey === 'overgrowth' ? 'blackout' : 'overgrowth';
+  // The CPU gets a random one of every OTHER real deck -- Zap!/Brushfire
+  // were never sold as an official pair the way the Overgrowth/Blackout
+  // starter set was, so there's no fixed pairing to preserve once there
+  // are more than 2 real decks (per user's explicit call).
+  var otherDeckKeys = Object.keys(DECKLISTS).filter(function (k) { return k !== playerDeckKey; });
+  var cpuDeckKey = otherDeckKeys[Math.floor(rng() * otherDeckKeys.length)];
   var state = {
     turnCounter: 1,
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
@@ -156,7 +161,7 @@ function makeFreshInstance(id, name, turnCounter) {
   return {
     id: id, name: name, attachedEnergy: [], damage: 0, statusConditions: [],
     turnEnteredCurrentForm: turnCounter, lockedAttacks: [], shield: null,
-    missChanceUntilTurn: null, plusPowerAttached: false
+    missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null
   };
 }
 
@@ -340,7 +345,8 @@ var TRAINER_NAME_ES = {
   'PlusPower': 'Más Potencia', 'Water Energy': 'Energía Agua',
   'Grass Energy': 'Energía Planta', 'Fighting Energy': 'Energía Lucha',
   'Fire Energy': 'Energía Fuego', 'Lightning Energy': 'Energía Rayo',
-  'Psychic Energy': 'Energía Psíquica'
+  'Psychic Energy': 'Energía Psíquica',
+  'Computer Search': 'Búsqueda Computarizada', 'Defender': 'Defensor'
 };
 function translateCardName(name) { return TRAINER_NAME_ES[name] || name; }
 
@@ -352,7 +358,13 @@ var ATTACK_NAME_ES = {
   'Karate Chop': 'Golpe Kárate', 'Submission': 'Sumisión', 'Low Kick': 'Patada Baja',
   'Tackle': 'Placaje', 'Flail': 'Coletazo', 'Rock Throw': 'Lanzarrocas', 'Harden': 'Fortaleza',
   'Sand-attack': 'Ataque Arena', 'Bubble': 'Burbuja', 'Withdraw': 'Refugio',
-  'Recover': 'Recuperación', 'Star Freeze': 'Congelación Estelar', 'Slap': 'Bofetón', 'Bite': 'Mordisco'
+  'Recover': 'Recuperación', 'Star Freeze': 'Congelación Estelar', 'Slap': 'Bofetón', 'Bite': 'Mordisco',
+  'Psychic': 'Psíquico', 'Barrier': 'Barrera', 'Super Psy': 'Súper Psíquico',
+  'Doubleslap': 'Bofetón Doble', 'Meditate': 'Meditar', 'Hypnosis': 'Hipnosis',
+  'Dream Eater': 'Come Sueños', 'Sleeping Gas': 'Gas Somnífero', 'Destiny Bond': 'Lazo del Destino',
+  'Pound': 'Golpe', 'Confuse Ray': 'Rayo Confuso', 'Psyshock': 'Psicochoque',
+  'Gnaw': 'Mordisqueo', 'Thunder Jolt': 'Chispazo', 'Thunder Wave': 'Onda de Trueno',
+  'Selfdestruct': 'Autodestrucción'
 };
 function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
 
@@ -374,7 +386,21 @@ var ATTACK_TEXT_ES = {
   'Bubble': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
   'Withdraw': 'Lanza una moneda. Si es cara, evita todo el daño que se le haga a este Pokémon durante el próximo turno de tu rival.',
   'Recover': 'Descarta 1 carta de Energía Agua adjunta a este Pokémon para usar este ataque. Quita todas las fichas de daño de este Pokémon.',
-  'Star Freeze': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.'
+  'Star Freeze': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Kadabra|Recover': 'Descarta 1 carta de Energía Psíquica adjunta a este Pokémon para usar este ataque. Quita todas las fichas de daño de este Pokémon.',
+  'Psychic': 'Hace 10 de daño más 10 de daño adicional por cada carta de Energía adjunta al Pokémon Defensor.',
+  'Barrier': 'Descarta 1 carta de Energía Psíquica adjunta a este Pokémon para usar este ataque. Durante el próximo turno de tu rival, evita todos los efectos de los ataques, incluido el daño, hechos a este Pokémon.',
+  'Doubleslap': 'Lanza 2 monedas. Este ataque hace 10 de daño por cada cara.',
+  'Meditate': 'Hace 20 de daño más 10 de daño adicional por cada ficha de daño en el Pokémon Defensor.',
+  'Hypnosis': 'El Pokémon Defensor queda Dormido.',
+  'Dream Eater': 'No puedes usar este ataque a menos que el Pokémon Defensor esté Dormido.',
+  'Sleeping Gas': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Dormido.',
+  'Destiny Bond': 'Descarta 1 carta de Energía Psíquica adjunta a este Pokémon para usar este ataque. Si un Pokémon noquea a este Pokémon durante el próximo turno de tu rival, ese Pokémon también queda noqueado.',
+  'Confuse Ray': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Confundido.',
+  'Psyshock': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Thunder Jolt': 'Lanza una moneda. Si es cruz, este Pokémon se hace 10 de daño a sí mismo.',
+  'Thunder Wave': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Selfdestruct': 'Hace 10 de daño a cada Pokémon de la Banca de ambos jugadores (no se aplica Debilidad ni Resistencia a la Banca). Este Pokémon se hace 40 de daño a sí mismo.'
 };
 function translateAttackText(pokemonName, attackName) {
   var key = pokemonName + '|' + attackName;
@@ -397,7 +423,9 @@ var TRAINER_TEXT_ES = {
   'Gust of Wind': 'Elige 1 Pokémon de la Banca de tu rival e intercámbialo con su Pokémon Activo.',
   'Energy Removal': 'Elige 1 carta de Energía adjunta a un Pokémon de tu rival y descártala.',
   'Super Energy Removal': 'Descarta 1 carta de Energía adjunta a uno de tus Pokémon para elegir 1 Pokémon de tu rival y hasta 2 cartas de Energía adjuntas a él. Descarta esas cartas de Energía.',
-  'PlusPower': 'Adjunta Más Potencia a tu Pokémon Activo. Al final de tu turno, descarta Más Potencia. Si el ataque de este Pokémon hace daño al Pokémon Defensor (tras aplicar Debilidad y Resistencia), el ataque hace 10 de daño más al Pokémon Defensor.'
+  'PlusPower': 'Adjunta Más Potencia a tu Pokémon Activo. Al final de tu turno, descarta Más Potencia. Si el ataque de este Pokémon hace daño al Pokémon Defensor (tras aplicar Debilidad y Resistencia), el ataque hace 10 de daño más al Pokémon Defensor.',
+  'Computer Search': 'Busca en tu mazo la carta que quieras y ponla en tu mano. Luego, baraja tu mazo.',
+  'Defender': 'Adjunta Defensor a uno de tus Pokémon. Al final del próximo turno de tu rival, descarta Defensor. El daño que reciba ese Pokémon por ataques se reduce en 20 (tras aplicar Debilidad y Resistencia).'
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
@@ -431,6 +459,11 @@ function dealDamage(state, attacker, defender, baseDamage) {
         // blocked -- keep the shield active so it can still block a
         // later ≤threshold hit during the same window (e.g. Onix's
         // Harden shouldn't be burned by the first hit that overwhelms it).
+      } else if (defender.shield.type === 'reduceFlat') {
+        // Defender (Trainer): flat reduction applies to every hit for the
+        // rest of its window, not just the first one -- unlike preventAll,
+        // this never consumes/clears itself early.
+        dmg = Math.max(0, dmg - defender.shield.reduceAmount);
       }
     }
   }
@@ -497,6 +530,28 @@ function knockOutIfNeeded(state, ownerId, instance) {
       logEvent(state, translatePlayer(attackerId) + ' toma un premio (' + remainingPrizes(attackerPlayer) + ' restantes)', attackerId);
     }
   }
+
+  // Destiny Bond (Gastly): triggers only if this KO lands during the exact
+  // window promised when the attack was used ("your opponent's next turn"
+  // -- see ATTACK_EFFECTS['Gastly']['Destiny Bond']) AND it's genuinely
+  // that opponent's turn happening right now. That second check is what
+  // excludes e.g. this same Pokémon dying to its own end-of-turn Poison
+  // checkup -- that runs during ITS OWN side's turn-ending, not the
+  // opponent's, even though turnCounter could still match the window.
+  if (instance.destinyBond && instance.destinyBond.untilTurn === state.turnCounter && state.activePlayerId === attackerId) {
+    var revengeTarget = attackerPlayer.active;
+    instance.destinyBond = null;
+    if (revengeTarget) {
+      logEvent(state, instance.name + ' se lleva a ' + revengeTarget.name + ' con Lazo del Destino', ownerId);
+      // This is a forced KO regardless of revengeTarget's own remaining HP
+      // (real card: "Knock Out that Pokémon", no damage math involved) --
+      // knockOutIfNeeded's own damage>=hp guard expects a real lethal
+      // state, so set that directly rather than trying to special-case
+      // the guard itself.
+      revengeTarget.damage = Math.max(revengeTarget.damage, CARD_STATS[revengeTarget.name].hp);
+      knockOutIfNeeded(state, attackerId, revengeTarget);
+    }
+  }
 }
 
 // Resolves one of the player's pending prize choices: moves the specific
@@ -538,6 +593,13 @@ function canAttack(state, playerId, attackName) {
   var stats = CARD_STATS[p.active.name];
   var atk = (stats.attacks || []).find(function (a) { return a.name === attackName; });
   if (!atk) { return false; }
+  // Dream Eater (Haunter): "You can't use this attack unless the Defending
+  // Pokémon is Asleep" -- the one real Base Set attack whose legality
+  // depends on the OPPONENT's status rather than the attacker's own.
+  if (attackName === 'Dream Eater') {
+    var opActive = state.players[opponentOf(playerId)].active;
+    if (!opActive || !hasStatus(opActive, 'Asleep')) { return false; }
+  }
   return canPayCost(p.active, atk.cost);
 }
 

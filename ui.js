@@ -198,6 +198,7 @@ function preloadCardImages() {
   });
   urls['Mazos/overgrowth.png'] = true;
   urls['Mazos/blackout.png'] = true;
+  urls['Mazos/zap.jpg'] = true;
   Object.keys(urls).forEach(function (url) { var img = new Image(); img.src = url; });
 }
 
@@ -271,7 +272,7 @@ function cardImageTag(name, cls, isHolo) {
 // choose either deck (see the Decks screen), and the CPU always plays
 // whichever one they didn't pick, so either side can end up with either
 // card.
-var DECK_HOLO_CARD = { overgrowth: 'Gyarados', blackout: 'Hitmonchan' };
+var DECK_HOLO_CARD = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo' };
 function isHoloInMatch(ownerId, cardName) {
   var p = gameState && gameState.players[ownerId];
   return !!(p && DECK_HOLO_CARD[p.deckKey] === cardName);
@@ -586,6 +587,36 @@ function closeDiscardPileModal() {
   document.getElementById('discardPileModal').classList.add('hidden');
 }
 
+// Computer Search: shows the player's live deck in order (not deduplicated
+// by name -- if a card is duplicated in the deck it appears again, each
+// with its own image, per user request) as a scrollable clickable grid,
+// same layout as the discard pile modal above. onPick(deckCardId) fires
+// once, then the modal closes itself.
+var deckSearchOnPick = null;
+function openDeckSearchModal(deckCards, onPick) {
+  deckSearchOnPick = onPick;
+  var grid = document.getElementById('deckSearchGrid');
+  grid.innerHTML = deckCards.map(function (card) {
+    var url = CARD_IMAGE_BY_NAME[card.name];
+    if (!url) { return ''; }
+    return '<button type="button" class="shell-discard-pile-card-item" data-deck-card-id="' + card.id + '">' +
+      '<img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
+      '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button>';
+  }).join('');
+  grid.querySelectorAll('[data-deck-card-id]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-deck-card-id');
+      closeDeckSearchModal();
+      if (deckSearchOnPick) { deckSearchOnPick(id); }
+    });
+  });
+  document.getElementById('deckSearchModal').classList.remove('hidden');
+}
+function closeDeckSearchModal() {
+  document.getElementById('deckSearchModal').classList.add('hidden');
+  deckSearchOnPick = null;
+}
+
 // Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
 // stores just the type ('Water'), but the discard-choice modal needs the
 // real card name to look up its illustration.
@@ -608,7 +639,8 @@ var TRAINER_TARGET_HINT = {
   'Switch': 'Elige uno de tus Pokémon de la Banca',
   'PlusPower': 'Elige tu Pokémon Activo',
   'Gust of Wind': 'Elige un Pokémon de la Banca del Rival',
-  'Energy Removal': 'Elige un Pokémon del Rival'
+  'Energy Removal': 'Elige un Pokémon del Rival',
+  'Defender': 'Elige uno de tus Pokémon'
 };
 
 function showTargetHintModal(text) {
@@ -1324,6 +1356,17 @@ function wireBoardButtons() {
             if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
             selectedHandId = null;
             renderBoard();
+          } else if (handCard.name === 'Computer Search') {
+            // Its target is a card in the DECK, not a board Pokémon -- open
+            // the deck-search modal straight away instead of arming a
+            // board-click mode, matching how Super Potion's energy-choice
+            // modal resolves in one step too.
+            openDeckSearchModal(p.deck.slice(), function (deckCardId) {
+              var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId);
+              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+              selectedHandId = null;
+              renderBoard();
+            });
           } else {
             selectedHandId = handId;
             btn.classList.add('armed');
@@ -2202,9 +2245,15 @@ function deckComposition(deckKey) {
   return { pokemon: counts.pokemon, trainer: counts.trainer, energy: counts.energy, total: counts.pokemon + counts.trainer + counts.energy, energies: energies };
 }
 
+// Real display name per deck, uppercase to match the header's styling --
+// keyed generically instead of an if/else chain so a future real deck
+// doesn't silently fall through to the wrong name (this exact bug: Zap!
+// used to render as "OVERGROWTH" here before this map existed, since the
+// old check was only ever deckKey==='blackout'?'BLACKOUT':'OVERGROWTH').
+var DECK_DISPLAY_NAME = { overgrowth: 'OVERGROWTH', blackout: 'BLACKOUT', zap: 'ZAP!' };
 function renderDeckDetail(deckKey) {
   var nameEl = document.getElementById('deckDetailName');
-  if (nameEl) { nameEl.textContent = deckKey === 'blackout' ? 'BLACKOUT' : 'OVERGROWTH'; }
+  if (nameEl) { nameEl.textContent = DECK_DISPLAY_NAME[deckKey] || deckKey.toUpperCase(); }
   var comp = deckComposition(deckKey);
   var stats = [
     { label: 'POKÉMON', value: comp.pokemon },
@@ -2229,7 +2278,7 @@ function renderDeckDetail(deckKey) {
   // Same real Rare Holo this deck guarantees in an actual match (see
   // DECK_HOLO_CARD/isHoloInMatch) -- keyed by deckKey here instead of
   // ownerId since this screen shows a decklist, not a live gameState side.
-  var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan' }[deckKey];
+  var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo' }[deckKey];
   var html = expandDecklist(DECKLISTS[deckKey]).map(function (card) {
     var img = CARD_IMAGE_BY_NAME[card.name] || '';
     var holo = card.name === deckHoloCard;
@@ -2248,13 +2297,20 @@ function renderDeckDetail(deckKey) {
   });
 }
 
-// Selects deckKey ('overgrowth' or 'blackout') as the deck previewed/marked
-// "EN USO" on the Decks screen -- moves the .active class + badge between
-// the two selectable shell-deck-card elements instead of duplicating them,
-// and refreshes the decklist preview to match.
+// Selects deckKey (any real DECKLISTS key -- 'overgrowth'/'blackout'/'zap'
+// today) as the deck previewed/marked "EN USO" on the Decks screen -- moves
+// the .active class + badge between every real, selectable shell-deck-card
+// element instead of duplicating them, and refreshes the decklist preview
+// to match. Filters by DECKLISTS (not a hardcoded list of data-deck values)
+// so a future real deck added the same way this file's other multi-deck
+// logic already works (see createGame, rules-engine.js) doesn't also need
+// this selector updated -- only the still-unplayable "Nuevo Mazo" card
+// (data-deck="new", no real decklist behind it) is excluded.
 function selectDeckCard(deckKey) {
-  document.querySelectorAll('.shell-deck-card[data-deck="overgrowth"], .shell-deck-card[data-deck="blackout"]').forEach(function (el) {
-    var isSelected = el.getAttribute('data-deck') === deckKey;
+  document.querySelectorAll('.shell-deck-card[data-deck]').forEach(function (el) {
+    var elDeckKey = el.getAttribute('data-deck');
+    if (!DECKLISTS[elDeckKey]) { return; }
+    var isSelected = elDeckKey === deckKey;
     el.classList.toggle('active', isSelected);
     var badge = el.querySelector('.shell-deck-card-badge');
     if (badge) { badge.style.display = isSelected ? '' : 'none'; }
@@ -2599,9 +2655,11 @@ document.addEventListener('DOMContentLoaded', function () {
     hideDecksScreen();
     showMenu();
   });
-  document.querySelectorAll('.shell-deck-card[data-deck="overgrowth"], .shell-deck-card[data-deck="blackout"]').forEach(function (el) {
+  document.querySelectorAll('.shell-deck-card[data-deck]').forEach(function (el) {
+    var elDeckKey = el.getAttribute('data-deck');
+    if (!DECKLISTS[elDeckKey]) { return; }
     el.addEventListener('click', function () {
-      selectDeckCard(el.getAttribute('data-deck'));
+      selectDeckCard(elDeckKey);
     });
   });
   document.getElementById('decksSaveBtn').addEventListener('click', function () {
@@ -2729,6 +2787,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('targetHintOkBtn').addEventListener('click', closeTargetHintModal);
   document.querySelector('#targetHintModal .card-modal-backdrop').addEventListener('click', closeTargetHintModal);
+
+  document.getElementById('deckSearchCancel').addEventListener('click', closeDeckSearchModal);
+  document.querySelector('#deckSearchModal .card-modal-backdrop').addEventListener('click', closeDeckSearchModal);
 
   document.getElementById('energyDiscardCancel').addEventListener('click', closeEnergyDiscardModal);
   document.querySelector('#energyDiscardModal .card-modal-backdrop').addEventListener('click', closeEnergyDiscardModal);

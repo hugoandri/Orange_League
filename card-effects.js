@@ -164,6 +164,49 @@ TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId)
   return { legal: true };
 };
 
+// deckCardId identifies the exact deck-array card the player picked (see
+// ui.js's openDeckSearchModal, which lists the live deck in order --
+// duplicates and all -- rather than a deduplicated-by-name list, since
+// there's no other way to distinguish "this specific Bill" from another
+// once they're all just plain {id, name} objects).
+TRAINER_EFFECTS['Computer Search'] = function (state, playerId, handId, deckCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var deckIdx = p.deck.findIndex(function (c) { return c.id === deckCardId; });
+  if (deckIdx === -1) { return { legal: false, reason: 'esa carta no está en tu mazo' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var found = p.deck.splice(deckIdx, 1)[0];
+  p.hand.push(found);
+  p.deck = shuffle(p.deck, state.rng);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Computer Search') + ' y busca ' + translateCardName(found.name), playerId);
+  return { legal: true };
+};
+
+// Real card text: "Attach Defender to 1 of your Pokémon" -- any of the
+// player's own (Active or Bench), unlike PlusPower which is Active-only.
+// The lingering damage-reduction itself is a new shield type (see
+// dealDamage's 'reduceFlat' case, rules-engine.js) -- Defender is discarded
+// from hand immediately on play like every other Trainer here; the "at the
+// end of your opponent's next turn, discard Defender" printed text just
+// describes when the shield itself stops applying (shield.untilTurn),
+// same convention PlusPower already uses for its own end-of-turn wording.
+TRAINER_EFFECTS['Defender'] = function (state, playerId, handId, ownInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var target = findInstance(p, ownInstanceId);
+  if (!target) { return { legal: false, reason: 'ese Pokémon no es tuyo' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  target.shield = { untilTurn: state.turnCounter + 1, type: 'reduceFlat', reduceAmount: 20 };
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Defender') + ' en ' + target.name, playerId);
+  return { legal: true };
+};
+
 // Queues every successful Trainer play on state (name + who played it) so
 // ui.js's renderBoard() can flash each one big for a moment in turn -- both
 // the player's own plays (ui.js's various USAR/target-click handlers) and
@@ -315,6 +358,121 @@ ATTACK_EFFECTS['Wartortle'] = {
     if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
   },
   'Bite': function (state, attacker, defender) { dealDamage(state, attacker, defender, 40); }
+};
+
+// Gnaw (plain 10 damage) and Super Psy (plain 50 damage) need no entry --
+// attack()'s own fallback already handles flat-damage attacks straight
+// from CARD_STATS.
+ATTACK_EFFECTS['Mewtwo'] = {
+  'Psychic': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10 + 10 * defender.attachedEnergy.length);
+  },
+  'Barrier': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Psychic');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Psychic')); }
+      attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
+    }
+  }
+};
+
+ATTACK_EFFECTS['Kadabra'] = {
+  // Same mechanic as Starmie's Recover above, just discarding Psychic
+  // energy instead of Water.
+  'Recover': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Psychic');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      attacker.damage = 0;
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Psychic')); }
+    }
+  }
+};
+
+ATTACK_EFFECTS['Jynx'] = {
+  'Doubleslap': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 10 * heads);
+  },
+  'Meditate': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20 + 10 * (defender.damage / 10));
+  }
+};
+
+ATTACK_EFFECTS['Haunter'] = {
+  'Hypnosis': function (state, attacker, defender) { addStatus(defender, 'Asleep'); }
+  // Dream Eater's "unless the Defending Pokémon is Asleep" restriction
+  // lives in canAttack (rules-engine.js) since it's a legality gate, not
+  // an in-attack effect -- its own 50 flat damage needs no entry here.
+};
+
+ATTACK_EFFECTS['Gastly'] = {
+  'Sleeping Gas': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+  },
+  // Sets a revenge-KO flag consumed later by knockOutIfNeeded
+  // (rules-engine.js), not anything resolved here -- Destiny Bond does no
+  // damage of its own.
+  'Destiny Bond': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Psychic');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Psychic')); }
+      attacker.destinyBond = { untilTurn: state.turnCounter + 1 };
+    }
+  }
+};
+
+ATTACK_EFFECTS['Drowzee'] = {
+  // Pound (plain 10 damage) needs no entry.
+  'Confuse Ray': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Confused'); }
+  }
+};
+
+ATTACK_EFFECTS['Abra'] = {
+  'Psyshock': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Pikachu'] = {
+  // Gnaw (plain 10 damage) needs no entry.
+  'Thunder Jolt': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'T') { attacker.damage += 10; }
+  }
+};
+
+ATTACK_EFFECTS['Magnemite'] = {
+  'Thunder Wave': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  // Splashes both players' whole Bench (bypassing dealDamage -- the real
+  // card explicitly says Weakness/Resistance don't apply to the Bench
+  // here) before the attacker's own guaranteed-lethal 40 self-damage.
+  // knockOutIfNeeded already handles a Bench instance being knocked out
+  // directly (see its own comment), and also handles the attacker itself
+  // dying here -- unlike Machoke's Submission, this attack's self-damage
+  // is large enough (40, exactly Magnemite's own max HP) that it almost
+  // always needs that check to actually fire.
+  'Selfdestruct': function (state, attacker, defender, atkDef, playerId) {
+    ['player', 'cpu'].forEach(function (ownerId) {
+      state.players[ownerId].bench.forEach(function (b) {
+        if (!b) { return; }
+        b.damage += 10;
+        knockOutIfNeeded(state, ownerId, b);
+      });
+    });
+    attacker.damage += 40;
+    knockOutIfNeeded(state, playerId, attacker);
+  }
 };
 
 ATTACK_EFFECTS["Farfetch'd"] = {

@@ -86,6 +86,7 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 #discardPileModal{z-index:210;}
 #collectionVersionsModal{z-index:210;}
 #targetHintModal{z-index:210;}
+#deckSearchModal{z-index:210;}
 /* #cardModal is a "zoom on top of whatever's already open" utility -- it
    gets triggered from several other modals that stay open behind it
    (booster result, discard pile, etc.), not just bare screens. At the same

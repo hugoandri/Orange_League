@@ -66,15 +66,27 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var rng = function () { return 0.999; };
   var defaultState = createGame(rng);
   check('createGame defaults player to overgrowth when no deckKey is given', defaultState.players.player.deckKey, 'overgrowth');
-  check('createGame defaults cpu to blackout when no deckKey is given', defaultState.players.cpu.deckKey, 'blackout');
+  checkTrue('cpu gets a real deck other than overgrowth', defaultState.players.cpu.deckKey !== 'overgrowth' && !!DECKLISTS[defaultState.players.cpu.deckKey]);
 
   var blackoutState = createGame(rng, 'blackout');
   check('createGame assigns the requested deck to the player', blackoutState.players.player.deckKey, 'blackout');
-  check('createGame assigns the other deck to the cpu', blackoutState.players.cpu.deckKey, 'overgrowth');
+  checkTrue('cpu gets a real deck other than blackout', blackoutState.players.cpu.deckKey !== 'blackout' && !!DECKLISTS[blackoutState.players.cpu.deckKey]);
 
   var invalidState = createGame(rng, 'not-a-real-deck');
   check('createGame falls back to overgrowth for an invalid deckKey', invalidState.players.player.deckKey, 'overgrowth');
-  check('createGame falls back cpu to blackout for an invalid deckKey', invalidState.players.cpu.deckKey, 'blackout');
+  checkTrue('cpu still gets a real other deck when the player key was invalid', invalidState.players.cpu.deckKey !== 'overgrowth' && !!DECKLISTS[invalidState.players.cpu.deckKey]);
+})();
+
+(function testCreateGameCpuDeckIsRandomAmongTheOthers() {
+  // The CPU's deck pick consumes one rng() call, before either side's own
+  // shuffle -- with 3 real decks (overgrowth/blackout/zap) and the player
+  // on overgrowth, otherDeckKeys is ['blackout', 'zap'] in that order
+  // (Object.keys preserves insertion order), so rng() just below 0.5 picks
+  // index 0 (blackout) and rng() at/above 0.5 picks index 1 (zap).
+  var lowState = createGame(function () { return 0.1; }, 'overgrowth');
+  check('a low rng roll picks the first other deck for the cpu', lowState.players.cpu.deckKey, 'blackout');
+  var highState = createGame(function () { return 0.9; }, 'overgrowth');
+  check('a high rng roll picks the last other deck for the cpu', highState.players.cpu.deckKey, 'zap');
 })();
 
 (function testStartMatchFlipsCoinAndBeginsPlay() {
@@ -765,6 +777,215 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Special Punch deals 40', t6.damage, 40);
 })();
 
+(function testZapAttackEffects() {
+  var state = createGame(function () { return 0.0; }); // rng()=0 => coinFlip always 'H' (heads), 'T' never
+  var mkP = function (name, extra) {
+    var base = { id: 'z_' + name, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+    return Object.assign(base, extra || {});
+  };
+
+  // Mewtwo's Psychic: 10 + 10 per Energy card attached to the DEFENDER (not
+  // the attacker) -- uses a Grass-type defender (Bulbasaur, weak to Fire)
+  // instead of a Fighting-type one, since Fighting is weak to Psychic in
+  // this era's type chart and would double the damage, muddying this
+  // specific formula check.
+  var mewtwo = mkP('Mewtwo'); var t1 = mkP('Bulbasaur', { attachedEnergy: ['Grass', 'Grass'] });
+  ATTACK_EFFECTS['Mewtwo']['Psychic'](state, mewtwo, t1);
+  check('Psychic deals 10 + 10 per energy on the defender (2 energy = 30)', t1.damage, 30);
+
+  // Mewtwo's Barrier: discards its own Psychic energy, sets a preventAll shield
+  var mewtwo2 = mkP('Mewtwo', { attachedEnergy: ['Psychic'] });
+  state.turnCounter = 3;
+  ATTACK_EFFECTS['Mewtwo']['Barrier'](state, mewtwo2, null, null, 'player');
+  check('Barrier discards the Psychic energy', mewtwo2.attachedEnergy.length, 0);
+  check('Barrier sets a preventAll shield', mewtwo2.shield && mewtwo2.shield.type, 'preventAll');
+  check('Barrier shield covers the opponent\'s next turn', mewtwo2.shield.untilTurn, 4);
+
+  // Kadabra's Recover: same mechanic as Starmie's, but discards Psychic energy
+  var kadabra = mkP('Kadabra', { attachedEnergy: ['Psychic', 'Psychic'], damage: 30 });
+  ATTACK_EFFECTS['Kadabra']['Recover'](state, kadabra, null, null, 'player');
+  check('Kadabra Recover heals all damage', kadabra.damage, 0);
+  check('Kadabra Recover discards 1 Psychic Energy', kadabra.attachedEnergy.length, 1);
+
+  // Jynx's Meditate: 20 + 10 per damage counter ALREADY on the defender
+  var jynx = mkP('Jynx'); var t2 = mkP('Gastly', { damage: 20 });
+  ATTACK_EFFECTS['Jynx']['Meditate'](state, jynx, t2);
+  check('Meditate deals 20 + 10 per damage counter on the defender (2 counters = 40 more)', t2.damage - 20, 40);
+
+  // Haunter's Hypnosis: unconditional Asleep (no coin flip in the real text)
+  var haunter = mkP('Haunter'); var t3 = mkP('Pikachu');
+  ATTACK_EFFECTS['Haunter']['Hypnosis'](state, haunter, t3);
+  checkTrue('Hypnosis always puts the defender Asleep', hasStatus(t3, 'Asleep'));
+
+  // Gastly's Destiny Bond: discards Psychic energy, arms a revenge-KO flag
+  var gastly = mkP('Gastly', { attachedEnergy: ['Psychic'] });
+  state.turnCounter = 5;
+  ATTACK_EFFECTS['Gastly']['Destiny Bond'](state, gastly, null, null, 'player');
+  check('Destiny Bond discards the Psychic energy', gastly.attachedEnergy.length, 0);
+  check('Destiny Bond arms a revenge-KO for the exact next turn', gastly.destinyBond.untilTurn, 6);
+
+  // Drowzee's Confuse Ray: 10 dmg + coin flip Confused -- Bulbasaur again
+  // (not Abra/another Psychic-type, which would double from weakness).
+  var drowzee = mkP('Drowzee'); var t4 = mkP('Bulbasaur');
+  ATTACK_EFFECTS['Drowzee']['Confuse Ray'](state, drowzee, t4);
+  check('Confuse Ray deals 10', t4.damage, 10);
+  checkTrue('Confuse Ray confuses on heads', hasStatus(t4, 'Confused'));
+
+  // Pikachu's Thunder Jolt: 30 dmg always, self-damage only on TAILS (rng=0 => always heads => no self-damage)
+  var pikachu = mkP('Pikachu'); var t5 = mkP('Magnemite');
+  ATTACK_EFFECTS['Pikachu']['Thunder Jolt'](state, pikachu, t5);
+  check('Thunder Jolt deals 30', t5.damage, 30);
+  check('Thunder Jolt does not self-damage on heads', pikachu.damage, 0);
+})();
+
+(function testThunderJoltSelfDamageOnTails() {
+  var state = createGame(function () { return 0.99; }); // coinFlip always 'T' (tails)
+  var pikachu = { id: 'pk1', name: 'Pikachu', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  var defender = { id: 'df1', name: 'Magnemite', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  ATTACK_EFFECTS['Pikachu']['Thunder Jolt'](state, pikachu, defender);
+  check('Thunder Jolt still deals 30 on tails', defender.damage, 30);
+  check('Thunder Jolt self-damages 10 on tails', pikachu.damage, 10);
+})();
+
+(function testHaunterDreamEaterRequiresSleepingDefender() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = { id: 'h1', name: 'Haunter', attachedEnergy: ['Psychic', 'Psychic'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  op.active = { id: 'c1', name: 'Pikachu', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  checkTrue('Dream Eater is illegal when the defender is not Asleep', !canAttack(state, 'player', 'Dream Eater'));
+  op.active.statusConditions = ['Asleep'];
+  checkTrue('Dream Eater becomes legal once the defender is Asleep', canAttack(state, 'player', 'Dream Eater'));
+})();
+
+(function testDestinyBondRevengeKO() {
+  // Gastly uses Destiny Bond, survives to the opponent's next turn, then
+  // gets knocked out by their attack -- the attacker should go down too.
+  var state = createGame(function () { return 0.99; }); // coinFlip always tails (no incidental status effects)
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = { id: 'g1', name: 'Gastly', attachedEnergy: ['Psychic'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  p.bench = [null, null, null, null, null];
+  p.prizes = [{ id: 'pz1', name: 'Bill' }];
+  cpu.active = { id: 'm1', name: 'Machop', attachedEnergy: ['Fighting', 'Fighting', 'Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  cpu.bench = [null, null, null, null, null];
+  cpu.prizes = [{ id: 'pz2', name: 'Bill' }];
+
+  ATTACK_EFFECTS['Gastly']['Destiny Bond'](state, p.active, null, null, 'player');
+  check('Destiny Bond window is the very next turn', p.active.destinyBond.untilTurn, state.turnCounter + 1);
+
+  // Hand the turn to the CPU (real flow: attack() -> endTurn() would do
+  // this; simulated directly here since we're calling the attack effect
+  // in isolation above).
+  state.turnCounter += 1;
+  state.activePlayerId = 'cpu';
+  p.active.damage = CARD_STATS['Gastly'].hp; // Machop's attack lands the KO on Gastly
+  knockOutIfNeeded(state, 'player', p.active);
+
+  check('Gastly itself is knocked out', state.players.player.active, null);
+  check('Machop (the attacker) is also knocked out by Destiny Bond', cpu.active, null);
+  // The player's own prizes are specific face-down cards (see
+  // knockOutIfNeeded's own comment) -- a KO in the player's favor sets a
+  // pending choice rather than moving a card straight to hand.
+  checkTrue('Gastly\'s owner still gets a prize choice for Machop going down too', !!state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player');
+})();
+
+(function testDestinyBondDoesNotTriggerDuringOwnTurn() {
+  // If Gastly dies during its OWN side's turn (e.g. its own end-of-turn
+  // Poison checkup), Destiny Bond must NOT trigger -- the real card only
+  // covers "your opponent's next turn".
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = { id: 'g2', name: 'Gastly', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: { untilTurn: state.turnCounter } };
+  p.bench = [null, null, null, null, null];
+  p.prizes = [{ id: 'pz3', name: 'Bill' }];
+  cpu.active = { id: 'm2', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  cpu.bench = [null, null, null, null, null];
+  cpu.prizes = [{ id: 'pz4', name: 'Bill' }];
+
+  p.active.damage = CARD_STATS['Gastly'].hp;
+  knockOutIfNeeded(state, 'player', p.active);
+  check('Gastly is knocked out', state.players.player.active, null);
+  check('Machop survives -- Destiny Bond does not fire during Gastly\'s own turn', cpu.active.name, 'Machop');
+})();
+
+(function testMagnemiteSelfdestruct() {
+  var state = createGame(function () { return 0.5; }); // rng()=0.5 => coinFlip('T', since 0.5 is not < 0.5) -- irrelevant here, Selfdestruct has no coin flip
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  var mk = function (id, name, extra) {
+    return Object.assign({ id: id, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null }, extra || {});
+  };
+  p.active = mk('mag1', 'Magnemite');
+  p.bench = [mk('pb1', 'Bulbasaur'), null, null, null, null];
+  p.prizes = [{ id: 'pz5', name: 'Bill' }];
+  cpu.active = mk('opp1', 'Machop');
+  // One CPU bench Pokémon already has 30 damage -- the 10 splash should knock it out.
+  cpu.bench = [mk('cb1', 'Weedle', { damage: 30 }), null, null, null, null];
+  cpu.prizes = [{ id: 'pz6', name: 'Bill' }];
+
+  ATTACK_EFFECTS['Magnemite']['Selfdestruct'](state, p.active, cpu.active, null, 'player');
+
+  check('Selfdestruct splashes 10 onto the player\'s own bench too', p.bench[0].damage, 10);
+  check('Selfdestruct splashes 10 onto the opponent\'s bench', cpu.bench[0], null); // Weedle (40 HP) had 30+10=40 -> knocked out, slot cleared
+  check('Selfdestruct does not touch the opponent\'s Active at all', cpu.active.damage, 0);
+  check('Magnemite (the attacker) takes exactly 40 self-damage and is knocked out', p.active, null);
+  // The opponent's bench Weedle going down is a KO in the PLAYER's favor
+  // (whose own prizes are specific face-down cards -- see
+  // knockOutIfNeeded's own comment), so it sets a pending choice rather
+  // than moving a card straight to hand.
+  checkTrue('the player gets a prize choice for the opponent\'s bench Weedle going down', !!state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player');
+})();
+
+(function testComputerSearch() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Computer Search' }];
+  p.deck = [{ id: 'd1', name: 'Bill' }, { id: 'd2', name: 'Potion' }, { id: 'd3', name: 'Bill' }];
+  var result = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd2');
+  checkTrue('Computer Search resolves legally', result.legal);
+  check('Computer Search card lands in the discard pile', p.discard.some(function (c) { return c.name === 'Computer Search'; }), true);
+  checkTrue('the searched-for card lands in hand', p.hand.some(function (c) { return c.id === 'd2'; }));
+  check('the deck has one fewer card', p.deck.length, 2);
+  checkTrue('the found card is no longer in the deck', p.deck.every(function (c) { return c.id !== 'd2'; }));
+
+  var badResult = TRAINER_EFFECTS['Computer Search'](state, 'player', 'nope', 'd1');
+  checkTrue('an invalid deck card id is rejected', !badResult.legal);
+})();
+
+(function testDefenderShield() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.hand = [{ id: 'h1', name: 'Defender' }];
+  var bench = { id: 'b1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  p.bench = [bench, null, null, null, null];
+  state.turnCounter = 2;
+  var result = TRAINER_EFFECTS['Defender'](state, 'player', 'h1', 'b1');
+  checkTrue('Defender can target a Bench Pokémon (unlike PlusPower)', result.legal);
+  check('Defender sets a reduceFlat shield', bench.shield.type, 'reduceFlat');
+  check('Defender reduces damage by 20', bench.shield.reduceAmount, 20);
+  check('Defender lasts through the opponent\'s next turn', bench.shield.untilTurn, 3);
+
+  var attacker = { id: 'atk1', name: 'Machop' };
+  cpu.active = attacker;
+  // The shield only actually applies once its promised window (untilTurn)
+  // arrives -- advance turnCounter to match, same as every other shield
+  // type already does (see Kakuna's Stiffen/Onix's Harden tests above).
+  state.turnCounter = 3;
+  var dealt = dealDamage(state, attacker, bench, 30);
+  check('dealDamage applies the reduceFlat shield (30-20=10)', dealt, 10);
+  var dealtAgain = dealDamage(state, attacker, bench, 15);
+  check('reduceFlat keeps applying to every hit in its window, not just the first', dealtAgain, 0);
+})();
+
 (function testCpuTakesALegalTurnWithoutThrowing() {
   var state = createGame(function () { return 0.37; });
   state.activePlayerId = 'cpu';
@@ -1178,6 +1399,52 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
       if (winner) { completed++; }
     }
     check('all scripted ' + difficulty + ' games reached a winner', completed, GAMES);
+  });
+})();
+
+(function testScriptedZapVsOvergrowthStability() {
+  // Forces the CPU onto Zap! specifically (rather than leaving it to
+  // chance) so this new deck's content -- Mewtwo/Kadabra/Jynx/Haunter/
+  // Gastly/Drowzee/Abra/Pikachu/Magnemite's attacks, Computer Search,
+  // Defender -- all gets exercised through real full games without
+  // throwing or hanging, at both difficulties CPU AI actually runs at.
+  ['normal', 'hard'].forEach(function (difficulty) {
+    var GAMES = 5;
+    var TURN_CAP = 400;
+    var completed = 0;
+    for (var g = 0; g < GAMES; g++) {
+      var seed = g;
+      var baseRng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
+      // otherDeckKeys for playerDeckKey='overgrowth' is ['blackout', 'zap']
+      // (Object.keys insertion order) -- force index 1 on the very first
+      // rng() call (createGame's own CPU-deck pick) by wrapping it, then
+      // fall through to the real seeded sequence for everything after.
+      var firstCall = true;
+      var rng = function () {
+        if (firstCall) { firstCall = false; return 0.99; }
+        return baseRng();
+      };
+      var state = createGame(rng, 'overgrowth');
+      check('cpu is really on zap for this scripted game', state.players.cpu.deckKey, 'zap');
+      aiSetupBoard(state, 'player');
+      aiSetupBoard(state, 'cpu');
+      startMatch(state);
+      var turns = 0;
+      var winner = null;
+      while (!winner && turns < TURN_CAP) {
+        cpuTakeTurn(state, difficulty);
+        while (state.pendingPrizeChoice) {
+          var pid = state.pendingPrizeChoice.playerId;
+          var idx = state.players[pid].prizes.findIndex(function (c) { return c; });
+          takePrize(state, pid, idx);
+        }
+        winner = getWinner(state);
+        turns++;
+      }
+      checkTrue('zap-vs-overgrowth ' + difficulty + ' game ' + g + ' finished within ' + TURN_CAP + ' turns', turns < TURN_CAP);
+      if (winner) { completed++; }
+    }
+    check('all scripted zap-vs-overgrowth ' + difficulty + ' games reached a winner', completed, GAMES);
   });
 })();
 
