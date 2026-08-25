@@ -1138,27 +1138,35 @@ function proceedWithCpuTurn() {
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
     cpuTurnInProgress = false;
-    // Drain any Trainer(s) the CPU just played ourselves, before
-    // afterPlayerAction's own renderBoard() gets a chance to (its own
-    // drainTrainerPlaysQueue() call finds nothing left and no-ops) -- "TU
-    // TURNO" waits until that whole sequence is done, instead of showing
-    // at the same time in the same spot as a Trainer flash.
     var queuedTrainerPlays = gameState.trainerPlaysQueue || [];
     gameState.trainerPlaysQueue = [];
-    afterPlayerAction();
+    // Reveal what the CPU actually did in chronological order: any
+    // Trainer(s) it played (showTrainerPlaysSequence, ~1.5s each) come
+    // first, and only once that finishes does the real board render --
+    // this used to run the other way around (afterPlayerAction's render,
+    // which can already show a KO'd board and pop the "choose your new
+    // Active" modal, fired immediately, with the Gust of Wind/Trainer
+    // flash only appearing on top of -- or after -- a result the player
+    // couldn't yet explain).
     showTrainerPlaysSequence(queuedTrainerPlays, function () {
-      // Skip the flash if that turn just won/lost the match -- there's no
-      // "tu turno" coming next (afterPlayerAction already showed the
-      // win/loss modal instead of a normal board render above).
-      if (getWinner(gameState)) { return; }
-      // A KO during the CPU's turn can leave the player forced to pick a
-      // new Active (see renderActiveChoiceModal) -- hold the flash for
-      // that choice to resolve instead of flashing over their decision.
-      if (hasPendingPlayerChoice()) {
-        pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
-      } else {
-        showTurnFlash('TU TURNO', 'mine');
-      }
+      // A short "CPU PENSANDO..." beat before the reveal, even when no
+      // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
+      showCpuThinkingIndicator();
+      setTimeout(function () {
+        afterPlayerAction();
+        // Skip the flash if that turn just won/lost the match -- there's
+        // no "tu turno" coming next (afterPlayerAction already showed the
+        // win/loss modal instead of a normal board render above).
+        if (getWinner(gameState)) { return; }
+        // A KO during the CPU's turn can leave the player forced to pick a
+        // new Active (see renderActiveChoiceModal) -- hold the flash for
+        // that choice to resolve instead of flashing over their decision.
+        if (hasPendingPlayerChoice()) {
+          pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
+        } else {
+          showTurnFlash('TU TURNO', 'mine');
+        }
+      }, CPU_POST_ACTION_PAUSE_MS);
     });
   }, delay);
 }
@@ -2279,6 +2287,13 @@ function setDuelMusicKey(key) {
 // or 'hard' -- see ai.js's cpuTakeTurn. Kept in this browser only
 // (localStorage), same as the rest of Configuración's settings.
 var CPU_THINK_DELAY_MS = { easy: 0, normal: [1000, 2000], hard: [2000, 5000] };
+// A short "beat" held after the CPU's turn resolves (and any Trainer-play
+// flashes finish) before the real result -- attack damage, a KO, a forced
+// Active choice -- actually renders. Applies to every difficulty, even
+// Easy: without it, a turn with no Trainer played (just energy + attack +
+// KO) still jumped straight from "TURNO DEL RIVAL" to the final board with
+// zero pacing, which read as instant and hard to follow.
+var CPU_POST_ACTION_PAUSE_MS = 700;
 function getCpuDifficulty() {
   var v = localStorage.getItem('tcg_cpu_difficulty');
   return (v === 'normal' || v === 'hard') ? v : 'easy';
