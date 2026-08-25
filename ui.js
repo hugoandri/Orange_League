@@ -1269,6 +1269,13 @@ function wireBoardButtons() {
   var handButtons = document.querySelectorAll('.shell-board-hand-card-wrap');
   var selectedHandId = null;
   var retreatMode = false;
+  // Super Energy Removal needs TWO board-card clicks in sequence (your own
+  // Pokémon to pay the cost, then the rival's to hit) -- null until the
+  // first click's energy-discard modal confirms which own energy to use,
+  // same "no renderBoard() in between" rule retreatMode already relies on
+  // (renderBoard() re-invokes wireBoardButtons(), which would recreate this
+  // closure and silently drop whichever step was already picked).
+  var pendingSuperEnergyRemoval = null;
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
@@ -1463,6 +1470,37 @@ function wireBoardButtons() {
           renderBoard();
         });
         return;
+      } else if (handCard.name === 'Super Energy Removal' && !pendingSuperEnergyRemoval) {
+        // Step 1 of 2: click one of YOUR OWN Pokémon (with energy attached)
+        // to pay the cost -- see TRAINER_EFFECTS['Super Energy Removal']'s
+        // own comment for why the specific energy is a modal choice, same
+        // as Super Potion above.
+        var ownTarget = findInstance(p, instanceId);
+        if (ownTarget && ownTarget.attachedEnergy.length > 0) {
+          var superRemovalHandId = selectedHandId;
+          var superRemovalOwnId = instanceId;
+          openEnergyDiscardModal(ownTarget.attachedEnergy.slice(), 1, function (indices) {
+            pendingSuperEnergyRemoval = { handId: superRemovalHandId, ownInstanceId: superRemovalOwnId, ownEnergyIndex: indices[0] };
+            logEvent(gameState, 'Elige el Pokémon rival al que quitarle energía', 'player');
+            document.getElementById('log').innerHTML = logHtml(gameState);
+          });
+        } else {
+          logEvent(gameState, 'Elige uno de tus Pokémon con energía adjunta', 'player');
+          document.getElementById('log').innerHTML = logHtml(gameState);
+        }
+        return; // stays armed -- waits for a valid own target (retry) or, once the modal confirms, the rival's target
+      } else if (handCard.name === 'Super Energy Removal' && pendingSuperEnergyRemoval) {
+        // Step 2 of 2: click the rival Pokémon to actually remove energy from.
+        var cpuTarget = findInstance(gameState.players.cpu, instanceId);
+        if (!cpuTarget) {
+          logEvent(gameState, 'Elige un Pokémon del rival', 'player');
+          document.getElementById('log').innerHTML = logHtml(gameState);
+          return; // still pending -- wait for a valid rival target
+        }
+        var pendingRemoval = pendingSuperEnergyRemoval;
+        pendingSuperEnergyRemoval = null;
+        var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex);
+        if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
       } else if (TRAINER_EFFECTS[handCard.name]) {
         var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
         if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }

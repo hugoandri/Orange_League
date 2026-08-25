@@ -123,7 +123,12 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
   return { legal: true };
 };
 
-TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId) {
+// ownEnergyIndex (optional): which of the own Pokémon's attached energy
+// cards pays the cost -- the player picks this in a modal (see ui.js's
+// wireBoardButtons, same openEnergyDiscardModal used by Super Potion)
+// since a Pokémon can have more than one energy type attached. Defaults to
+// index 0 for callers that don't care (ai.js's CPU usage).
+TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId, ownEnergyIndex) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var own = findInstance(p, ownInstanceId);
@@ -136,7 +141,8 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
-  var ownRemoved = own.attachedEnergy.splice(0, 1);
+  var ownIdx = (typeof ownEnergyIndex === 'number' && ownEnergyIndex >= 0 && ownEnergyIndex < own.attachedEnergy.length) ? ownEnergyIndex : 0;
+  var ownRemoved = own.attachedEnergy.splice(ownIdx, 1);
   ownRemoved.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   var oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
   oppRemoved.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });

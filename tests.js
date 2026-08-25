@@ -622,6 +622,34 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('bench Pokémon not affected by failed PlusPower', p.bench[0].plusPowerAttached, false);
 })();
 
+(function testSuperEnergyRemovalOwnEnergyIndex() {
+  // The player picks which of their own Pokémon's attached energy cards
+  // pays the cost (ui.js's openEnergyDiscardModal) -- ownEnergyIndex must
+  // actually honor that choice, not always discard index 0.
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  state.activePlayerId = pid;
+  var p = state.players[pid];
+  var cpu = state.players.cpu;
+  p.active = { id: 'a1', name: 'Blastoise', attachedEnergy: ['Water', 'Grass'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  cpu.active = { id: 'ca1', name: 'Machop', attachedEnergy: ['Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.hand = [{ id: 'h1', name: 'Super Energy Removal' }];
+  TRAINER_EFFECTS['Super Energy Removal'](state, pid, 'h1', p.active.id, cpu.active.id, 1);
+  check('ownEnergyIndex=1 discards the Grass energy, not Water', p.active.attachedEnergy, ['Water']);
+
+  // Omitting ownEnergyIndex still defaults to index 0 (ai.js's CPU usage
+  // never passes it).
+  var state2 = createGame(function () { return 0.42; });
+  state2.activePlayerId = 'player';
+  var p2 = state2.players.player;
+  var cpu2 = state2.players.cpu;
+  p2.active = { id: 'a2', name: 'Blastoise', attachedEnergy: ['Water', 'Grass'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  cpu2.active = { id: 'ca2', name: 'Machop', attachedEnergy: ['Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p2.hand = [{ id: 'h2', name: 'Super Energy Removal' }];
+  TRAINER_EFFECTS['Super Energy Removal'](state2, 'player', 'h2', p2.active.id, cpu2.active.id);
+  check('omitting ownEnergyIndex defaults to discarding index 0 (Water)', p2.active.attachedEnergy, ['Grass']);
+})();
+
 (function testOvergrowthAttackEffects() {
   var state = createGame(function () { return 0.0; }); // rng()=0 => coinFlip always 'H' (heads)
   var mkP = function (name, extra) {
