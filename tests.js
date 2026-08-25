@@ -62,6 +62,21 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('cpu total cards still 60 after setup', totalCpuCards, 60);
 })();
 
+(function testCreateGameDeckSelection() {
+  var rng = function () { return 0.999; };
+  var defaultState = createGame(rng);
+  check('createGame defaults player to overgrowth when no deckKey is given', defaultState.players.player.deckKey, 'overgrowth');
+  check('createGame defaults cpu to blackout when no deckKey is given', defaultState.players.cpu.deckKey, 'blackout');
+
+  var blackoutState = createGame(rng, 'blackout');
+  check('createGame assigns the requested deck to the player', blackoutState.players.player.deckKey, 'blackout');
+  check('createGame assigns the other deck to the cpu', blackoutState.players.cpu.deckKey, 'overgrowth');
+
+  var invalidState = createGame(rng, 'not-a-real-deck');
+  check('createGame falls back to overgrowth for an invalid deckKey', invalidState.players.player.deckKey, 'overgrowth');
+  check('createGame falls back cpu to blackout for an invalid deckKey', invalidState.players.cpu.deckKey, 'blackout');
+})();
+
 (function testStartMatchFlipsCoinAndBeginsPlay() {
   var state = createGame(function () { return 0.42; });
   checkTrue('canPlayBasic works during setup regardless of (null) activePlayerId', canPlayBasic(state, 'player', state.players.player.hand.filter(function (c) { return isBasicPokemon(c.name); })[0].id));

@@ -98,8 +98,16 @@ function tickClock(state, ownerId, elapsedMs) {
   return p.timeBankMs;
 }
 
-function createGame(rng) {
+// playerDeckKey ('overgrowth' or 'blackout', defaults to 'overgrowth' so
+// every existing call site/test that only passes rng keeps working
+// unchanged): whichever one the player picked (ui.js's Decks screen,
+// persisted as econState.activeDeck), the CPU gets the other of the two --
+// there are only ever these two real preset decks, so "the other one" is
+// unambiguous.
+function createGame(rng, playerDeckKey) {
   rng = rng || Math.random;
+  playerDeckKey = DECKLISTS[playerDeckKey] ? playerDeckKey : 'overgrowth';
+  var cpuDeckKey = playerDeckKey === 'overgrowth' ? 'blackout' : 'overgrowth';
   var state = {
     turnCounter: 1,
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
@@ -109,8 +117,13 @@ function createGame(rng) {
     rng: rng,
     log: [],
     players: {
-      player: { deck: shuffle(expandDecklist(DECKLISTS.overgrowth), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
-      cpu: { deck: shuffle(expandDecklist(DECKLISTS.blackout), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
+      // deckKey recorded on each side (not just implied by 'player'/'cpu')
+      // so ui.js's isHoloInMatch can look up the right guaranteed Rare Holo
+      // (Gyarados for Overgrowth, Hitmonchan for Blackout) for whichever
+      // deck each side actually ended up with, now that either one is
+      // possible on either side.
+      player: { deckKey: playerDeckKey, deck: shuffle(expandDecklist(DECKLISTS[playerDeckKey]), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
+      cpu: { deckKey: cpuDeckKey, deck: shuffle(expandDecklist(DECKLISTS[cpuDeckKey]), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
     }
   };
 

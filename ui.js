@@ -250,12 +250,17 @@ function cardImageTag(name, cls, isHolo) {
 }
 
 // Whether ownerId's copy of this exact card name is the deck's one
-// guaranteed Rare Holo -- Gyarados for the player's Overgrowth, Hitmonchan
-// for the CPU's Blackout (both real, single-copy Rare Holos in the actual
-// 1999 preconstructed decks, not an arbitrary pick).
-var DECK_HOLO_CARD = { player: 'Gyarados', cpu: 'Hitmonchan' };
+// guaranteed Rare Holo -- Gyarados for Overgrowth, Hitmonchan for Blackout
+// (both real, single-copy Rare Holos in the actual 1999 preconstructed
+// decks, not an arbitrary pick). Keyed by deckKey (createGame,
+// rules-engine.js), not by 'player'/'cpu' directly -- the player can now
+// choose either deck (see the Decks screen), and the CPU always plays
+// whichever one they didn't pick, so either side can end up with either
+// card.
+var DECK_HOLO_CARD = { overgrowth: 'Gyarados', blackout: 'Hitmonchan' };
 function isHoloInMatch(ownerId, cardName) {
-  return DECK_HOLO_CARD[ownerId] === cardName;
+  var p = gameState && gameState.players[ownerId];
+  return !!(p && DECK_HOLO_CARD[p.deckKey] === cardName);
 }
 
 // Real weakness/resistance/retreat-cost trio (data-cards.js), shown under
@@ -1584,7 +1589,7 @@ function startNewMatch() {
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();
   document.getElementById('matchEndModal').classList.add('hidden');
-  gameState = createGame(Math.random);
+  gameState = createGame(Math.random, (econState && econState.activeDeck) || 'overgrowth');
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
   // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
@@ -2083,6 +2088,8 @@ function deckComposition(deckKey) {
 }
 
 function renderDeckDetail(deckKey) {
+  var nameEl = document.getElementById('deckDetailName');
+  if (nameEl) { nameEl.textContent = deckKey === 'blackout' ? 'BLACKOUT' : 'OVERGROWTH'; }
   var comp = deckComposition(deckKey);
   var stats = [
     { label: 'POKÉMON', value: comp.pokemon },
@@ -2126,8 +2133,22 @@ function renderDeckDetail(deckKey) {
   });
 }
 
+// Selects deckKey ('overgrowth' or 'blackout') as the deck previewed/marked
+// "EN USO" on the Decks screen -- moves the .active class + badge between
+// the two selectable shell-deck-card elements instead of duplicating them,
+// and refreshes the decklist preview to match.
+function selectDeckCard(deckKey) {
+  document.querySelectorAll('.shell-deck-card[data-deck="overgrowth"], .shell-deck-card[data-deck="blackout"]').forEach(function (el) {
+    var isSelected = el.getAttribute('data-deck') === deckKey;
+    el.classList.toggle('active', isSelected);
+    var badge = el.querySelector('.shell-deck-card-badge');
+    if (badge) { badge.style.display = isSelected ? '' : 'none'; }
+  });
+  renderDeckDetail(deckKey);
+}
+
 function showDecksScreen() {
-  renderDeckDetail((econState && econState.activeDeck) || 'overgrowth');
+  selectDeckCard((econState && econState.activeDeck) || 'overgrowth');
   document.getElementById('decksSaveStatus').textContent = '';
   document.getElementById('decksSaveStatus').className = 'shell-decks-save-status';
   document.getElementById('decksScreen').classList.remove('hidden');
@@ -2449,19 +2470,22 @@ document.addEventListener('DOMContentLoaded', function () {
     hideDecksScreen();
     showMenu();
   });
-  document.querySelectorAll('.shell-deck-card[data-card-img]').forEach(function (el) {
+  document.querySelectorAll('.shell-deck-card[data-deck="overgrowth"], .shell-deck-card[data-deck="blackout"]').forEach(function (el) {
     el.addEventListener('click', function () {
-      openCardModal(el.getAttribute('data-card-name'), el.getAttribute('data-card-img'));
+      selectDeckCard(el.getAttribute('data-deck'));
     });
   });
   document.getElementById('decksSaveBtn').addEventListener('click', function () {
     var btn = document.getElementById('decksSaveBtn');
     var status = document.getElementById('decksSaveStatus');
+    var selectedCard = document.querySelector('.shell-deck-card.active[data-deck]');
+    var deckKey = (selectedCard && selectedCard.getAttribute('data-deck')) || 'overgrowth';
     btn.disabled = true;
     status.className = 'shell-decks-save-status';
     status.textContent = 'GUARDANDO...';
-    updateActiveDeckCloud('overgrowth')
+    updateActiveDeckCloud(deckKey)
       .then(function () {
+        if (econState) { econState.activeDeck = deckKey; }
         btn.disabled = false;
         status.className = 'shell-decks-save-status ok';
         status.textContent = 'GUARDADO ✓';
