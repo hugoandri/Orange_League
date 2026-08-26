@@ -35,8 +35,11 @@ function expandDecklist(decklist) {
 }
 
 // ownerId ('player' | 'cpu' | omitted for neutral/system lines) drives the
-// log line's color in the UI -- see ui.js's log rendering.
-function logEvent(state, msg, ownerId) { state.log.push({ msg: msg, ownerId: ownerId || null }); }
+// log line's color in the UI -- see ui.js's log rendering. kind (optional):
+// a tag for lines that need extra styling beyond just their color -- 'turn-end'
+// is the only one today (see endTurn below), rendered bigger/bolder so it
+// stands out while scrolling back through the log.
+function logEvent(state, msg, ownerId, kind) { state.log.push({ msg: msg, ownerId: ownerId || null, kind: kind || null }); }
 
 function coinFlip(state) {
   var result = state.rng() < 0.5 ? 'H' : 'T';
@@ -1005,6 +1008,7 @@ function allInstances(p) {
 
 function endTurn(state) {
   var justFinished = state.activePlayerId;
+  logEvent(state, justFinished === 'player' ? 'HAS TERMINADO TU TURNO' : 'CPU HA TERMINADO SU TURNO', justFinished, 'turn-end');
   if (state.players[justFinished].active) {
     state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
   }

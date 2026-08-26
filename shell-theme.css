@@ -1235,6 +1235,11 @@
 .shell-board-log-body .log-line-neutral{font-size:11px;line-height:1.5;color:#8a7e6f;}
 .shell-board-log-body .log-line-cpu{font-size:11px;line-height:1.5;color:#ff8a72;}
 .shell-board-log-body .log-line-player{font-size:11px;line-height:1.5;color:#8dff62;}
+/* "HAS TERMINADO TU TURNO" / "CPU HA TERMINADO SU TURNO" -- a bit bigger
+   and bolder than the regular log lines so the end of a turn actually
+   stands out while scrolling back through the log, instead of reading the
+   same as every other line. */
+.shell-board-log-body .log-line-turn-end{font-size:15px;font-weight:700;letter-spacing:.03em;padding-top:2px;}
 
 /* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */
 /* Not a .card-modal -- deliberately non-blocking (pointer-events:none) and

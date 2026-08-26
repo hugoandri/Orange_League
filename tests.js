@@ -444,6 +444,24 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('active player switched', state.activePlayerId !== beforePlayer);
   check('energyAttachedThisTurn reset', state.players[beforePlayer].energyAttachedThisTurn, false);
   check('retreatedThisTurn reset', state.players[beforePlayer].retreatedThisTurn, false);
+
+  var lastLog = state.log[state.log.length - 1];
+  check('endTurn logs a real "turn ended" line, in the second person for the player', lastLog.msg, 'HAS TERMINADO TU TURNO');
+  check('the turn-end line is tagged for the bigger/bolder log styling', lastLog.kind, 'turn-end');
+  check('the turn-end line is attributed to whoever\'s turn just ended, not the new active player', lastLog.ownerId, beforePlayer);
+})();
+
+(function testEndTurnLogsCpuPhrasingWhenCpuEndsIts() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  endTurn(state);
+  // Not necessarily the LAST log line -- ending the cpu's turn hands the
+  // very next turn straight to the player, who draws immediately (see
+  // endTurn's own "only draws here for the player" comment), and that
+  // draw logs its own line right after this one.
+  var turnEndLog = state.log.find(function (e) { return e.kind === 'turn-end'; });
+  checkTrue('endTurn logs a turn-end line at all when the cpu ends its turn', !!turnEndLog);
+  check('endTurn logs the CPU-specific phrasing when the CPU\'s turn ends', turnEndLog.msg, 'CPU HA TERMINADO SU TURNO');
 })();
 
 (function testDeckOutLoss() {

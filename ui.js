@@ -226,6 +226,7 @@ function escapeHtml(s) {
 function logHtml(s) {
   return s.log.slice(-30).map(function (entry) {
     var cls = entry.ownerId === 'player' ? 'log-line-player' : entry.ownerId === 'cpu' ? 'log-line-cpu' : 'log-line-neutral';
+    if (entry.kind === 'turn-end') { cls += ' log-line-turn-end'; }
     return '<div class="' + cls + '">' + escapeHtml(entry.msg) + '</div>';
   }).join('');
 }
