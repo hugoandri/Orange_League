@@ -1457,6 +1457,19 @@ button.shell-discard-pile-card-item{
   background:none;border:none;padding:0;font-family:inherit;cursor:pointer;transition:filter .12s;
 }
 button.shell-discard-pile-card-item:hover{filter:brightness(1.25);}
+/* Real reported bug: Deck Search (Computer Search/Pokémon Trader/Item
+   Finder/Revive/Pokémon Breeder/Pokémon Flute/the deck builder's cover
+   picker -- every caller of openDeckSearchModal) never showed a card's
+   real owned holo/secret foil. The wrapper below (only used by
+   openDeckSearchModal's buttons, not the plain discard-pile viewer's divs,
+   which keep the flat <img> markup above) gives the foil overlay divs
+   (.shell-secret-foil-a/-b, .shell-collection-cell-foil) something
+   position:relative to sit inside, same technique as .shell-collection-cell-art.
+   */
+.shell-discard-pile-card-art{position:relative;margin-bottom:4px;}
+.shell-discard-pile-card-art img{margin-bottom:0;}
+.shell-discard-pile-card-item.holo .shell-discard-pile-card-art{box-shadow:0 0 0 1px #e8c46a,0 0 14px rgba(232,196,106,.55);}
+.shell-discard-pile-card-item.secret .shell-discard-pile-card-art{box-shadow:0 0 0 1px #ffe89a,0 0 18px rgba(255,232,154,.6);}
 
 /* ===== Deck Builder (Fase 4: mazos personalizados) ===== */
 /* Two columns sharing the same .shell-collection-grid-panel/.shell-page

@@ -683,8 +683,20 @@ function openDeckSearchModal(deckCards, onPick) {
   grid.innerHTML = deckCards.map(function (card) {
     var url = CARD_IMAGE_BY_NAME[card.name];
     if (!url) { return ''; }
-    return '<button type="button" class="shell-discard-pile-card-item" data-deck-card-id="' + card.id + '">' +
-      '<img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
+    // Real reported bug: this modal (Computer Search/Pokémon Trader's own
+    // deck+hand, Item Finder/Revive's own discard, Pokémon Breeder's hand,
+    // Pokémon Flute's rival discard) always showed plain art, regardless
+    // of whether the player actually owns a holo/secret copy of that name
+    // -- same fix shape as renderDeckDetail's own foil bug.
+    var foilTier = getPlayerCardFoilTier(card.name);
+    var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
+    var foilOverlay = foilTier === 'secret'
+      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
+    return '<button type="button" class="shell-discard-pile-card-item' + tierClass + '" data-deck-card-id="' + card.id + '">' +
+      '<div class="shell-discard-pile-card-art">' +
+        '<img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' + foilOverlay +
+      '</div>' +
       '<span>' + escapeHtml(translateCardName(card.name)) + '</span></button>';
   }).join('');
   grid.querySelectorAll('[data-deck-card-id]').forEach(function (btn) {
