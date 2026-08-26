@@ -280,16 +280,30 @@ function cpuTakeTurn(state, difficulty) {
   }
   if (p.active) {
     var best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active);
+    // Real reported bug: if the current Active can't attack, this looks
+    // for a Bench Pokémon that CAN and retreats into it specifically for
+    // that reason -- but used to stop right there, never actually
+    // attacking with the Pokémon it just paid a retreat cost to bring in.
+    // canRetreat's own retreatedThisTurn check already prevents this from
+    // ever firing on top of the proactive retreat above (real rules: only
+    // 1 retreat per turn), so re-evaluating `best` against the new p.active
+    // below is always evaluating a genuinely different Pokémon, not a
+    // second retreat.
+    if (!best || !canAttack(state, playerId, best.name)) {
+      var firstBenched = p.bench.filter(function (b) { return b; })[0];
+      if (firstBenched && canRetreat(state, playerId, firstBenched.id)) {
+        var betterBench = difficulty === 'easy'
+          ? p.bench.find(function (b) { return b && aiBestAffordableAttack(b) !== null; })
+          : p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active) !== null; });
+        if (betterBench) {
+          retreat(state, playerId, betterBench.id);
+          best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active);
+        }
+      }
+    }
     if (best && canAttack(state, playerId, best.name)) {
       attack(state, playerId, best.name);
       return;
-    }
-    var firstBenched = p.bench.filter(function (b) { return b; })[0];
-    if (firstBenched && canRetreat(state, playerId, firstBenched.id)) {
-      var betterBench = difficulty === 'easy'
-        ? p.bench.find(function (b) { return b && aiBestAffordableAttack(b) !== null; })
-        : p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active) !== null; });
-      if (betterBench) { retreat(state, playerId, betterBench.id); }
     }
   }
   // The CPU's own turn genuinely, immediately ends here (no click involved,

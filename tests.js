@@ -646,6 +646,25 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   }).length, 9);
 })();
 
+(function testEnergyRemovalLetsPlayerChooseWhichEnergy() {
+  // Real reported bug: Energy Removal never let the player pick WHICH of
+  // the opponent's attached energy types to discard -- always index 0,
+  // regardless of what the player actually chose in the modal.
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  state.activePlayerId = pid;
+  var p = state.players[pid];
+  var cpu = state.players.cpu;
+  cpu.active = { id: 'ca1', name: 'Machop', attachedEnergy: ['Water', 'Fighting'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.hand = [{ id: 'h1', name: 'Energy Removal' }];
+  TRAINER_EFFECTS['Energy Removal'](state, pid, 'h1', cpu.active.id, 1);
+  check('Energy Removal removes the specific energyIndex chosen, not always index 0', cpu.active.attachedEnergy, ['Water']);
+
+  p.hand = [{ id: 'h2', name: 'Energy Removal' }];
+  TRAINER_EFFECTS['Energy Removal'](state, pid, 'h2', cpu.active.id, 0);
+  check('an explicit energyIndex of 0 still works (and omitting it defaults there too)', cpu.active.attachedEnergy, []);
+})();
+
 (function testTrainerEffectsInvalidHandId() {
   // Test that invalid handId fails cleanly without corrupting hand
   var state = createGame(function () { return 0.42; });
@@ -1623,6 +1642,41 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   cpuTakeTurn(state, 'hard');
   check('retreated to Beedrill instead of attacking with the doomed Squirtle', state.players.cpu.active.id, beedrill.id);
   checkTrue('Beedrill also attacked this same turn instead of the turn just ending on the retreat', op.active.damage > 0);
+})();
+
+(function testCpuTakeTurnAttacksAfterARetreatToFindAnAttacker() {
+  // Real reported bug: distinct from the proactive-retreat path above
+  // (which only fires on 'normal'/'hard' when staying Active risks a KO) --
+  // this is the OTHER retreat path, which fires on ANY difficulty whenever
+  // the current Active simply can't attack at all and hunts the Bench for
+  // one that can. It used to retreat there (paying the real cost) and then
+  // just end the turn without ever attacking with the Pokémon it just paid
+  // to bring in.
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'rr_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  var state = createGame(function () { return 0.9; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  var op = state.players.player;
+  // Machop's retreat cost is 1 (any type, just a count) -- paid here by 1
+  // Grass Energy -- but its only attack, Low Kick, needs Fighting
+  // specifically, which it doesn't have, so it genuinely can't attack.
+  p.active = mk('Machop', { attachedEnergy: ['Grass'] });
+  // Chansey: 120 HP, not Grass-weak -- survives Beedrill's 40-damage Poison
+  // Sting so op.active is still there afterward to assert on (a lower-HP
+  // defender here would get KO'd with no Bench to promote, and the
+  // assertion below would throw on a null op.active instead of failing
+  // cleanly).
+  op.active = mk('Chansey', { attachedEnergy: [] });
+  var beedrill = mk('Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  p.bench = [beedrill, null, null, null, null];
+  op.bench = [null, null, null, null, null];
+  p.hand = [];
+  op.hand = [];
+  cpuTakeTurn(state, 'easy');
+  check('retreats (paying the real cost) specifically to reach a Bench Pokémon that can attack', state.players.cpu.active.id, beedrill.id);
+  checkTrue('Beedrill actually attacks the same turn instead of the turn just ending on the retreat alone', op.active.damage > 0);
 })();
 
 (function testCpuTakeTurnDefaultsToEasy() {

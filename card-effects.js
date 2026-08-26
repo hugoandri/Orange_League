@@ -194,7 +194,13 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
   return { legal: true };
 };
 
-TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentInstanceId) {
+// energyIndex (optional): which of the target's attachedEnergy indices the
+// player chose to remove (see ui.js's energy-discard modal, same pattern
+// already used by Super Potion/Super Energy Removal) -- real card text is
+// "Choose 1 Energy card attached to 1 of your opponent's Pokémon", a genuine
+// choice whenever more than one type is attached. Defaults to index 0 for
+// callers that don't care (ai.js's CPU usage, tests).
+TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentInstanceId, energyIndex) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -205,7 +211,8 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
-  var removedEnergy = target.attachedEnergy.splice(0, 1);
+  var removeIdx = (typeof energyIndex === 'number' && energyIndex >= 0 && energyIndex < target.attachedEnergy.length) ? energyIndex : 0;
+  var removedEnergy = target.attachedEnergy.splice(removeIdx, 1);
   removedEnergy.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };

@@ -446,7 +446,15 @@ function showCardInViewer(name, instanceId) {
       : '';
     bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
   } else {
-    bodyHtml = '<div class="shell-board-viewer-identity"><div class="shell-board-viewer-identity-name">' + escapeHtml(translateCardName(name)) + '</div></div>';
+    // Trainer/Energy cards: the title stays in its real printed (English)
+    // name here -- unlike the deck list/hand label, which do translate it
+    // -- per explicit user request, since the card art right above it is
+    // also printed in English and a translated title next to it read as
+    // inconsistent. The effect text itself (translateTrainerText) was
+    // simply missing before -- this view showed the name and nothing else.
+    var trainerText = translateTrainerText(name);
+    bodyHtml = '<div class="shell-board-viewer-identity"><div class="shell-board-viewer-identity-name">' + escapeHtml(name) + '</div></div>' +
+      (trainerText ? '<div class="shell-board-viewer-note">' + escapeHtml(trainerText) + '</div>' : '');
   }
 
   document.getElementById('cardViewer').innerHTML = frameHtml + bodyHtml;
@@ -2073,6 +2081,7 @@ function wireBoardButtons() {
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
       var superPotionTarget = handCard.name === 'Super Potion' ? findInstance(p, instanceId) : null;
+      var energyRemovalTarget = handCard.name === 'Energy Removal' ? findInstance(gameState.players.cpu, instanceId) : null;
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
         playBasic(gameState, 'player', selectedHandId);
       } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
@@ -2092,6 +2101,19 @@ function wireBoardButtons() {
         selectedHandId = null;
         openEnergyDiscardModal(superPotionTarget.attachedEnergy.slice(), 1, function (indices) {
           var result = TRAINER_EFFECTS['Super Potion'](gameState, 'player', superPotionHandId, instanceId, indices[0]);
+          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+          renderBoard();
+        });
+        return;
+      } else if (energyRemovalTarget && energyRemovalTarget.attachedEnergy.length > 0) {
+        // Real card text: "Choose 1 Energy card attached to 1 of your
+        // opponent's Pokémon" -- same choice-of-which-energy pattern as
+        // Super Potion above, just targeting the rival's Pokémon instead
+        // of the player's own.
+        var energyRemovalHandId = selectedHandId;
+        selectedHandId = null;
+        openEnergyDiscardModal(energyRemovalTarget.attachedEnergy.slice(), 1, function (indices) {
+          var result = TRAINER_EFFECTS['Energy Removal'](gameState, 'player', energyRemovalHandId, instanceId, indices[0]);
           if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
           renderBoard();
         });
