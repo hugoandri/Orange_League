@@ -248,11 +248,12 @@ exports.updateProfile = onCall(async (request) => {
   return result;
 });
 
-// 'overgrowth', 'blackout', and 'zap' are the real, player-usable decks
-// (see DECKLISTS in data-decks.js on the client) -- rejecting anything
-// else keeps this field from ever holding a deck the game can't actually
-// load, even if a client bug let the UI send something else.
-const VALID_DECK_KEYS = ['overgrowth', 'blackout', 'zap'];
+// 'overgrowth', 'blackout', 'zap', and 'brushfire' are the real,
+// player-usable decks (see DECKLISTS in data-decks.js on the client) --
+// rejecting anything else keeps this field from ever holding a deck the
+// game can't actually load, even if a client bug let the UI send
+// something else.
+const VALID_DECK_KEYS = ['overgrowth', 'blackout', 'zap', 'brushfire'];
 
 exports.updateActiveDeck = onCall(async (request) => {
   if (!request.auth) {

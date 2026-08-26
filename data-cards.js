@@ -905,5 +905,192 @@ const CARD_STATS = {
   },
   "Psychic Energy": {
     "supertype": "Energy"
+  },
+  "Ninetales": {
+    "supertype": "Pokémon",
+    "hp": 80,
+    "types": ["Fire"],
+    "evolvesFrom": "Vulpix",
+    "attacks": [
+      {
+        "name": "Lure",
+        "cost": ["Colorless", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "0",
+        "text": "If your opponent has any Benched Pokémon, choose 1 of them and switch it with the Defending Pokémon."
+      },
+      {
+        "name": "Fire Blast",
+        "cost": ["Fire", "Fire", "Fire", "Fire"],
+        "convertedEnergyCost": 4,
+        "damage": "80",
+        "text": "Discard 1 Fire Energy card attached to Ninetales in order to use this attack."
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Arcanine": {
+    "supertype": "Pokémon",
+    "hp": 100,
+    "types": ["Fire"],
+    "evolvesFrom": "Growlithe",
+    "attacks": [
+      {
+        "name": "Flamethrower",
+        "cost": ["Fire", "Fire", "Colorless"],
+        "convertedEnergyCost": 3,
+        "damage": "50",
+        "text": "Discard 1 Fire Energy card attached to Arcanine in order to use this attack."
+      },
+      {
+        "name": "Take Down",
+        "cost": ["Fire", "Fire", "Colorless", "Colorless"],
+        "convertedEnergyCost": 4,
+        "damage": "80",
+        "text": "Arcanine does 30 damage to itself."
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 3
+  },
+  "Charmeleon": {
+    "supertype": "Pokémon",
+    "hp": 80,
+    "types": ["Fire"],
+    "evolvesFrom": "Charmander",
+    "attacks": [
+      {
+        "name": "Slash",
+        "cost": ["Colorless", "Colorless", "Colorless"],
+        "convertedEnergyCost": 3,
+        "damage": "30",
+        "text": ""
+      },
+      {
+        "name": "Flamethrower",
+        "cost": ["Fire", "Fire", "Colorless"],
+        "convertedEnergyCost": 3,
+        "damage": "50",
+        "text": "Discard 1 Fire Energy card attached to Charmeleon in order to use this attack."
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Growlithe": {
+    "supertype": "Pokémon",
+    "hp": 60,
+    "types": ["Fire"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Flare",
+        "cost": ["Fire", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "20",
+        "text": ""
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Nidoran ♂": {
+    "supertype": "Pokémon",
+    "hp": 40,
+    "types": ["Grass"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Horn Hazard",
+        "cost": ["Grass"],
+        "convertedEnergyCost": 1,
+        "damage": "30",
+        "text": "Flip a coin. If tails, this attack does nothing."
+      }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Tangela": {
+    "supertype": "Pokémon",
+    "hp": 50,
+    "types": ["Grass"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Bind",
+        "cost": ["Grass", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "20",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Paralyzed."
+      },
+      {
+        "name": "Poisonpowder",
+        "cost": ["Grass", "Grass", "Grass"],
+        "convertedEnergyCost": 3,
+        "damage": "20",
+        "text": "The Defending Pokémon is now Poisoned."
+      }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 2
+  },
+  "Vulpix": {
+    "supertype": "Pokémon",
+    "hp": 50,
+    "types": ["Fire"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Confuse Ray",
+        "cost": ["Fire", "Fire"],
+        "convertedEnergyCost": 2,
+        "damage": "10",
+        "text": "Flip a coin. If heads, the Defending Pokémon is now Confused."
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Charmander": {
+    "supertype": "Pokémon",
+    "hp": 50,
+    "types": ["Fire"],
+    "evolvesFrom": null,
+    "attacks": [
+      {
+        "name": "Scratch",
+        "cost": ["Colorless"],
+        "convertedEnergyCost": 1,
+        "damage": "10",
+        "text": ""
+      },
+      {
+        "name": "Ember",
+        "cost": ["Fire", "Colorless"],
+        "convertedEnergyCost": 2,
+        "damage": "30",
+        "text": "Discard 1 Fire Energy card attached to Charmander in order to use this attack."
+      }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }],
+    "resistances": [],
+    "retreatCost": 1
+  },
+  "Lass": {
+    "supertype": "Trainer",
+    "text": "You and your opponent show each other your hands, then shuffle all the Trainer cards from your hands into your decks."
+  },
+  "Energy Retrieval": {
+    "supertype": "Trainer",
+    "text": "Trade 1 of the other cards in your hand for up to 2 basic Energy cards from your discard pile."
   }
 };

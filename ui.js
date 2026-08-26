@@ -209,6 +209,7 @@ function preloadCardImages() {
   urls['Mazos/overgrowth.png'] = true;
   urls['Mazos/blackout.png'] = true;
   urls['Mazos/zap.jpg'] = true;
+  urls['Mazos/brushfire.jpg'] = true;
   Object.keys(urls).forEach(function (url) { var img = new Image(); img.src = url; });
 }
 
@@ -282,7 +283,7 @@ function cardImageTag(name, cls, isHolo) {
 // choose either deck (see the Decks screen), and the CPU always plays
 // whichever one they didn't pick, so either side can end up with either
 // card.
-var DECK_HOLO_CARD = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo' };
+var DECK_HOLO_CARD = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo', brushfire: 'Ninetales' };
 function isHoloInMatch(ownerId, cardName) {
   var p = gameState && gameState.players[ownerId];
   return !!(p && DECK_HOLO_CARD[p.deckKey] === cardName);
@@ -416,7 +417,17 @@ function showCardInViewer(name, instanceId) {
     document.querySelectorAll('#cardViewer .shell-board-viewer-attack.actionable').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var atkName = btn.getAttribute('data-attack-name');
-        if (canAttack(gameState, 'player', atkName)) { attack(gameState, 'player', atkName); afterPlayerAction(); }
+        if (!canAttack(gameState, 'player', atkName)) { return; }
+        if (atkName === 'Lure') {
+          // Needs a chosen rival Bench Pokémon -- arm target-selection
+          // mode instead of firing immediately (see the Bench/Active
+          // click handler in wireBoardButtons for the other half of this).
+          pendingAttackNeedingTarget = atkName;
+          showTargetHintModal('Elige un Pokémon de la Banca del Rival');
+          return;
+        }
+        attack(gameState, 'player', atkName);
+        afterPlayerAction();
       });
     });
   }
@@ -547,6 +558,13 @@ var pendingTurnFlash = null;
 // checkup it just ran left a prize or new-Active choice open for the
 // player -- see hasPendingPlayerChoice/maybeResumeCpuTurn.
 var cpuTurnAwaitingPlayerChoice = false;
+// Set to an attack name while the player has clicked an attack that needs
+// a chosen target (Ninetales' Lure is the only real one) and is waiting
+// for a rival Bench click -- module-level (not scoped inside a single
+// function, unlike selectedHandId/retreatMode in wireBoardButtons) since
+// the attack button lives in showCardInViewer, a different function
+// entirely, and this needs to survive whatever renders happen in between.
+var pendingAttackNeedingTarget = null;
 // #turnFlashOverlay is position:fixed at the page level (so it renders
 // above any modal, e.g. #activeChoiceModal after a KO -- see the CSS
 // comment), so it needs its own top/left/width/height set here to still
@@ -669,6 +687,44 @@ function renderHandDiscardModal() {
     });
   });
   document.getElementById('handDiscardConfirm').disabled = s.selected.length !== s.count;
+}
+
+// Energy Retrieval: choose UP TO 2 (0, 1, or 2 -- unlike every other
+// discard/search picker here, this is a real "as many as you want, capped
+// at 2" choice, not a fixed count) basic Energy cards from the player's
+// own discard pile. Confirm is always enabled, even at 0 selected.
+var energyRetrievalState = null;
+function openEnergyRetrievalModal(cards, onConfirm) {
+  energyRetrievalState = { cards: cards, selected: [], onConfirm: onConfirm };
+  renderEnergyRetrievalModal();
+  document.getElementById('energyRetrievalModal').classList.remove('hidden');
+}
+function closeEnergyRetrievalModal() {
+  document.getElementById('energyRetrievalModal').classList.add('hidden');
+  energyRetrievalState = null;
+}
+function renderEnergyRetrievalModal() {
+  var s = energyRetrievalState;
+  document.getElementById('energyRetrievalPrompt').textContent =
+    'Elige hasta 2 cartas de Energía para recuperar (' + s.selected.length + '/2)';
+  var grid = document.getElementById('energyRetrievalGrid');
+  grid.innerHTML = s.cards.map(function (card) {
+    var selected = s.selected.indexOf(card.id) !== -1;
+    return '<div class="shell-energy-discard-option' + (selected ? ' selected' : '') + '" data-discard-card-id="' + card.id + '">' +
+      cardImageTag(card.name, '') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
+  }).join('');
+  grid.querySelectorAll('[data-discard-card-id]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var id = el.getAttribute('data-discard-card-id');
+      var pos = s.selected.indexOf(id);
+      if (pos !== -1) {
+        s.selected.splice(pos, 1);
+      } else if (s.selected.length < 2) {
+        s.selected.push(id);
+      }
+      renderEnergyRetrievalModal();
+    });
+  });
 }
 
 // Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
@@ -1404,7 +1460,7 @@ function wireBoardButtons() {
         // card instead of silently entering target-selection mode the
         // instant the card is clicked. Energy is drag-and-drop only now (see
         // handBandHtml/resolveHandDrop) -- no menu, no click-to-select.
-        var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak';
+        var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak' || handCard.name === 'Lass';
         showHandCardMenu(btn, 'USAR', function () {
           if (isNoTargetTrainer) {
             var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
@@ -1427,6 +1483,26 @@ function wireBoardButtons() {
             openHandDiscardModal(otherHandCards, 2, function (discardHandIds) {
               openDeckSearchModal(p.deck.slice(), function (deckCardId) {
                 var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId, discardHandIds);
+                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+                selectedHandId = null;
+                renderBoard();
+              });
+            });
+          } else if (handCard.name === 'Energy Retrieval') {
+            // Two steps: trade 1 OTHER hand card as the cost, then choose
+            // UP TO 2 (0, 1, or 2 -- a real choice, not a fixed count) basic
+            // Energy cards from your own discard pile.
+            var otherHandCardsForTrade = p.hand.filter(function (c) { return c.id !== handId; });
+            if (otherHandCardsForTrade.length < 1) {
+              logEvent(gameState, 'No tienes otra carta para cambiar -- no puedes jugar Recuperar Energía', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openHandDiscardModal(otherHandCardsForTrade, 1, function (tradeIds) {
+              var basicEnergyInDiscard = p.discard.filter(function (c) { return ENERGY_TYPE_BY_CARD_NAME.hasOwnProperty(c.name); });
+              openEnergyRetrievalModal(basicEnergyInDiscard, function (retrieveIds) {
+                var result = TRAINER_EFFECTS['Energy Retrieval'](gameState, 'player', handId, tradeIds[0], retrieveIds);
                 if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
                 selectedHandId = null;
                 renderBoard();
@@ -1579,6 +1655,18 @@ function wireBoardButtons() {
         } else {
           renderBoard();
         }
+        return;
+      }
+      if (pendingAttackNeedingTarget === 'Lure') {
+        var onCpuBenchForLure = gameState.players.cpu.bench.some(function (b) { return b && b.id === instanceId; });
+        if (!onCpuBenchForLure) {
+          logEvent(gameState, 'Elige un Pokémon de la Banca del Rival', 'player');
+          renderBoard();
+          return;
+        }
+        pendingAttackNeedingTarget = null;
+        attack(gameState, 'player', 'Lure', instanceId);
+        afterPlayerAction();
         return;
       }
       if (!selectedHandId) { return; }
@@ -2315,7 +2403,7 @@ function deckComposition(deckKey) {
 // doesn't silently fall through to the wrong name (this exact bug: Zap!
 // used to render as "OVERGROWTH" here before this map existed, since the
 // old check was only ever deckKey==='blackout'?'BLACKOUT':'OVERGROWTH').
-var DECK_DISPLAY_NAME = { overgrowth: 'OVERGROWTH', blackout: 'BLACKOUT', zap: 'ZAP!' };
+var DECK_DISPLAY_NAME = { overgrowth: 'OVERGROWTH', blackout: 'BLACKOUT', zap: 'ZAP!', brushfire: 'BRUSHFIRE' };
 function renderDeckDetail(deckKey) {
   var nameEl = document.getElementById('deckDetailName');
   if (nameEl) { nameEl.textContent = DECK_DISPLAY_NAME[deckKey] || deckKey.toUpperCase(); }
@@ -2343,7 +2431,7 @@ function renderDeckDetail(deckKey) {
   // Same real Rare Holo this deck guarantees in an actual match (see
   // DECK_HOLO_CARD/isHoloInMatch) -- keyed by deckKey here instead of
   // ownerId since this screen shows a decklist, not a live gameState side.
-  var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo' }[deckKey];
+  var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo', brushfire: 'Ninetales' }[deckKey];
   var html = expandDecklist(DECKLISTS[deckKey]).map(function (card) {
     var img = CARD_IMAGE_BY_NAME[card.name] || '';
     var holo = card.name === deckHoloCard;
@@ -2875,6 +2963,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var ids = s.selected.slice();
     var onConfirm = s.onConfirm;
     closeHandDiscardModal();
+    onConfirm(ids);
+  });
+
+  document.getElementById('energyRetrievalCancel').addEventListener('click', closeEnergyRetrievalModal);
+  document.querySelector('#energyRetrievalModal .card-modal-backdrop').addEventListener('click', closeEnergyRetrievalModal);
+  document.getElementById('energyRetrievalConfirm').addEventListener('click', function () {
+    var s = energyRetrievalState;
+    if (!s) { return; }
+    var ids = s.selected.slice();
+    var onConfirm = s.onConfirm;
+    closeEnergyRetrievalModal();
     onConfirm(ids);
   });
 

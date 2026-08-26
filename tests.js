@@ -79,14 +79,15 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 
 (function testCreateGameCpuDeckIsRandomAmongTheOthers() {
   // The CPU's deck pick consumes one rng() call, before either side's own
-  // shuffle -- with 3 real decks (overgrowth/blackout/zap) and the player
-  // on overgrowth, otherDeckKeys is ['blackout', 'zap'] in that order
-  // (Object.keys preserves insertion order), so rng() just below 0.5 picks
-  // index 0 (blackout) and rng() at/above 0.5 picks index 1 (zap).
+  // shuffle -- with 4 real decks (overgrowth/blackout/zap/brushfire) and
+  // the player on overgrowth, otherDeckKeys is ['blackout', 'zap',
+  // 'brushfire'] in that order (Object.keys preserves insertion order),
+  // so rng() near 0 picks index 0 (blackout) and rng() near 1 picks the
+  // last index, 2 (brushfire).
   var lowState = createGame(function () { return 0.1; }, 'overgrowth');
   check('a low rng roll picks the first other deck for the cpu', lowState.players.cpu.deckKey, 'blackout');
   var highState = createGame(function () { return 0.9; }, 'overgrowth');
-  check('a high rng roll picks the last other deck for the cpu', highState.players.cpu.deckKey, 'zap');
+  check('a high rng roll picks the last other deck for the cpu', highState.players.cpu.deckKey, 'brushfire');
 })();
 
 (function testStartMatchFlipsCoinAndBeginsPlay() {
@@ -838,6 +839,150 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Thunder Jolt does not self-damage on heads', pikachu.damage, 0);
 })();
 
+(function testBrushfireAttackEffects() {
+  var state = createGame(function () { return 0.0; }); // coinFlip always 'H' (heads)
+  var mkP = function (name, extra) {
+    var base = { id: 'bf_' + name, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+    return Object.assign(base, extra || {});
+  };
+
+  // Ninetales' Fire Blast: discards its own Fire energy, deals 80 --
+  // Machop (Fighting, weak to Psychic, not Fire) so weakness doesn't
+  // double the damage and muddy this specific check.
+  var ninetales = mkP('Ninetales', { attachedEnergy: ['Fire', 'Fire'] }); var t1 = mkP('Machop');
+  ATTACK_EFFECTS['Ninetales']['Fire Blast'](state, ninetales, t1, null, 'player');
+  check('Fire Blast deals 80', t1.damage, 80);
+  check('Fire Blast discards 1 Fire Energy', ninetales.attachedEnergy.length, 1);
+
+  // Ninetales' Lure: swaps the chosen rival Bench Pokémon into Active
+  var state2 = createGame(function () { return 0.0; });
+  state2.activePlayerId = 'player';
+  var p2 = state2.players.player; var op2 = state2.players.cpu;
+  p2.active = mkP('Ninetales');
+  op2.active = mkP('Machop', { id: 'opActive' });
+  op2.bench = [mkP('Onix', { id: 'opBench1' }), null, null, null, null];
+  ATTACK_EFFECTS['Ninetales']['Lure'](state2, p2.active, op2.active, null, 'player', 'opBench1');
+  check('Lure pulls the chosen Bench Pokémon into Active', op2.active.id, 'opBench1');
+  checkTrue('Lure sends the old Active to the vacated Bench slot', op2.bench.some(function (b) { return b && b.id === 'opActive'; }));
+
+  // Arcanine's Flamethrower: discards Fire energy, 50 dmg
+  var arcanine = mkP('Arcanine', { attachedEnergy: ['Fire'] }); var t2 = mkP('Machop');
+  ATTACK_EFFECTS['Arcanine']['Flamethrower'](state, arcanine, t2, null, 'player');
+  check('Arcanine Flamethrower deals 50', t2.damage, 50);
+  check('Arcanine Flamethrower discards the Fire Energy', arcanine.attachedEnergy.length, 0);
+
+  // Arcanine's Take Down: 80 to defender, 30 to self (unconditional, no coin flip)
+  var arcanine2 = mkP('Arcanine'); var t3 = mkP('Machop');
+  ATTACK_EFFECTS['Arcanine']['Take Down'](state, arcanine2, t3);
+  check('Take Down deals 80 to the defender', t3.damage, 80);
+  check('Take Down deals 30 to self', arcanine2.damage, 30);
+
+  // Charmeleon's Flamethrower: same discard mechanic, different Pokémon
+  var charmeleon = mkP('Charmeleon', { attachedEnergy: ['Fire'] }); var t4 = mkP('Machop');
+  ATTACK_EFFECTS['Charmeleon']['Flamethrower'](state, charmeleon, t4, null, 'player');
+  check('Charmeleon Flamethrower deals 50', t4.damage, 50);
+  check('Charmeleon Flamethrower discards the Fire Energy', charmeleon.attachedEnergy.length, 0);
+
+  // Nidoran♂'s Horn Hazard: 30 dmg on heads (rng=0 => always heads)
+  var nidoran = mkP('Nidoran ♂'); var t5b = mkP('Abra');
+  ATTACK_EFFECTS['Nidoran ♂']['Horn Hazard'](state, nidoran, t5b);
+  check('Horn Hazard deals 30 on heads', t5b.damage, 30);
+
+  // Tangela's Bind: 20 dmg + coin flip paralyze
+  var tangela = mkP('Tangela'); var t6 = mkP('Abra');
+  ATTACK_EFFECTS['Tangela']['Bind'](state, tangela, t6);
+  check('Bind deals 20', t6.damage, 20);
+  checkTrue('Bind paralyzes on heads', hasStatus(t6, 'Paralyzed'));
+
+  // Tangela's Poisonpowder: unconditional poison, 20 dmg
+  var tangela2 = mkP('Tangela'); var t7 = mkP('Abra');
+  ATTACK_EFFECTS['Tangela']['Poisonpowder'](state, tangela2, t7);
+  check('Poisonpowder deals 20', t7.damage, 20);
+  checkTrue('Poisonpowder always poisons', hasStatus(t7, 'Poisoned'));
+
+  // Vulpix's Confuse Ray: 10 dmg + coin flip confuse
+  var vulpix = mkP('Vulpix'); var t8 = mkP('Abra');
+  ATTACK_EFFECTS['Vulpix']['Confuse Ray'](state, vulpix, t8);
+  check('Vulpix Confuse Ray deals 10', t8.damage, 10);
+  checkTrue('Vulpix Confuse Ray confuses on heads', hasStatus(t8, 'Confused'));
+
+  // Charmander's Ember: discards Fire energy, 30 dmg
+  var charmander = mkP('Charmander', { attachedEnergy: ['Fire'] }); var t9 = mkP('Abra');
+  ATTACK_EFFECTS['Charmander']['Ember'](state, charmander, t9, null, 'player');
+  check('Ember deals 30', t9.damage, 30);
+  check('Ember discards the Fire Energy', charmander.attachedEnergy.length, 0);
+})();
+
+(function testHornHazardDoesNothingOnTails() {
+  var state = createGame(function () { return 0.99; }); // coinFlip always 'T' (tails)
+  var nidoran = { id: 'n1', name: 'Nidoran ♂', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  var defender = { id: 'd1', name: 'Abra', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  ATTACK_EFFECTS['Nidoran ♂']['Horn Hazard'](state, nidoran, defender);
+  check('Horn Hazard does nothing on tails', defender.damage, 0);
+})();
+
+(function testLureWithNoRivalBenchDoesNothing() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player; var op = state.players.cpu;
+  p.active = { id: 'nt1', name: 'Ninetales', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  op.active = { id: 'oa1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  op.bench = [null, null, null, null, null];
+  ATTACK_EFFECTS['Ninetales']['Lure'](state, p.active, op.active, null, 'player', 'not-a-real-id');
+  check('Lure with no matching Bench target changes nothing', op.active.id, 'oa1');
+})();
+
+(function testLassShufflesTrainersFromBothHands() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player; var op = state.players.cpu;
+  p.hand = [{ id: 'h1', name: 'Lass' }, { id: 'h2', name: 'Bill' }, { id: 'h3', name: 'Bulbasaur' }];
+  op.hand = [{ id: 'o1', name: 'Potion' }, { id: 'o2', name: 'Charmander' }];
+  p.deck = []; op.deck = [];
+  var result = TRAINER_EFFECTS['Lass'](state, 'player', 'h1');
+  checkTrue('Lass resolves legally', result.legal);
+  check('Lass card itself lands in the discard pile', p.discard.some(function (c) { return c.name === 'Lass'; }), true);
+  checkTrue('the player\'s Trainer (Bill) leaves their hand', !p.hand.some(function (c) { return c.name === 'Bill'; }));
+  checkTrue('the player\'s non-Trainer (Bulbasaur) stays in hand', p.hand.some(function (c) { return c.name === 'Bulbasaur'; }));
+  checkTrue('the opponent\'s Trainer (Potion) leaves their hand', !op.hand.some(function (c) { return c.name === 'Potion'; }));
+  checkTrue('the opponent\'s non-Trainer (Charmander) stays in hand', op.hand.some(function (c) { return c.name === 'Charmander'; }));
+  checkTrue('Bill got shuffled into the player\'s own deck', p.deck.some(function (c) { return c.name === 'Bill'; }));
+  checkTrue('Potion got shuffled into the opponent\'s own deck', op.deck.some(function (c) { return c.name === 'Potion'; }));
+})();
+
+(function testEnergyRetrieval() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Energy Retrieval' }, { id: 'h2', name: 'Bill' }];
+  p.discard = [{ id: 'e1', name: 'Fire Energy' }, { id: 'e2', name: 'Grass Energy' }, { id: 'e3', name: 'Fire Energy' }];
+  var result = TRAINER_EFFECTS['Energy Retrieval'](state, 'player', 'h1', 'h2', ['e1', 'e2']);
+  checkTrue('Energy Retrieval resolves legally', result.legal);
+  check('Energy Retrieval card lands in the discard pile', p.discard.some(function (c) { return c.name === 'Energy Retrieval'; }), true);
+  check('the traded hand card lands in the discard pile', p.discard.some(function (c) { return c.id === 'h2'; }), true);
+  checkTrue('both chosen Energy cards land in hand', p.hand.some(function (c) { return c.id === 'e1'; }) && p.hand.some(function (c) { return c.id === 'e2'; }));
+  checkTrue('the un-chosen Fire Energy (e3) stays in the discard pile', p.discard.some(function (c) { return c.id === 'e3'; }));
+
+  // "up to 2" allows retrieving 0 or 1 too.
+  var state2 = createGame(function () { return 0.42; });
+  state2.activePlayerId = 'player';
+  var p2 = state2.players.player;
+  p2.hand = [{ id: 'h1', name: 'Energy Retrieval' }, { id: 'h2', name: 'Bill' }];
+  p2.discard = [];
+  var zeroResult = TRAINER_EFFECTS['Energy Retrieval'](state2, 'player', 'h1', 'h2', []);
+  checkTrue('retrieving 0 Energy cards is legal', zeroResult.legal);
+
+  // Rejects trying to retrieve a non-basic-Energy card (e.g. a Pokémon or
+  // Trainer that happens to be sitting in the discard pile).
+  var state3 = createGame(function () { return 0.42; });
+  state3.activePlayerId = 'player';
+  var p3 = state3.players.player;
+  p3.hand = [{ id: 'h1', name: 'Energy Retrieval' }, { id: 'h2', name: 'Bill' }];
+  p3.discard = [{ id: 'x1', name: 'Bulbasaur' }];
+  var badResult = TRAINER_EFFECTS['Energy Retrieval'](state3, 'player', 'h1', 'h2', ['x1']);
+  checkTrue('trying to retrieve a non-Energy card is rejected', !badResult.legal);
+})();
+
 (function testThunderJoltSelfDamageOnTails() {
   var state = createGame(function () { return 0.99; }); // coinFlip always 'T' (tails)
   var pikachu = { id: 'pk1', name: 'Pikachu', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
@@ -1502,13 +1647,14 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
     for (var g = 0; g < GAMES; g++) {
       var seed = g;
       var baseRng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
-      // otherDeckKeys for playerDeckKey='overgrowth' is ['blackout', 'zap']
-      // (Object.keys insertion order) -- force index 1 on the very first
-      // rng() call (createGame's own CPU-deck pick) by wrapping it, then
-      // fall through to the real seeded sequence for everything after.
+      // otherDeckKeys for playerDeckKey='overgrowth' is ['blackout', 'zap',
+      // 'brushfire'] (Object.keys insertion order) -- force index 1
+      // (zap) on the very first rng() call (createGame's own CPU-deck
+      // pick) by wrapping it, then fall through to the real seeded
+      // sequence for everything after. Math.floor(0.5*3)=1.
       var firstCall = true;
       var rng = function () {
-        if (firstCall) { firstCall = false; return 0.99; }
+        if (firstCall) { firstCall = false; return 0.5; }
         return baseRng();
       };
       var state = createGame(rng, 'overgrowth');
@@ -1532,6 +1678,52 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
       if (winner) { completed++; }
     }
     check('all scripted zap-vs-overgrowth ' + difficulty + ' games reached a winner', completed, GAMES);
+  });
+})();
+
+(function testScriptedBrushfireVsOvergrowthStability() {
+  // Forces the CPU onto Brushfire specifically so its content -- Ninetales'
+  // Lure (the one real attack needing a chosen target), Arcanine's Take
+  // Down (self-damage that can now KO the attacker immediately, see the
+  // Pikachu self-KO fix), the discard-Fire-Energy attacks, Nidoran's
+  // Horn Hazard -- all gets exercised through real full games without
+  // throwing or hanging, at both difficulties CPU AI actually runs at.
+  ['normal', 'hard'].forEach(function (difficulty) {
+    var GAMES = 5;
+    var TURN_CAP = 400;
+    var completed = 0;
+    for (var g = 0; g < GAMES; g++) {
+      var seed = g;
+      var baseRng = (function (s) { return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; })(seed + 1);
+      // otherDeckKeys for playerDeckKey='overgrowth' is ['blackout', 'zap',
+      // 'brushfire'] -- force index 2 (brushfire) on the very first rng()
+      // call. Math.floor(0.9*3)=2.
+      var firstCall = true;
+      var rng = function () {
+        if (firstCall) { firstCall = false; return 0.9; }
+        return baseRng();
+      };
+      var state = createGame(rng, 'overgrowth');
+      check('cpu is really on brushfire for this scripted game', state.players.cpu.deckKey, 'brushfire');
+      aiSetupBoard(state, 'player');
+      aiSetupBoard(state, 'cpu');
+      startMatch(state);
+      var turns = 0;
+      var winner = null;
+      while (!winner && turns < TURN_CAP) {
+        cpuTakeTurn(state, difficulty);
+        while (state.pendingPrizeChoice) {
+          var pid = state.pendingPrizeChoice.playerId;
+          var idx = state.players[pid].prizes.findIndex(function (c) { return c; });
+          takePrize(state, pid, idx);
+        }
+        winner = getWinner(state);
+        turns++;
+      }
+      checkTrue('brushfire-vs-overgrowth ' + difficulty + ' game ' + g + ' finished within ' + TURN_CAP + ' turns', turns < TURN_CAP);
+      if (winner) { completed++; }
+    }
+    check('all scripted brushfire-vs-overgrowth ' + difficulty + ' games reached a winner', completed, GAMES);
   });
 })();
 

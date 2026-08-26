@@ -720,6 +720,7 @@
 .shell-deck-card-stripe.deck-overgrowth{background:#62c23c;box-shadow:0 0 14px rgba(98,194,60,.55);}
 .shell-deck-card-stripe.deck-blackout{background:#e8c46a;box-shadow:0 0 14px rgba(232,196,106,.55);}
 .shell-deck-card-stripe.deck-zap{background:#f0d43c;box-shadow:0 0 14px rgba(240,212,60,.55);}
+.shell-deck-card-stripe.deck-brushfire{background:#ff7a3c;box-shadow:0 0 14px rgba(255,122,60,.55);}
 .shell-deck-card-stripe.deck-placeholder{background:#4a4239;}
 .shell-deck-card-art{
   width:82px;height:114px;flex:none;overflow:hidden;background:#0a0806;border:1px solid #0a0806;

@@ -346,7 +346,8 @@ var TRAINER_NAME_ES = {
   'Grass Energy': 'Energía Planta', 'Fighting Energy': 'Energía Lucha',
   'Fire Energy': 'Energía Fuego', 'Lightning Energy': 'Energía Rayo',
   'Psychic Energy': 'Energía Psíquica',
-  'Computer Search': 'Búsqueda Computarizada', 'Defender': 'Defensor'
+  'Computer Search': 'Búsqueda Computarizada', 'Defender': 'Defensor',
+  'Lass': 'Señorita', 'Energy Retrieval': 'Recuperar Energía'
 };
 function translateCardName(name) { return TRAINER_NAME_ES[name] || name; }
 
@@ -364,7 +365,10 @@ var ATTACK_NAME_ES = {
   'Dream Eater': 'Come Sueños', 'Sleeping Gas': 'Gas Somnífero', 'Destiny Bond': 'Lazo del Destino',
   'Pound': 'Golpe', 'Confuse Ray': 'Rayo Confuso', 'Psyshock': 'Psicochoque',
   'Gnaw': 'Mordisqueo', 'Thunder Jolt': 'Chispazo', 'Thunder Wave': 'Onda de Trueno',
-  'Selfdestruct': 'Autodestrucción'
+  'Selfdestruct': 'Autodestrucción',
+  'Lure': 'Señuelo', 'Fire Blast': 'Lanzallamas Explosivo', 'Flamethrower': 'Lanzallamas',
+  'Take Down': 'Derribo', 'Slash': 'Corte', 'Flare': 'Llamarada',
+  'Horn Hazard': 'Cornada Peligrosa', 'Bind': 'Constricción', 'Scratch': 'Arañazo', 'Ember': 'Ascuas'
 };
 function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
 
@@ -400,7 +404,14 @@ var ATTACK_TEXT_ES = {
   'Psyshock': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
   'Thunder Jolt': 'Lanza una moneda. Si es cruz, este Pokémon se hace 10 de daño a sí mismo.',
   'Thunder Wave': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
-  'Selfdestruct': 'Hace 10 de daño a cada Pokémon de la Banca de ambos jugadores (no se aplica Debilidad ni Resistencia a la Banca). Este Pokémon se hace 40 de daño a sí mismo.'
+  'Selfdestruct': 'Hace 10 de daño a cada Pokémon de la Banca de ambos jugadores (no se aplica Debilidad ni Resistencia a la Banca). Este Pokémon se hace 40 de daño a sí mismo.',
+  'Lure': 'Si tu rival tiene algún Pokémon en la Banca, elige 1 e intercámbialo con el Pokémon Defensor.',
+  'Fire Blast': 'Descarta 1 carta de Energía Fuego adjunta a Ninetales para usar este ataque.',
+  'Flamethrower': 'Descarta 1 carta de Energía Fuego adjunta a este Pokémon para usar este ataque.',
+  'Take Down': 'Este Pokémon se hace 30 de daño a sí mismo.',
+  'Horn Hazard': 'Lanza una moneda. Si es cruz, este ataque no hace nada.',
+  'Bind': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Ember': 'Descarta 1 carta de Energía Fuego adjunta a este Pokémon para usar este ataque.'
 };
 function translateAttackText(pokemonName, attackName) {
   var key = pokemonName + '|' + attackName;
@@ -425,7 +436,9 @@ var TRAINER_TEXT_ES = {
   'Super Energy Removal': 'Descarta 1 carta de Energía adjunta a uno de tus Pokémon para elegir 1 Pokémon de tu rival y hasta 2 cartas de Energía adjuntas a él. Descarta esas cartas de Energía.',
   'PlusPower': 'Adjunta Más Potencia a tu Pokémon Activo. Al final de tu turno, descarta Más Potencia. Si el ataque de este Pokémon hace daño al Pokémon Defensor (tras aplicar Debilidad y Resistencia), el ataque hace 10 de daño más al Pokémon Defensor.',
   'Computer Search': 'Descarta 2 cartas de tu mano. (Si no puedes descartar 2 cartas, no puedes jugar esta carta.) Busca en tu mazo la carta que quieras y ponla en tu mano. Luego, baraja tu mazo.',
-  'Defender': 'Adjunta Defensor a uno de tus Pokémon. Al final del próximo turno de tu rival, descarta Defensor. El daño que reciba ese Pokémon por ataques se reduce en 20 (tras aplicar Debilidad y Resistencia).'
+  'Defender': 'Adjunta Defensor a uno de tus Pokémon. Al final del próximo turno de tu rival, descarta Defensor. El daño que reciba ese Pokémon por ataques se reduce en 20 (tras aplicar Debilidad y Resistencia).',
+  'Lass': 'Tú y tu rival se muestran las manos, luego mezclan todas las cartas de Entrenador de sus manos en sus mazos.',
+  'Energy Retrieval': 'Cambia 1 de las otras cartas de tu mano por hasta 2 cartas de Energía básica de tu descarte.'
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
@@ -603,7 +616,11 @@ function canAttack(state, playerId, attackName) {
   return canPayCost(p.active, atk.cost);
 }
 
-function attack(state, playerId, attackName) {
+// targetInstanceId (optional): only meaningful for Ninetales' Lure, the
+// one real Base Set attack that (like a Trainer) needs the player to
+// choose a specific opposing Bench Pokémon -- every other attack always
+// just hits the opponent's current Active, no target needed.
+function attack(state, playerId, attackName, targetInstanceId) {
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -659,7 +676,7 @@ function attack(state, playerId, attackName) {
   var beforeStatus = defender.statusConditions.slice();
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
-    effectFn(state, attacker, defender, atkDef, playerId);
+    effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
   } else {
     var baseDamage = parseInt(atkDef.damage, 10) || 0;
     if (defender) { dealDamage(state, attacker, defender, baseDamage); }

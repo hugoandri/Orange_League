@@ -3,9 +3,10 @@
 //   https://bulbapedia.bulbagarden.net/wiki/Overgrowth_(TCG)
 //   https://bulbapedia.bulbagarden.net/wiki/Blackout_(TCG)
 //   https://bulbapedia.bulbagarden.net/wiki/Zap!_(TCG)
+//   https://bulbapedia.bulbagarden.net/wiki/Brushfire_(TCG)
 // (Overgrowth/Blackout fetched via action=raw wikitext, 2026-08-16; Zap!
-// fetched 2026-08-25 -- Brushfire is real too but not yet added, see the
-// "zap first, brushfire second" phased plan)
+// and Brushfire fetched 2026-08-25 -- all four real Base Set theme decks
+// are now in)
 //
 // Overgrowth: 23 Pokemon + 9 Trainer + 28 Energy = 60
 // Blackout:   24 Pokemon + 8 Trainer + 28 Energy = 60
@@ -23,6 +24,7 @@
 //   impossible real decklist). The itemized row-by-row Bulbapedia listing
 //   (fetched twice, independently, both times agreeing on every card name
 //   and quantity) sums correctly to 60 and is what's used below.
+// Brushfire:  22 Pokemon + 10 Trainer + 28 Energy = 60
 
 const DECKLISTS = {
   overgrowth: [
@@ -81,5 +83,25 @@ const DECKLISTS = {
     { name: "Bill", count: 2 },
     { name: "Lightning Energy", count: 12 },
     { name: "Psychic Energy", count: 16 }
+  ],
+  brushfire: [
+    { name: "Ninetales", count: 1 },
+    { name: "Weedle", count: 4 },
+    { name: "Tangela", count: 2 },
+    { name: "Nidoran ♂", count: 4 },
+    { name: "Arcanine", count: 1 },
+    { name: "Growlithe", count: 2 },
+    { name: "Charmeleon", count: 2 },
+    { name: "Vulpix", count: 2 },
+    { name: "Charmander", count: 4 },
+    { name: "Lass", count: 1 },
+    { name: "PlusPower", count: 1 },
+    { name: "Energy Retrieval", count: 2 },
+    { name: "Switch", count: 1 },
+    { name: "Potion", count: 3 },
+    { name: "Gust of Wind", count: 1 },
+    { name: "Energy Removal", count: 1 },
+    { name: "Grass Energy", count: 10 },
+    { name: "Fire Energy", count: 18 }
   ]
 };

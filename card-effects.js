@@ -219,6 +219,59 @@ TRAINER_EFFECTS['Defender'] = function (state, playerId, handId, ownInstanceId) 
   return { legal: true };
 };
 
+// No target of its own (like Bill/Professor Oak) -- both hands are
+// affected automatically, no choice involved on either side.
+TRAINER_EFFECTS['Lass'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var op = state.players[opponentOf(playerId)];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  [p, op].forEach(function (side) {
+    var trainerIds = side.hand.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Trainer'; }).map(function (c) { return c.id; });
+    trainerIds.forEach(function (id) {
+      var i = side.hand.findIndex(function (c) { return c.id === id; });
+      if (i !== -1) { side.deck.push(side.hand.splice(i, 1)[0]); }
+    });
+    if (trainerIds.length) { side.deck = shuffle(side.deck, state.rng); }
+  });
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Lass'), playerId);
+  return { legal: true };
+};
+
+// tradeHandId: the 1 OTHER hand card paid as the cost (real text: "Trade
+// 1 of the other cards in your hand for up to 2 basic Energy cards from
+// your discard pile"). retrieveDiscardIds: 0-2 basic Energy card ids from
+// the player's own discard pile -- "up to 2" makes this a real choice,
+// not a fixed amount, unlike Super Energy Removal's fixed counts.
+TRAINER_EFFECTS['Energy Retrieval'] = function (state, playerId, handId, tradeHandId, retrieveDiscardIds) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  if (!tradeHandId || tradeHandId === handId) { return { legal: false, reason: 'debes cambiar 1 carta de tu mano' }; }
+  var tradeIdx = p.hand.findIndex(function (c) { return c.id === tradeHandId; });
+  if (tradeIdx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  retrieveDiscardIds = retrieveDiscardIds || [];
+  if (retrieveDiscardIds.length > 2) { return { legal: false, reason: 'puedes recuperar como máximo 2 cartas de Energía' }; }
+  var retrieveCards = retrieveDiscardIds.map(function (id) { return p.discard.find(function (c) { return c.id === id; }); });
+  if (retrieveCards.some(function (c) { return !c || !ENERGY_TYPE_BY_CARD_NAME.hasOwnProperty(c.name); })) {
+    return { legal: false, reason: 'solo puedes recuperar cartas de Energía básica de tu descarte' };
+  }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var traded = p.hand.splice(p.hand.findIndex(function (c) { return c.id === tradeHandId; }), 1)[0];
+  p.discard.push(traded);
+  retrieveDiscardIds.forEach(function (id) {
+    var i = p.discard.findIndex(function (c) { return c.id === id; });
+    if (i !== -1) { p.hand.push(p.discard.splice(i, 1)[0]); }
+  });
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Energy Retrieval'), playerId);
+  return { legal: true };
+};
+
 // Queues every successful Trainer play on state (name + who played it) so
 // ui.js's renderBoard() can flash each one big for a moment in turn -- both
 // the player's own plays (ui.js's various USAR/target-click handlers) and
@@ -484,6 +537,100 @@ ATTACK_EFFECTS['Magnemite'] = {
     });
     attacker.damage += 40;
     knockOutIfNeeded(state, playerId, attacker);
+  }
+};
+
+// Ninetales' Lure is the one real Base Set attack that needs a chosen
+// target the same way a Trainer does (see attack()'s targetInstanceId,
+// rules-engine.js, and ui.js's Lure-specific click handling) -- every
+// other attack here always just hits the opponent's current Active.
+ATTACK_EFFECTS['Ninetales'] = {
+  'Lure': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    if (!playerId || !targetInstanceId) { return; }
+    var op = state.players[opponentOf(playerId)];
+    var idx = op.bench.findIndex(function (b) { return b && b.id === targetInstanceId; });
+    if (idx === -1) { return; } // no such Benched Pokémon -- real card just does nothing then
+    var incoming = op.bench[idx];
+    op.bench[idx] = null;
+    if (op.active) {
+      op.active.statusConditions = [];
+      op.active.shield = null;
+      op.active.missChanceUntilTurn = null;
+      op.bench[idx] = op.active;
+    }
+    op.active = incoming;
+  },
+  'Fire Blast': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+      dealDamage(state, attacker, defender, 80);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Arcanine'] = {
+  'Flamethrower': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+      dealDamage(state, attacker, defender, 50);
+    }
+  },
+  'Take Down': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 80);
+    attacker.damage += 30;
+  }
+};
+
+ATTACK_EFFECTS['Charmeleon'] = {
+  // Slash (plain 30 damage) needs no entry.
+  'Flamethrower': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+      dealDamage(state, attacker, defender, 50);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Nidoran ♂'] = {
+  'Horn Hazard': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); }
+    // Tails: "this attack does nothing" -- no damage, no other effect.
+  }
+};
+
+ATTACK_EFFECTS['Tangela'] = {
+  'Bind': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Poisonpowder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    addStatus(defender, 'Poisoned');
+  }
+};
+
+ATTACK_EFFECTS['Vulpix'] = {
+  'Confuse Ray': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Confused'); }
+  }
+};
+
+ATTACK_EFFECTS['Charmander'] = {
+  // Scratch (plain 10 damage) needs no entry.
+  'Ember': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+      dealDamage(state, attacker, defender, 30);
+    }
   }
 };
 

@@ -489,6 +489,21 @@
     </div>
   </div>
 
+  <!-- Energy Retrieval's "up to 2" step (see openEnergyRetrievalModal,
+       ui.js) -- same grid pattern, but OK is always enabled since 0 is a
+       valid choice, unlike every other exact-count picker here. -->
+  <div id="energyRetrievalModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="energyRetrievalPrompt"></p>
+      <div id="energyRetrievalGrid" class="shell-energy-discard-grid"></div>
+      <div class="shell-modal-actions">
+        <button type="button" id="energyRetrievalConfirm" class="shell-modal-btn shell-modal-btn-primary">OK</button>
+        <button type="button" id="energyRetrievalCancel" class="shell-modal-btn">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- No backdrop/close: choosing a new Active after a knockout is
        mandatory, not dismissible (real TCG rules). -->
   <div id="activeChoiceModal" class="card-modal hidden">
@@ -799,6 +814,20 @@
                 <div class="shell-deck-card-body">
                   <div class="shell-deck-card-name">ZAP!</div>
                   <div class="shell-deck-card-types">RAYO · PSÍQUICO</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer">
+                    <span class="shell-deck-card-count">60 CARTAS</span>
+                  </div>
+                </div>
+                <span class="shell-deck-card-badge" style="display:none;">EN USO</span>
+              </div>
+
+              <div class="shell-deck-card" data-deck="brushfire" data-card-name="Brushfire" data-card-img="Mazos/brushfire.jpg">
+                <div class="shell-deck-card-stripe deck-brushfire"></div>
+                <div class="shell-deck-card-art"><img src="Mazos/brushfire.jpg" alt="Caja del mazo Brushfire"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">BRUSHFIRE</div>
+                  <div class="shell-deck-card-types">FUEGO · PLANTA</div>
                   <div class="shell-deck-card-spacer"></div>
                   <div class="shell-deck-card-footer">
                     <span class="shell-deck-card-count">60 CARTAS</span>
