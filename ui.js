@@ -2858,16 +2858,26 @@ function renderDeckDetail(deckKey) {
   }).join('');
   document.getElementById('deckEnergies').innerHTML = energiesHtml;
 
-  // Same real Rare Holo this deck guarantees in an actual match (see
-  // DECK_HOLO_CARD/isHoloInMatch) -- keyed by deckKey here instead of
-  // ownerId since this screen shows a decklist, not a live gameState side.
+  // Real reported bug: this used to ONLY ever mark the deck's own single
+  // guaranteed Rare Holo (deckHoloCard, precons only) -- every other card
+  // always rendered plain, regardless of whether the player's own
+  // collection actually owns a holo or secret copy of it, and custom
+  // decks (no deckHoloCard entry at all) never showed ANY foil. Same
+  // precedence as the live match board (showCardInViewer/benchCardHtml/
+  // activeColHtml, all via getPlayerCardFoilTier): the player's own real
+  // owned tier wins when they have one, falling back to the deck's
+  // guaranteed holo (precons only) otherwise.
   var deckHoloCard = { overgrowth: 'Gyarados', blackout: 'Hitmonchan', zap: 'Mewtwo', brushfire: 'Ninetales' }[deckKey];
   var html = expandDecklist(DECKLISTS[deckKey]).map(function (card) {
     var img = CARD_IMAGE_BY_NAME[card.name] || '';
-    var holo = card.name === deckHoloCard;
-    return '<div class="shell-deck-slot' + (holo ? ' holo' : '') + '" data-card-name="' + escapeHtml(card.name) + '">' +
+    var foilTier = getPlayerCardFoilTier(card.name) || (card.name === deckHoloCard ? 'holo' : null);
+    var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
+    var foilOverlay = foilTier === 'secret'
+      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
+    return '<div class="shell-deck-slot' + tierClass + '" data-card-name="' + escapeHtml(card.name) + '">' +
       (img ? '<img src="' + img + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' : '') +
-      (holo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') +
+      foilOverlay +
       '</div>';
   }).join('');
   var grid = document.getElementById('deckGrid');
