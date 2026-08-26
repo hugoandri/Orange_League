@@ -627,6 +627,45 @@ function closeDeckSearchModal() {
   deckSearchOnPick = null;
 }
 
+// Computer Search's discard-2-as-cost step: pick exactly `count` real hand
+// cards (by id, not index -- unlike energyDiscardState below, hand cards
+// each have their own real id already). onConfirm(ids) fires once that
+// many are selected and OK is pressed.
+var handDiscardState = null;
+function openHandDiscardModal(cards, count, onConfirm) {
+  handDiscardState = { cards: cards, count: count, selected: [], onConfirm: onConfirm };
+  renderHandDiscardModal();
+  document.getElementById('handDiscardModal').classList.remove('hidden');
+}
+function closeHandDiscardModal() {
+  document.getElementById('handDiscardModal').classList.add('hidden');
+  handDiscardState = null;
+}
+function renderHandDiscardModal() {
+  var s = handDiscardState;
+  document.getElementById('handDiscardPrompt').textContent =
+    'Elige ' + s.count + ' cartas de tu mano para descartar (' + s.selected.length + '/' + s.count + ')';
+  var grid = document.getElementById('handDiscardGrid');
+  grid.innerHTML = s.cards.map(function (card) {
+    var selected = s.selected.indexOf(card.id) !== -1;
+    return '<div class="shell-energy-discard-option' + (selected ? ' selected' : '') + '" data-hand-card-id="' + card.id + '">' +
+      cardImageTag(card.name, '') + '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
+  }).join('');
+  grid.querySelectorAll('[data-hand-card-id]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var id = el.getAttribute('data-hand-card-id');
+      var pos = s.selected.indexOf(id);
+      if (pos !== -1) {
+        s.selected.splice(pos, 1);
+      } else if (s.selected.length < s.count) {
+        s.selected.push(id);
+      }
+      renderHandDiscardModal();
+    });
+  });
+  document.getElementById('handDiscardConfirm').disabled = s.selected.length !== s.count;
+}
+
 // Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
 // stores just the type ('Water'), but the discard-choice modal needs the
 // real card name to look up its illustration.
@@ -1368,15 +1407,25 @@ function wireBoardButtons() {
             selectedHandId = null;
             renderBoard();
           } else if (handCard.name === 'Computer Search') {
-            // Its target is a card in the DECK, not a board Pokémon -- open
-            // the deck-search modal straight away instead of arming a
-            // board-click mode, matching how Super Potion's energy-choice
-            // modal resolves in one step too.
-            openDeckSearchModal(p.deck.slice(), function (deckCardId) {
-              var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+            // Two steps, neither of which is a board-click target: first
+            // discard 2 OTHER hand cards as the cost (per the real printed
+            // text -- "if you can't discard 2 cards, you can't play this
+            // card"), then search the deck. Rejected up front (no modal at
+            // all) if the hand doesn't have 2 other cards to pay with.
+            var otherHandCards = p.hand.filter(function (c) { return c.id !== handId; });
+            if (otherHandCards.length < 2) {
+              logEvent(gameState, 'No tienes 2 cartas para descartar -- no puedes jugar Búsqueda Computarizada', 'player');
               selectedHandId = null;
               renderBoard();
+              return;
+            }
+            openHandDiscardModal(otherHandCards, 2, function (discardHandIds) {
+              openDeckSearchModal(p.deck.slice(), function (deckCardId) {
+                var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId, discardHandIds);
+                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+                selectedHandId = null;
+                renderBoard();
+              });
             });
           } else {
             selectedHandId = handId;
@@ -2811,6 +2860,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var onConfirm = s.onConfirm;
     closeEnergyDiscardModal();
     onConfirm(indices);
+  });
+
+  document.getElementById('handDiscardCancel').addEventListener('click', closeHandDiscardModal);
+  document.querySelector('#handDiscardModal .card-modal-backdrop').addEventListener('click', closeHandDiscardModal);
+  document.getElementById('handDiscardConfirm').addEventListener('click', function () {
+    var s = handDiscardState;
+    if (!s || s.selected.length !== s.count) { return; }
+    var ids = s.selected.slice();
+    var onConfirm = s.onConfirm;
+    closeHandDiscardModal();
+    onConfirm(ids);
   });
 
   document.getElementById('matchEndReplayBtn').addEventListener('click', function () {

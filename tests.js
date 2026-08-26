@@ -966,20 +966,43 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 })();
 
 (function testComputerSearch() {
+  // Real printed text (per user's explicit call): discard 2 OTHER hand
+  // cards as a cost, then search the deck for any card.
   var state = createGame(function () { return 0.42; });
   state.activePlayerId = 'player';
   var p = state.players.player;
-  p.hand = [{ id: 'h1', name: 'Computer Search' }];
+  p.hand = [{ id: 'h1', name: 'Computer Search' }, { id: 'h2', name: 'Bill' }, { id: 'h3', name: 'Potion' }];
   p.deck = [{ id: 'd1', name: 'Bill' }, { id: 'd2', name: 'Potion' }, { id: 'd3', name: 'Bill' }];
-  var result = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd2');
+  var result = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd2', ['h2', 'h3']);
   checkTrue('Computer Search resolves legally', result.legal);
   check('Computer Search card lands in the discard pile', p.discard.some(function (c) { return c.name === 'Computer Search'; }), true);
+  check('both discard-cost cards land in the discard pile', p.discard.filter(function (c) { return c.id === 'h2' || c.id === 'h3'; }).length, 2);
   checkTrue('the searched-for card lands in hand', p.hand.some(function (c) { return c.id === 'd2'; }));
   check('the deck has one fewer card', p.deck.length, 2);
   checkTrue('the found card is no longer in the deck', p.deck.every(function (c) { return c.id !== 'd2'; }));
 
-  var badResult = TRAINER_EFFECTS['Computer Search'](state, 'player', 'nope', 'd1');
-  checkTrue('an invalid deck card id is rejected', !badResult.legal);
+  var badResult = TRAINER_EFFECTS['Computer Search'](state, 'player', 'nope', 'd1', ['h2', 'h3']);
+  checkTrue('an invalid hand id is rejected', !badResult.legal);
+})();
+
+(function testComputerSearchRequiresExactlyTwoOtherDiscards() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Computer Search' }, { id: 'h2', name: 'Bill' }];
+  p.deck = [{ id: 'd1', name: 'Bill' }];
+  var handLengthBefore = p.hand.length;
+
+  var noDiscards = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd1');
+  checkTrue('omitting discardHandIds is illegal', !noDiscards.legal);
+
+  var onlyOne = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd1', ['h2']);
+  checkTrue('discarding only 1 card is illegal', !onlyOne.legal);
+
+  var itself = TRAINER_EFFECTS['Computer Search'](state, 'player', 'h1', 'd1', ['h1', 'h2']);
+  checkTrue('trying to discard Computer Search itself as one of the 2 is illegal', !itself.legal);
+
+  check('none of the illegal attempts changed the hand', p.hand.length, handLengthBefore);
 })();
 
 (function testDefenderShield() {

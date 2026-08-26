@@ -82,6 +82,7 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 #pauseModal{z-index:210;}
 #surrenderModal{z-index:210;}
 #energyDiscardModal{z-index:210;}
+#handDiscardModal{z-index:210;}
 #matchEndModal{z-index:210;}
 #discardPileModal{z-index:210;}
 #collectionVersionsModal{z-index:210;}

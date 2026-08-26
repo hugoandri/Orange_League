@@ -894,7 +894,7 @@ const CARD_STATS = {
   },
   "Computer Search": {
     "supertype": "Trainer",
-    "text": "Search your deck for a card and put it into your hand. Then, shuffle your deck."
+    "text": "Discard 2 cards from your hand. (If you can't discard 2 cards, you can't play this card.) Search your deck for a card and put it into your hand. Shuffle your deck afterward."
   },
   "Defender": {
     "supertype": "Trainer",

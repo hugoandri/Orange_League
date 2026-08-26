@@ -424,7 +424,7 @@ var TRAINER_TEXT_ES = {
   'Energy Removal': 'Elige 1 carta de Energía adjunta a un Pokémon de tu rival y descártala.',
   'Super Energy Removal': 'Descarta 1 carta de Energía adjunta a uno de tus Pokémon para elegir 1 Pokémon de tu rival y hasta 2 cartas de Energía adjuntas a él. Descarta esas cartas de Energía.',
   'PlusPower': 'Adjunta Más Potencia a tu Pokémon Activo. Al final de tu turno, descarta Más Potencia. Si el ataque de este Pokémon hace daño al Pokémon Defensor (tras aplicar Debilidad y Resistencia), el ataque hace 10 de daño más al Pokémon Defensor.',
-  'Computer Search': 'Busca en tu mazo la carta que quieras y ponla en tu mano. Luego, baraja tu mazo.',
+  'Computer Search': 'Descarta 2 cartas de tu mano. (Si no puedes descartar 2 cartas, no puedes jugar esta carta.) Busca en tu mazo la carta que quieras y ponla en tu mano. Luego, baraja tu mazo.',
   'Defender': 'Adjunta Defensor a uno de tus Pokémon. Al final del próximo turno de tu rival, descarta Defensor. El daño que reciba ese Pokémon por ataques se reduce en 20 (tras aplicar Debilidad y Resistencia).'
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }

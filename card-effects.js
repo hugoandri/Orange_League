@@ -164,20 +164,32 @@ TRAINER_EFFECTS['PlusPower'] = function (state, playerId, handId, ownInstanceId)
   return { legal: true };
 };
 
-// deckCardId identifies the exact deck-array card the player picked (see
-// ui.js's openDeckSearchModal, which lists the live deck in order --
-// duplicates and all -- rather than a deduplicated-by-name list, since
-// there's no other way to distinguish "this specific Bill" from another
-// once they're all just plain {id, name} objects).
-TRAINER_EFFECTS['Computer Search'] = function (state, playerId, handId, deckCardId) {
+// discardHandIds: exactly 2 OTHER hand card ids paid as the cost (per
+// user's explicit call -- the real printed text does carry a "discard 2
+// cards from your hand" cost). deckCardId identifies the exact deck-array
+// card the player picked (see ui.js's openDeckSearchModal, which lists the
+// live deck in order -- duplicates and all -- rather than a deduplicated-
+// by-name list, since there's no other way to distinguish "this specific
+// Bill" from another once they're all just plain {id, name} objects).
+TRAINER_EFFECTS['Computer Search'] = function (state, playerId, handId, deckCardId, discardHandIds) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
-  var deckIdx = p.deck.findIndex(function (c) { return c.id === deckCardId; });
-  if (deckIdx === -1) { return { legal: false, reason: 'esa carta no está en tu mazo' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  discardHandIds = discardHandIds || [];
+  if (discardHandIds.length !== 2 || discardHandIds.indexOf(handId) !== -1) {
+    return { legal: false, reason: 'debes descartar exactamente 2 cartas de tu mano (sin contar esta)' };
+  }
+  var discardCards = discardHandIds.map(function (id) { return p.hand.find(function (c) { return c.id === id; }); });
+  if (discardCards.some(function (c) { return !c; })) { return { legal: false, reason: 'esas cartas no están en tu mano' }; }
+  var deckIdx = p.deck.findIndex(function (c) { return c.id === deckCardId; });
+  if (deckIdx === -1) { return { legal: false, reason: 'esa carta no está en tu mazo' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
+  discardHandIds.forEach(function (id) {
+    var i = p.hand.findIndex(function (c) { return c.id === id; });
+    if (i !== -1) { p.discard.push(p.hand.splice(i, 1)[0]); }
+  });
   var found = p.deck.splice(deckIdx, 1)[0];
   p.hand.push(found);
   p.deck = shuffle(p.deck, state.rng);

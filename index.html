@@ -473,6 +473,22 @@
     </div>
   </div>
 
+  <!-- Computer Search's discard-2-as-cost step (see openHandDiscardModal,
+       ui.js) -- same grid/count-confirm pattern as energyDiscardModal
+       above, just choosing real hand cards by id instead of energy types
+       by index. -->
+  <div id="handDiscardModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="handDiscardPrompt"></p>
+      <div id="handDiscardGrid" class="shell-energy-discard-grid"></div>
+      <div class="shell-modal-actions">
+        <button type="button" id="handDiscardConfirm" class="shell-modal-btn shell-modal-btn-primary" disabled>OK</button>
+        <button type="button" id="handDiscardCancel" class="shell-modal-btn">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- No backdrop/close: choosing a new Active after a knockout is
        mandatory, not dismissible (real TCG rules). -->
   <div id="activeChoiceModal" class="card-modal hidden">
