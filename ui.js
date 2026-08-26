@@ -616,8 +616,13 @@ function openDeckSearchModal(deckCards, onPick) {
   grid.querySelectorAll('[data-deck-card-id]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var id = btn.getAttribute('data-deck-card-id');
+      // Capture onPick BEFORE closing -- closeDeckSearchModal() nulls
+      // deckSearchOnPick, so reading it afterward (as this used to) always
+      // saw null and silently did nothing, no matter which card was
+      // clicked. Same fix shape as energyDiscardConfirm's onConfirm.
+      var onPick = deckSearchOnPick;
       closeDeckSearchModal();
-      if (deckSearchOnPick) { deckSearchOnPick(id); }
+      if (onPick) { onPick(id); }
     });
   });
   document.getElementById('deckSearchModal').classList.remove('hidden');
