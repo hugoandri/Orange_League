@@ -927,7 +927,18 @@ function attack(state, playerId, attackName, targetInstanceId) {
   }
 
   var damageDealt = defender.damage - beforeDamage;
-  if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId); }
+  if (damageDealt > 0) {
+    logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId);
+    // Drives the ~1s "both cards in the foreground, damage number on the
+    // defender" animation (see showAttackOverlay, ui.js) -- damageDealt is
+    // already the real final number (dealDamage already applied Weakness/
+    // Resistance/PlusPower/shields internally before this delta was taken),
+    // so PlusPower's +10 and Defender's -20 both show up correctly here
+    // with no extra math needed. A single overwritable field, not a queue:
+    // exactly one attack() call ever happens between the UI reading and
+    // clearing this, since attacking always ends the turn.
+    state.lastAttackResult = { attackerName: attacker.name, defenderName: defender.name, damage: damageDealt };
+  }
   var newStatuses = defender.statusConditions.filter(function (s) { return beforeStatus.indexOf(s) === -1; });
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
 

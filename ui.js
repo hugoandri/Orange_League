@@ -474,7 +474,7 @@ function showCardInViewer(name, instanceId) {
           return;
         }
         attack(gameState, 'player', atkName);
-        afterPlayerAction();
+        showAttackOverlayIfAny(afterPlayerAction);
       });
     });
   }
@@ -598,6 +598,51 @@ function drainTrainerPlaysQueue(onAllDone) {
   var queue = gameState.trainerPlaysQueue;
   gameState.trainerPlaysQueue = [];
   showTrainerPlaysSequence(queue, onAllDone);
+}
+
+// Both cards front and center for ~1s -- attacker on the left, defender on
+// the right with the real final damage number (Weakness/Resistance/
+// PlusPower/Defender already applied server-side, see attack()'s own
+// comment) popping in on top of it. result: {attackerName, defenderName,
+// damage} (gameState.lastAttackResult, rules-engine.js) -- only ever set
+// when real damage actually landed, so callers don't need to check that
+// themselves. onDone runs once the overlay has fully faded back out.
+var attackOverlayHoldTimeout = null;
+var attackOverlayFadeTimeout = null;
+function showAttackOverlay(result, onDone) {
+  var el = document.getElementById('attackOverlay');
+  var attackerImg = document.getElementById('attackOverlayAttackerImg');
+  var defenderImg = document.getElementById('attackOverlayDefenderImg');
+  var dmgEl = document.getElementById('attackOverlayDamage');
+  var attackerUrl = result && CARD_IMAGE_BY_NAME[result.attackerName];
+  var defenderUrl = result && CARD_IMAGE_BY_NAME[result.defenderName];
+  if (!el || !attackerImg || !defenderImg || !dmgEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
+  clearTimeout(attackOverlayHoldTimeout);
+  clearTimeout(attackOverlayFadeTimeout);
+  attackerImg.src = attackerUrl;
+  attackerImg.alt = result.attackerName;
+  defenderImg.src = defenderUrl;
+  defenderImg.alt = result.defenderName;
+  dmgEl.textContent = '-' + result.damage;
+  el.classList.remove('hidden', 'fading');
+  attackOverlayHoldTimeout = setTimeout(function () {
+    el.classList.add('fading');
+    attackOverlayFadeTimeout = setTimeout(function () {
+      el.classList.add('hidden');
+      el.classList.remove('fading');
+      if (onDone) { onDone(); }
+    }, 220);
+  }, 1000);
+}
+
+// Shared by every attack() call site below: pops gameState.lastAttackResult
+// (cleared either way, so a later attack with no real damage doesn't
+// accidentally replay a stale one) and shows the overlay first if there was
+// one, otherwise runs onDone immediately.
+function showAttackOverlayIfAny(onDone) {
+  var result = gameState.lastAttackResult;
+  gameState.lastAttackResult = null;
+  if (result) { showAttackOverlay(result, onDone); } else if (onDone) { onDone(); }
 }
 
 // Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
@@ -1488,6 +1533,11 @@ function proceedWithCpuTurn() {
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
     cpuTurnInProgress = false;
+    // Captured now (cleared either way) so a later render/attack can't
+    // accidentally replay a stale one -- see showAttackOverlayIfAny's own
+    // comment for why a single field (not a queue) is enough.
+    var cpuAttackResult = gameState.lastAttackResult;
+    gameState.lastAttackResult = null;
     var queuedTrainerPlays = gameState.trainerPlaysQueue || [];
     gameState.trainerPlaysQueue = [];
     // Reveal what the CPU actually did in chronological order: any
@@ -1503,19 +1553,26 @@ function proceedWithCpuTurn() {
       // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
       showCpuThinkingIndicator();
       setTimeout(function () {
-        afterPlayerAction();
-        // Skip the flash if that turn just won/lost the match -- there's
-        // no "tu turno" coming next (afterPlayerAction already showed the
-        // win/loss modal instead of a normal board render above).
-        if (getWinner(gameState)) { return; }
-        // A KO during the CPU's turn can leave the player forced to pick a
-        // new Active (see renderActiveChoiceModal) -- hold the flash for
-        // that choice to resolve instead of flashing over their decision.
-        if (hasPendingPlayerChoice()) {
-          pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
-        } else {
-          showTurnFlash('TU TURNO', 'mine');
+        function reveal() {
+          afterPlayerAction();
+          // Skip the flash if that turn just won/lost the match -- there's
+          // no "tu turno" coming next (afterPlayerAction already showed the
+          // win/loss modal instead of a normal board render above).
+          if (getWinner(gameState)) { return; }
+          // A KO during the CPU's turn can leave the player forced to pick a
+          // new Active (see renderActiveChoiceModal) -- hold the flash for
+          // that choice to resolve instead of flashing over their decision.
+          if (hasPendingPlayerChoice()) {
+            pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
+          } else {
+            showTurnFlash('TU TURNO', 'mine');
+          }
         }
+        // If the CPU attacked this turn, show the attack overlay (~1s)
+        // before revealing the real board -- same reveal-order reasoning
+        // as the Trainer-plays sequence above: the player should see the
+        // "why" before the resulting board state.
+        if (cpuAttackResult) { showAttackOverlay(cpuAttackResult, reveal); } else { reveal(); }
       }, CPU_POST_ACTION_PAUSE_MS);
     });
   }, delay);
@@ -2050,7 +2107,7 @@ function wireBoardButtons() {
         }
         pendingAttackNeedingTarget = null;
         attack(gameState, 'player', 'Lure', instanceId);
-        afterPlayerAction();
+        showAttackOverlayIfAny(afterPlayerAction);
         return;
       }
       if (pendingPowerActivation) {

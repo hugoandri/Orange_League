@@ -1258,6 +1258,28 @@
   text-shadow:0 2px 8px rgba(0,0,0,.85);text-align:center;
 }
 
+/* ===== Attack animation (see showAttackOverlay, ui.js) ===== */
+/* Same fixed/centered/fade-in-out tier as .shell-trainer-played above
+   (z-index:300), just two cards side by side instead of one. */
+.shell-attack-overlay{
+  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:1;transition:opacity .22s ease;
+}
+.shell-attack-overlay.fading{opacity:0;}
+.shell-attack-overlay.hidden{display:none;}
+.shell-attack-overlay-pair{display:flex;align-items:center;gap:48px;}
+.shell-attack-overlay-card{position:relative;filter:drop-shadow(0 20px 50px rgba(0,0,0,.75));}
+.shell-attack-overlay-card img{width:240px;display:block;border-radius:10px;}
+.shell-attack-overlay-card.attacker img{box-shadow:0 0 0 3px #8dff62,0 0 60px rgba(141,255,98,.55);}
+.shell-attack-overlay-card.defender img{box-shadow:0 0 0 3px #ff5c5c,0 0 60px rgba(255,92,92,.6);}
+.shell-attack-overlay-damage{
+  position:absolute;top:-18px;right:-18px;
+  font-family:'Pixelify Sans',sans-serif;font-size:52px;font-weight:900;color:#ff3b3b;
+  text-shadow:0 0 10px rgba(0,0,0,.9),0 0 26px rgba(255,92,92,.8),2px 2px 0 #000;
+  animation:shell-attack-damage-pop .3s ease-out;
+}
+@keyframes shell-attack-damage-pop{from{transform:scale(.3);opacity:0;}to{transform:scale(1);opacity:1;}}
+
 /* ===== Turn-change flash (see showTurnFlash, ui.js) ===== */
 /* position:fixed at the same top-level tier as .shell-trainer-played
    (z-index:300) -- nesting this inside .shell-board-table-wrap once put it

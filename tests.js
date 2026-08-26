@@ -2072,6 +2072,55 @@ function mkPokemon(id, name, overrides) {
   check('an already-Asleep Machamp does not counter with Strikes Back (attacker takes no counter-damage)', cpu.active.damage, 0);
 })();
 
+(function testLastAttackResultDrivesTheAttackAnimation() {
+  // state.lastAttackResult feeds the ~1s "both cards front and center, real
+  // final damage number on the defender" animation (showAttackOverlay,
+  // ui.js) -- damageDealt is read straight off defender.damage's own
+  // before/after delta, which dealDamage already computed with Weakness/
+  // Resistance/PlusPower/shields applied, so this must reflect those
+  // exactly, matching the user's own worked examples (30 base + PlusPower
+  // = 40; 30 base with Defender's -20 = 10).
+  // Machop as the defender too (a second, separate instance) rather than
+  // Voltorb/Rattata/Chansey -- all 3 are real-Weakness Fighting, which
+  // would double Low Kick's damage and break the clean numbers below.
+  // Machop's own real Weakness is Psychic, which Low Kick's Fighting type
+  // doesn't match.
+  var plainState = createGame(function () { return 0.99; });
+  plainState.activePlayerId = 'player';
+  plainState.players.player.active = mkPokemon('m1', 'Machop', {});
+  plainState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(plainState, 'player', 'Low Kick');
+  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20 });
+
+  var plusPowerState = createGame(function () { return 0.99; });
+  plusPowerState.activePlayerId = 'player';
+  plusPowerState.players.player.active = mkPokemon('m1', 'Machop', { plusPowerAttached: true });
+  plusPowerState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(plusPowerState, 'player', 'Low Kick');
+  check('PlusPower\'s +10 shows up in lastAttackResult.damage (20 -> 30)', plusPowerState.lastAttackResult.damage, 30);
+
+  var defenderState = createGame(function () { return 0.99; });
+  defenderState.activePlayerId = 'player';
+  // Beedrill's Poison Sting deals a flat 40 (Grass-type, and Machop's real
+  // Weakness is Psychic -- no accidental doubling here) -- big enough that
+  // Defender's -20 still leaves a clearly-nonzero, easy-to-eyeball result.
+  defenderState.players.player.active = mkPokemon('b1', 'Beedrill', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  // reduceFlat only actually blocks when shield.untilTurn === state.turnCounter
+  // exactly (see dealDamage's own shield-window check) -- 1, matching
+  // createGame's fresh turnCounter, not turnCounter+1 (which is what a
+  // real Defender play would set for the OPPONENT's next turn).
+  defenderState.players.cpu.active = mkPokemon('c1', 'Machop', { shield: { untilTurn: 1, type: 'reduceFlat', reduceAmount: 20 } });
+  attack(defenderState, 'player', 'Poison Sting');
+  check('Defender\'s -20 shows up in lastAttackResult.damage (40 -> 20)', defenderState.lastAttackResult.damage, 20);
+
+  var zeroDamageState = createGame(function () { return 0.99; });
+  zeroDamageState.activePlayerId = 'player';
+  zeroDamageState.players.player.active = mkPokemon('pw1', 'Poliwhirl', { attachedEnergy: ['Water', 'Water'] });
+  zeroDamageState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(zeroDamageState, 'player', 'Amnesia');
+  checkTrue('a 0-damage attack (Amnesia) never sets lastAttackResult -- no animation for "nothing happened"', !zeroDamageState.lastAttackResult);
+})();
+
 (function testSeverePoisonToxicDealsTwentyPerCheckup() {
   var state = createGame(function () { return 0.99; });
   state.activePlayerId = 'player';
