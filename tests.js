@@ -25,6 +25,25 @@ function check(description, actual, expected) {
 
 function checkTrue(description, actual) { check(description, !!actual, true); }
 
+(function testEveryDecklistCardHasStats() {
+  // Real reported bug: "Fire Energy" was referenced throughout
+  // DECKLISTS.brushfire and ENERGY_TYPE_BY_CARD_NAME, but never actually
+  // added to CARD_STATS -- so CARD_STATS['Fire Energy'] was undefined,
+  // and the hand-card click handler's very first line (`stats.supertype`)
+  // threw for every single Fire Energy card, which silently broke
+  // interacting with it (and, since ~18 of Brushfire's 28 Energy cards
+  // are Fire, could look like "nothing works at all"). This guards
+  // against that whole class of bug: every card name in every real deck
+  // must resolve to a real CARD_STATS entry.
+  var missing = [];
+  Object.keys(DECKLISTS).forEach(function (deckKey) {
+    DECKLISTS[deckKey].forEach(function (entry) {
+      if (!CARD_STATS.hasOwnProperty(entry.name)) { missing.push(deckKey + ':' + entry.name); }
+    });
+  });
+  check('every card name in every real decklist has a CARD_STATS entry', missing, []);
+})();
+
 (function testExpandDecklist() {
   var expanded = expandDecklist(DECKLISTS.overgrowth);
   check('expandDecklist(overgrowth) has 60 cards', expanded.length, 60);

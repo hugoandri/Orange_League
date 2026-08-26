@@ -136,6 +136,9 @@ const CARD_STATS = {
   "Fighting Energy": {
     "supertype": "Energy"
   },
+  "Fire Energy": {
+    "supertype": "Energy"
+  },
   "Grass Energy": {
     "supertype": "Energy"
   },
