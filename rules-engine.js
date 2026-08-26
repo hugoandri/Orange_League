@@ -927,20 +927,26 @@ function attack(state, playerId, attackName, targetInstanceId) {
   }
 
   var damageDealt = defender.damage - beforeDamage;
-  if (damageDealt > 0) {
-    logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId);
-    // Drives the ~1s "both cards in the foreground, damage number on the
-    // defender" animation (see showAttackOverlay, ui.js) -- damageDealt is
-    // already the real final number (dealDamage already applied Weakness/
-    // Resistance/PlusPower/shields internally before this delta was taken),
-    // so PlusPower's +10 and Defender's -20 both show up correctly here
-    // with no extra math needed. A single overwritable field, not a queue:
-    // exactly one attack() call ever happens between the UI reading and
-    // clearing this, since attacking always ends the turn.
-    state.lastAttackResult = { attackerName: attacker.name, defenderName: defender.name, damage: damageDealt };
-  }
+  if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId); }
   var newStatuses = defender.statusConditions.filter(function (s) { return beforeStatus.indexOf(s) === -1; });
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
+  if (damageDealt > 0 || newStatuses.length > 0) {
+    // Drives the ~1s "both cards in the foreground, damage number (and any
+    // new Special Condition) on the defender" animation (see
+    // showAttackOverlay, ui.js) -- damageDealt is already the real final
+    // number (dealDamage already applied Weakness/Resistance/PlusPower/
+    // shields internally before this delta was taken), so PlusPower's +10
+    // and Defender's -20 both show up correctly here with no extra math
+    // needed. Triggered by a new status alone too (Sing/Hypnosis are 0-
+    // damage, status-only attacks) -- not just damage. A single
+    // overwritable field, not a queue: exactly one attack() call ever
+    // happens between the UI reading and clearing this, since attacking
+    // always ends the turn.
+    state.lastAttackResult = {
+      attackerName: attacker.name, defenderName: defender.name, damage: damageDealt,
+      newStatuses: newStatuses, severePoison: !!defender.severePoison
+    };
+  }
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
   // Machamp's Strikes Back (Pokémon Power, passive -- always on, no
@@ -1019,7 +1025,23 @@ function allInstances(p) {
 
 function endTurn(state) {
   var justFinished = state.activePlayerId;
-  logEvent(state, justFinished === 'player' ? 'HAS TERMINADO TU TURNO' : 'CPU HA TERMINADO SU TURNO', justFinished, 'turn-end');
+  // Real reported bug: logging the player's own "HAS TERMINADO TU TURNO"
+  // right here fired the instant an attack auto-ended their turn
+  // (endThisTurn -> endTurn, inside attack()) -- immediately visible
+  // (afterPlayerAction renders right after), well before the player
+  // actually clicked "Terminar turno" to hand play to the CPU. The CPU's
+  // own turn-end is fine logged here unconditionally: cpuTakeTurn's whole
+  // turn resolves silently and is only ever revealed afterward, as one
+  // unit, through the CPU-turn reveal sequence (ui.js) -- so logging it
+  // early never causes a premature render the way it did for the player.
+  // The player's own line is logged instead from the exact moment they
+  // click "Terminar turno" (see endTurnBtn's handler, ui.js), which fires
+  // there unconditionally whether or not this function's own endTurn call
+  // already ran earlier (from an attack) or is running right now (from
+  // this very click).
+  if (justFinished === 'cpu') {
+    logEvent(state, 'CPU HA TERMINADO SU TURNO', justFinished, 'turn-end');
+  }
   if (state.players[justFinished].active) {
     state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
   }

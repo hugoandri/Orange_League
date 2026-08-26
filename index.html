@@ -464,14 +464,16 @@
   </div>
 
   <!-- Attack animation (see showAttackOverlay, ui.js): both cards front and
-       center for ~1s, with the real final damage number (Weakness/
-       Resistance/PlusPower/Defender already applied) on the defender. -->
+       center for ~2s, with the real final damage number (Weakness/
+       Resistance/PlusPower/Defender already applied) and any new Special
+       Condition on the defender. -->
   <div id="attackOverlay" class="shell-attack-overlay hidden">
     <div class="shell-attack-overlay-pair">
       <div class="shell-attack-overlay-card attacker"><img id="attackOverlayAttackerImg" src="" alt=""></div>
       <div class="shell-attack-overlay-card defender">
         <img id="attackOverlayDefenderImg" src="" alt="">
         <div class="shell-attack-overlay-damage" id="attackOverlayDamage"></div>
+        <div class="shell-attack-overlay-status" id="attackOverlayStatus"></div>
       </div>
     </div>
   </div>

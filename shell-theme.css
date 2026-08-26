@@ -1279,6 +1279,15 @@
   animation:shell-attack-damage-pop .3s ease-out;
 }
 @keyframes shell-attack-damage-pop{from{transform:scale(.3);opacity:0;}to{transform:scale(1);opacity:1;}}
+/* Any new Special Condition the attack just inflicted (see
+   showAttackOverlay, ui.js) -- reuses the exact same pixel status-badge
+   plates the board itself shows (pixelStatusBadgeHtml), just bigger
+   (blockPx 3 instead of 2) so it reads clearly at this overlay's size.
+   Sits below the card art rather than overlapping the damage number. */
+.shell-attack-overlay-status{
+  position:absolute;left:0;right:0;bottom:-14px;display:flex;justify-content:center;gap:6px;
+  animation:shell-attack-damage-pop .3s ease-out .1s backwards;
+}
 
 /* ===== Turn-change flash (see showTurnFlash, ui.js) ===== */
 /* position:fixed at the same top-level tier as .shell-trainer-played

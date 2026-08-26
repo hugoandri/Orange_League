@@ -600,12 +600,14 @@ function drainTrainerPlaysQueue(onAllDone) {
   showTrainerPlaysSequence(queue, onAllDone);
 }
 
-// Both cards front and center for ~1s -- attacker on the left, defender on
+// Both cards front and center for ~2s -- attacker on the left, defender on
 // the right with the real final damage number (Weakness/Resistance/
 // PlusPower/Defender already applied server-side, see attack()'s own
-// comment) popping in on top of it. result: {attackerName, defenderName,
-// damage} (gameState.lastAttackResult, rules-engine.js) -- only ever set
-// when real damage actually landed, so callers don't need to check that
+// comment) and any new Special Condition popping in on top of it. result:
+// {attackerName, defenderName, damage, newStatuses, severePoison}
+// (gameState.lastAttackResult, rules-engine.js) -- only ever set when real
+// damage landed AND/OR a new status was actually inflicted (Sing/Hypnosis
+// are 0-damage, status-only attacks), so callers don't need to check that
 // themselves. onDone runs once the overlay has fully faded back out.
 var attackOverlayHoldTimeout = null;
 var attackOverlayFadeTimeout = null;
@@ -614,16 +616,23 @@ function showAttackOverlay(result, onDone) {
   var attackerImg = document.getElementById('attackOverlayAttackerImg');
   var defenderImg = document.getElementById('attackOverlayDefenderImg');
   var dmgEl = document.getElementById('attackOverlayDamage');
+  var statusEl = document.getElementById('attackOverlayStatus');
   var attackerUrl = result && CARD_IMAGE_BY_NAME[result.attackerName];
   var defenderUrl = result && CARD_IMAGE_BY_NAME[result.defenderName];
-  if (!el || !attackerImg || !defenderImg || !dmgEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
+  if (!el || !attackerImg || !defenderImg || !dmgEl || !statusEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
   clearTimeout(attackOverlayHoldTimeout);
   clearTimeout(attackOverlayFadeTimeout);
   attackerImg.src = attackerUrl;
   attackerImg.alt = result.attackerName;
   defenderImg.src = defenderUrl;
   defenderImg.alt = result.defenderName;
-  dmgEl.textContent = '-' + result.damage;
+  // No damage number for a 0-damage, status-only attack (Sing/Hypnosis) --
+  // "-0" would just be noise when nothing was actually knocked off.
+  dmgEl.textContent = result.damage > 0 ? '-' + result.damage : '';
+  statusEl.innerHTML = (result.newStatuses || []).map(function (s) {
+    var badgeKey = (s === 'Poisoned' && result.severePoison) ? 'SeverePoison' : s;
+    return pixelStatusBadgeHtml(badgeKey, 3);
+  }).join('');
   el.classList.remove('hidden', 'fading');
   attackOverlayHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
@@ -632,7 +641,7 @@ function showAttackOverlay(result, onDone) {
       el.classList.remove('fading');
       if (onDone) { onDone(); }
     }, 220);
-  }, 1000);
+  }, 2000);
 }
 
 // Shared by every attack() call site below: pops gameState.lastAttackResult
@@ -1991,6 +2000,15 @@ function wireBoardButtons() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
+      // Real reported bug: "HAS TERMINADO TU TURNO" used to log from
+      // inside endTurn() itself (rules-engine.js), which fired the instant
+      // an attack auto-ended the turn -- visible immediately (the attack
+      // overlay/afterPlayerAction render right after), well before the
+      // player had actually clicked this button. Logged here instead, at
+      // the actual moment of that click, unconditionally -- whether the
+      // engine's own endTurn() already ran earlier (from an attack) or
+      // runs right now as part of this same click.
+      logEvent(gameState, 'HAS TERMINADO TU TURNO', 'player', 'turn-end');
       if (gameState.activePlayerId === 'player') { endTurn(gameState); }
       if (gameState.activePlayerId === 'cpu') { runCpuTurn(); } else { afterPlayerAction(); }
     });

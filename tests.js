@@ -445,10 +445,14 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('energyAttachedThisTurn reset', state.players[beforePlayer].energyAttachedThisTurn, false);
   check('retreatedThisTurn reset', state.players[beforePlayer].retreatedThisTurn, false);
 
-  var lastLog = state.log[state.log.length - 1];
-  check('endTurn logs a real "turn ended" line, in the second person for the player', lastLog.msg, 'HAS TERMINADO TU TURNO');
-  check('the turn-end line is tagged for the bigger/bolder log styling', lastLog.kind, 'turn-end');
-  check('the turn-end line is attributed to whoever\'s turn just ended, not the new active player', lastLog.ownerId, beforePlayer);
+  // Real reported bug: endTurn() itself used to log the player's own
+  // "HAS TERMINADO TU TURNO" -- which fired the instant an attack
+  // auto-ended the turn (attack() calls endTurn() internally), well
+  // before the player had actually clicked "Terminar turno". That line is
+  // now logged from the button's own click handler instead (ui.js, not
+  // unit-testable here without a DOM) -- endTurn() itself must NOT log it
+  // for the player anymore, only for the cpu (see the sibling test below).
+  checkTrue('endTurn no longer logs the player\'s own turn-end line itself (moved to the Terminar turno click)', !state.log.some(function (e) { return e.kind === 'turn-end'; }));
 })();
 
 (function testEndTurnLogsCpuPhrasingWhenCpuEndsIts() {
@@ -2090,7 +2094,7 @@ function mkPokemon(id, name, overrides) {
   plainState.players.player.active = mkPokemon('m1', 'Machop', {});
   plainState.players.cpu.active = mkPokemon('c1', 'Machop', {});
   attack(plainState, 'player', 'Low Kick');
-  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20 });
+  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false });
 
   var plusPowerState = createGame(function () { return 0.99; });
   plusPowerState.activePlayerId = 'player';
@@ -2118,7 +2122,29 @@ function mkPokemon(id, name, overrides) {
   zeroDamageState.players.player.active = mkPokemon('pw1', 'Poliwhirl', { attachedEnergy: ['Water', 'Water'] });
   zeroDamageState.players.cpu.active = mkPokemon('c1', 'Machop', {});
   attack(zeroDamageState, 'player', 'Amnesia');
-  checkTrue('a 0-damage attack (Amnesia) never sets lastAttackResult -- no animation for "nothing happened"', !zeroDamageState.lastAttackResult);
+  checkTrue('a 0-damage attack with no new status either (Amnesia) never sets lastAttackResult -- no animation for "nothing happened"', !zeroDamageState.lastAttackResult);
+
+  // Hypnosis (Haunter): 0 damage, but ALWAYS inflicts Asleep -- a status-
+  // only attack still needs the animation, just to show the new status
+  // rather than a damage number.
+  var statusOnlyState = createGame(function () { return 0.99; });
+  statusOnlyState.activePlayerId = 'player';
+  statusOnlyState.players.player.active = mkPokemon('h1', 'Haunter', { attachedEnergy: [] });
+  statusOnlyState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(statusOnlyState, 'player', 'Hypnosis');
+  checkTrue('a 0-damage, status-only attack (Hypnosis) still sets lastAttackResult', !!statusOnlyState.lastAttackResult);
+  check('lastAttackResult.damage is 0 (no damage number to show)', statusOnlyState.lastAttackResult.damage, 0);
+  check('lastAttackResult.newStatuses records the inflicted status', statusOnlyState.lastAttackResult.newStatuses, ['Asleep']);
+
+  // Toxic (Nidoking): real damage AND a status at once -- both should show.
+  var bothState = createGame(function () { return 0.99; });
+  bothState.activePlayerId = 'player';
+  bothState.players.player.active = mkPokemon('n1', 'Nidoking', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  bothState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(bothState, 'player', 'Toxic');
+  check('Toxic\'s real damage lands in lastAttackResult', bothState.lastAttackResult.damage, 20);
+  check('Toxic\'s Poisoned status lands in lastAttackResult.newStatuses', bothState.lastAttackResult.newStatuses, ['Poisoned']);
+  checkTrue('lastAttackResult.severePoison is set so the overlay can show the distinct SeverePoison badge', bothState.lastAttackResult.severePoison);
 })();
 
 (function testSeverePoisonToxicDealsTwentyPerCheckup() {
