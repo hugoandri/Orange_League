@@ -60,6 +60,7 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
   p.bench[benchIdx] = null;
   if (p.active) {
     p.active.statusConditions = [];
+    p.active.severePoison = false;
     p.active.shield = null;
     p.active.missChanceUntilTurn = null;
     p.bench[benchIdx] = p.active;
@@ -97,6 +98,7 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
   op.bench[idx] = null;
   if (op.active) {
     op.active.statusConditions = [];
+    op.active.severePoison = false;
     op.active.shield = null;
     op.active.missChanceUntilTurn = null;
     op.bench[idx] = op.active;
@@ -554,6 +556,7 @@ ATTACK_EFFECTS['Ninetales'] = {
     op.bench[idx] = null;
     if (op.active) {
       op.active.statusConditions = [];
+      op.active.severePoison = false;
       op.active.shield = null;
       op.active.missChanceUntilTurn = null;
       op.bench[idx] = op.active;
@@ -631,6 +634,379 @@ ATTACK_EFFECTS['Charmander'] = {
       if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
       dealDamage(state, attacker, defender, 30);
     }
+  }
+};
+
+// Shared by every "X damage plus 10 more for each energy of TYPE attached
+// but not used to pay the cost (extra energy after the Nth doesn't count)"
+// attack (Blastoise/Poliwrath/Poliwag's Water Gun & Hydro Pump): counts the
+// attacker's attached energy of that type, subtracts however many the
+// printed cost itself requires, and caps the remainder at capExtra before
+// converting to a 10-per-extra bonus.
+function extraEnergyBonus(attacker, energyType, costCount, capExtra) {
+  var total = attacker.attachedEnergy.filter(function (t) { return t === energyType; }).length;
+  var unused = Math.max(0, total - costCount);
+  return 10 * Math.min(unused, capExtra);
+}
+
+// Shared by Metronome (Clefairy) and Amnesia (Poliwhirl): both let the
+// player choose one of the Defending Pokémon's attacks. Building a full
+// "pick one of the opponent's attacks" UI for these two rare, low-stakes
+// cards isn't worth it -- both auto-pick the defender's single highest
+// flat-damage attack instead (documented simplification, same call already
+// made this session for Whirlwind/Whirlpool-style opponent-side choices).
+function highestDamageAttack(defenderName) {
+  var defStats = CARD_STATS[defenderName];
+  if (!defStats || !defStats.attacks || !defStats.attacks.length) { return null; }
+  return defStats.attacks.reduce(function (best, a) {
+    var dmg = parseInt(a.damage, 10) || 0;
+    return (!best || dmg > best.dmg) ? { atk: a, dmg: dmg } : best;
+  }, null);
+}
+
+// Shared by Whirlwind (Pidgey/Pidgeotto): "your opponent chooses 1 of
+// their Benched Pokémon and switches it with the Defending Pokémon" -- the
+// choice belongs to the DEFENDING side, not the attacker, so a full
+// pending-choice UI would be needed to let the CPU or player make it
+// mid-opponent-attack. Auto-picks the first available Bench slot instead
+// (documented simplification), same swap-in-place mechanics as
+// Switch/Gust of Wind/Lure above.
+function forceOpponentSwitch(state, playerId) {
+  if (!playerId) { return; }
+  var op = state.players[opponentOf(playerId)];
+  var idx = op.bench.findIndex(function (b) { return b; });
+  if (idx === -1) { return; }
+  var incoming = op.bench[idx];
+  op.bench[idx] = null;
+  if (op.active) {
+    op.active.statusConditions = [];
+    op.active.severePoison = false;
+    op.active.shield = null;
+    op.active.missChanceUntilTurn = null;
+    op.bench[idx] = op.active;
+  }
+  op.active = incoming;
+}
+
+// Shared by Whirlpool (Poliwrath) and Hyper Beam (Dragonair): "if the
+// Defending Pokémon has any Energy attached, choose 1 and discard it" --
+// same simplification as Energy Removal's own opponent-side choice
+// (TRAINER_EFFECTS above): always discards index 0 rather than modeling
+// "which specific energy".
+function discardOneDefenderEnergy(state, defender, playerId) {
+  if (!defender.attachedEnergy.length) { return; }
+  var removed = defender.attachedEnergy.splice(0, 1);
+  var op = state.players[opponentOf(playerId)];
+  removed.forEach(function (t) { op.discard.push(discardedEnergyCard(t)); });
+}
+
+ATTACK_EFFECTS['Alakazam'] = {
+  'Confuse Ray': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Confused'); }
+  }
+};
+
+ATTACK_EFFECTS['Blastoise'] = {
+  'Hydro Pump': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 40 + extraEnergyBonus(attacker, 'Water', 3, 2));
+  }
+};
+
+ATTACK_EFFECTS['Chansey'] = {
+  'Scrunch': function (state, attacker) {
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  },
+  // "Chansey does 80 damage to itself" -- no damage to the defender at
+  // all; the existing generic self-KO check in attack() picks this up.
+  'Double-edge': function (state, attacker) { attacker.damage += 80; }
+};
+
+ATTACK_EFFECTS['Charizard'] = {
+  // "Discard 2 Energy cards attached to Charizard in order to use this
+  // attack" -- no type restriction on which 2, unlike Fire-specific
+  // discard costs (Ember/Flamethrower above).
+  'Fire Spin': function (state, attacker, defender) {
+    if (attacker.attachedEnergy.length < 2) { return; }
+    attacker.attachedEnergy.splice(0, 2);
+    dealDamage(state, attacker, defender, 100);
+  }
+};
+
+ATTACK_EFFECTS['Clefairy'] = {
+  'Sing': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+  },
+  'Metronome': function (state, attacker, defender) {
+    var best = highestDamageAttack(defender.name);
+    if (best && best.dmg > 0) { dealDamage(state, attacker, defender, best.dmg); }
+  }
+};
+
+ATTACK_EFFECTS['Magneton'] = {
+  'Thunder Wave': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  // Same Bench-splash-then-guaranteed-self-KO shape as Magnemite's
+  // Selfdestruct above, just Magneton's own printed numbers (80 self dmg
+  // instead of 40).
+  'Selfdestruct': function (state, attacker, defender, atkDef, playerId) {
+    ['player', 'cpu'].forEach(function (ownerId) {
+      state.players[ownerId].bench.forEach(function (b) {
+        if (!b) { return; }
+        b.damage += 10;
+        knockOutIfNeeded(state, ownerId, b);
+      });
+    });
+    attacker.damage += 80;
+    knockOutIfNeeded(state, playerId, attacker);
+  }
+};
+
+ATTACK_EFFECTS['Nidoking'] = {
+  // Both outcomes land the base 30; heads adds +10, tails adds +10 to
+  // Nidoking itself instead.
+  'Thrash': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') {
+      dealDamage(state, attacker, defender, 40);
+    } else {
+      dealDamage(state, attacker, defender, 30);
+      attacker.damage += 10;
+    }
+  },
+  // Toxic deals its own 20 damage AND poisons with the severe (20/turn)
+  // variant -- severePoison rides along on the status object itself (see
+  // applyCheckupDamage, rules-engine.js) and gets cleared alongside
+  // statusConditions everywhere a Pokémon leaves Active or evolves.
+  'Toxic': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    addStatus(defender, 'Poisoned');
+    defender.severePoison = true;
+  }
+};
+
+ATTACK_EFFECTS['Poliwrath'] = {
+  'Water Gun': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30 + extraEnergyBonus(attacker, 'Water', 2, 2));
+  },
+  'Whirlpool': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 40);
+    discardOneDefenderEnergy(state, defender, playerId);
+  }
+};
+
+ATTACK_EFFECTS['Raichu'] = {
+  'Agility': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  },
+  'Thunder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 60);
+    if (coinFlip(state) === 'T') { attacker.damage += 30; }
+  }
+};
+
+ATTACK_EFFECTS['Zapdos'] = {
+  // Same Thunder as Raichu's above -- identical real text, but a separate
+  // Pokémon key (ATTACK_EFFECTS is keyed by attacker name first).
+  'Thunder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 60);
+    if (coinFlip(state) === 'T') { attacker.damage += 30; }
+  },
+  'Thunderbolt': function (state, attacker, defender, atkDef, playerId) {
+    var removed = attacker.attachedEnergy.splice(0, attacker.attachedEnergy.length);
+    if (playerId) {
+      var p = state.players[playerId];
+      removed.forEach(function (t) { p.discard.push(discardedEnergyCard(t)); });
+    }
+    dealDamage(state, attacker, defender, 100);
+  }
+};
+
+ATTACK_EFFECTS['Dragonair'] = {
+  'Slam': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  },
+  'Hyper Beam': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 20);
+    discardOneDefenderEnergy(state, defender, playerId);
+  }
+};
+
+ATTACK_EFFECTS['Dugtrio'] = {
+  // Slash (plain 40 damage) needs no entry.
+  'Earthquake': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 70);
+    if (playerId) {
+      state.players[playerId].bench.forEach(function (b) {
+        if (!b) { return; }
+        b.damage += 10;
+        knockOutIfNeeded(state, playerId, b);
+      });
+    }
+  }
+};
+
+ATTACK_EFFECTS['Electabuzz'] = {
+  'Thundershock': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Thunderpunch': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') {
+      dealDamage(state, attacker, defender, 40);
+    } else {
+      dealDamage(state, attacker, defender, 30);
+      attacker.damage += 10;
+    }
+  }
+};
+
+ATTACK_EFFECTS['Electrode'] = {
+  'Electric Shock': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 50);
+    if (coinFlip(state) === 'T') { attacker.damage += 10; }
+  }
+};
+
+ATTACK_EFFECTS['Pidgeotto'] = {
+  'Whirlwind': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 20);
+    forceOpponentSwitch(state, playerId);
+  },
+  // "If Pidgeotto was attacked last turn, do the final result of that
+  // attack on Pidgeotto to the Defending Pokémon" -- replays the flat
+  // amount tracked by lastDamageTaken (set on every real dealDamage hit)
+  // through a fresh dealDamage call against the CURRENT defender.
+  'Mirror Move': function (state, attacker, defender) {
+    if (attacker.lastDamageTaken && attacker.lastDamageTaken.turn === state.turnCounter - 1) {
+      dealDamage(state, attacker, defender, attacker.lastDamageTaken.amount);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Dewgong'] = {
+  // Aurora Beam (plain 50 damage) needs no entry.
+  'Ice Beam': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Magmar'] = {
+  // Fire Punch (plain 30 damage) needs no entry.
+  'Flamethrower': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+      dealDamage(state, attacker, defender, 50);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Nidorino'] = {
+  'Double Kick': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  }
+  // Horn Drill (plain 50 damage) needs no entry.
+};
+
+ATTACK_EFFECTS['Poliwhirl'] = {
+  // "Choose 1 of the Defending Pokémon's attacks; that Pokémon can't use
+  // it during your opponent's next turn" -- see highestDamageAttack and
+  // tempLockedAttack (rules-engine.js's canAttack/endTurn sweep) above.
+  'Amnesia': function (state, attacker, defender) {
+    var best = highestDamageAttack(defender.name);
+    if (best) { defender.tempLockedAttack = { name: best.atk.name, untilTurn: state.turnCounter + 1 }; }
+  },
+  'Doubleslap': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Porygon'] = {
+  // Both Conversion attacks let the player pick any non-Colorless type of
+  // their choice; a dedicated type-picker UI for this one rarely-played
+  // card isn't worth it (same call already made this session for
+  // Metronome/Amnesia's opponent-attack choice) -- each auto-picks a
+  // fixed, always-valid type instead.
+  'Conversion 1': function (state, attacker, defender) {
+    var defStats = CARD_STATS[defender.name];
+    var hasWeakness = (defStats && defStats.weaknesses && defStats.weaknesses.length) || defender.weaknessOverride;
+    if (hasWeakness) { defender.weaknessOverride = { type: 'Fighting', value: '×2' }; }
+  },
+  'Conversion 2': function (state, attacker) {
+    attacker.resistanceOverride = { type: 'Grass', value: '-30' };
+  }
+};
+
+ATTACK_EFFECTS['Raticate'] = {
+  // Bite (plain 20 damage) needs no entry.
+  'Super Fang': function (state, attacker, defender) {
+    var maxHp = CARD_STATS[defender.name].hp;
+    var remaining = Math.max(0, maxHp - defender.damage);
+    var dmg = Math.ceil((remaining / 2) / 10) * 10;
+    dealDamage(state, attacker, defender, dmg);
+  }
+};
+
+ATTACK_EFFECTS['Caterpie'] = {
+  'String Shot': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Doduo'] = {
+  'Fury Attack': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') { heads++; }
+    if (coinFlip(state) === 'H') { heads++; }
+    dealDamage(state, attacker, defender, 10 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Koffing'] = {
+  // The first "both coin-flip outcomes are distinct statuses" case --
+  // heads Poisons, tails Confuses, unlike every other coin-flip status
+  // attack above which only ever has an effect on one side of the flip.
+  'Foul Gas': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Poisoned'); } else { addStatus(defender, 'Confused'); }
+  }
+};
+
+ATTACK_EFFECTS['Metapod'] = {
+  'Stiffen': function (state, attacker) {
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  },
+  'Stun Spore': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Pidgey'] = {
+  'Whirlwind': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 10);
+    forceOpponentSwitch(state, playerId);
+  }
+};
+
+ATTACK_EFFECTS['Poliwag'] = {
+  'Water Gun': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10 + extraEnergyBonus(attacker, 'Water', 1, 2));
   }
 };
 

@@ -1924,3 +1924,281 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var real = collectionProgress({}, CARD_CATALOG);
   check('collectionProgress total matches the real catalog (base+jungle+fossil)', real.total, 228);
 })();
+
+// Shared by the remaining-35-Pokémon mechanic tests below -- mirrors
+// makeFreshInstance's full field shape (rules-engine.js) so every new
+// engine field (severePoison, weaknessOverride, resistanceOverride,
+// tempLockedAttack, lastDamageTaken) defaults sanely without repeating the
+// whole literal in every test.
+function mkPokemon(id, name, overrides) {
+  var base = {
+    id: id, name: name, attachedEnergy: [], damage: 0, statusConditions: [],
+    turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null,
+    missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null,
+    severePoison: false, weaknessOverride: null, resistanceOverride: null,
+    tempLockedAttack: null, lastDamageTaken: null
+  };
+  return Object.assign(base, overrides || {});
+}
+
+(function testMachampStrikesBackCountersEvenWhenKnockedOut() {
+  var state = createGame(function () { return 0.99; }); // coinFlip always tails
+  state.activePlayerId = 'cpu';
+  var cpu = state.players.cpu;
+  var p = state.players.player;
+  cpu.active = mkPokemon('a1', 'Pikachu', { attachedEnergy: ['Lightning', 'Colorless'] });
+  cpu.bench = [null, null, null, null, null];
+  cpu.prizes = [{ id: 'pz1', name: 'Bill' }];
+  p.active = mkPokemon('m1', 'Machamp', { damage: 95 }); // 100 HP -- Thunder Jolt's 30 finishes it off
+  p.bench = [null, null, null, null, null];
+  p.prizes = [{ id: 'pz2', name: 'Bill' }];
+
+  attack(state, 'cpu', 'Thunder Jolt');
+
+  check('Machamp is Knocked Out by the 30 damage (95 + 30 > its 100 HP)', state.players.player.active, null);
+  // Thunder Jolt's own tails effect adds 10 self-damage to Pikachu, plus
+  // Strikes Back's separate 10 -- 20 total, even though Machamp (the
+  // Pokémon whose Power this is) already went down from the very same hit.
+  check('Strikes Back still counters for 10 even though Machamp itself got Knocked Out', state.players.cpu.active.damage, 20);
+})();
+
+(function testMachampStrikesBackBlockedIfAlreadyAsleep() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'cpu';
+  var cpu = state.players.cpu;
+  var p = state.players.player;
+  cpu.active = mkPokemon('a1', 'Rattata', { attachedEnergy: [] });
+  p.active = mkPokemon('m1', 'Machamp', { damage: 0, statusConditions: ['Asleep'] });
+
+  attack(state, 'cpu', 'Bite');
+
+  check('Machamp still takes the normal 20 from Bite', p.active.damage, 20);
+  check('an already-Asleep Machamp does not counter with Strikes Back (attacker takes no counter-damage)', cpu.active.damage, 0);
+})();
+
+(function testSeverePoisonToxicDealsTwentyPerCheckup() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('n1', 'Nidoking', { attachedEnergy: ['Grass', 'Grass', 'Grass'] });
+  p.bench = [null, null, null, null, null];
+  cpu.active = mkPokemon('c1', 'Machop', {});
+  cpu.bench = [null, null, null, null, null];
+
+  attack(state, 'player', 'Toxic');
+  check('Toxic itself deals 20 immediate damage', cpu.active.damage, 20);
+  checkTrue('Toxic inflicts Poisoned', cpu.active.statusConditions.indexOf('Poisoned') !== -1);
+  checkTrue('Toxic sets severePoison', cpu.active.severePoison);
+
+  applyCheckupDamage(state, 'cpu');
+  check('a severely-Poisoned Pokémon takes 20 (not 10) at checkup', cpu.active.damage, 40);
+})();
+
+(function testSeverePoisonClearsOnRetreatSoALaterNormalPoisonIsOnlyMild() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('c1', 'Machop', { statusConditions: ['Poisoned'], severePoison: true });
+  p.bench = [mkPokemon('c2', 'Rattata', {}), null, null, null, null];
+
+  retreat(state, 'player', 'c2', []);
+
+  var retreatedMachop = p.bench.find(function (b) { return b && b.id === 'c1'; });
+  checkTrue('retreating clears the stale severePoison flag along with statusConditions', !!retreatedMachop && retreatedMachop.severePoison === false && retreatedMachop.statusConditions.length === 0);
+})();
+
+(function testExtraEnergyBonusCapsAtTwoExtra() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  // Hydro Pump: base 40, cost 3 Water, +10 per Water beyond cost, capped at
+  // 2 extra (so 5 Water attached -- 2 more than the 3 the cost uses --
+  // should cap at +20, not +30 for a 6th).
+  p.active = mkPokemon('b1', 'Blastoise', { attachedEnergy: ['Water', 'Water', 'Water', 'Water', 'Water', 'Water'] });
+  cpu.active = mkPokemon('m1', 'Chansey', {}); // 120 HP, not Water-weak -- survives the hit so the damage is checkable
+
+  attack(state, 'player', 'Hydro Pump');
+
+  check('Hydro Pump caps its bonus at +20 (2 extra Water) even with 3 extra attached', cpu.active.damage, 60);
+})();
+
+(function testAmnesiaLocksHighestDamageAttackForExactlyOneTurn() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pw1', 'Poliwhirl', { attachedEnergy: ['Water', 'Water'] });
+  // Machop's only real attack is Low Kick (20 flat) -- the single highest
+  // (and only) damage attack, so it's the one Amnesia should pick.
+  cpu.active = mkPokemon('c1', 'Machop', {});
+
+  attack(state, 'player', 'Amnesia');
+
+  check('Amnesia locks the defender\'s highest-damage attack', cpu.active.tempLockedAttack.name, 'Low Kick');
+  check('the lock is set to expire after the opponent\'s next turn', cpu.active.tempLockedAttack.untilTurn, state.turnCounter); // endTurn() below advances turnCounter past this
+
+  checkTrue('Low Kick is illegal for the CPU during its very next turn', !canAttack(state, 'cpu', 'Low Kick'));
+
+  // attack() above already called endTurn() once internally (ending the
+  // player's own turn and handing to cpu) -- one more endTurn() simulates
+  // the CPU's turn ending, which is exactly when the sweep should clear
+  // this lock (matching "during your opponent's next turn", not any turn
+  // after that).
+  endTurn(state);
+  checkTrue('the lock is swept away at the end of the opponent\'s next turn', !cpu.active.tempLockedAttack);
+})();
+
+(function testMetronomeCopiesOnlyFlatDamageOfHighestAttack() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('cl1', 'Clefairy', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
+  // Machoke's attacks: Karate Chop (calculated, base 50) and Submission
+  // (flat 60) -- Metronome should pick Submission's raw 60 and deal ONLY
+  // that flat number, without also inflicting Submission's own 20
+  // self-damage recoil (per the documented simplification).
+  cpu.active = mkPokemon('mc1', 'Machoke', {});
+
+  attack(state, 'player', 'Metronome');
+
+  check('Metronome deals the copied attack\'s flat damage', cpu.active.damage, 60);
+  check('Metronome does not also copy the recoil self-damage', p.active.damage, 0);
+})();
+
+(function testMirrorMoveReplaysLastTurnsDamageOnly() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pg1', 'Pidgeotto', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'], lastDamageTaken: { amount: 40, turn: state.turnCounter - 1 } });
+  cpu.active = mkPokemon('c1', 'Machop', {});
+
+  attack(state, 'player', 'Mirror Move');
+  check('Mirror Move replays the exact amount Pidgeotto took last turn', cpu.active.damage, 40);
+})();
+
+(function testMirrorMoveDoesNothingIfNotHitLastTurn() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pg1', 'Pidgeotto', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'], lastDamageTaken: { amount: 40, turn: state.turnCounter - 5 } });
+  cpu.active = mkPokemon('c1', 'Machop', {});
+
+  attack(state, 'player', 'Mirror Move');
+  check('Mirror Move does nothing if Pidgeotto was not hit on the immediately preceding turn', cpu.active.damage, 0);
+})();
+
+(function testWhirlwindAutoPicksFirstBenchSlotOnDefendingSide() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pg1', 'Pidgeotto', { attachedEnergy: ['Colorless', 'Colorless'] });
+  cpu.active = mkPokemon('c1', 'Machop', {});
+  cpu.bench = [mkPokemon('c2', 'Rattata', {}), mkPokemon('c3', 'Voltorb', {}), null, null, null];
+
+  attack(state, 'player', 'Whirlwind');
+
+  check('Whirlwind deals its damage first', state.players.cpu.bench.some(function (b) { return b && b.id === 'c1' && b.damage === 20; }), true);
+  check('the first available Bench Pokémon becomes the new Active', cpu.active.id, 'c2');
+})();
+
+(function testWhirlpoolDiscardsOneDefenderEnergyIfAny() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pw1', 'Poliwrath', { attachedEnergy: ['Water', 'Water', 'Colorless', 'Colorless'] });
+  cpu.active = mkPokemon('c1', 'Machop', { attachedEnergy: ['Fighting', 'Fighting'] });
+
+  attack(state, 'player', 'Whirlpool');
+  check('Whirlpool discards exactly 1 of the defender\'s attached energy', cpu.active.attachedEnergy.length, 1);
+})();
+
+(function testFoulGasBranchesToDistinctStatusesPerCoinSide() {
+  var headsState = createGame(function () { return 0.01; }); // heads
+  headsState.activePlayerId = 'player';
+  headsState.players.player.active = mkPokemon('k1', 'Koffing', { attachedEnergy: ['Grass', 'Grass'] });
+  headsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(headsState, 'player', 'Foul Gas');
+  checkTrue('Foul Gas Poisons on heads', headsState.players.cpu.active.statusConditions.indexOf('Poisoned') !== -1);
+
+  var tailsState = createGame(function () { return 0.99; }); // tails
+  tailsState.activePlayerId = 'player';
+  tailsState.players.player.active = mkPokemon('k1', 'Koffing', { attachedEnergy: ['Grass', 'Grass'] });
+  tailsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(tailsState, 'player', 'Foul Gas');
+  checkTrue('Foul Gas Confuses on tails', tailsState.players.cpu.active.statusConditions.indexOf('Confused') !== -1);
+})();
+
+(function testSuperFangDealsHalfRemainingHpRoundedUpToTen() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('rt1', 'Raticate', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
+  // Machop: 50 HP, sitting at 20 damage -- 30 remaining, half is 15,
+  // rounded UP to the nearest 10 is 20 (not floored to 10).
+  cpu.active = mkPokemon('c1', 'Machop', { damage: 20 });
+
+  attack(state, 'player', 'Super Fang');
+  check('Super Fang rounds half of remaining HP up to the nearest 10', cpu.active.damage, 20 + 20);
+})();
+
+(function testConversion1OverridesDefenderWeakness() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pr1', 'Porygon', {});
+  cpu.active = mkPokemon('c1', 'Machop', {}); // real Weakness: Psychic
+
+  attack(state, 'player', 'Conversion 1');
+  check('Conversion 1 overrides the defender\'s Weakness to a fixed type', cpu.active.weaknessOverride && cpu.active.weaknessOverride.type, 'Fighting');
+})();
+
+(function testConversion2OverridesOwnResistance() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('pr1', 'Porygon', {});
+  state.players.cpu.active = mkPokemon('c1', 'Machop', {});
+
+  attack(state, 'player', 'Conversion 2');
+  check('Conversion 2 overrides Porygon\'s own Resistance', p.active.resistanceOverride && p.active.resistanceOverride.type, 'Grass');
+})();
+
+(function testThunderpunchBranchesBonusOrSelfDamage() {
+  var headsState = createGame(function () { return 0.01; });
+  headsState.activePlayerId = 'player';
+  headsState.players.player.active = mkPokemon('e1', 'Electabuzz', { attachedEnergy: ['Lightning', 'Colorless'] });
+  headsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(headsState, 'player', 'Thunderpunch');
+  check('Thunderpunch heads: 30+10 to the defender, no self-damage', headsState.players.cpu.active.damage, 40);
+  check('no self-damage on heads', headsState.players.player.active.damage, 0);
+
+  var tailsState = createGame(function () { return 0.99; });
+  tailsState.activePlayerId = 'player';
+  tailsState.players.player.active = mkPokemon('e1', 'Electabuzz', { attachedEnergy: ['Lightning', 'Colorless'] });
+  tailsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(tailsState, 'player', 'Thunderpunch');
+  check('Thunderpunch tails: base 30 to the defender', tailsState.players.cpu.active.damage, 30);
+  check('Thunderpunch tails: 10 self-damage to Electabuzz', tailsState.players.player.active.damage, 10);
+})();
+
+(function testFireSpinRequiresTwoAttachedEnergyToDiscard() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('cz1', 'Charizard', { attachedEnergy: ['Fire', 'Fire', 'Fire', 'Fire'] });
+  cpu.active = mkPokemon('c1', 'Chansey', {}); // 120 HP, not Fire-weak -- survives the 100 so the damage is checkable
+
+  attack(state, 'player', 'Fire Spin');
+  check('Fire Spin discards 2 of the attached energy (any type)', p.active.attachedEnergy.length, 2);
+  check('Fire Spin deals its 100 damage once paid', cpu.active.damage, 100);
+})();

@@ -732,7 +732,11 @@ function renderEnergyRetrievalModal() {
 // real card name to look up its illustration.
 var ENERGY_CARD_NAME_BY_TYPE = {
   Grass: 'Grass Energy', Fire: 'Fire Energy', Water: 'Water Energy',
-  Lightning: 'Lightning Energy', Psychic: 'Psychic Energy', Fighting: 'Fighting Energy'
+  Lightning: 'Lightning Energy', Psychic: 'Psychic Energy', Fighting: 'Fighting Energy',
+  // 'Colorless' only ever appears in attachedEnergy via Double Colorless
+  // Energy (every basic Energy card's own type is one of the 6 above) --
+  // safe to map unconditionally.
+  Colorless: 'Double Colorless Energy'
 };
 
 // Which side of the board the player must click next for a given armed

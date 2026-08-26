@@ -161,7 +161,27 @@ function makeFreshInstance(id, name, turnCounter) {
   return {
     id: id, name: name, attachedEnergy: [], damage: 0, statusConditions: [],
     turnEnteredCurrentForm: turnCounter, lockedAttacks: [], shield: null,
-    missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null
+    missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null,
+    // Nidoking's Toxic: stronger Poison (20/turn instead of 10) -- checked
+    // in applyCheckupDamage.
+    severePoison: false,
+    // Porygon's Conversion 1/2: {type} overriding this instance's real
+    // printed Weakness (set on whoever Conversion 1 targeted) or
+    // Resistance (set on Porygon itself by Conversion 2) -- checked in
+    // dealDamage instead of the static CARD_STATS lookup. Cleared when the
+    // Pokémon leaves play (a fresh instance always starts null); real
+    // rules have no turn-based expiry for these, they last until replaced.
+    weaknessOverride: null,
+    resistanceOverride: null,
+    // Poliwhirl's Amnesia: locks one CHOSEN opposing attack for a single
+    // turn -- {name, untilTurn}, checked in canAttack. Distinct from
+    // lockedAttacks (a permanent, self-only lock like Farfetch'd's Leek
+    // Slap).
+    tempLockedAttack: null,
+    // Pidgeotto's Mirror Move: {amount, turn} -- the real damage this
+    // instance took from an attack, recorded in dealDamage, so Mirror Move
+    // can replay it the following turn.
+    lastDamageTaken: null
   };
 }
 
@@ -233,6 +253,10 @@ function evolve(state, playerId, handId, targetInstanceId) {
   // Poisoned, Asleep, Confused, Burned) -- unlike retreat/Switch/Gust of
   // Wind, damage and attached energy are untouched here.
   target.statusConditions = [];
+  // severePoison (Nidoking's Toxic) rides along with Poisoned itself --
+  // clearing statusConditions without this would leave a stale flag that
+  // silently upgrades a later, unrelated Poison to 20/turn.
+  target.severePoison = false;
   logEvent(state, translatePlayer(playerId) + ' evoluciona a ' + card.name, playerId);
 }
 
@@ -253,7 +277,12 @@ function canPayCost(instance, cost) {
 
 var ENERGY_TYPE_BY_CARD_NAME = {
   'Grass Energy': 'Grass', 'Fire Energy': 'Fire', 'Water Energy': 'Water',
-  'Lightning Energy': 'Lightning', 'Psychic Energy': 'Psychic', 'Fighting Energy': 'Fighting'
+  'Lightning Energy': 'Lightning', 'Psychic Energy': 'Psychic', 'Fighting Energy': 'Fighting',
+  // Provides 2 Colorless from a single physical card (attachEnergy special-
+  // cases this name to push 'Colorless' twice) -- this lookup entry alone
+  // is just enough to make canAttachEnergy/UI icon lookups treat it as a
+  // real, attachable Colorless-providing card.
+  'Double Colorless Energy': 'Colorless'
 };
 
 function canAttachEnergy(state, playerId, handId, targetInstanceId) {
@@ -270,7 +299,18 @@ function attachEnergy(state, playerId, handId, targetInstanceId) {
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   var card = p.hand.splice(idx, 1)[0];
   var target = findInstance(p, targetInstanceId);
-  target.attachedEnergy.push(ENERGY_TYPE_BY_CARD_NAME[card.name]);
+  // Double Colorless Energy is one physical card worth 2 Colorless --
+  // pushed as two separate attachedEnergy entries since that array is
+  // also what pays attack costs and what "discard 1 energy" effects
+  // remove from. (Known simplification: a "discard 1 energy" effect could
+  // technically peel off just one of these two entries, splitting what's
+  // printed as a single indivisible card -- a rare edge case, not worth
+  // a bigger data-model change for.)
+  if (card.name === 'Double Colorless Energy') {
+    target.attachedEnergy.push('Colorless', 'Colorless');
+  } else {
+    target.attachedEnergy.push(ENERGY_TYPE_BY_CARD_NAME[card.name]);
+  }
   p.energyAttachedThisTurn = true;
   logEvent(state, translatePlayer(playerId) + ' pone ' + translateCardName(card.name) + ' en ' + target.name, playerId);
 }
@@ -306,6 +346,7 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   // active-only mechanics) are removed the instant a Pokémon leaves Active
   // (1998-99 rules) -- only the Active Pokémon can ever carry them.
   p.active.statusConditions = [];
+  p.active.severePoison = false;
   p.active.shield = null;
   p.active.missChanceUntilTurn = null;
   // The retreating Pokémon takes over the exact slot the incoming one is
@@ -368,7 +409,19 @@ var ATTACK_NAME_ES = {
   'Selfdestruct': 'Autodestrucción',
   'Lure': 'Señuelo', 'Fire Blast': 'Lanzallamas Explosivo', 'Flamethrower': 'Lanzallamas',
   'Take Down': 'Derribo', 'Slash': 'Corte', 'Flare': 'Llamarada',
-  'Horn Hazard': 'Cornada Peligrosa', 'Bind': 'Constricción', 'Scratch': 'Arañazo', 'Ember': 'Ascuas'
+  'Horn Hazard': 'Cornada Peligrosa', 'Bind': 'Constricción', 'Scratch': 'Arañazo', 'Ember': 'Ascuas',
+  'Hydro Pump': 'Hidrobomba', 'Scrunch': 'Encogerse', 'Double-edge': 'Doble Filo', 'Fire Spin': 'Giro Fuego',
+  'Sing': 'Canto', 'Metronome': 'Metrónomo', 'Seismic Toss': 'Tiro Sísmico', 'Thrash': 'Golpes Furia',
+  'Toxic': 'Tóxico', 'Water Gun': 'Pistola Agua', 'Whirlpool': 'Remolino', 'Agility': 'Agilidad',
+  'Thunder': 'Trueno', 'Solarbeam': 'Rayo Solar', 'Thunderbolt': 'Rayo', 'Slam': 'Golpazo',
+  'Hyper Beam': 'Hiperrayo', 'Earthquake': 'Terremoto', 'Thundershock': 'Impactrueno', 'Thunderpunch': 'Puño Trueno',
+  'Electric Shock': 'Descarga Eléctrica', 'Whirlwind': 'Torbellino', 'Mirror Move': 'Espejo',
+  'Aurora Beam': 'Rayo Aurora', 'Ice Beam': 'Rayo Hielo', 'Fire Punch': 'Puño Fuego',
+  'Double Kick': 'Doble Patada', 'Horn Drill': 'Taladro', 'Amnesia': 'Amnesia',
+  'Conversion 1': 'Conversión 1', 'Conversion 2': 'Conversión 2', 'Super Fang': 'Supercolmillo',
+  'Headbutt': 'Cabezazo', 'String Shot': 'Lanza Hilo', 'Dig': 'Cavar', 'Mud Slap': 'Bofetón Lodo',
+  'Fury Attack': 'Ataque Furia', 'Foul Gas': 'Gas Fétido', 'Stun Spore': 'Paralizador',
+  'Smash Kick': 'Patada Certera', 'Flame Tail': 'Cola Llama'
 };
 function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
 
@@ -411,7 +464,39 @@ var ATTACK_TEXT_ES = {
   'Take Down': 'Este Pokémon se hace 30 de daño a sí mismo.',
   'Horn Hazard': 'Lanza una moneda. Si es cruz, este ataque no hace nada.',
   'Bind': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
-  'Ember': 'Descarta 1 carta de Energía Fuego adjunta a este Pokémon para usar este ataque.'
+  'Ember': 'Descarta 1 carta de Energía Fuego adjunta a este Pokémon para usar este ataque.',
+  'Scrunch': 'Lanza una moneda. Si es cara, evita todo el daño que se le haga a este Pokémon durante el próximo turno de tu rival.',
+  'Double-edge': 'Este Pokémon se hace 80 de daño a sí mismo.',
+  'Fire Spin': 'Descarta 2 cartas de Energía adjuntas a este Pokémon para usar este ataque.',
+  'Sing': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Dormido.',
+  'Metronome': 'Elige 1 de los ataques del Pokémon Defensor. Metrónomo copia ese ataque, excepto sus costos de Energía y cualquier otro requisito para usarlo, como descartar cartas de Energía.',
+  'Thrash': 'Lanza una moneda. Si es cara, este ataque hace 30 de daño más 10 de daño adicional; si es cruz, este ataque hace 30 de daño y este Pokémon se hace 10 de daño a sí mismo.',
+  'Toxic': 'El Pokémon Defensor queda Envenenado. A partir de ahora recibe 20 de daño por veneno en lugar de 10 después de cada turno (aunque ya estuviera Envenenado).',
+  'Whirlpool': 'Si el Pokémon Defensor tiene alguna carta de Energía adjunta, elige 1 y descártala.',
+  'Agility': 'Lanza una moneda. Si es cara, durante el próximo turno de tu rival, evita todos los efectos de los ataques, incluido el daño, hechos a este Pokémon.',
+  'Thunder': 'Lanza una moneda. Si es cruz, este Pokémon se hace 30 de daño a sí mismo.',
+  'Thunderbolt': 'Descarta todas las cartas de Energía adjuntas a este Pokémon para usar este ataque.',
+  'Slam': 'Lanza 2 monedas. Este ataque hace 30 de daño por cada cara.',
+  'Hyper Beam': 'Si el Pokémon Defensor tiene alguna carta de Energía adjunta, elige 1 y descártala.',
+  'Earthquake': 'Hace 10 de daño a cada uno de tus propios Pokémon de la Banca (no se aplica Debilidad ni Resistencia a la Banca).',
+  'Thundershock': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Thunderpunch': 'Lanza una moneda. Si es cara, este ataque hace 30 de daño más 10 de daño adicional; si es cruz, este ataque hace 30 de daño y este Pokémon se hace 10 de daño a sí mismo.',
+  'Electric Shock': 'Lanza una moneda. Si es cruz, este Pokémon se hace 10 de daño a sí mismo.',
+  'Whirlwind': 'Si tu rival tiene algún Pokémon en la Banca, tu rival elige 1 y lo intercambia con el Pokémon Defensor. (El daño se aplica antes del cambio.)',
+  'Mirror Move': 'Si a este Pokémon lo atacaron el turno anterior, aplica el resultado final de ese ataque sobre el Pokémon Defensor.',
+  'Ice Beam': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Double Kick': 'Lanza 2 monedas. Este ataque hace 30 de daño por cada cara.',
+  'Amnesia': 'Elige 1 de los ataques del Pokémon Defensor. Ese Pokémon no podrá usar ese ataque durante el próximo turno de tu rival.',
+  'Conversion 1': 'Si el Pokémon Defensor tiene Debilidad, puedes cambiarla a un tipo de tu elección (que no sea Incoloro).',
+  'Conversion 2': 'Cambia la Resistencia de este Pokémon a un tipo de tu elección (que no sea Incoloro).',
+  'Super Fang': 'Hace al Pokémon Defensor un daño igual a la mitad de su HP restante, redondeado hacia arriba a la decena más cercana.',
+  'String Shot': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Fury Attack': 'Lanza 2 monedas. Este ataque hace 10 de daño por cada cara.',
+  'Foul Gas': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Envenenado. Si es cruz, el Pokémon Defensor queda Confundido.',
+  'Stun Spore': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Hydro Pump': 'Hace 40 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.',
+  'Poliwag|Water Gun': 'Hace 10 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. No puedes sumar más de 20 de daño de esta forma.',
+  'Poliwrath|Water Gun': 'Hace 30 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.'
 };
 function translateAttackText(pokemonName, attackName) {
   var key = pokemonName + '|' + attackName;
@@ -451,8 +536,13 @@ function dealDamage(state, attacker, defender, baseDamage) {
   var dmg = baseDamage;
   var defStats = CARD_STATS[defender.name];
   var atkTypes = CARD_STATS[attacker.name].types || [];
-  if (typeHasMatch(defStats.weaknesses, atkTypes)) { dmg *= 2; }
-  if (typeHasMatch(defStats.resistances, atkTypes)) { dmg = Math.max(0, dmg - 30); }
+  // Porygon's Conversion 1/2 can override either side's printed Weakness/
+  // Resistance with a chosen type -- checked first, falling back to the
+  // real card data when no override is set.
+  var weaknesses = defender.weaknessOverride ? [defender.weaknessOverride] : defStats.weaknesses;
+  var resistances = defender.resistanceOverride ? [defender.resistanceOverride] : defStats.resistances;
+  if (typeHasMatch(weaknesses, atkTypes)) { dmg *= 2; }
+  if (typeHasMatch(resistances, atkTypes)) { dmg = Math.max(0, dmg - 30); }
   if (attacker.plusPowerAttached) { dmg += 10; }
   if (defender.shield) {
     if (defender.shield.untilTurn < state.turnCounter) {
@@ -481,6 +571,12 @@ function dealDamage(state, attacker, defender, baseDamage) {
     }
   }
   defender.damage += dmg;
+  // Pidgeotto's Mirror Move needs "the final result of the attack this
+  // Pokémon took last turn" -- recorded here (after Weakness/Resistance/
+  // shields are already applied, i.e. the real final number), regardless
+  // of which Pokémon it is, since it's cheap to always track and only
+  // Pidgeotto/Pidgey ever read it back.
+  defender.lastDamageTaken = { amount: dmg, turn: state.turnCounter };
   return dmg;
 }
 
@@ -603,6 +699,7 @@ function canAttack(state, playerId, attackName) {
   if (state.activePlayerId !== playerId || !p.active) { return false; }
   if (hasStatus(p.active, 'Asleep') || hasStatus(p.active, 'Paralyzed')) { return false; }
   if (p.active.lockedAttacks.indexOf(attackName) !== -1) { return false; }
+  if (p.active.tempLockedAttack && p.active.tempLockedAttack.name === attackName) { return false; }
   var stats = CARD_STATS[p.active.name];
   var atk = (stats.attacks || []).find(function (a) { return a.name === attackName; });
   if (!atk) { return false; }
@@ -688,6 +785,20 @@ function attack(state, playerId, attackName, targetInstanceId) {
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
+  // Machamp's Strikes Back (Pokémon Power, passive -- always on, no
+  // button): whenever an opposing Pokémon attacks Machamp and deals
+  // damage, it hits back for 10, even if Machamp is Knocked Out by the
+  // very attack that triggered it (the `defender` reference still points
+  // at the same object either way). Blocked only if Machamp was ALREADY
+  // Asleep, Confused, or Paralyzed before this attack connected -- a
+  // status this same attack just inflicted (beforeStatus predates it)
+  // doesn't retroactively block the counter-hit.
+  var defenderPower = defender && CARD_STATS[defender.name] && CARD_STATS[defender.name].pokemonPower;
+  if (defenderPower && defenderPower.name === 'Strikes Back' && damageDealt > 0 &&
+      beforeStatus.indexOf('Asleep') === -1 && beforeStatus.indexOf('Confused') === -1 && beforeStatus.indexOf('Paralyzed') === -1) {
+    attacker.damage += 10;
+    logEvent(state, defender.name + ' contraataca con Strikes Back e inflige 10 a ' + attacker.name, opId);
+  }
   // Self-damage (Pikachu's Thunder Jolt, Machoke's Submission, ...) can
   // knock the attacker itself out -- this used to go unchecked here, so a
   // 0-HP Pokémon sat on the board as a live Active until the NEXT
@@ -710,7 +821,13 @@ function applyCheckupDamage(state, playerId) {
   // p.active only, never the bench, even defensively.
   if (p.active) {
     var instance = p.active;
-    if (hasStatus(instance, 'Poisoned')) { instance.damage += 10; logEvent(state, instance.name + ' sufre daño por veneno', playerId); }
+    if (hasStatus(instance, 'Poisoned')) {
+      // Nidoking's Toxic: 20/turn instead of the normal 10, "even if it
+      // was already Poisoned" (i.e. Toxic upgrades an existing Poison
+      // rather than requiring a fresh one).
+      instance.damage += instance.severePoison ? 20 : 10;
+      logEvent(state, instance.name + ' sufre daño por veneno', playerId);
+    }
     if (hasStatus(instance, 'Burned')) {
       instance.damage += 10;
       if (coinFlip(state) === 'H') { instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Burned'; }); }
@@ -766,6 +883,15 @@ function endTurn(state) {
   ['player', 'cpu'].forEach(function (ownerId) {
     allInstances(state.players[ownerId]).forEach(function (instance) {
       if (instance.shield && instance.shield.untilTurn <= state.turnCounter) { instance.shield = null; }
+      // Amnesia's lock (Poliwhirl) rides the same untilTurn/sweep
+      // convention as shields: set to turnCounter+1 the moment it's used,
+      // so it survives this immediate end-of-turn check, blocks the named
+      // attack for the locked Pokémon's owner during their very next turn
+      // (see canAttack), and is swept here at the end of THAT turn --
+      // unlike shield/missChanceUntilTurn, this one is NOT cleared on
+      // retreat, since the real card ties the lock to the specific
+      // Pokémon and attack, not to "whichever Pokémon is currently Active".
+      if (instance.tempLockedAttack && instance.tempLockedAttack.untilTurn <= state.turnCounter) { instance.tempLockedAttack = null; }
     });
   });
 
