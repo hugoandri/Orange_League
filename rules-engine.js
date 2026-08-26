@@ -671,6 +671,17 @@ function attack(state, playerId, attackName) {
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }
+  // Self-damage (Pikachu's Thunder Jolt, Machoke's Submission, ...) can
+  // knock the attacker itself out -- this used to go unchecked here, so a
+  // 0-HP Pokémon sat on the board as a live Active until the NEXT
+  // checkup (applyCheckupDamage always re-checks p.active regardless of
+  // whether it just added damage, so it eventually caught the KO -- but
+  // only at "Terminar turno", not immediately, and never prompted a
+  // Bench replacement in the meantime). Guarded on the attacker still
+  // being the current Active so effects that already resolve their own
+  // self-KO inline (Magnemite's Selfdestruct, which can also need to
+  // knock out Bench Pokémon first) don't get double-processed here.
+  if (p.active && p.active.id === attacker.id) { knockOutIfNeeded(state, playerId, attacker); }
   endThisTurn();
 }
 

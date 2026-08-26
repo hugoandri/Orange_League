@@ -847,6 +847,29 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Thunder Jolt self-damages 10 on tails', pikachu.damage, 10);
 })();
 
+(function testSelfDamageKOsTheAttackerImmediately() {
+  // Real reported bug: Pikachu (40 HP) at 30 damage used Thunder Jolt,
+  // rolled tails (10 self-damage, reaching exactly 40), and stayed on the
+  // board as a live 0-HP Active until the player's NEXT "Terminar turno"
+  // -- because attack() only ever checked the DEFENDER for a KO, never
+  // the attacker's own self-damage. It must be knocked out (and prompt a
+  // Bench replacement, same as a KO from the opponent) the instant the
+  // attack resolves, not deferred to the next checkup.
+  var state = createGame(function () { return 0.99; }); // coinFlip always 'T' (tails)
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = { id: 'pk1', name: 'Pikachu', attachedEnergy: ['Lightning', 'Colorless'], damage: 30, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  p.bench = [{ id: 'b1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null }, null, null, null, null];
+  p.prizes = [{ id: 'pz1', name: 'Bill' }];
+  cpu.active = { id: 'ca1', name: 'Magnemite', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+
+  attack(state, 'player', 'Thunder Jolt');
+
+  check('Pikachu is no longer the Active -- it was knocked out immediately, not left at 0 HP', p.active, null);
+  checkTrue('the player is immediately prompted to pick a Bench replacement', state.pendingActiveChoice === 'player');
+})();
+
 (function testHaunterDreamEaterRequiresSleepingDefender() {
   var state = createGame(function () { return 0.42; });
   state.activePlayerId = 'player';
