@@ -236,6 +236,15 @@ function findInstance(p, instanceId) {
   return p.bench.find(function (b) { return b && b.id === instanceId; }) || null;
 }
 
+// Shared by canEvolve and Pokémon Breeder (card-effects.js): the timing
+// rule is identical either way -- Breeder's real ruling is "you can only
+// play this card when you would be allowed to evolve that Pokémon anyway",
+// it only skips the Stage 1 requirement, not this timing check.
+function evolutionTimingAllowed(state, target) {
+  if (state.turnCounter <= 2 && target.turnEnteredCurrentForm <= 1) { return false; }
+  return target.turnEnteredCurrentForm < state.turnCounter;
+}
+
 function canEvolve(state, playerId, handId, targetInstanceId) {
   if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
@@ -244,8 +253,26 @@ function canEvolve(state, playerId, handId, targetInstanceId) {
   if (!card || !target) { return false; }
   var stats = CARD_STATS[card.name];
   if (!stats || stats.supertype !== 'Pokémon' || stats.evolvesFrom !== target.name) { return false; }
-  if (state.turnCounter <= 2 && target.turnEnteredCurrentForm <= 1) { return false; }
-  return target.turnEnteredCurrentForm < state.turnCounter;
+  return evolutionTimingAllowed(state, target);
+}
+
+// Walks CARD_STATS[name].evolvesFrom back to the root Basic name -- used by
+// Scoop Up (return the Basic form to hand) and Devolution Spray (devolve
+// all the way back to Basic).
+function basicFormName(name) {
+  var stats = CARD_STATS[name];
+  while (stats && stats.evolvesFrom) {
+    name = stats.evolvesFrom;
+    stats = CARD_STATS[name];
+  }
+  return name;
+}
+
+// Same id/shape convention as discardedEnergyCard below, for the
+// intermediate Evolution-stage "cards" Scoop Up/Devolution Spray discard
+// on the way back down to a Pokémon's Basic form.
+function discardedEvolutionCard(name) {
+  return { id: 'discarded-evo-' + Date.now() + '-' + Math.random(), name: name };
 }
 
 function evolve(state, playerId, handId, targetInstanceId) {
@@ -330,6 +357,10 @@ function canRetreat(state, playerId, benchInstanceId) {
   if (!p.active || p.retreatedThisTurn) { return false; }
   if (p.active.statusConditions.indexOf('Asleep') !== -1) { return false; }
   if (p.active.statusConditions.indexOf('Paralyzed') !== -1) { return false; }
+  // Clefairy Doll: "can't retreat" -- stronger than a free (0-cost) retreat
+  // like Diglett/Doduo/Rattata's real retreatCost:0, which stays freely
+  // retreatable.
+  if (CARD_STATS[p.active.name].cantRetreat) { return false; }
   var bench = p.bench.find(function (b) { return b && b.id === benchInstanceId; });
   if (!bench) { return false; }
   var cost = CARD_STATS[p.active.name].retreatCost;
@@ -372,6 +403,9 @@ function hasStatus(instance, status) { return instance.statusConditions.indexOf(
 var EXCLUSIVE_STATUSES = ['Asleep', 'Confused', 'Paralyzed'];
 
 function addStatus(instance, status) {
+  // Clefairy Doll: "can't be Asleep, Confused, Paralyzed, or Poisoned" --
+  // the only real card in this immune-to-status category.
+  if (CARD_STATS[instance.name] && CARD_STATS[instance.name].immuneToStatus) { return; }
   if (EXCLUSIVE_STATUSES.indexOf(status) !== -1) {
     instance.statusConditions = instance.statusConditions.filter(function (s) { return EXCLUSIVE_STATUSES.indexOf(s) === -1; });
   }
@@ -397,7 +431,13 @@ var TRAINER_NAME_ES = {
   'Fire Energy': 'Energía Fuego', 'Lightning Energy': 'Energía Rayo',
   'Psychic Energy': 'Energía Psíquica',
   'Computer Search': 'Búsqueda Computarizada', 'Defender': 'Defensor',
-  'Lass': 'Señorita', 'Energy Retrieval': 'Recuperar Energía'
+  'Lass': 'Señorita', 'Energy Retrieval': 'Recuperar Energía',
+  'Clefairy Doll': 'Muñeco de Clefairy', 'Devolution Spray': 'Espray de Involución',
+  'Impostor Professor Oak': 'Profesor Oak Impostor', 'Item Finder': 'Buscador de Objetos',
+  'Pokémon Breeder': 'Criador Pokémon', 'Pokémon Trader': 'Intercambiador Pokémon',
+  'Scoop Up': 'Recogida', 'Full Heal': 'Cura Total', 'Maintenance': 'Mantenimiento',
+  'Pokémon Center': 'Centro Pokémon', 'Pokémon Flute': 'Flauta Pokémon',
+  'Pokédex': 'Pokédex', 'Revive': 'Revivir'
 };
 function translateCardName(name) { return TRAINER_NAME_ES[name] || name; }
 
@@ -532,7 +572,20 @@ var TRAINER_TEXT_ES = {
   'Computer Search': 'Descarta 2 cartas de tu mano. (Si no puedes descartar 2 cartas, no puedes jugar esta carta.) Busca en tu mazo la carta que quieras y ponla en tu mano. Luego, baraja tu mazo.',
   'Defender': 'Adjunta Defensor a uno de tus Pokémon. Al final del próximo turno de tu rival, descarta Defensor. El daño que reciba ese Pokémon por ataques se reduce en 20 (tras aplicar Debilidad y Resistencia).',
   'Lass': 'Tú y tu rival se muestran las manos, luego mezclan todas las cartas de Entrenador de sus manos en sus mazos.',
-  'Energy Retrieval': 'Cambia 1 de las otras cartas de tu mano por hasta 2 cartas de Energía básica de tu descarte.'
+  'Energy Retrieval': 'Cambia 1 de las otras cartas de tu mano por hasta 2 cartas de Energía básica de tu descarte.',
+  'Clefairy Doll': 'Juega Muñeco de Clefairy como si fuera un Pokémon Básico. En juego, cuenta como Pokémon (no como Entrenador). No tiene ataques, no puede retirarse y no puede estar Dormido, Confundido, Paralizado ni Envenenado. Si es noqueado, tu rival no roba una carta de Premio. En cualquier momento de tu turno, antes de atacar, puedes descartarlo.',
+  'Devolution Spray': 'Elige 1 de tus Pokémon en juego. Descarta todas las cartas de Evolución adjuntas a ese Pokémon, devolviéndolo a su forma Básica. Ya no está Dormido, Confundido, Paralizado, Envenenado ni nada que sea resultado de un ataque (como si hubiera evolucionado).',
+  'Impostor Professor Oak': 'Tu rival mezcla su mano en su mazo y luego roba 7 cartas.',
+  'Item Finder': 'Descarta 2 de las otras cartas de tu mano para poner una carta de Entrenador de tu descarte en tu mano.',
+  'Pokémon Breeder': 'Pon una carta de Evolución de 2ª Etapa de tu mano sobre el Pokémon Básico correspondiente, saltándote la 1ª Etapa. Solo puedes jugar esta carta cuando ya podrías evolucionar a ese Pokémon de todas formas.',
+  'Pokémon Trader': 'Cambia 1 carta de Pokémon Básico o de Evolución de tu mano por 1 carta de Pokémon Básico o de Evolución de tu mazo. Luego, baraja tu mazo.',
+  'Scoop Up': 'Elige 1 de tus Pokémon en juego y devuelve su carta de Pokémon Básico a tu mano. (Descarta todas las cartas adjuntas a esa carta.)',
+  'Full Heal': 'Tu Pokémon Activo ya no está Dormido, Confundido, Paralizado ni Envenenado.',
+  'Maintenance': 'Mezcla 2 de las otras cartas de tu mano en tu mazo para robar 1 carta.',
+  'Pokémon Center': 'Quita todas las fichas de daño de tus Pokémon que tengan daño y luego descarta toda la Energía adjunta a esos Pokémon.',
+  'Pokémon Flute': 'Elige 1 carta de Pokémon Básico del descarte de tu rival y ponla en su Banca. (No puedes jugar esta carta si la Banca rival está llena.)',
+  'Pokédex': 'Mira hasta 5 cartas de la parte superior de tu mazo y reordénalas como quieras.',
+  'Revive': 'Pon 1 carta de Pokémon Básico de tu descarte en tu Banca. Ponle fichas de daño equivalentes a la mitad de sus PS (redondeado hacia abajo a la decena más cercana). (No puedes jugar esta carta si tu Banca está llena.)'
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
@@ -629,7 +682,10 @@ function knockOutIfNeeded(state, ownerId, instance) {
   owner.discard.push({ id: instance.id, name: instance.name });
   instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
   var attackerPlayer = state.players[attackerId];
-  if (remainingPrizes(attackerPlayer) > 0) {
+  // Clefairy Doll: "doesn't count as a Knocked Out Pokémon" -- everything
+  // else above and below (leaving play, discard, Destiny Bond) still
+  // happens normally, only the opponent's prize is skipped.
+  if (!stats.noKnockOutPrize && remainingPrizes(attackerPlayer) > 0) {
     if (attackerId === 'player') {
       // The player's own prizes are specific, already-determined cards (set
       // aside face down in createGame) -- let them pick which face-down slot
@@ -670,6 +726,39 @@ function knockOutIfNeeded(state, ownerId, instance) {
       knockOutIfNeeded(state, attackerId, revengeTarget);
     }
   }
+}
+
+// Clefairy Doll: "At any time during your turn before your attack, you may
+// discard Clefairy Doll" -- gated on CARD_STATS[...].voluntaryDiscard so
+// this stays generic for any future card with the same "give it up at
+// will" mechanic. Not a Knock Out (no prize either way, same as
+// noKnockOutPrize would give it anyway) -- just leaves play like a real
+// voluntary discard, replacing the Active from Bench the same way
+// knockOutIfNeeded's player-choice/CPU-auto-promote split already does.
+function discardOwnPokemonInPlay(state, playerId, instanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede usar' }; }
+  var p = state.players[playerId];
+  var target = findInstance(p, instanceId);
+  if (!target || !CARD_STATS[target.name].voluntaryDiscard) { return { legal: false, reason: 'no puedes descartar ese Pokémon' }; }
+  target.attachedEnergy.forEach(function (t) { p.discard.push(discardedEnergyCard(t)); });
+  var isActive = p.active && p.active.id === target.id;
+  if (isActive) {
+    p.active = null;
+    if (playerId === 'player' && benchCount(p) > 0) {
+      state.pendingActiveChoice = 'player';
+      logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
+    } else if (benchCount(p) > 0) {
+      var promoteIdx = p.bench.findIndex(function (b) { return b; });
+      p.active = p.bench[promoteIdx];
+      p.bench[promoteIdx] = null;
+    }
+  } else {
+    var bIdx = p.bench.findIndex(function (b) { return b && b.id === target.id; });
+    if (bIdx !== -1) { p.bench[bIdx] = null; }
+  }
+  p.discard.push({ id: target.id, name: target.name });
+  logEvent(state, translatePlayer(playerId) + ' descarta ' + translateCardName(target.name), playerId);
+  return { legal: true };
 }
 
 // Resolves one of the player's pending prize choices: moves the specific

@@ -1099,6 +1099,60 @@ const CARD_STATS = {
     "supertype": "Trainer",
     "text": "Trade 1 of the other cards in your hand for up to 2 basic Energy cards from your discard pile."
   },
+  "Clefairy Doll": {
+    "supertype": "Pokémon", "hp": 10, "types": ["Colorless"], "evolvesFrom": null,
+    "attacks": [], "weaknesses": [], "resistances": [], "retreatCost": 0,
+    "cantRetreat": true, "immuneToStatus": true, "noKnockOutPrize": true, "voluntaryDiscard": true,
+    "text": "Play Clefairy Doll as if it were a Basic Pokémon. While in play, Clefairy Doll counts as a Pokémon (instead of a Trainer card). Clefairy Doll has no attacks, can't retreat, and can't be Asleep, Confused, Paralyzed, or Poisoned. If Clefairy Doll is Knocked Out, it doesn't count as a Knocked Out Pokémon. At any time during your turn before your attack, you may discard Clefairy Doll."
+  },
+  "Devolution Spray": {
+    "supertype": "Trainer",
+    "text": "Choose 1 of your own Pokémon in play and a Stage of Evolution. Discard all Evolution cards of that Stage or higher attached to that Pokémon. That Pokémon is no longer Asleep, Confused, Paralyzed, Poisoned, or anything else that might be the result of an attack (just as if you had evolved it)."
+  },
+  "Impostor Professor Oak": {
+    "supertype": "Trainer",
+    "text": "Your opponent shuffles his or her hand into his or her deck, then draws 7 cards."
+  },
+  "Item Finder": {
+    "supertype": "Trainer",
+    "text": "Discard 2 of the other cards from your hand in order to put a Trainer card from your discard pile into your hand."
+  },
+  "Pokémon Breeder": {
+    "supertype": "Trainer",
+    "text": "Put a Stage 2 Evolution card from your hand on the matching Basic Pokémon. You can only play this card when you would be allowed to evolve that Pokémon anyway."
+  },
+  "Pokémon Trader": {
+    "supertype": "Trainer",
+    "text": "Trade 1 of the Basic Pokémon or Evolution cards in your hand for 1 of the Basic Pokémon or Evolution cards from your deck. Show both cards to your opponent. Shuffle your deck afterward."
+  },
+  "Scoop Up": {
+    "supertype": "Trainer",
+    "text": "Choose 1 of your Pokémon in play and return its Basic Pokémon card to your hand. (Discard all cards attached to that card.)"
+  },
+  "Full Heal": {
+    "supertype": "Trainer",
+    "text": "Your Active Pokémon is no longer Asleep, Confused, Paralyzed, or Poisoned."
+  },
+  "Maintenance": {
+    "supertype": "Trainer",
+    "text": "Shuffle 2 of the other cards from your hand into your deck in order to draw a card."
+  },
+  "Pokémon Center": {
+    "supertype": "Trainer",
+    "text": "Remove all damage counters from all of your own Pokémon with damage counters on them, then discard all Energy cards attached to those Pokémon."
+  },
+  "Pokémon Flute": {
+    "supertype": "Trainer",
+    "text": "Choose 1 Basic Pokémon card from your opponent's discard pile and put it onto his or her Bench. (You can't play Pokémon Flute if your opponent's Bench is full.)"
+  },
+  "Pokédex": {
+    "supertype": "Trainer",
+    "text": "Look at up to 5 cards from the top of your deck and rearrange them as you like."
+  },
+  "Revive": {
+    "supertype": "Trainer",
+    "text": "Put 1 Basic Pokémon card from your discard pile onto your Bench. Put damage counters on that Pokémon equal to half its HP (rounded down to the nearest 10). (You can't play Revive if your Bench is full.)"
+  },
   "Alakazam": {
     "supertype": "Pokémon", "hp": 80, "types": ["Psychic"], "evolvesFrom": "Kadabra",
     "pokemonPower": { "name": "Damage Swap", "text": "As often as you like during your turn (before your attack), you may move 1 damage counter from 1 of your Pokémon to another as long as you don't Knock Out that Pokémon. This power can't be used if Alakazam is Asleep, Confused, or Paralyzed." },

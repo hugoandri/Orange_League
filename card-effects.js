@@ -360,6 +360,318 @@ TRAINER_EFFECTS['Energy Retrieval'] = function (state, playerId, handId, tradeHa
   return { legal: true };
 };
 
+// targetInstanceId: one of the player's own Pokémon in play that currently
+// has an Evolution attached (canEvolve-style, but here we're removing one
+// rather than adding it). Simplification: always devolves all the way back
+// to the Basic form rather than making the player choose an intermediate
+// Stage to stop at -- avoids a dedicated stage-picker UI for this one rare
+// Trainer (same call already made this session for Metronome/Amnesia's
+// opponent-attack choice).
+TRAINER_EFFECTS['Devolution Spray'] = function (state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var target = findInstance(p, targetInstanceId);
+  if (!target || !CARD_STATS[target.name].evolvesFrom) { return { legal: false, reason: 'ese Pokémon no tiene una Evolución que quitar' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var walk = target.name;
+  while (CARD_STATS[walk] && CARD_STATS[walk].evolvesFrom) {
+    p.discard.push(discardedEvolutionCard(walk));
+    walk = CARD_STATS[walk].evolvesFrom;
+  }
+  target.name = walk;
+  target.statusConditions = [];
+  target.severePoison = false;
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Devolution Spray') + ' en ' + target.name, playerId);
+  return { legal: true };
+};
+
+// No target -- always hits the OPPONENT (opposite of regular Professor
+// Oak, which affects the caster).
+TRAINER_EFFECTS['Impostor Professor Oak'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var op = state.players[opponentOf(playerId)];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  op.deck = op.deck.concat(op.hand);
+  op.hand = [];
+  op.deck = shuffle(op.deck, state.rng);
+  drawCard(state, opponentOf(playerId), 7);
+  logEvent(state, translatePlayer(playerId) + ' juega ' + translateCardName('Impostor Professor Oak') + ' (el rival mezcla su mano y roba 7)', playerId);
+  return { legal: true };
+};
+
+// discardHandIds: exactly 2 OTHER hand card ids paid as the cost (same
+// convention as Computer Search). discardCardId: the specific Trainer card
+// (by id, not name) chosen from the player's OWN discard pile.
+TRAINER_EFFECTS['Item Finder'] = function (state, playerId, handId, discardHandIds, discardCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  discardHandIds = discardHandIds || [];
+  if (discardHandIds.length !== 2 || discardHandIds.indexOf(handId) !== -1) {
+    return { legal: false, reason: 'debes descartar exactamente 2 cartas de tu mano (sin contar esta)' };
+  }
+  var discardCards = discardHandIds.map(function (id) { return p.hand.find(function (c) { return c.id === id; }); });
+  if (discardCards.some(function (c) { return !c; })) { return { legal: false, reason: 'esas cartas no están en tu mano' }; }
+  var pileCard = p.discard.find(function (c) { return c.id === discardCardId; });
+  if (!pileCard) { return { legal: false, reason: 'esa carta no está en tu descarte' }; }
+  if (!CARD_STATS[pileCard.name] || CARD_STATS[pileCard.name].supertype !== 'Trainer') {
+    return { legal: false, reason: 'solo puedes buscar una carta de Entrenador' };
+  }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  discardHandIds.forEach(function (id) {
+    var i = p.hand.findIndex(function (c) { return c.id === id; });
+    if (i !== -1) { p.discard.push(p.hand.splice(i, 1)[0]); }
+  });
+  var found = p.discard.splice(p.discard.findIndex(function (c) { return c.id === discardCardId; }), 1)[0];
+  p.hand.push(found);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Item Finder') + ' y recupera ' + translateCardName(found.name), playerId);
+  return { legal: true };
+};
+
+// evolutionHandId: the Stage 2 card (by id) chosen from hand -- separate
+// from handId, which is Pokémon Breeder itself. targetInstanceId: the
+// matching Basic Pokémon in play. Skips the Stage 1 requirement entirely,
+// but the real "you could evolve it anyway" timing rule (same turn placed,
+// turn-3 opening restriction) still applies -- see evolutionTimingAllowed,
+// rules-engine.js, shared with canEvolve.
+TRAINER_EFFECTS['Pokémon Breeder'] = function (state, playerId, handId, evolutionHandId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var target = findInstance(p, targetInstanceId);
+  var evoCard = p.hand.find(function (c) { return c.id === evolutionHandId; });
+  if (!target || !evoCard) { return { legal: false, reason: 'selección inválida' }; }
+  var evoStats = CARD_STATS[evoCard.name];
+  var stage1Name = evoStats && evoStats.evolvesFrom;
+  var stage1Stats = stage1Name && CARD_STATS[stage1Name];
+  var basicName = stage1Stats && stage1Stats.evolvesFrom;
+  if (!basicName || basicName !== target.name) { return { legal: false, reason: 'esa carta no evoluciona desde ese Pokémon' }; }
+  if (!evolutionTimingAllowed(state, target)) { return { legal: false, reason: 'ese Pokémon no puede evolucionar todavía' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var evoIdx = p.hand.findIndex(function (c) { return c.id === evolutionHandId; });
+  p.hand.splice(evoIdx, 1);
+  target.name = evoCard.name;
+  target.turnEnteredCurrentForm = state.turnCounter;
+  target.statusConditions = [];
+  target.severePoison = false;
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Breeder') + ' para evolucionar a ' + evoCard.name, playerId);
+  return { legal: true };
+};
+
+// tradeHandId: a Pokémon card (by id) from the player's own hand.
+// deckCardId: a Pokémon card (by id) chosen from the player's own deck.
+TRAINER_EFFECTS['Pokémon Trader'] = function (state, playerId, handId, tradeHandId, deckCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var tradeCard = p.hand.find(function (c) { return c.id === tradeHandId; });
+  if (!tradeCard || !CARD_STATS[tradeCard.name] || CARD_STATS[tradeCard.name].supertype !== 'Pokémon') {
+    return { legal: false, reason: 'solo puedes cambiar una carta de Pokémon' };
+  }
+  var deckCard = p.deck.find(function (c) { return c.id === deckCardId; });
+  if (!deckCard || !CARD_STATS[deckCard.name] || CARD_STATS[deckCard.name].supertype !== 'Pokémon') {
+    return { legal: false, reason: 'solo puedes buscar una carta de Pokémon' };
+  }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var traded = p.hand.splice(p.hand.findIndex(function (c) { return c.id === tradeHandId; }), 1)[0];
+  p.deck.push(traded);
+  var found = p.deck.splice(p.deck.findIndex(function (c) { return c.id === deckCardId; }), 1)[0];
+  p.hand.push(found);
+  p.deck = shuffle(p.deck, state.rng);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Trader') + ' y busca ' + translateCardName(found.name), playerId);
+  return { legal: true };
+};
+
+// targetInstanceId: any of the player's own Pokémon in play (Active or
+// Bench) -- returns its root Basic form to hand (see basicFormName,
+// rules-engine.js), discarding every Evolution stage above that plus all
+// attached Energy. Not a Knock Out (no prize either way): if the Active is
+// scooped up, the replacement flow mirrors knockOutIfNeeded's own
+// player-choice/CPU-auto-promote split.
+TRAINER_EFFECTS['Scoop Up'] = function (state, playerId, handId, targetInstanceId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var target = findInstance(p, targetInstanceId);
+  if (!target) { return { legal: false, reason: 'sin objetivo válido' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var basic = basicFormName(target.name);
+  var walk = target.name;
+  while (walk !== basic) {
+    p.discard.push(discardedEvolutionCard(walk));
+    walk = CARD_STATS[walk].evolvesFrom;
+  }
+  target.attachedEnergy.forEach(function (t) { p.discard.push(discardedEnergyCard(t)); });
+  var isActive = p.active && p.active.id === target.id;
+  if (isActive) {
+    p.active = null;
+    if (playerId === 'player' && benchCount(p) > 0) {
+      state.pendingActiveChoice = 'player';
+      logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
+    } else if (benchCount(p) > 0) {
+      var promoteIdx = p.bench.findIndex(function (b) { return b; });
+      p.active = p.bench[promoteIdx];
+      p.bench[promoteIdx] = null;
+    }
+  } else {
+    var bIdx = p.bench.findIndex(function (b) { return b && b.id === target.id; });
+    if (bIdx !== -1) { p.bench[bIdx] = null; }
+  }
+  p.hand.push({ id: 'scoopup-' + Date.now() + '-' + Math.random(), name: basic });
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Scoop Up') + ' y recoge a ' + translateCardName(basic), playerId);
+  return { legal: true };
+};
+
+// No target -- always the player's own Active. Real Base Set text cures
+// Asleep/Confused/Paralyzed/Poisoned -- Burned is NOT listed (unlike later
+// reprints), so it's the one status this deliberately leaves untouched.
+TRAINER_EFFECTS['Full Heal'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  if (!p.active) { return { legal: false, reason: 'no tienes Pokémon Activo' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  p.active.statusConditions = p.active.statusConditions.filter(function (s) { return s === 'Burned'; });
+  p.active.severePoison = false;
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Full Heal'), playerId);
+  return { legal: true };
+};
+
+// shuffleHandIds: exactly 2 OTHER hand card ids, shuffled into the deck
+// (not discarded) before drawing 1.
+TRAINER_EFFECTS['Maintenance'] = function (state, playerId, handId, shuffleHandIds) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  shuffleHandIds = shuffleHandIds || [];
+  if (shuffleHandIds.length !== 2 || shuffleHandIds.indexOf(handId) !== -1) {
+    return { legal: false, reason: 'debes mezclar exactamente 2 cartas de tu mano (sin contar esta)' };
+  }
+  var shuffleCards = shuffleHandIds.map(function (id) { return p.hand.find(function (c) { return c.id === id; }); });
+  if (shuffleCards.some(function (c) { return !c; })) { return { legal: false, reason: 'esas cartas no están en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  shuffleHandIds.forEach(function (id) {
+    var i = p.hand.findIndex(function (c) { return c.id === id; });
+    if (i !== -1) { p.deck.push(p.hand.splice(i, 1)[0]); }
+  });
+  p.deck = shuffle(p.deck, state.rng);
+  drawCard(state, playerId, 1);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Maintenance'), playerId);
+  return { legal: true };
+};
+
+// No target -- heals every one of the player's own Pokémon with damage,
+// but each healed Pokémon loses all its attached Energy as the real
+// side-effect (untouched Pokémon with 0 damage keep theirs).
+TRAINER_EFFECTS['Pokémon Center'] = function (state, playerId, handId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  allInstances(p).forEach(function (instance) {
+    if (instance.damage > 0) {
+      instance.damage = 0;
+      instance.attachedEnergy.forEach(function (t) { p.discard.push(discardedEnergyCard(t)); });
+      instance.attachedEnergy = [];
+    }
+  });
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Center'), playerId);
+  return { legal: true };
+};
+
+// opponentDiscardCardId: a Basic Pokémon card (by id) from the OPPONENT's
+// own discard pile, placed onto the OPPONENT's Bench (not the caster's).
+TRAINER_EFFECTS['Pokémon Flute'] = function (state, playerId, handId, opponentDiscardCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var op = state.players[opponentOf(playerId)];
+  if (benchCount(op) >= 5) { return { legal: false, reason: 'la banca rival está llena' }; }
+  var pileCard = op.discard.find(function (c) { return c.id === opponentDiscardCardId; });
+  if (!pileCard) { return { legal: false, reason: 'esa carta no está en el descarte rival' }; }
+  if (!isBasicPokemon(pileCard.name)) { return { legal: false, reason: 'solo puedes elegir un Pokémon Básico' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var found = op.discard.splice(op.discard.findIndex(function (c) { return c.id === opponentDiscardCardId; }), 1)[0];
+  var emptyIdx = op.bench.findIndex(function (b) { return !b; });
+  op.bench[emptyIdx] = makeFreshInstance(found.id, found.name, state.turnCounter);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Flute') + ' y pone ' + translateCardName(found.name) + ' en la banca rival', playerId);
+  return { legal: true };
+};
+
+// orderedIds (optional): the full list of the top-N deck card ids in the
+// NEW order the player wants -- must be exactly a permutation of the
+// current top N (N = min(5, deck.length)), or the play is rejected.
+// Omitting it (e.g. a caller that doesn't care) is a safe no-op reorder.
+TRAINER_EFFECTS['Pokédex'] = function (state, playerId, handId, orderedIds) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var n = Math.min(5, p.deck.length);
+  var topIds = p.deck.slice(0, n).map(function (c) { return c.id; });
+  orderedIds = orderedIds || topIds;
+  var sortedGiven = orderedIds.slice().sort();
+  var sortedTop = topIds.slice().sort();
+  if (JSON.stringify(sortedGiven) !== JSON.stringify(sortedTop)) {
+    return { legal: false, reason: 'debes reordenar exactamente esas mismas cartas' };
+  }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var byId = {};
+  p.deck.slice(0, n).forEach(function (c) { byId[c.id] = c; });
+  var rest = p.deck.slice(n);
+  p.deck = orderedIds.map(function (id) { return byId[id]; }).concat(rest);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokédex'), playerId);
+  return { legal: true };
+};
+
+// discardCardId: a Basic Pokémon card (by id) from the player's OWN
+// discard pile, placed onto an empty Bench slot (auto-picked -- the real
+// card doesn't ask which slot).
+TRAINER_EFFECTS['Revive'] = function (state, playerId, handId, discardCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  if (benchCount(p) >= 5) { return { legal: false, reason: 'tu banca está llena' }; }
+  var pileCard = p.discard.find(function (c) { return c.id === discardCardId; });
+  if (!pileCard) { return { legal: false, reason: 'esa carta no está en tu descarte' }; }
+  if (!isBasicPokemon(pileCard.name)) { return { legal: false, reason: 'solo puedes elegir un Pokémon Básico' }; }
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+  var found = p.discard.splice(p.discard.findIndex(function (c) { return c.id === discardCardId; }), 1)[0];
+  var instance = makeFreshInstance(found.id, found.name, state.turnCounter);
+  var maxHp = CARD_STATS[found.name].hp;
+  instance.damage = Math.floor(maxHp / 2 / 10) * 10;
+  var emptyIdx = p.bench.findIndex(function (b) { return !b; });
+  p.bench[emptyIdx] = instance;
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Revive') + ' y regresa a ' + translateCardName(found.name), playerId);
+  return { legal: true };
+};
+
 // Queues every successful Trainer play on state (name + who played it) so
 // ui.js's renderBoard() can flash each one big for a moment in turn -- both
 // the player's own plays (ui.js's various USAR/target-click handlers) and

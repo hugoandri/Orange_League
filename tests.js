@@ -2349,3 +2349,259 @@ function mkPokemon(id, name, overrides) {
   var usable3 = usablePokemonPowers(state, 'player');
   check('a Confused Active with a Power is excluded', usable3.some(function (i) { return i.id === 'ak1'; }), false);
 })();
+
+(function testClefairyDollPlaysAsBasicAndIsImmuneToStatus() {
+  checkTrue('Clefairy Doll counts as a Pokémon for isBasicPokemon', isBasicPokemon('Clefairy Doll'));
+  var state = createGame(function () { return 0.01; }); // heads-always -- would inflict status if not immune
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Clefairy Doll' }];
+  p.active = null;
+  playBasic(state, 'player', 'h1');
+  check('Clefairy Doll becomes the Active Pokémon', p.active.name, 'Clefairy Doll');
+
+  addStatus(p.active, 'Asleep');
+  check('addStatus is a no-op on Clefairy Doll (immuneToStatus)', p.active.statusConditions, []);
+})();
+
+(function testClefairyDollCantRetreatAndGivesNoPrizeOnKO() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('cd1', 'Clefairy Doll', {});
+  p.bench = [mkPokemon('b1', 'Rattata', {}), null, null, null, null];
+  checkTrue('Clefairy Doll can\'t retreat even at 0 retreat cost', !canRetreat(state, 'player', 'b1'));
+
+  var cpu = state.players.cpu;
+  cpu.prizes = [{ id: 'pz1', name: 'Bill' }];
+  p.active.damage = 10; // its real 10 HP -- any real hit knocks it out
+  knockOutIfNeeded(state, 'player', p.active);
+  check('Clefairy Doll leaves play like any KO', state.players.player.active, null);
+  check('the opponent does NOT get a prize for it', cpu.prizes[0], { id: 'pz1', name: 'Bill' });
+})();
+
+(function testClefairyDollVoluntaryDiscard() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('cd1', 'Clefairy Doll', {});
+  p.bench = [mkPokemon('b1', 'Rattata', {}), null, null, null, null];
+
+  var result = discardOwnPokemonInPlay(state, 'player', 'cd1');
+  checkTrue('discarding Clefairy Doll voluntarily is legal', result.legal);
+  checkTrue('Player must choose a new Active from Bench (not a KO, but the same replacement flow)', state.pendingActiveChoice === 'player');
+  checkTrue('Rattata (a real Pokémon) can\'t be voluntarily discarded', !discardOwnPokemonInPlay(state, 'player', 'b1').legal);
+})();
+
+(function testDevolutionSprayGoesAllTheWayBackToBasic() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Devolution Spray' }];
+  p.active = mkPokemon('c1', 'Charizard', { damage: 30, statusConditions: ['Poisoned'], severePoison: true, attachedEnergy: ['Fire', 'Fire', 'Fire', 'Fire'] });
+
+  var result = TRAINER_EFFECTS['Devolution Spray'](state, 'player', 'h1', 'c1');
+  checkTrue('Devolution Spray is legal on an Evolved Pokémon', result.legal);
+  check('the Pokémon reverts all the way to its Basic form', p.active.name, 'Charmander');
+  check('damage is untouched (real card only discards Evolution cards)', p.active.damage, 30);
+  checkTrue('Special Conditions clear, as if it had evolved', p.active.statusConditions.length === 0 && !p.active.severePoison);
+  checkTrue('both discarded stages (Charmeleon, Charizard) land in the discard pile', p.discard.some(function (c) { return c.name === 'Charmeleon'; }) && p.discard.some(function (c) { return c.name === 'Charizard'; }));
+
+  var basicState = createGame(function () { return 0.99; });
+  basicState.activePlayerId = 'player';
+  basicState.players.player.hand = [{ id: 'h1', name: 'Devolution Spray' }];
+  basicState.players.player.active = mkPokemon('m1', 'Machop', {});
+  checkTrue('Devolution Spray is illegal on a Basic Pokémon (nothing to devolve)', !TRAINER_EFFECTS['Devolution Spray'](basicState, 'player', 'h1', 'm1').legal);
+})();
+
+(function testImpostorProfessorOakAffectsOnlyTheOpponent() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.hand = [{ id: 'h1', name: 'Impostor Professor Oak' }, { id: 'h2', name: 'Bill' }];
+  var cpuHandBefore = cpu.hand.length;
+  var cpuDeckBefore = cpu.deck.length;
+
+  var result = TRAINER_EFFECTS['Impostor Professor Oak'](state, 'player', 'h1');
+  checkTrue('Impostor Professor Oak is legal', result.legal);
+  check('the CASTER\'s own hand is untouched (only the played card leaves it)', p.hand.length, 1);
+  check('the OPPONENT ends up with exactly 7 cards', cpu.hand.length, 7);
+  check('total cpu cards (hand+deck) is conserved', cpu.hand.length + cpu.deck.length, cpuHandBefore + cpuDeckBefore);
+})();
+
+(function testItemFinderRecoversATrainerNotAPokemon() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Item Finder' }, { id: 'd1', name: 'Bulbasaur' }, { id: 'd2', name: 'Rattata' }];
+  p.discard = [{ id: 'disc1', name: 'Bill' }, { id: 'disc2', name: 'Charmander' }];
+
+  var badResult = TRAINER_EFFECTS['Item Finder'](state, 'player', 'h1', ['d1', 'd2'], 'disc2');
+  checkTrue('Item Finder rejects a non-Trainer target from the discard pile', !badResult.legal);
+
+  var result = TRAINER_EFFECTS['Item Finder'](state, 'player', 'h1', ['d1', 'd2'], 'disc1');
+  checkTrue('Item Finder recovers a real Trainer card', result.legal);
+  checkTrue('Bill lands back in hand', p.hand.some(function (c) { return c.id === 'disc1'; }));
+  check('both discard-cost cards left the hand', p.hand.length, 1);
+})();
+
+(function testPokemonBreederSkipsStage1ButNotTiming() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Pokémon Breeder' }, { id: 'evo1', name: 'Charizard' }];
+  p.active = mkPokemon('ch1', 'Charmander', { turnEnteredCurrentForm: 1 });
+  state.turnCounter = 5;
+
+  var result = TRAINER_EFFECTS['Pokémon Breeder'](state, 'player', 'h1', 'evo1', 'ch1');
+  checkTrue('Pokémon Breeder legally jumps Basic straight to Stage 2', result.legal);
+  check('Charmander becomes Charizard directly, skipping Charmeleon', p.active.name, 'Charizard');
+
+  var lateState = createGame(function () { return 0.99; });
+  lateState.activePlayerId = 'player';
+  lateState.players.player.hand = [{ id: 'h1', name: 'Pokémon Breeder' }, { id: 'evo1', name: 'Charizard' }];
+  lateState.players.player.active = mkPokemon('ch1', 'Charmander', { turnEnteredCurrentForm: 5 });
+  lateState.turnCounter = 5; // placed THIS very turn -- normal evolution timing still forbids this
+  checkTrue('Pokémon Breeder still respects normal evolution timing (can\'t evolve same turn placed)', !TRAINER_EFFECTS['Pokémon Breeder'](lateState, 'player', 'h1', 'evo1', 'ch1').legal);
+})();
+
+(function testPokemonTraderOnlyTradesPokemonCards() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Pokémon Trader' }, { id: 'tr1', name: 'Rattata' }, { id: 'tr2', name: 'Bill' }];
+  p.deck = [{ id: 'dk1', name: 'Charmander' }].concat(p.deck);
+
+  checkTrue('Pokémon Trader rejects a Trainer as the traded-away card', !TRAINER_EFFECTS['Pokémon Trader'](state, 'player', 'h1', 'tr2', 'dk1').legal);
+
+  var result = TRAINER_EFFECTS['Pokémon Trader'](state, 'player', 'h1', 'tr1', 'dk1');
+  checkTrue('trading a real Pokémon card for one in the deck is legal', result.legal);
+  checkTrue('Charmander lands in hand', p.hand.some(function (c) { return c.id === 'dk1'; }));
+  checkTrue('Rattata lands in the deck instead', p.deck.some(function (c) { return c.id === 'tr1'; }));
+})();
+
+(function testScoopUpReturnsBasicFormAndDiscardsEvolutionsAndEnergy() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Scoop Up' }];
+  p.bench = [mkPokemon('iv1', 'Ivysaur', { attachedEnergy: ['Grass', 'Grass'] }), null, null, null, null];
+
+  var result = TRAINER_EFFECTS['Scoop Up'](state, 'player', 'h1', 'iv1');
+  checkTrue('Scoop Up is legal', result.legal);
+  checkTrue('Bulbasaur (the Basic form) lands back in hand', p.hand.some(function (c) { return c.name === 'Bulbasaur'; }));
+  check('the Bench slot is now empty', p.bench[0], null);
+  checkTrue('the Ivysaur evolution card itself is discarded', p.discard.some(function (c) { return c.name === 'Ivysaur'; }));
+  checkTrue('the attached Grass Energy is discarded, not returned', p.discard.filter(function (c) { return c.name === 'Grass Energy'; }).length, 2);
+})();
+
+(function testScoopUpOnOwnActiveTriggersPlayerChoiceFlow() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Scoop Up' }];
+  p.active = mkPokemon('sq1', 'Squirtle', {});
+  p.bench = [mkPokemon('r1', 'Rattata', {}), null, null, null, null];
+
+  TRAINER_EFFECTS['Scoop Up'](state, 'player', 'h1', 'sq1');
+  check('the Active slot is empty', p.active, null);
+  checkTrue('the player must choose a new Active (same flow as a real KO)', state.pendingActiveChoice === 'player');
+})();
+
+(function testFullHealCuresEverythingExceptBurned() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Full Heal' }];
+  p.active = mkPokemon('m1', 'Machop', { statusConditions: ['Poisoned', 'Burned'], severePoison: true });
+
+  var result = TRAINER_EFFECTS['Full Heal'](state, 'player', 'h1');
+  checkTrue('Full Heal is legal', result.legal);
+  check('Poisoned is cured', p.active.statusConditions.indexOf('Poisoned'), -1);
+  checkTrue('severePoison clears along with Poisoned', !p.active.severePoison);
+  checkTrue('Burned is NOT cured -- the real Base Set text excludes it', p.active.statusConditions.indexOf('Burned') !== -1);
+})();
+
+(function testMaintenanceShufflesTwoIntoDeckAndDrawsOne() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Maintenance' }, { id: 'm1', name: 'Bill' }, { id: 'm2', name: 'Rattata' }];
+  var deckBefore = p.deck.length;
+
+  var result = TRAINER_EFFECTS['Maintenance'](state, 'player', 'h1', ['m1', 'm2']);
+  checkTrue('Maintenance is legal', result.legal);
+  checkTrue('the 2 shuffled cards land in the deck (not the discard pile)', p.deck.some(function (c) { return c.id === 'm1'; }) && p.deck.some(function (c) { return c.id === 'm2'; }));
+  check('exactly 1 new card was drawn (deck shrinks by 1 net of the 2 added back)', p.deck.length, deckBefore + 2 - 1);
+})();
+
+(function testPokemonCenterHealsOnlyDamagedPokemonAndDiscardsTheirEnergy() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Pokémon Center' }];
+  p.active = mkPokemon('m1', 'Machop', { damage: 20, attachedEnergy: ['Fighting'] });
+  p.bench = [mkPokemon('r1', 'Rattata', { damage: 0, attachedEnergy: ['Colorless'] }), null, null, null, null];
+
+  TRAINER_EFFECTS['Pokémon Center'](state, 'player', 'h1');
+  check('the damaged Pokémon is fully healed', p.active.damage, 0);
+  check('its attached Energy is discarded', p.active.attachedEnergy.length, 0);
+  check('an UNDAMAGED Pokémon keeps its Energy untouched', p.bench[0].attachedEnergy.length, 1);
+})();
+
+(function testPokemonFluteTargetsTheOpponentsOwnBench() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.hand = [{ id: 'h1', name: 'Pokémon Flute' }];
+  cpu.discard = [{ id: 'cd1', name: 'Bulbasaur' }, { id: 'cd2', name: 'Ivysaur' }];
+  cpu.bench = [null, null, null, null, null];
+
+  checkTrue('Pokémon Flute rejects a non-Basic (Ivysaur) from the discard pile', !TRAINER_EFFECTS['Pokémon Flute'](state, 'player', 'h1', 'cd2').legal);
+
+  var result = TRAINER_EFFECTS['Pokémon Flute'](state, 'player', 'h1', 'cd1');
+  checkTrue('Pokémon Flute places a Basic onto the OPPONENT\'s Bench', result.legal);
+  checkTrue('Bulbasaur is now on the CPU\'s own Bench', cpu.bench.some(function (b) { return b && b.name === 'Bulbasaur'; }));
+})();
+
+(function testPokedexRejectsAnythingThatIsNotAPureReorder() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Pokédex' }];
+  // Exactly 3 cards in the deck -- n = min(5, deck.length) = 3, so the
+  // "top N" is exactly these 3 and every id in orderedIds must account for
+  // all of them (no leftover real-deck cards to also cover).
+  p.deck = [{ id: 'd1', name: 'A' }, { id: 'd2', name: 'B' }, { id: 'd3', name: 'C' }];
+
+  checkTrue('Pokédex rejects an order that swaps in a foreign id', !TRAINER_EFFECTS['Pokédex'](state, 'player', 'h1', ['d1', 'd2', 'foreign']).legal);
+
+  var result = TRAINER_EFFECTS['Pokédex'](state, 'player', 'h1', ['d3', 'd1', 'd2']);
+  checkTrue('a real permutation of the top cards is legal', result.legal);
+  check('the deck now starts in the requested order', p.deck.slice(0, 3).map(function (c) { return c.id; }), ['d3', 'd1', 'd2']);
+})();
+
+(function testReviveHalvesHpRoundedDownAndRequiresBenchSpace() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.hand = [{ id: 'h1', name: 'Revive' }];
+  // Machop: 50 HP -- half is 25, rounded DOWN to the nearest 10 is 20.
+  p.discard = [{ id: 'disc1', name: 'Machop' }];
+  p.bench = [null, null, null, null, null];
+
+  var result = TRAINER_EFFECTS['Revive'](state, 'player', 'h1', 'disc1');
+  checkTrue('Revive is legal', result.legal);
+  var revived = p.bench.find(function (b) { return b && b.name === 'Machop'; });
+  checkTrue('Machop is back on the Bench', !!revived);
+  check('it comes back with 20 damage counters (25 rounded down to 20)', revived.damage, 20);
+
+  var fullBenchState = createGame(function () { return 0.99; });
+  fullBenchState.activePlayerId = 'player';
+  fullBenchState.players.player.hand = [{ id: 'h1', name: 'Revive' }];
+  fullBenchState.players.player.discard = [{ id: 'disc1', name: 'Machop' }];
+  fullBenchState.players.player.bench = [mkPokemon('x1', 'Rattata', {}), mkPokemon('x2', 'Rattata', {}), mkPokemon('x3', 'Rattata', {}), mkPokemon('x4', 'Rattata', {}), mkPokemon('x5', 'Rattata', {})];
+  checkTrue('Revive is illegal with a full Bench', !TRAINER_EFFECTS['Revive'](fullBenchState, 'player', 'h1', 'disc1').legal);
+})();
