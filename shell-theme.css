@@ -704,7 +704,14 @@
 /* ===== Selección de mazo ===== */
 .shell-decks-body{flex:1;min-height:0;display:flex;gap:28px;padding:32px 40px 40px;font-family:'Silkscreen',monospace;}
 
-.shell-decks-list{width:480px;flex:none;display:flex;flex-direction:column;gap:14px;}
+/* overflow-y:auto (+ min-height:0, needed for a column-flex child to
+   actually shrink instead of just overflowing its box) -- 5 real rows
+   (4 decks + the disabled "Nuevo Mazo" placeholder) plus the CTA button
+   no longer fit in the available height without scrolling now that
+   Brushfire exists. Without this, the 4th deck card (and the save
+   button below it) rendered past the visible area with no way to reach
+   them -- not just visually clipped, genuinely unclickable. */
+.shell-decks-list{width:480px;flex:none;display:flex;flex-direction:column;gap:14px;overflow-y:auto;min-height:0;}
 
 .shell-deck-card{
   position:relative;box-sizing:border-box;height:150px;display:flex;gap:18px;padding:16px;cursor:pointer;
