@@ -1,8 +1,12 @@
 const admin = require('firebase-admin');
 const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { computeMatchReward, BOOSTER_COST, drawBoosterCards, PROTECTOR_COST, PROTECTOR_IDS } = require('./lib/pureEconomy');
+const {
+  computeMatchReward, BOOSTER_COST, drawBoosterCards, PROTECTOR_COST, PROTECTOR_IDS,
+  CUSTOM_DECK_SLOTS, ownedCountsByName, supertypeByName, validateCustomDeck
+} = require('./lib/pureEconomy');
 const CARD_CATALOG = require('./lib/cardCatalog');
+const POKEMON_EVOLUTION = require('./lib/pokemonEvolution');
 admin.initializeApp();
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
@@ -260,11 +264,76 @@ exports.updateActiveDeck = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   }
   const deckKey = (request.data || {}).deckKey;
-  if (VALID_DECK_KEYS.indexOf(deckKey) === -1) {
-    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  const uid = request.auth.uid;
+
+  if (VALID_DECK_KEYS.indexOf(deckKey) !== -1) {
+    await admin.firestore().collection('users').doc(uid).set({ activeDeck: deckKey }, { merge: true });
+    return { activeDeck: deckKey };
+  }
+  // A custom deck slot ('custom-1'..'custom-4') is only a legal activeDeck
+  // if THIS player has actually saved a deck there -- checked inside a
+  // transaction (not just a shape check) since it depends on live
+  // Firestore state, same reasoning as every other read-then-validate
+  // write in this file.
+  if (CUSTOM_DECK_SLOTS.indexOf(deckKey) !== -1) {
+    const userRef = admin.firestore().collection('users').doc(uid);
+    await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      const uData = snap.exists ? snap.data() : {};
+      if (!uData.customDecks || !uData.customDecks[deckKey]) {
+        throw new HttpsError('failed-precondition', 'Ese mazo personalizado no existe todavía.');
+      }
+      tx.set(userRef, { activeDeck: deckKey }, { merge: true });
+    });
+    return { activeDeck: deckKey };
+  }
+  throw new HttpsError('invalid-argument', 'Mazo inválido.');
+});
+
+// Saves (creates or overwrites) one of the player's up to 4 custom-deck
+// slots. cards: [{name, count}] -- validated server-side against the real
+// 1999 deck-construction rules AND the player's own live collection (see
+// validateCustomDeck, pureEconomy.js) so a client bug or tampered request
+// can never persist an illegal or unowned decklist, matching every other
+// write in this file being server-validated rather than trusted from the
+// client.
+exports.saveCustomDeck = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const data = request.data || {};
+  const slot = data.slot;
+  if (CUSTOM_DECK_SLOTS.indexOf(slot) === -1) {
+    throw new HttpsError('invalid-argument', 'Slot de mazo inválido.');
+  }
+  const name = (data.name || '').trim().slice(0, 30);
+  if (!name) {
+    throw new HttpsError('invalid-argument', 'El mazo necesita un nombre.');
+  }
+  const cards = Array.isArray(data.cards) ? data.cards : null;
+  if (!cards) {
+    throw new HttpsError('invalid-argument', 'Lista de cartas inválida.');
   }
 
-  const uid = request.auth.uid;
-  await admin.firestore().collection('users').doc(uid).set({ activeDeck: deckKey }, { merge: true });
-  return { activeDeck: deckKey };
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const savedDeck = await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) {
+      throw new HttpsError('not-found', 'Cuenta no encontrada.');
+    }
+    const uData = snap.data();
+    const owned = ownedCountsByName(uData.collection || {}, CARD_CATALOG);
+    const supertypes = supertypeByName(CARD_CATALOG);
+    const check = validateCustomDeck(cards, owned, supertypes, POKEMON_EVOLUTION);
+    if (!check.valid) {
+      throw new HttpsError('failed-precondition', check.reason);
+    }
+    const customDecks = Object.assign({}, uData.customDecks);
+    const deck = { name: name, cards: cards };
+    customDecks[slot] = deck;
+    tx.set(userRef, { customDecks: customDecks }, { merge: true });
+    return deck;
+  });
+
+  return { slot: slot, deck: savedDeck };
 });

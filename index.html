@@ -869,7 +869,7 @@
                 <span class="shell-deck-card-badge" style="display:none;">EN USO</span>
               </div>
 
-              <div class="shell-deck-card disabled" data-deck="new" tabindex="-1" aria-disabled="true">
+              <div class="shell-deck-card" data-deck="new" id="deckNewCard">
                 <div class="shell-deck-card-stripe deck-placeholder"></div>
                 <div class="shell-deck-card-art shell-deck-card-art-placeholder">+</div>
                 <div class="shell-deck-card-body">
@@ -877,7 +877,7 @@
                   <div class="shell-deck-card-types">ARMA EL TUYO</div>
                   <div class="shell-deck-card-spacer"></div>
                   <div class="shell-deck-card-footer">
-                    <span class="shell-deck-card-note">PRÓXIMAMENTE: ARMA MAZOS CON TU COLECCIÓN</span>
+                    <span class="shell-deck-card-note">ARMA UN MAZO CON TU COLECCIÓN</span>
                   </div>
                 </div>
               </div>
@@ -894,8 +894,8 @@
                   <div class="shell-deck-detail-name" id="deckDetailName">OVERGROWTH</div>
                 </div>
                 <div class="shell-deck-detail-actions">
-                  <button type="button" class="shell-deck-detail-btn" disabled>EDITAR</button>
-                  <button type="button" class="shell-deck-detail-btn" disabled>DUPLICAR</button>
+                  <button type="button" class="shell-deck-detail-btn" id="deckEditBtn" disabled>EDITAR</button>
+                  <button type="button" class="shell-deck-detail-btn" id="deckDuplicateBtn">DUPLICAR</button>
                 </div>
               </div>
 
@@ -907,6 +907,53 @@
 
               <div class="shell-deck-grid-panel">
                 <div class="shell-deck-grid" id="deckGrid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ARMAR MAZO (custom deck builder, Fase 4) ===== -->
+  <div id="deckBuilderScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage" id="deckBuilderStage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <button type="button" class="shell-page-back" id="deckBuilderBackBtn">◀ VOLVER</button>
+            <div class="shell-page-title">ARMAR MAZO</div>
+            <div class="shell-page-spacer"></div>
+            <div class="shell-page-meta" id="deckBuilderCount">0/60 CARTAS</div>
+          </div>
+
+          <div class="shell-collection-body">
+            <aside class="shell-collection-filters">
+              <div class="shell-filter-group">
+                <label class="shell-filter-label" for="deckBuilderName">NOMBRE DEL MAZO</label>
+                <input type="text" id="deckBuilderName" class="shell-filter-search" placeholder="MI MAZO" autocomplete="off" maxlength="30">
+              </div>
+              <div class="shell-filter-group">
+                <label class="shell-filter-label" for="deckBuilderSearch">BUSCAR EN TU COLECCIÓN</label>
+                <input type="text" id="deckBuilderSearch" class="shell-filter-search" placeholder="NOMBRE DE CARTA…" autocomplete="off">
+              </div>
+              <div class="shell-collection-spacer"></div>
+              <p class="shell-modal-text" id="deckBuilderStatus" style="min-height:2.4em;"></p>
+              <button type="button" class="shell-decks-cta" id="deckBuilderSaveBtn" disabled>GUARDAR MAZO</button>
+            </aside>
+
+            <div class="shell-collection-grid-panel">
+              <div class="shell-deck-builder-columns">
+                <div class="shell-deck-builder-pool">
+                  <div class="shell-deck-builder-col-label">TU COLECCIÓN (toca para agregar)</div>
+                  <div class="shell-collection-grid" id="deckBuilderPoolGrid"></div>
+                </div>
+                <div class="shell-deck-builder-list">
+                  <div class="shell-deck-builder-col-label">TU MAZO (toca para quitar)</div>
+                  <div id="deckBuilderListGrid" class="shell-deck-builder-list-grid"></div>
+                </div>
               </div>
             </div>
           </div>

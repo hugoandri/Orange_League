@@ -2803,15 +2803,77 @@ function renderDeckDetail(deckKey) {
   });
 }
 
-// Selects deckKey (any real DECKLISTS key -- 'overgrowth'/'blackout'/'zap'
-// today) as the deck previewed/marked "EN USO" on the Decks screen -- moves
-// the .active class + badge between every real, selectable shell-deck-card
-// element instead of duplicating them, and refreshes the decklist preview
-// to match. Filters by DECKLISTS (not a hardcoded list of data-deck values)
-// so a future real deck added the same way this file's other multi-deck
-// logic already works (see createGame, rules-engine.js) doesn't also need
-// this selector updated -- only the still-unplayable "Nuevo Mazo" card
-// (data-deck="new", no real decklist behind it) is excluded.
+// Up to 4 saved custom decks per account (see saveCustomDeck,
+// functions/index.js) -- fixed slot ids rather than free-form ones, same
+// "4 precons, 4 custom slots" symmetry the account-level cap was chosen
+// around.
+var CUSTOM_DECK_SLOTS = ['custom-1', 'custom-2', 'custom-3', 'custom-4'];
+
+// Mirrors econState.customDecks into the same DECKLISTS/DECK_DISPLAY_NAME
+// objects the 4 precons already live in, so every deck-consuming function
+// in this codebase (createGame, expandDecklist, deckComposition,
+// selectDeckCard, renderDeckDetail, ...) already just works for a custom
+// deck with zero further changes -- called once economy.js's onSnapshot
+// listener has fresh data. A slot with no saved deck yet is deleted from
+// both objects instead of left stale (matters once a "Nuevo Mazo" save
+// picks a specific empty slot and this needs to reflect that immediately).
+function registerCustomDecks() {
+  var saved = (econState && econState.customDecks) || {};
+  CUSTOM_DECK_SLOTS.forEach(function (slot) {
+    if (saved[slot]) {
+      DECKLISTS[slot] = saved[slot].cards;
+      DECK_DISPLAY_NAME[slot] = saved[slot].name;
+    } else {
+      delete DECKLISTS[slot];
+      delete DECK_DISPLAY_NAME[slot];
+    }
+  });
+}
+
+// Injects one .shell-deck-card per saved custom deck slot, right before the
+// static "Nuevo Mazo" placeholder card -- re-run every time the Decks
+// screen is (re)shown, so it always reflects the latest econState.
+// Previously-injected cards (marked via data-custom-slot) are removed
+// first rather than left to accumulate stale duplicates.
+function renderCustomDeckCards() {
+  var list = document.querySelector('.shell-decks-list');
+  if (!list) { return; }
+  list.querySelectorAll('[data-custom-slot]').forEach(function (el) { el.remove(); });
+  var newDeckCard = document.querySelector('.shell-deck-card[data-deck="new"]');
+  var saved = (econState && econState.customDecks) || {};
+  CUSTOM_DECK_SLOTS.forEach(function (slot) {
+    var deck = saved[slot];
+    if (!deck) { return; }
+    var comp = deckComposition(slot);
+    var el = document.createElement('div');
+    el.className = 'shell-deck-card';
+    el.setAttribute('data-deck', slot);
+    el.setAttribute('data-custom-slot', '1');
+    el.innerHTML =
+      '<div class="shell-deck-card-stripe deck-placeholder"></div>' +
+      '<div class="shell-deck-card-art shell-deck-card-art-placeholder">' + escapeHtml((deck.name || '?').charAt(0).toUpperCase()) + '</div>' +
+      '<div class="shell-deck-card-body">' +
+        '<div class="shell-deck-card-name">' + escapeHtml(deck.name.toUpperCase()) + '</div>' +
+        '<div class="shell-deck-card-types">MAZO PERSONALIZADO</div>' +
+        '<div class="shell-deck-card-spacer"></div>' +
+        '<div class="shell-deck-card-footer"><span class="shell-deck-card-count">' + comp.total + ' CARTAS</span></div>' +
+      '</div>' +
+      '<span class="shell-deck-card-badge" style="display:none;">EN USO</span>';
+    el.addEventListener('click', function () { selectDeckCard(slot); });
+    if (newDeckCard) { list.insertBefore(el, newDeckCard); } else { list.appendChild(el); }
+  });
+}
+
+// Selects deckKey (any real DECKLISTS key -- the 4 precons or a saved
+// 'custom-N' slot) as the deck previewed/marked "EN USO" on the Decks
+// screen -- moves the .active class + badge between every real, selectable
+// shell-deck-card element instead of duplicating them, and refreshes the
+// decklist preview to match. Filters by DECKLISTS (not a hardcoded list of
+// data-deck values) so a future real deck added the same way this file's
+// other multi-deck logic already works (see createGame, rules-engine.js)
+// doesn't also need this selector updated -- only the still-unplayable
+// "Nuevo Mazo" card (data-deck="new", no real decklist behind it) is
+// excluded.
 function selectDeckCard(deckKey) {
   document.querySelectorAll('.shell-deck-card[data-deck]').forEach(function (el) {
     var elDeckKey = el.getAttribute('data-deck');
@@ -2822,9 +2884,24 @@ function selectDeckCard(deckKey) {
     if (badge) { badge.style.display = isSelected ? '' : 'none'; }
   });
   renderDeckDetail(deckKey);
+  // EDITAR only ever applies to a custom deck the player actually saved --
+  // DUPLICAR (see its own click handler) works on any deck, precon or
+  // custom, so it stays enabled unconditionally.
+  var editBtn = document.getElementById('deckEditBtn');
+  if (editBtn) {
+    var saved = (econState && econState.customDecks) || {};
+    editBtn.disabled = !(CUSTOM_DECK_SLOTS.indexOf(deckKey) !== -1 && saved[deckKey]);
+  }
 }
 
 function showDecksScreen() {
+  // Idempotent and cheap -- called again here (not just from economy.js's
+  // onSnapshot listener) so DECKLISTS/DECK_DISPLAY_NAME are guaranteed to
+  // already reflect econState.customDecks before renderCustomDeckCards/
+  // selectDeckCard below ever touch a 'custom-N' key, regardless of
+  // whether the snapshot callback has fired yet at this exact moment.
+  registerCustomDecks();
+  renderCustomDeckCards();
   selectDeckCard((econState && econState.activeDeck) || 'overgrowth');
   document.getElementById('decksSaveStatus').textContent = '';
   document.getElementById('decksSaveStatus').className = 'shell-decks-save-status';
@@ -2832,6 +2909,188 @@ function showDecksScreen() {
 }
 function hideDecksScreen() {
   document.getElementById('decksScreen').classList.add('hidden');
+}
+
+// ── Deck Builder (Fase 4: mazos personalizados) ───────────────────────
+// Real 1999 Base Set deck-construction rules, mirrored client-side purely
+// for responsive UI feedback (add/remove buttons enable/disable live) --
+// the server (saveCustomDeck, functions/index.js) re-validates everything
+// independently and is the actual source of truth, same as every other
+// write in this game.
+var DECK_BUILDER_SIZE = 60;
+var DECK_BUILDER_MAX_COPIES = 4;
+var DECK_BUILDER_BASIC_ENERGY = ['Grass Energy', 'Fire Energy', 'Water Energy', 'Lightning Energy', 'Psychic Energy', 'Fighting Energy'];
+
+// {cardName: totalOwnedCount}, aggregated across every set/tier -- deck-
+// building rules are name-based, not print-based (see ownedCountsByName,
+// functions/lib/pureEconomy.js, the server-side equivalent of this).
+function ownedCountsByNameClient() {
+  var owned = {};
+  if (!econState) { return owned; }
+  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+    CARD_CATALOG[setKey].forEach(function (c) {
+      var count = econState.collection[setKey + '-' + c.num] || 0;
+      if (count > 0) { owned[c.n] = (owned[c.n] || 0) + count; }
+    });
+  });
+  return owned;
+}
+
+// null (new deck, no slot chosen yet), or one of CUSTOM_DECK_SLOTS while
+// editing/saving-over an existing one. cards is {name: count} (a plain map
+// is far more convenient to mutate one +1/-1 at a time than an array) --
+// only ever converted to the real [{name,count}] array shape right before
+// calling saveCustomDeckCloud.
+var deckBuilderState = null;
+
+// initialCards: [{name, count}] (a precon's DECKLISTS entry, an existing
+// custom deck's saved cards, or [] for a blank "Nuevo Mazo"). slot: null or
+// an existing 'custom-N' (EDITAR only -- DUPLICAR always passes null, even
+// when duplicating an existing custom deck, since that's still a NEW deck).
+function showDeckBuilderScreen(initialCards, slot, initialName) {
+  var cards = {};
+  (initialCards || []).forEach(function (c) { cards[c.name] = c.count; });
+  deckBuilderState = { slot: slot, cards: cards, search: '' };
+  document.getElementById('deckBuilderName').value = initialName || '';
+  document.getElementById('deckBuilderSearch').value = '';
+  document.getElementById('deckBuilderScreen').classList.remove('hidden');
+  renderDeckBuilderScreen();
+}
+function hideDeckBuilderScreen() {
+  document.getElementById('deckBuilderScreen').classList.add('hidden');
+  deckBuilderState = null;
+}
+
+function deckBuilderTotal() {
+  var total = 0;
+  Object.keys(deckBuilderState.cards).forEach(function (name) { total += deckBuilderState.cards[name]; });
+  return total;
+}
+
+function deckBuilderHasBasicPokemon() {
+  return Object.keys(deckBuilderState.cards).some(function (name) {
+    var stats = CARD_STATS[name];
+    return stats && stats.supertype === 'Pokémon' && !stats.evolvesFrom;
+  });
+}
+
+function renderDeckBuilderScreen() {
+  var s = deckBuilderState;
+  var total = deckBuilderTotal();
+  document.getElementById('deckBuilderCount').textContent = total + '/' + DECK_BUILDER_SIZE + ' CARTAS';
+
+  var owned = ownedCountsByNameClient();
+  var search = s.search.toLowerCase();
+  var poolNames = Object.keys(owned).filter(function (name) {
+    if (!CARD_STATS[name]) { return false; } // only real, playable (Base Set) cards can enter a deck
+    if (search && translateCardName(name).toLowerCase().indexOf(search) === -1) { return false; }
+    return true;
+  }).sort(function (a, b) { return translateCardName(a).localeCompare(translateCardName(b)); });
+
+  var poolHtml = poolNames.map(function (name) {
+    var have = owned[name];
+    var inDeck = s.cards[name] || 0;
+    var isBasicEnergy = DECK_BUILDER_BASIC_ENERGY.indexOf(name) !== -1;
+    var cap = isBasicEnergy ? have : Math.min(have, DECK_BUILDER_MAX_COPIES);
+    var atCap = inDeck >= cap || total >= DECK_BUILDER_SIZE;
+    var img = CARD_IMAGE_BY_NAME[name] || '';
+    return '<div class="shell-collection-cell' + (atCap ? ' at-cap' : '') + '" data-card-name="' + escapeHtml(name) + '">' +
+      '<div class="shell-collection-cell-art">' +
+        (img ? '<img src="' + img + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '') +
+        (inDeck > 0 ? '<span class="shell-deck-builder-cell-indeck">' + inDeck + '</span>' : '') +
+        '<span class="shell-collection-cell-count">' + have + '</span>' +
+      '</div>' +
+      '<div class="shell-collection-cell-num">' + escapeHtml(translateCardName(name)) + '</div>' +
+      '</div>';
+  }).join('');
+  var poolGrid = document.getElementById('deckBuilderPoolGrid');
+  poolGrid.innerHTML = poolHtml || '<div class="shell-collection-empty">SIN RESULTADOS</div>';
+  poolGrid.querySelectorAll('.shell-collection-cell:not(.at-cap)').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      s.cards[name] = (s.cards[name] || 0) + 1;
+      renderDeckBuilderScreen();
+    });
+  });
+
+  var deckNames = Object.keys(s.cards).filter(function (name) { return s.cards[name] > 0; })
+    .sort(function (a, b) { return translateCardName(a).localeCompare(translateCardName(b)); });
+  var listHtml = deckNames.map(function (name) {
+    return '<div class="shell-deck-builder-list-row" data-card-name="' + escapeHtml(name) + '">' +
+      '<span class="shell-deck-builder-list-row-name">' + escapeHtml(translateCardName(name)) + '</span>' +
+      '<span class="shell-deck-builder-list-row-count">×' + s.cards[name] + '</span>' +
+      '</div>';
+  }).join('');
+  var listGrid = document.getElementById('deckBuilderListGrid');
+  listGrid.innerHTML = listHtml || '<div class="shell-deck-builder-list-empty">Todavía no agregaste ninguna carta.</div>';
+  listGrid.querySelectorAll('.shell-deck-builder-list-row').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var name = el.getAttribute('data-card-name');
+      s.cards[name] = Math.max(0, (s.cards[name] || 0) - 1);
+      if (s.cards[name] === 0) { delete s.cards[name]; }
+      renderDeckBuilderScreen();
+    });
+  });
+
+  var status = document.getElementById('deckBuilderStatus');
+  var saveBtn = document.getElementById('deckBuilderSaveBtn');
+  if (total < DECK_BUILDER_SIZE) {
+    status.textContent = 'Te faltan ' + (DECK_BUILDER_SIZE - total) + ' cartas para llegar a 60.';
+    saveBtn.disabled = true;
+  } else if (total > DECK_BUILDER_SIZE) {
+    status.textContent = 'Tienes ' + (total - DECK_BUILDER_SIZE) + ' cartas de más -- un mazo real es de exactamente 60.';
+    saveBtn.disabled = true;
+  } else if (!deckBuilderHasBasicPokemon()) {
+    status.textContent = 'Necesitas al menos 1 Pokémon Básico para poder empezar una partida.';
+    saveBtn.disabled = true;
+  } else {
+    status.textContent = '¡Mazo listo para guardar!';
+    saveBtn.disabled = false;
+  }
+}
+
+// Picks which of the 4 slots a brand-new (slot === null) deck gets saved
+// to: the first empty one, or -- if all 4 are already used -- asks the
+// player which existing custom deck to overwrite (reusing the same
+// generic one-click picker Pokémon Powers already uses for "which
+// Pokémon's Power").
+function chooseSlotForNewDeckThen(onChosen) {
+  var saved = (econState && econState.customDecks) || {};
+  var emptySlot = CUSTOM_DECK_SLOTS.find(function (slot) { return !saved[slot]; });
+  if (emptySlot) { onChosen(emptySlot); return; }
+  var options = CUSTOM_DECK_SLOTS.map(function (slot) {
+    return { id: slot, label: saved[slot].name + ' (se reemplazará)' };
+  });
+  openChoicePickerModal('Ya tienes 4 mazos guardados -- ¿cuál quieres reemplazar?', options, onChosen);
+}
+
+function saveDeckBuilderState() {
+  var name = document.getElementById('deckBuilderName').value.trim().slice(0, 30) || 'Mi Mazo';
+  var cards = Object.keys(deckBuilderState.cards).map(function (n) { return { name: n, count: deckBuilderState.cards[n] }; });
+  var status = document.getElementById('deckBuilderStatus');
+  var saveBtn = document.getElementById('deckBuilderSaveBtn');
+
+  function doSave(slot) {
+    saveBtn.disabled = true;
+    status.textContent = 'GUARDANDO...';
+    saveCustomDeckCloud(slot, name, cards)
+      .then(function () {
+        if (econState) {
+          econState.customDecks = Object.assign({}, econState.customDecks);
+          econState.customDecks[slot] = { name: name, cards: cards };
+        }
+        registerCustomDecks();
+        hideDeckBuilderScreen();
+        showDecksScreen();
+        selectDeckCard(slot);
+      })
+      .catch(function (e) {
+        saveBtn.disabled = false;
+        status.textContent = (e && e.message) || 'No se pudo guardar. Intenta de nuevo.';
+      });
+  }
+
+  if (deckBuilderState.slot) { doSave(deckBuilderState.slot); } else { chooseSlotForNewDeckThen(doSave); }
 }
 
 // ── Theme ──────────────────────────────────────────────────────────
@@ -3167,6 +3426,35 @@ document.addEventListener('DOMContentLoaded', function () {
     el.addEventListener('click', function () {
       selectDeckCard(elDeckKey);
     });
+  });
+  document.getElementById('deckNewCard').addEventListener('click', function () {
+    showDeckBuilderScreen([], null, '');
+  });
+  document.getElementById('deckEditBtn').addEventListener('click', function () {
+    var selectedCard = document.querySelector('.shell-deck-card.active[data-deck]');
+    var deckKey = selectedCard && selectedCard.getAttribute('data-deck');
+    var saved = (econState && econState.customDecks) || {};
+    if (!deckKey || !saved[deckKey]) { return; }
+    showDeckBuilderScreen(saved[deckKey].cards, deckKey, saved[deckKey].name);
+  });
+  document.getElementById('deckDuplicateBtn').addEventListener('click', function () {
+    var selectedCard = document.querySelector('.shell-deck-card.active[data-deck]');
+    var deckKey = (selectedCard && selectedCard.getAttribute('data-deck')) || 'overgrowth';
+    if (!DECKLISTS[deckKey]) { return; }
+    var baseName = DECK_DISPLAY_NAME[deckKey] || deckKey;
+    showDeckBuilderScreen(DECKLISTS[deckKey], null, baseName + ' (Copia)');
+  });
+  document.getElementById('deckBuilderBackBtn').addEventListener('click', function () {
+    hideDeckBuilderScreen();
+    showDecksScreen();
+  });
+  document.getElementById('deckBuilderSaveBtn').addEventListener('click', function () {
+    saveDeckBuilderState();
+  });
+  document.getElementById('deckBuilderSearch').addEventListener('input', function () {
+    if (!deckBuilderState) { return; }
+    deckBuilderState.search = this.value;
+    renderDeckBuilderScreen();
   });
   document.getElementById('decksSaveBtn').addEventListener('click', function () {
     var btn = document.getElementById('decksSaveBtn');

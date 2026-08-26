@@ -107,11 +107,15 @@ function tickClock(state, ownerId, elapsedMs) {
 function createGame(rng, playerDeckKey) {
   rng = rng || Math.random;
   playerDeckKey = DECKLISTS[playerDeckKey] ? playerDeckKey : 'overgrowth';
-  // The CPU gets a random one of every OTHER real deck -- Zap!/Brushfire
-  // were never sold as an official pair the way the Overgrowth/Blackout
-  // starter set was, so there's no fixed pairing to preserve once there
-  // are more than 2 real decks (per user's explicit call).
-  var otherDeckKeys = Object.keys(DECKLISTS).filter(function (k) { return k !== playerDeckKey; });
+  // The CPU gets a random one of every OTHER real PRECON deck -- Zap!/
+  // Brushfire were never sold as an official pair the way the Overgrowth/
+  // Blackout starter set was, so there's no fixed pairing to preserve once
+  // there are more than 2 real decks (per user's explicit call). Uses the
+  // fixed PRECON_DECK_KEYS rather than Object.keys(DECKLISTS) specifically
+  // because the player's own custom decks (Fase 4) get registered into
+  // that same DECKLISTS object at runtime -- the CPU must never end up
+  // playing one of the PLAYER's own personally-built decks.
+  var otherDeckKeys = PRECON_DECK_KEYS.filter(function (k) { return k !== playerDeckKey; });
   var cpuDeckKey = otherDeckKeys[Math.floor(rng() * otherDeckKeys.length)];
   var state = {
     turnCounter: 1,

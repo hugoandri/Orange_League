@@ -105,3 +105,11 @@ const DECKLISTS = {
     { name: "Fire Energy", count: 18 }
   ]
 };
+
+// The 4 real precon decks, fixed -- unlike Object.keys(DECKLISTS), this
+// does NOT grow once a player's custom decks (Fase 4, 'custom-1'..
+// 'custom-4') get registered into that same object at runtime (see
+// registerCustomDecks, ui.js). createGame's CPU-deck-pool selection
+// (rules-engine.js) needs exactly this fixed list -- the CPU must never be
+// handed one of the PLAYER's own personally-built custom decks.
+const PRECON_DECK_KEYS = ['overgrowth', 'blackout', 'zap', 'brushfire'];

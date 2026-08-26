@@ -69,4 +69,82 @@ console.log('PASS: catalog rarity no longer locks in the pulled rarity');
 assert.strictEqual(pool[0].pulledRarity, undefined, 'the original catalog card object is never mutated');
 console.log('PASS: drawBoosterCards clones before tagging pulledRarity, never mutates the shared pool');
 
+// ── Custom deck-builder validation (Phase 4) ──────────────────────────
+const { DECK_SIZE, MAX_COPIES_PER_CARD, BASIC_ENERGY_NAMES, ownedCountsByName, supertypeByName, validateCustomDeck } = require('../lib/pureEconomy');
+
+var testCatalog = {
+  base: [
+    { n: 'Bulbasaur', num: '1', st: 'Pokémon' },
+    { n: 'Ivysaur', num: '2', st: 'Pokémon' },
+    { n: 'Bill', num: '3', st: 'Trainer' },
+    { n: 'Grass Energy', num: '4', st: 'Energy' }
+  ],
+  jungle: [
+    // Same name, a different print -- ownedCountsByName must sum both.
+    { n: 'Bulbasaur', num: '1', st: 'Pokémon' }
+  ]
+};
+var testEvolvesFrom = { Bulbasaur: null, Ivysaur: 'Bulbasaur' };
+
+assert.deepStrictEqual(
+  ownedCountsByName({ 'base-1': 2, 'jungle-1': 1, 'base-3': 4 }, testCatalog),
+  { Bulbasaur: 3, Bill: 4 },
+  'ownedCountsByName sums copies of the same name across different sets'
+);
+console.log('PASS: ownedCountsByName aggregates by name, not by print');
+
+assert.deepStrictEqual(
+  ownedCountsByName({ 'base-1': 2, 'stale-key-999': 5 }, testCatalog),
+  { Bulbasaur: 2 },
+  'an unrecognized collection key is ignored rather than crashing'
+);
+console.log('PASS: ownedCountsByName ignores unknown/stale collection keys');
+
+assert.deepStrictEqual(
+  supertypeByName(testCatalog),
+  { Bulbasaur: 'Pokémon', Ivysaur: 'Pokémon', Bill: 'Trainer', 'Grass Energy': 'Energy' },
+  'supertypeByName maps every catalog name to its real supertype'
+);
+console.log('PASS: supertypeByName builds a flat name->supertype map');
+
+var check = validateCustomDeck([], {}, {}, {});
+assert.strictEqual(check.valid, false, 'an empty deck is rejected');
+console.log('PASS: validateCustomDeck rejects an empty deck list');
+
+var owned60 = { Bulbasaur: 4, 'Grass Energy': 56 };
+var supers60 = { Bulbasaur: 'Pokémon', 'Grass Energy': 'Energy' };
+var evo60 = { Bulbasaur: null };
+check = validateCustomDeck([{ name: 'Bulbasaur', count: 4 }, { name: 'Grass Energy', count: 56 }], owned60, supers60, evo60);
+assert.strictEqual(check.valid, true, 'a real 60-card deck with a Basic Pokémon and enough owned copies is legal: ' + (check.reason || ''));
+console.log('PASS: validateCustomDeck accepts a legal 60-card deck');
+
+check = validateCustomDeck([{ name: 'Bulbasaur', count: 5 }, { name: 'Grass Energy', count: 55 }], { Bulbasaur: 5, 'Grass Energy': 55 }, supers60, evo60);
+assert.strictEqual(check.valid, false, '5 copies of a non-Basic-Energy card is illegal even if all 5 are owned');
+console.log('PASS: validateCustomDeck enforces the real 4-copy cap');
+
+check = validateCustomDeck([{ name: 'Grass Energy', count: 60 }], { 'Grass Energy': 60 }, supers60, evo60);
+assert.strictEqual(check.valid, false, 'Basic Energy is exempt from the 4-copy cap, but a deck with ZERO Basic Pokémon is still illegal');
+console.log('PASS: validateCustomDeck exempts Basic Energy from the copy cap, but still requires a Basic Pokémon');
+
+check = validateCustomDeck([{ name: 'Bulbasaur', count: 4 }, { name: 'Grass Energy', count: 56 }], { Bulbasaur: 3, 'Grass Energy': 56 }, supers60, evo60);
+assert.strictEqual(check.valid, false, 'claiming more copies than actually owned is illegal even at a legal total/cap');
+console.log('PASS: validateCustomDeck enforces real ownership, not just the printed rules');
+
+check = validateCustomDeck([{ name: 'Bulbasaur', count: 4 }, { name: 'Grass Energy', count: 50 }], owned60, supers60, evo60);
+assert.strictEqual(check.valid, false, 'a 54-card deck (not exactly 60) is illegal');
+console.log('PASS: validateCustomDeck requires exactly 60 cards, not "up to" 60');
+
+check = validateCustomDeck([{ name: 'Nonexistent Card', count: 60 }], { 'Nonexistent Card': 60 }, supers60, evo60);
+assert.strictEqual(check.valid, false, 'a name outside the real catalog is illegal');
+console.log('PASS: validateCustomDeck rejects a card name that isn\'t real');
+
+check = validateCustomDeck([{ name: 'Bulbasaur', count: 4 }, { name: 'Bulbasaur', count: 56 }], { Bulbasaur: 60 }, supers60, evo60);
+assert.strictEqual(check.valid, false, 'the same name listed twice (even summing to 60) is illegal -- one row per card');
+console.log('PASS: validateCustomDeck rejects a duplicated name entry');
+
+assert.strictEqual(DECK_SIZE, 60, 'DECK_SIZE is 60');
+assert.strictEqual(MAX_COPIES_PER_CARD, 4, 'MAX_COPIES_PER_CARD is 4');
+assert.strictEqual(BASIC_ENERGY_NAMES.length, 6, 'there are 6 real Basic Energy types');
+console.log('PASS: deck-building constants match the real 1999 rules');
+
 console.log('ALL PUREECONOMY TESTS PASSED');

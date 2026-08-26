@@ -8,7 +8,7 @@ function initEconomyListener(uid) {
     .onSnapshot(function (snap) {
       var data = snap.data();
       if (!data) { return; }
-      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [] };
+      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {} };
       profileState = { username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();
@@ -20,6 +20,12 @@ function initEconomyListener(uid) {
       // this the just-bought protector kept showing "COMPRAR" until the
       // player left the tab and came back (which forces a fresh render).
       renderProtectorsGrid();
+      // Custom decks (Fase 4) are registered into the same DECKLISTS/
+      // DECK_DISPLAY_NAME objects the 4 precons already live in (see
+      // registerCustomDecks, ui.js), so every deck-consuming function
+      // (createGame, expandDecklist, deckComposition, selectDeckCard, ...)
+      // already just works for them with no further changes.
+      registerCustomDecks();
     }, function (err) {
       console.error('No se pudo escuchar los datos de la cuenta', err);
     });
@@ -44,4 +50,11 @@ function updateProfileCloud(data) {
 
 function updateActiveDeckCloud(deckKey) {
   return firebase.functions().httpsCallable('updateActiveDeck')({ deckKey: deckKey });
+}
+
+// cards: [{name, count}]. Server re-validates everything (real 60-card/
+// 4-copy/ownership rules) regardless of what the client already checked --
+// see saveCustomDeck, functions/index.js.
+function saveCustomDeckCloud(slot, name, cards) {
+  return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards });
 }

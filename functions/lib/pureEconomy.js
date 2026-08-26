@@ -70,11 +70,104 @@ function drawBoosterCards(pool, rng, useDarkspoonOdds) {
   return cards;
 }
 
+// Custom deck-builder rules (Phase 4): real 1999 Base Set deck-construction
+// rules -- exactly 60 cards, at most 4 copies of any single non-basic-
+// Energy card by name (Basic Energy is unlimited in real deck building),
+// at least 1 Basic Pokémon (otherwise a real game could never even start),
+// and never more copies of a card than the player actually owns.
+var DECK_SIZE = 60;
+var MAX_COPIES_PER_CARD = 4;
+var BASIC_ENERGY_NAMES = ['Grass Energy', 'Fire Energy', 'Water Energy', 'Lightning Energy', 'Psychic Energy', 'Fighting Energy'];
+var CUSTOM_DECK_SLOTS = ['custom-1', 'custom-2', 'custom-3', 'custom-4'];
+
+// Aggregates a collection map (keyed 'setKey-num', see openBooster) into
+// {cardName: totalOwnedCount} -- deck-building rules (both the 4-copy cap
+// and ownership) are name-based, not print-based, same as CARD_STATS/
+// DECKLISTS on the client only ever caring about names, never which
+// specific set/number a copy came from.
+function ownedCountsByName(collection, cardCatalog) {
+  var byKey = {};
+  Object.keys(cardCatalog).forEach(function (setKey) {
+    cardCatalog[setKey].forEach(function (c) { byKey[setKey + '-' + c.num] = c.n; });
+  });
+  var owned = {};
+  Object.keys(collection || {}).forEach(function (key) {
+    var name = byKey[key];
+    if (!name) { return; } // stale/unknown key -- ignore rather than throw
+    owned[name] = (owned[name] || 0) + (collection[key] || 0);
+  });
+  return owned;
+}
+
+// {cardName: supertype}, aggregated across every set (a name's supertype
+// never actually differs between prints/sets).
+function supertypeByName(cardCatalog) {
+  var out = {};
+  Object.keys(cardCatalog).forEach(function (setKey) {
+    cardCatalog[setKey].forEach(function (c) { out[c.n] = c.st; });
+  });
+  return out;
+}
+
+// cards: [{name, count}] -- the proposed decklist. owned: result of
+// ownedCountsByName above. supertypes: result of supertypeByName above.
+// evolvesFrom: name -> evolvesFrom-or-null (see pokemonEvolution.js) --
+// only Pokémon names are present, so `in`/hasOwnProperty on it also
+// doubles as "is this name even a real Pokémon" wherever that matters.
+function validateCustomDeck(cards, owned, supertypes, evolvesFrom) {
+  if (!Array.isArray(cards) || cards.length === 0) {
+    return { valid: false, reason: 'El mazo está vacío.' };
+  }
+  var seen = {};
+  var total = 0;
+  for (var i = 0; i < cards.length; i++) {
+    var entry = cards[i] || {};
+    var name = entry.name;
+    var count = entry.count;
+    if (!name || typeof count !== 'number' || count <= 0 || Math.floor(count) !== count) {
+      return { valid: false, reason: 'Cantidad de carta inválida.' };
+    }
+    if (seen[name]) {
+      return { valid: false, reason: 'La carta "' + name + '" aparece más de una vez en la lista (usa un solo renglón por carta).' };
+    }
+    seen[name] = true;
+    if (!supertypes[name]) {
+      return { valid: false, reason: 'La carta "' + name + '" no existe.' };
+    }
+    var isBasicEnergy = BASIC_ENERGY_NAMES.indexOf(name) !== -1;
+    if (!isBasicEnergy && count > MAX_COPIES_PER_CARD) {
+      return { valid: false, reason: 'No puedes tener más de 4 copias de "' + name + '".' };
+    }
+    var have = owned[name] || 0;
+    if (count > have) {
+      return { valid: false, reason: 'No tienes suficientes copias de "' + name + '" en tu colección (tienes ' + have + ').' };
+    }
+    total += count;
+  }
+  if (total !== DECK_SIZE) {
+    return { valid: false, reason: 'El mazo debe tener exactamente 60 cartas (tiene ' + total + ').' };
+  }
+  var hasBasicPokemon = cards.some(function (c) {
+    return Object.prototype.hasOwnProperty.call(evolvesFrom, c.name) && !evolvesFrom[c.name];
+  });
+  if (!hasBasicPokemon) {
+    return { valid: false, reason: 'El mazo debe tener al menos 1 Pokémon Básico.' };
+  }
+  return { valid: true };
+}
+
 module.exports = {
   BOOSTER_COST: BOOSTER_COST,
   PROTECTOR_COST: PROTECTOR_COST,
   PROTECTOR_IDS: PROTECTOR_IDS,
   RARITY_ROLL: RARITY_ROLL,
   computeMatchReward: computeMatchReward,
-  drawBoosterCards: drawBoosterCards
+  drawBoosterCards: drawBoosterCards,
+  DECK_SIZE: DECK_SIZE,
+  MAX_COPIES_PER_CARD: MAX_COPIES_PER_CARD,
+  BASIC_ENERGY_NAMES: BASIC_ENERGY_NAMES,
+  CUSTOM_DECK_SLOTS: CUSTOM_DECK_SLOTS,
+  ownedCountsByName: ownedCountsByName,
+  supertypeByName: supertypeByName,
+  validateCustomDeck: validateCustomDeck
 };

@@ -109,6 +109,25 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('a high rng roll picks the last other deck for the cpu', highState.players.cpu.deckKey, 'brushfire');
 })();
 
+(function testCreateGameNeverAssignsTheCpuAPlayerCustomDeck() {
+  // registerCustomDecks (ui.js) injects the player's own custom decks
+  // ('custom-1'..'custom-4') directly into this same shared DECKLISTS
+  // object at runtime -- simulated here by injecting one by hand. Real
+  // reported-bug-shaped risk: createGame's CPU deck pool used to be
+  // Object.keys(DECKLISTS) itself, which would have let the CPU end up
+  // playing a deck the PLAYER personally built from their own collection.
+  DECKLISTS['custom-1'] = [{ name: 'Bulbasaur', count: 60 }];
+  try {
+    for (var i = 0; i < 20; i++) {
+      var rng = (function (seed) { return function () { return seed; }; })(i / 20);
+      var state = createGame(rng, 'overgrowth');
+      check('the cpu never gets assigned the player\'s own custom deck (roll ' + i + ')', state.players.cpu.deckKey !== 'custom-1', true);
+    }
+  } finally {
+    delete DECKLISTS['custom-1'];
+  }
+})();
+
 (function testStartMatchFlipsCoinAndBeginsPlay() {
   var state = createGame(function () { return 0.42; });
   checkTrue('canPlayBasic works during setup regardless of (null) activePlayerId', canPlayBasic(state, 'player', state.players.player.hand.filter(function (c) { return isBasicPokemon(c.name); })[0].id));
