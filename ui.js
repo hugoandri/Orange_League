@@ -406,7 +406,16 @@ function showCardInViewer(name, instanceId) {
     var statusHtml = (instance && instance.statusConditions.length)
       ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(translateStatus).join(', ')) + '</div>'
       : '';
-    bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + statusHtml + viewerTrioHtml(stats);
+    // Clefairy Doll: "at any time during your turn before your attack, you
+    // may discard it" -- unlike the attack buttons above, this applies
+    // whether it's the Active or on the Bench, so it's gated separately
+    // rather than reusing actionableState (which is Active-only).
+    var canVoluntaryDiscard = !!(instance && stats.voluntaryDiscard && viewerOwnerId === 'player' &&
+      gameState.phase === 'playing' && gameState.activePlayerId === 'player' && !pendingPlayerPrize);
+    var discardBtnHtml = canVoluntaryDiscard
+      ? '<div class="shell-board-viewer-attacks"><button type="button" class="shell-board-viewer-attack actionable" id="voluntaryDiscardBtn">DESCARTAR</button></div>'
+      : '';
+    bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
   } else {
     bodyHtml = '<div class="shell-board-viewer-identity"><div class="shell-board-viewer-identity-name">' + escapeHtml(translateCardName(name)) + '</div></div>';
   }
@@ -429,6 +438,15 @@ function showCardInViewer(name, instanceId) {
         attack(gameState, 'player', atkName);
         afterPlayerAction();
       });
+    });
+  }
+
+  var voluntaryDiscardBtn = document.getElementById('voluntaryDiscardBtn');
+  if (voluntaryDiscardBtn) {
+    voluntaryDiscardBtn.addEventListener('click', function () {
+      var result = discardOwnPokemonInPlay(gameState, 'player', instanceId);
+      if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+      afterPlayerAction();
     });
   }
 }
@@ -679,6 +697,45 @@ function closeChoicePickerModal() {
   choicePickerOnPick = null;
 }
 
+// Pokédex: reveal the top N deck cards, let the player click them in the
+// order they want (stamping a position number on each, not a checkmark) --
+// onConfirm(orderedIds) fires once every card has a position and OK is
+// pressed.
+var pokedexState = null;
+function openPokedexModal(cards, onConfirm) {
+  pokedexState = { cards: cards, order: [], onConfirm: onConfirm };
+  renderPokedexModal();
+  document.getElementById('pokedexModal').classList.remove('hidden');
+}
+function closePokedexModal() {
+  document.getElementById('pokedexModal').classList.add('hidden');
+  pokedexState = null;
+}
+function renderPokedexModal() {
+  var s = pokedexState;
+  document.getElementById('pokedexPrompt').textContent =
+    'Toca las cartas en el orden en que quieres dejarlas (' + s.order.length + '/' + s.cards.length + ')';
+  var grid = document.getElementById('pokedexGrid');
+  grid.innerHTML = s.cards.map(function (card) {
+    var pos = s.order.indexOf(card.id);
+    return '<div class="shell-energy-discard-option' + (pos !== -1 ? ' selected' : '') + '" data-pokedex-card-id="' + card.id + '">' +
+      cardImageTag(card.name, '') + '<span>' + (pos !== -1 ? (pos + 1) + '. ' : '') + escapeHtml(translateCardName(card.name)) + '</span></div>';
+  }).join('');
+  grid.querySelectorAll('[data-pokedex-card-id]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var id = el.getAttribute('data-pokedex-card-id');
+      var pos = s.order.indexOf(id);
+      if (pos !== -1) {
+        s.order.splice(pos, 1);
+      } else if (s.order.length < s.cards.length) {
+        s.order.push(id);
+      }
+      renderPokedexModal();
+    });
+  });
+  document.getElementById('pokedexConfirm').disabled = s.order.length !== s.cards.length;
+}
+
 // Computer Search's discard-2-as-cost step: pick exactly `count` real hand
 // cards (by id, not index -- unlike energyDiscardState below, hand cards
 // each have their own real id already). onConfirm(ids) fires once that
@@ -783,7 +840,9 @@ var TRAINER_TARGET_HINT = {
   'PlusPower': 'Elige tu Pokémon Activo',
   'Gust of Wind': 'Elige un Pokémon de la Banca del Rival',
   'Energy Removal': 'Elige un Pokémon del Rival',
-  'Defender': 'Elige uno de tus Pokémon'
+  'Defender': 'Elige uno de tus Pokémon',
+  'Devolution Spray': 'Elige uno de tus Pokémon con Evolución',
+  'Scoop Up': 'Elige uno de tus Pokémon en juego'
 };
 
 function showTargetHintModal(text) {
@@ -1487,6 +1546,11 @@ function wireBoardButtons() {
   // Trans only), fromInstanceId, handEnergyId (Rain Dance), chosenType
   // (Buzzap)}. null when no Power activation is in progress.
   var pendingPowerActivation = null;
+  // Pokémon Breeder's own 2-step flow (pick a Stage 2 hand card, then click
+  // the matching Basic on the board) -- same "no renderBoard() in between"
+  // rule as the vars above. {handId, evolutionHandId} while step 2 (the
+  // board click) is still pending; null otherwise.
+  var pendingPokemonBreeder = null;
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
@@ -1503,7 +1567,8 @@ function wireBoardButtons() {
         // card instead of silently entering target-selection mode the
         // instant the card is clicked. Energy is drag-and-drop only now (see
         // handBandHtml/resolveHandDrop) -- no menu, no click-to-select.
-        var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak' || handCard.name === 'Lass';
+        var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak' || handCard.name === 'Lass' ||
+          handCard.name === 'Impostor Professor Oak' || handCard.name === 'Full Heal' || handCard.name === 'Pokémon Center';
         showHandCardMenu(btn, 'USAR', function () {
           if (isNoTargetTrainer) {
             var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
@@ -1550,6 +1615,124 @@ function wireBoardButtons() {
                 selectedHandId = null;
                 renderBoard();
               });
+            });
+          } else if (handCard.name === 'Item Finder') {
+            // Two steps: discard 2 OTHER hand cards as the cost, then pick a
+            // real Trainer card (excluding whatever else is in there) from
+            // your OWN discard pile -- openDeckSearchModal doesn't care that
+            // this pool is the discard pile rather than the deck, it just
+            // renders whatever {id,name} cards it's given.
+            var otherHandCardsForFinder = p.hand.filter(function (c) { return c.id !== handId; });
+            if (otherHandCardsForFinder.length < 2) {
+              logEvent(gameState, 'No tienes 2 cartas para descartar -- no puedes jugar Buscador de Objetos', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openHandDiscardModal(otherHandCardsForFinder, 2, function (discardHandIds) {
+              var trainersInDiscard = p.discard.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Trainer'; });
+              openDeckSearchModal(trainersInDiscard, function (discardCardId) {
+                var result = TRAINER_EFFECTS['Item Finder'](gameState, 'player', handId, discardHandIds, discardCardId);
+                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+                selectedHandId = null;
+                renderBoard();
+              });
+            });
+          } else if (handCard.name === 'Maintenance') {
+            // One step: shuffle exactly 2 OTHER hand cards into the deck,
+            // then draw 1 -- reuses the same exact-count picker as Computer
+            // Search's discard step even though these cards go to the deck,
+            // not the discard pile (the modal's own "para descartar" wording
+            // is a harmless simplification for this one rare Trainer).
+            var otherHandCardsForMaintenance = p.hand.filter(function (c) { return c.id !== handId; });
+            if (otherHandCardsForMaintenance.length < 2) {
+              logEvent(gameState, 'No tienes 2 cartas para mezclar -- no puedes jugar Mantenimiento', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openHandDiscardModal(otherHandCardsForMaintenance, 2, function (shuffleHandIds) {
+              var result = TRAINER_EFFECTS['Maintenance'](gameState, 'player', handId, shuffleHandIds);
+              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+              selectedHandId = null;
+              renderBoard();
+            });
+          } else if (handCard.name === 'Pokémon Trader') {
+            // Two steps, both card-picker modals (no board click): a
+            // Pokémon card from your own hand, then a Pokémon card from
+            // your own deck.
+            var pokemonInHandForTrader = p.hand.filter(function (c) { return c.id !== handId && CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+            if (pokemonInHandForTrader.length === 0) {
+              logEvent(gameState, 'No tienes otra carta de Pokémon para cambiar -- no puedes jugar Intercambiador Pokémon', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openDeckSearchModal(pokemonInHandForTrader, function (tradeHandId) {
+              var pokemonInDeck = p.deck.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+              openDeckSearchModal(pokemonInDeck, function (deckCardId) {
+                var result = TRAINER_EFFECTS['Pokémon Trader'](gameState, 'player', handId, tradeHandId, deckCardId);
+                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+                selectedHandId = null;
+                renderBoard();
+              });
+            });
+          } else if (handCard.name === 'Pokémon Breeder') {
+            // Two steps: pick a Stage 2 card from hand (2 evolution hops
+            // above some Basic), then click the matching Basic on the
+            // board -- see pendingPowerActivation-style tracking below for
+            // why this needs a closure var that survives without a
+            // renderBoard() in between.
+            var stage2Candidates = p.hand.filter(function (c) {
+              var stats1 = CARD_STATS[c.name];
+              var stage1 = stats1 && stats1.evolvesFrom && CARD_STATS[stats1.evolvesFrom];
+              return !!(stage1 && stage1.evolvesFrom);
+            });
+            if (stage2Candidates.length === 0) {
+              logEvent(gameState, 'No tienes una carta de Evolución de 2ª Etapa en tu mano -- no puedes jugar Criador Pokémon', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openDeckSearchModal(stage2Candidates, function (evolutionHandId) {
+              pendingPokemonBreeder = { handId: handId, evolutionHandId: evolutionHandId };
+              showTargetHintModal('Elige el Pokémon Básico del que evoluciona esa carta');
+            });
+          } else if (handCard.name === 'Pokémon Flute') {
+            var opBasicsInDiscard = gameState.players.cpu.discard.filter(function (c) { return isBasicPokemon(c.name); });
+            if (opBasicsInDiscard.length === 0) {
+              logEvent(gameState, 'No hay Pokémon Básicos en el descarte rival -- no puedes jugar Flauta Pokémon', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openDeckSearchModal(opBasicsInDiscard, function (opponentDiscardCardId) {
+              var result = TRAINER_EFFECTS['Pokémon Flute'](gameState, 'player', handId, opponentDiscardCardId);
+              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+              selectedHandId = null;
+              renderBoard();
+            });
+          } else if (handCard.name === 'Revive') {
+            var basicsInOwnDiscard = p.discard.filter(function (c) { return isBasicPokemon(c.name); });
+            if (basicsInOwnDiscard.length === 0) {
+              logEvent(gameState, 'No hay Pokémon Básicos en tu descarte -- no puedes jugar Revivir', 'player');
+              selectedHandId = null;
+              renderBoard();
+              return;
+            }
+            openDeckSearchModal(basicsInOwnDiscard, function (discardCardId) {
+              var result = TRAINER_EFFECTS['Revive'](gameState, 'player', handId, discardCardId);
+              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+              selectedHandId = null;
+              renderBoard();
+            });
+          } else if (handCard.name === 'Pokédex') {
+            var topOfDeck = p.deck.slice(0, Math.min(5, p.deck.length));
+            openPokedexModal(topOfDeck, function (orderedIds) {
+              var result = TRAINER_EFFECTS['Pokédex'](gameState, 'player', handId, orderedIds);
+              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+              selectedHandId = null;
+              renderBoard();
             });
           } else {
             selectedHandId = handId;
@@ -1819,6 +2002,15 @@ function wireBoardButtons() {
           afterPlayerAction();
           return;
         }
+        return;
+      }
+      if (pendingPokemonBreeder) {
+        var pb = pendingPokemonBreeder;
+        pendingPokemonBreeder = null;
+        var breederResult = TRAINER_EFFECTS['Pokémon Breeder'](gameState, 'player', pb.handId, pb.evolutionHandId, instanceId);
+        if (breederResult && !breederResult.legal) { logEvent(gameState, breederResult.reason, 'player'); }
+        selectedHandId = null;
+        renderBoard();
         return;
       }
       if (!selectedHandId) { return; }
@@ -3107,6 +3299,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('choicePickerCancel').addEventListener('click', closeChoicePickerModal);
   document.querySelector('#choicePickerModal .card-modal-backdrop').addEventListener('click', closeChoicePickerModal);
+
+  document.getElementById('pokedexCancel').addEventListener('click', closePokedexModal);
+  document.querySelector('#pokedexModal .card-modal-backdrop').addEventListener('click', closePokedexModal);
+  document.getElementById('pokedexConfirm').addEventListener('click', function () {
+    var s = pokedexState;
+    if (!s || s.order.length !== s.cards.length) { return; }
+    var orderedIds = s.order.slice();
+    var onConfirm = s.onConfirm;
+    closePokedexModal();
+    onConfirm(orderedIds);
+  });
 
   document.getElementById('energyDiscardCancel').addEventListener('click', closeEnergyDiscardModal);
   document.querySelector('#energyDiscardModal .card-modal-backdrop').addEventListener('click', closeEnergyDiscardModal);

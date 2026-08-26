@@ -520,6 +520,23 @@
     </div>
   </div>
 
+  <!-- Pokédex (see openPokedexModal, ui.js): click the revealed top-of-deck
+       cards in the order you want them to end up in -- each click stamps
+       a position number on that card instead of a checkmark, unlike every
+       exact-count picker above. OK enables only once every card has been
+       given a position. -->
+  <div id="pokedexModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="pokedexPrompt"></p>
+      <div id="pokedexGrid" class="shell-energy-discard-grid"></div>
+      <div class="shell-modal-actions">
+        <button type="button" id="pokedexConfirm" class="shell-modal-btn shell-modal-btn-primary" disabled>OK</button>
+        <button type="button" id="pokedexCancel" class="shell-modal-btn">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- No backdrop/close: choosing a new Active after a knockout is
        mandatory, not dismissible (real TCG rules). -->
   <div id="activeChoiceModal" class="card-modal hidden">
