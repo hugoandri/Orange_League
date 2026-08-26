@@ -111,6 +111,7 @@
 .shell-news-item-tag--balance{color:#8dff62;border-color:rgba(141,255,98,.4);}
 .shell-news-item-tag--shop{color:#e8c46a;border-color:rgba(232,196,106,.4);}
 .shell-news-item-tag--notice{color:#ff8a72;border-color:rgba(255,138,114,.4);}
+.shell-news-empty{padding:30px 24px;text-align:center;font-size:11px;letter-spacing:.1em;color:#6d6155;font-family:'Silkscreen',monospace;}
 .shell-news-footer{
   flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;cursor:pointer;
   border-top:1px solid #0b0907;background:linear-gradient(180deg,#2c2721,#1d1a15);transition:filter .12s;
@@ -1235,10 +1236,11 @@
 .shell-board-log-body .log-line-neutral{font-size:11px;line-height:1.5;color:#8a7e6f;}
 .shell-board-log-body .log-line-cpu{font-size:11px;line-height:1.5;color:#ff8a72;}
 .shell-board-log-body .log-line-player{font-size:11px;line-height:1.5;color:#8dff62;}
-/* "HAS TERMINADO TU TURNO" / "CPU HA TERMINADO SU TURNO" -- a bit bigger
-   and bolder than the regular log lines so the end of a turn actually
-   stands out while scrolling back through the log, instead of reading the
-   same as every other line. */
+/* "HAS TERMINADO TU TURNO" / "CPU HA TERMINADO SU TURNO" (kind: 'turn-end')
+   and "Jugador/CPU empieza la partida" (kind: 'match-start', who actually
+   won the opening coin flip) -- a bit bigger and bolder than the regular
+   log lines so these stand out while scrolling back through the log,
+   instead of reading the same as every other line. */
 .shell-board-log-body .log-line-turn-end{font-size:15px;font-weight:700;letter-spacing:.03em;padding-top:2px;}
 
 /* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */

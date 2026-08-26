@@ -19,6 +19,9 @@ async function main() {
       username: 'alice', coins: 150, collection: {}
     });
     await seedDb.collection('usernames').doc('alice').set({ uid: 'alice-uid' });
+    await seedDb.collection('news').doc('news-1').set({
+      title: 'Novedad de prueba', body: 'Cuerpo', tag: 'balance', featured: false
+    });
   });
 
   const aliceDb = testEnv.authenticatedContext('alice-uid').firestore();
@@ -39,6 +42,15 @@ async function main() {
 
   await assertFails(aliceDb.collection('usernames').doc('alice').get());
   console.log('PASS: usernames collection is not client-readable');
+
+  await assertSucceeds(aliceDb.collection('news').doc('news-1').get());
+  console.log('PASS: any signed-in player can read the published news');
+
+  await assertFails(anonDb.collection('news').doc('news-1').get());
+  console.log('PASS: an unauthenticated client cannot read the news either');
+
+  await assertFails(aliceDb.collection('news').doc('news-1').update({ title: 'Hackeado' }));
+  console.log('PASS: even a signed-in player cannot write news directly (only publishNews/updateNewsItem/deleteNewsItem, server-side, can)');
 
   await testEnv.cleanup();
   console.log('ALL RULES TESTS PASSED');

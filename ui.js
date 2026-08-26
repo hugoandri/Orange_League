@@ -19,6 +19,56 @@ function layoutShellStages() {
 // match-end modal and finishMatch() read from.
 var matchWinner = null;
 
+// Menu's "Novedades" panel (see initNewsListener, economy.js, and
+// admin.html for how items actually get published). items: [{id, title,
+// body, tag, featured, createdAt}], newest first. The most recently
+// published item marked featured wins the DESTACADO slot; if none are
+// marked, the single newest item overall fills it instead (the panel
+// always shows something there rather than an empty box) and is excluded
+// from the regular list below it.
+var NEWS_MONTH_ES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+var NEWS_TAG_LABEL = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO' };
+function renderNewsPanel(items) {
+  var badge = document.getElementById('newsBadge');
+  var featuredEl = document.getElementById('newsFeatured');
+  var listEl = document.getElementById('newsList');
+  if (!badge || !featuredEl || !listEl) { return; }
+
+  badge.textContent = items.length + (items.length === 1 ? ' NUEVA' : ' NUEVAS');
+
+  var featured = items.filter(function (it) { return it.featured; })[0] || items[0] || null;
+
+  if (featured) {
+    var fd = featured.createdAt;
+    var dateStr = fd.getDate() + ' ' + NEWS_MONTH_ES[fd.getMonth()] + ' ' + fd.getFullYear();
+    featuredEl.innerHTML =
+      '<div class="shell-news-featured-meta">' +
+        '<span class="shell-news-chip-featured">DESTACADO</span>' +
+        '<span class="shell-news-featured-date">' + escapeHtml(dateStr) + '</span>' +
+      '</div>' +
+      '<div class="shell-news-featured-title">' + escapeHtml(featured.title) + '</div>' +
+      '<div class="shell-news-featured-body">' + escapeHtml(featured.body) + '</div>';
+  } else {
+    featuredEl.innerHTML = '';
+  }
+
+  var rest = featured ? items.filter(function (it) { return it.id !== featured.id; }).slice(0, 5) : [];
+  listEl.innerHTML = rest.length
+    ? rest.map(function (it, i) {
+        var d = it.createdAt;
+        var tagLabel = NEWS_TAG_LABEL[it.tag] || '';
+        return '<div class="shell-news-item' + (i === rest.length - 1 ? ' shell-news-item-last' : '') + '">' +
+          '<div class="shell-news-item-date"><span class="shell-news-item-day">' + d.getDate() + '</span><span class="shell-news-item-month">' + NEWS_MONTH_ES[d.getMonth()] + '</span></div>' +
+          '<div class="shell-news-item-body">' +
+            '<div class="shell-news-item-title">' + escapeHtml(it.title) + '</div>' +
+            '<div class="shell-news-item-summary">' + escapeHtml(it.body) + '</div>' +
+          '</div>' +
+          (tagLabel ? '<span class="shell-news-item-tag shell-news-item-tag--' + escapeHtml(it.tag) + '">' + tagLabel + '</span>' : '') +
+          '</div>';
+      }).join('')
+    : (featured ? '' : '<div class="shell-news-empty">Sin novedades todavía.</div>');
+}
+
 function renderCoinCount() {
   if (!econState) { return; }
   var val = econState.coins;
@@ -226,7 +276,7 @@ function escapeHtml(s) {
 function logHtml(s) {
   return s.log.slice(-30).map(function (entry) {
     var cls = entry.ownerId === 'player' ? 'log-line-player' : entry.ownerId === 'cpu' ? 'log-line-cpu' : 'log-line-neutral';
-    if (entry.kind === 'turn-end') { cls += ' log-line-turn-end'; }
+    if (entry.kind === 'turn-end' || entry.kind === 'match-start') { cls += ' log-line-turn-end'; }
     return '<div class="' + cls + '">' + escapeHtml(entry.msg) + '</div>';
   }).join('');
 }

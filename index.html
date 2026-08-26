@@ -132,66 +132,14 @@
             <div class="shell-news-header">
               <span class="shell-news-header-dot"></span>
               <span class="shell-news-header-title">NOVEDADES</span>
-              <span class="shell-news-badge" id="newsBadge">5 NUEVAS</span>
+              <span class="shell-news-badge" id="newsBadge"></span>
             </div>
 
-            <div class="shell-news-featured">
-              <div class="shell-news-featured-meta">
-                <span class="shell-news-chip-featured">DESTACADO</span>
-                <span class="shell-news-featured-date">18 AGO 2026</span>
-              </div>
-              <div class="shell-news-featured-title">Temporada 1: Liga Base Set abierta</div>
-              <div class="shell-news-featured-body">Ya puedes registrar tu mazo para la primera liga. Seis rondas contra la CPU en dificultad ascendente, con recompensas de sobres al cerrar cada ronda.</div>
-              <button type="button" class="shell-news-featured-btn">VER DETALLES</button>
-            </div>
-
-            <div class="shell-news-list">
-              <div class="shell-news-item">
-                <div class="shell-news-item-date"><span class="shell-news-item-day">15</span><span class="shell-news-item-month">AGO</span></div>
-                <div class="shell-news-item-body">
-                  <div class="shell-news-item-title">Ajuste de equilibrio: energías dobles</div>
-                  <div class="shell-news-item-summary">El coste de retirada de los Pokémon de etapa 2 baja en uno.</div>
-                </div>
-                <span class="shell-news-item-tag shell-news-item-tag--balance">EQUILIBRIO</span>
-              </div>
-              <div class="shell-news-item">
-                <div class="shell-news-item-date"><span class="shell-news-item-day">11</span><span class="shell-news-item-month">AGO</span></div>
-                <div class="shell-news-item-body">
-                  <div class="shell-news-item-title">Sobre Holo disponible en la tienda</div>
-                  <div class="shell-news-item-summary">Una carta holográfica garantizada por sobre. Precio de lanzamiento por tiempo limitado.</div>
-                </div>
-                <span class="shell-news-item-tag shell-news-item-tag--shop">TIENDA</span>
-              </div>
-              <div class="shell-news-item">
-                <div class="shell-news-item-date"><span class="shell-news-item-day">29</span><span class="shell-news-item-month">JUL</span></div>
-                <div class="shell-news-item-body">
-                  <div class="shell-news-item-title">Tres mazos precompuestos en tienda</div>
-                  <div class="shell-news-item-summary">Overgrowth, Blackout y Brushfire, listos para jugar.</div>
-                </div>
-                <span class="shell-news-item-tag shell-news-item-tag--shop">TIENDA</span>
-              </div>
-              <div class="shell-news-item">
-                <div class="shell-news-item-date"><span class="shell-news-item-day">22</span><span class="shell-news-item-month">JUL</span></div>
-                <div class="shell-news-item-body">
-                  <div class="shell-news-item-title">Corrección del contador de daño</div>
-                  <div class="shell-news-item-summary">Ya no se reinicia al retirar un Pokémon a la banca.</div>
-                </div>
-                <span class="shell-news-item-tag shell-news-item-tag--balance">EQUILIBRIO</span>
-              </div>
-              <div class="shell-news-item shell-news-item-last">
-                <div class="shell-news-item-date"><span class="shell-news-item-day">15</span><span class="shell-news-item-month">JUL</span></div>
-                <div class="shell-news-item-body">
-                  <div class="shell-news-item-title">Lanzamiento del simulador</div>
-                  <div class="shell-news-item-summary">Overgrowth contra Blackout, la primera versión jugable.</div>
-                </div>
-                <span class="shell-news-item-tag shell-news-item-tag--notice">AVISO</span>
-              </div>
-            </div>
-
-            <button type="button" class="shell-news-footer">
-              <span>VER TODAS LAS NOVEDADES</span>
-              <span>▶</span>
-            </button>
+            <!-- Filled by renderNewsPanel (ui.js), from the 'news' Firestore
+                 collection (see admin.html for how these get published) --
+                 no longer hardcoded here. -->
+            <div class="shell-news-featured" id="newsFeatured"></div>
+            <div class="shell-news-list" id="newsList"></div>
           </div>
 
           <div class="shell-left-col">

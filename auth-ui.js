@@ -238,6 +238,7 @@
     setTimeout(hideAppLoadingOverlay, 15000);
 
     var unsubscribeEconomy = null;
+    var unsubscribeNews = null;
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
       if (user) {
@@ -245,10 +246,16 @@
         document.getElementById('menuScreen').classList.remove('hidden');
         if (unsubscribeEconomy) { unsubscribeEconomy(); }
         unsubscribeEconomy = initEconomyListener(user.uid);
+        if (unsubscribeNews) { unsubscribeNews(); }
+        unsubscribeNews = initNewsListener();
       } else {
         if (unsubscribeEconomy) {
           unsubscribeEconomy();
           unsubscribeEconomy = null;
+        }
+        if (unsubscribeNews) {
+          unsubscribeNews();
+          unsubscribeNews = null;
         }
         document.getElementById('menuScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');

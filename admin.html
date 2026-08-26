@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Admin · Novedades</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{color-scheme:dark;}
+  *{box-sizing:border-box;}
+  body{
+    margin:0;min-height:100vh;background:#141210;color:#efe9dd;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 6px;}
+  .sub{color:#8a7e6f;font-size:13px;margin:0 0 28px;}
+  .state-box{background:#1d1a15;border:1px solid #2c2822;border-radius:8px;padding:24px;text-align:center;color:#a49785;}
+  .state-box a{color:#8dff62;}
+  .card{background:#1d1a15;border:1px solid #2c2822;border-radius:8px;padding:20px;margin-bottom:20px;}
+  .card h2{font-size:15px;margin:0 0 16px;color:#efe9dd;}
+  label{display:block;font-size:12px;letter-spacing:.06em;color:#8a7e6f;margin-bottom:6px;margin-top:14px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], textarea, select{
+    width:100%;background:#141210;border:1px solid #3a342c;border-radius:6px;color:#efe9dd;
+    padding:10px 12px;font-size:14px;font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:80px;}
+  input:focus, textarea:focus, select:focus{outline:none;border-color:#8dff62;}
+  .row{display:flex;align-items:center;gap:8px;margin-top:14px;}
+  .row input[type=checkbox]{width:auto;}
+  .row label{margin:0;}
+  .actions{display:flex;gap:10px;margin-top:20px;}
+  button{
+    cursor:pointer;border:none;border-radius:6px;padding:10px 18px;font-size:13px;font-weight:700;
+    letter-spacing:.04em;font-family:inherit;
+  }
+  .btn-primary{background:linear-gradient(180deg,#8dff62,#2c8a1c);color:#0d2a06;}
+  .btn-primary:disabled{opacity:.5;cursor:default;}
+  .btn-secondary{background:#2c2822;color:#efe9dd;}
+  .btn-danger{background:#3a1414;color:#ff8a72;}
+  .status-msg{font-size:13px;margin-top:12px;min-height:1.4em;}
+  .status-msg.error{color:#ff5c5c;}
+  .status-msg.ok{color:#8dff62;}
+  .news-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #2c2822;}
+  .news-row:last-child{border-bottom:none;}
+  .news-row-body{flex:1;min-width:0;}
+  .news-row-title{font-size:14px;font-weight:700;}
+  .news-row-meta{font-size:11px;color:#8a7e6f;margin-top:2px;}
+  .news-row-tag{
+    display:inline-block;font-size:10px;letter-spacing:.08em;padding:3px 7px;border-radius:4px;
+    background:#2c2822;color:#a49785;margin-right:6px;
+  }
+  .news-row-tag.featured{background:#4a3a10;color:#e8c46a;}
+  .news-row-actions{display:flex;gap:8px;flex:none;}
+  .news-row-actions button{padding:6px 12px;font-size:12px;}
+  .empty-note{color:#6d6155;font-size:13px;text-align:center;padding:20px 0;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Panel de Novedades</h1>
+    <p class="sub">Publicá, editá o borrá las novedades que se muestran en el menú principal.</p>
+
+    <div id="stateBox" class="state-box">Cargando…</div>
+
+    <div id="adminPanel" style="display:none;">
+      <div class="card">
+        <h2 id="formTitle">Nueva novedad</h2>
+        <label for="fieldTitle">Título</label>
+        <input type="text" id="fieldTitle" maxlength="80" placeholder="Ej: Sobre Holo disponible en la tienda">
+        <label for="fieldBody">Cuerpo</label>
+        <textarea id="fieldBody" maxlength="400" placeholder="Descripción breve de la novedad"></textarea>
+        <label for="fieldTag">Etiqueta</label>
+        <select id="fieldTag">
+          <option value="balance">EQUILIBRIO</option>
+          <option value="shop">TIENDA</option>
+          <option value="notice">AVISO</option>
+        </select>
+        <div class="row">
+          <input type="checkbox" id="fieldFeatured">
+          <label for="fieldFeatured">Destacar (reemplaza cualquier otra novedad destacada)</label>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="submitBtn">Publicar</button>
+          <button type="button" class="btn-secondary" id="cancelEditBtn" style="display:none;">Cancelar edición</button>
+        </div>
+        <p class="status-msg" id="formStatus"></p>
+      </div>
+
+      <div class="card">
+        <h2>Novedades publicadas</h2>
+        <div id="newsRows"><div class="empty-note">Cargando…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <script>
+  (function () {
+    // Client-side check only for UX (hiding the form) -- the REAL
+    // enforcement is server-side (publishNews/updateNewsItem/deleteNewsItem,
+    // functions/index.js, all check request.auth.uid === ADMIN_UID
+    // themselves), so this can't be bypassed into an actual write even if
+    // someone tampered with this page.
+    var ADMIN_UID = '4ViFsoJm7fMsop8eCS16u89wIxQ2';
+    var MONTH_ES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+    var stateBox = document.getElementById('stateBox');
+    var adminPanel = document.getElementById('adminPanel');
+    var formTitle = document.getElementById('formTitle');
+    var fieldTitle = document.getElementById('fieldTitle');
+    var fieldBody = document.getElementById('fieldBody');
+    var fieldTag = document.getElementById('fieldTag');
+    var fieldFeatured = document.getElementById('fieldFeatured');
+    var submitBtn = document.getElementById('submitBtn');
+    var cancelEditBtn = document.getElementById('cancelEditBtn');
+    var formStatus = document.getElementById('formStatus');
+    var newsRows = document.getElementById('newsRows');
+
+    var editingId = null; // null = creating a new item; otherwise the id being edited
+    var unsubscribeNews = null;
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function resetForm() {
+      editingId = null;
+      formTitle.textContent = 'Nueva novedad';
+      fieldTitle.value = '';
+      fieldBody.value = '';
+      fieldTag.value = 'balance';
+      fieldFeatured.checked = false;
+      submitBtn.textContent = 'Publicar';
+      cancelEditBtn.style.display = 'none';
+      formStatus.textContent = '';
+      formStatus.className = 'status-msg';
+    }
+
+    function startEditing(item) {
+      editingId = item.id;
+      formTitle.textContent = 'Editar novedad';
+      fieldTitle.value = item.title || '';
+      fieldBody.value = item.body || '';
+      fieldTag.value = item.tag || 'balance';
+      fieldFeatured.checked = !!item.featured;
+      submitBtn.textContent = 'Guardar cambios';
+      cancelEditBtn.style.display = '';
+      formStatus.textContent = '';
+      formStatus.className = 'status-msg';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    cancelEditBtn.addEventListener('click', resetForm);
+
+    submitBtn.addEventListener('click', function () {
+      var title = fieldTitle.value.trim();
+      var body = fieldBody.value.trim();
+      var tag = fieldTag.value;
+      var featured = fieldFeatured.checked;
+      if (!title || !body) {
+        formStatus.className = 'status-msg error';
+        formStatus.textContent = 'El título y el cuerpo son obligatorios.';
+        return;
+      }
+      submitBtn.disabled = true;
+      formStatus.className = 'status-msg';
+      formStatus.textContent = 'Guardando…';
+      var call = editingId
+        ? firebase.functions().httpsCallable('updateNewsItem')({ id: editingId, title: title, body: body, tag: tag, featured: featured })
+        : firebase.functions().httpsCallable('publishNews')({ title: title, body: body, tag: tag, featured: featured });
+      call.then(function () {
+        submitBtn.disabled = false;
+        formStatus.className = 'status-msg ok';
+        formStatus.textContent = editingId ? 'Guardado ✓' : 'Publicado ✓';
+        resetForm();
+      }).catch(function (err) {
+        submitBtn.disabled = false;
+        formStatus.className = 'status-msg error';
+        formStatus.textContent = err.message || 'No se pudo guardar.';
+      });
+    });
+
+    function renderNewsRows(items) {
+      if (!items.length) {
+        newsRows.innerHTML = '<div class="empty-note">Todavía no hay novedades publicadas.</div>';
+        return;
+      }
+      newsRows.innerHTML = items.map(function (it) {
+        var d = it.createdAt;
+        var dateStr = d ? (d.getDate() + ' ' + MONTH_ES[d.getMonth()] + ' ' + d.getFullYear()) : '—';
+        var tagLabel = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO' }[it.tag] || it.tag;
+        return '<div class="news-row" data-id="' + escapeHtml(it.id) + '">' +
+          '<div class="news-row-body">' +
+            (it.featured ? '<span class="news-row-tag featured">DESTACADO</span>' : '') +
+            '<span class="news-row-tag">' + escapeHtml(tagLabel) + '</span>' +
+            '<div class="news-row-title">' + escapeHtml(it.title) + '</div>' +
+            '<div class="news-row-meta">' + escapeHtml(dateStr) + '</div>' +
+          '</div>' +
+          '<div class="news-row-actions">' +
+            '<button type="button" class="btn-secondary" data-action="edit">Editar</button>' +
+            '<button type="button" class="btn-danger" data-action="delete">Eliminar</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      newsRows.querySelectorAll('.news-row').forEach(function (row) {
+        var id = row.getAttribute('data-id');
+        var item = items.filter(function (it) { return it.id === id; })[0];
+        row.querySelector('[data-action="edit"]').addEventListener('click', function () { startEditing(item); });
+        row.querySelector('[data-action="delete"]').addEventListener('click', function () {
+          if (!window.confirm('¿Borrar "' + item.title + '"? Esto no se puede deshacer.')) { return; }
+          firebase.functions().httpsCallable('deleteNewsItem')({ id: id }).catch(function (err) {
+            window.alert(err.message || 'No se pudo borrar.');
+          });
+        });
+      });
+    }
+
+    function showAdminPanel() {
+      stateBox.style.display = 'none';
+      adminPanel.style.display = '';
+      if (unsubscribeNews) { unsubscribeNews(); }
+      unsubscribeNews = firebase.firestore().collection('news').orderBy('createdAt', 'desc').limit(50)
+        .onSnapshot(function (snap) {
+          var items = [];
+          snap.forEach(function (doc) {
+            var data = doc.data();
+            items.push({
+              id: doc.id, title: data.title, body: data.body, tag: data.tag, featured: !!data.featured,
+              createdAt: data.createdAt ? data.createdAt.toDate() : null
+            });
+          });
+          renderNewsRows(items);
+        }, function (err) {
+          newsRows.innerHTML = '<div class="empty-note">No se pudieron cargar las novedades.</div>';
+          console.error(err);
+        });
+    }
+
+    function hideAdminPanel(message) {
+      adminPanel.style.display = 'none';
+      if (unsubscribeNews) { unsubscribeNews(); unsubscribeNews = null; }
+      stateBox.style.display = '';
+      stateBox.innerHTML = message;
+    }
+
+    firebase.auth().onAuthStateChanged(function (user) {
+      if (!user) {
+        hideAdminPanel('Iniciá sesión en <a href="/">la app</a> primero, luego volvé a esta página.');
+        return;
+      }
+      if (user.uid !== ADMIN_UID) {
+        hideAdminPanel('Tu cuenta no tiene permiso para administrar novedades.');
+        return;
+      }
+      showAdminPanel();
+    });
+  })();
+  </script>
+</body>
+</html>

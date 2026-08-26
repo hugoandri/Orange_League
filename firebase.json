@@ -25,6 +25,9 @@
       "run-tests.js",
       "firestore.rules",
       "firestore.indexes.json"
+    ],
+    "rewrites": [
+      { "source": "/admin", "destination": "/admin.html" }
     ]
   },
   "emulators": {

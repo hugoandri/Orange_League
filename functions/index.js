@@ -344,3 +344,76 @@ exports.saveCustomDeck = onCall(async (request) => {
 
   return { slot: slot, deck: savedDeck };
 });
+
+// ── App news (menu's "Novedades" panel + admin.html) ──────────────────
+// Only this one account may publish/edit/delete -- there's exactly one
+// real account on this project today, same reasoning as GRANT_TARGET_UID's
+// one-time collection grant. Gated by uid (immutable) rather than username
+// (can be renamed via updateProfile), same as that migration.
+const ADMIN_UID = '4ViFsoJm7fMsop8eCS16u89wIxQ2';
+// Matches the 3 real tag styles already defined in shell-theme.css
+// (shell-news-item-tag--balance/--shop/--notice) -- kept as a fixed set
+// rather than free text so the admin can't accidentally pick a tag with no
+// matching CSS class.
+const NEWS_TAGS = ['balance', 'shop', 'notice'];
+
+function requireAdmin(request) {
+  if (!request.auth || request.auth.uid !== ADMIN_UID) {
+    throw new HttpsError('permission-denied', 'No tienes permiso para publicar novedades.');
+  }
+}
+
+function validateNewsFields(data) {
+  const title = (data.title || '').trim().slice(0, 80);
+  const body = (data.body || '').trim().slice(0, 400);
+  const tag = data.tag;
+  if (!title) { throw new HttpsError('invalid-argument', 'El título es obligatorio.'); }
+  if (!body) { throw new HttpsError('invalid-argument', 'El cuerpo es obligatorio.'); }
+  if (NEWS_TAGS.indexOf(tag) === -1) { throw new HttpsError('invalid-argument', 'Etiqueta inválida.'); }
+  return { title, body, tag, featured: !!data.featured };
+}
+
+// Only one news item is ever shown as "DESTACADO" at a time -- clears the
+// flag off every other item server-side whenever a new one is marked
+// featured, so the admin can never end up with two at once even from a
+// stale/double-submitted form.
+async function clearOtherFeatured(exceptId) {
+  const snap = await admin.firestore().collection('news').where('featured', '==', true).get();
+  const batch = admin.firestore().batch();
+  snap.forEach((doc) => {
+    if (doc.id !== exceptId) { batch.update(doc.ref, { featured: false }); }
+  });
+  await batch.commit();
+}
+
+exports.publishNews = onCall(async (request) => {
+  requireAdmin(request);
+  const fields = validateNewsFields(request.data || {});
+  const docRef = await admin.firestore().collection('news').add(Object.assign({}, fields, {
+    createdAt: FieldValue.serverTimestamp()
+  }));
+  if (fields.featured) { await clearOtherFeatured(docRef.id); }
+  return { id: docRef.id };
+});
+
+exports.updateNewsItem = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const id = data.id;
+  if (!id) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
+  const fields = validateNewsFields(data);
+  const ref = admin.firestore().collection('news').doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) { throw new HttpsError('not-found', 'Esa novedad no existe.'); }
+  await ref.set(fields, { merge: true });
+  if (fields.featured) { await clearOtherFeatured(id); }
+  return { id: id };
+});
+
+exports.deleteNewsItem = onCall(async (request) => {
+  requireAdmin(request);
+  const id = (request.data || {}).id;
+  if (!id) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
+  await admin.firestore().collection('news').doc(id).delete();
+  return { id: id };
+});

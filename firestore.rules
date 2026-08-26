@@ -9,5 +9,14 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
+    // Published app news (see admin.html + publishNews/updateNewsItem/
+    // deleteNewsItem, functions/index.js) -- any signed-in player can read
+    // the menu's Novedades panel, but writes only ever happen server-side
+    // (the Cloud Functions themselves check the caller is the one admin
+    // account), same "client never writes directly" pattern as users/{uid}.
+    match /news/{newsId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

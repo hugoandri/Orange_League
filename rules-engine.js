@@ -160,7 +160,12 @@ function startMatch(state) {
   state.phase = 'playing';
   state.turnCounter = 1;
   state.activePlayerId = coinFlip(state) === 'H' ? 'player' : 'cpu';
-  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida', state.activePlayerId);
+  // "match-start" gets the same bigger/bolder log styling as "turn-end"
+  // (see logHtml, ui.js) -- who actually won the coin flip used to be
+  // easy to miss, sitting in the log at the same small size as everything
+  // else right as the much more visually loud turn-flash ("TU TURNO"/
+  // "TURNO DEL RIVAL") also fires and then quickly fades.
+  logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida', state.activePlayerId, 'match-start');
   drawForTurnStart(state, state.activePlayerId);
 }
 

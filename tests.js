@@ -136,6 +136,12 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   checkTrue('activePlayerId is player or cpu after startMatch', state.activePlayerId === 'player' || state.activePlayerId === 'cpu');
   check('turnCounter is 1 after startMatch', state.turnCounter, 1);
   checkTrue('canPlayBasic now requires activePlayerId to match once playing', !canPlayBasic(state, opponentOf(state.activePlayerId), state.players[opponentOf(state.activePlayerId)].hand[0] ? state.players[opponentOf(state.activePlayerId)].hand[0].id : 'nope'));
+
+  // Real reported bug: who actually won the coin flip was easy to miss,
+  // sitting in the log at the same small size as every other line.
+  var matchStartLog = state.log.find(function (e) { return e.kind === 'match-start'; });
+  checkTrue('startMatch logs a "match-start" line tagged for the bigger/bolder log styling', !!matchStartLog);
+  check('the match-start line names whoever actually won the coin flip', matchStartLog.msg, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida');
 })();
 
 (function testMulliganRedrawsUntilBasicPresent() {

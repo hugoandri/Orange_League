@@ -31,6 +31,31 @@ function initEconomyListener(uid) {
     });
 }
 
+// Menu's "Novedades" panel -- read directly via the client SDK (firestore.rules
+// allows any signed-in player to read the 'news' collection; only
+// publishNews/updateNewsItem/deleteNewsItem, server-side, can ever write to
+// it -- see admin.html). Ordered newest-first, capped at 20 (the panel
+// itself only ever shows the featured one + a handful more).
+function initNewsListener() {
+  return firebase.firestore().collection('news').orderBy('createdAt', 'desc').limit(20)
+    .onSnapshot(function (snap) {
+      var items = [];
+      snap.forEach(function (doc) {
+        var data = doc.data();
+        items.push({
+          id: doc.id, title: data.title, body: data.body, tag: data.tag, featured: !!data.featured,
+          // Firestore Timestamp -> real JS Date -- createdAt can briefly be
+          // null right after publishNews() writes it (serverTimestamp()
+          // resolves asynchronously), so this falls back to "now" rather
+          // than crashing renderNewsPanel's date formatting for that one
+          // brief window.
+          createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
+        });
+      });
+      renderNewsPanel(items);
+    }, function (err) { console.error('No se pudieron cargar las novedades', err); });
+}
+
 function awardMatchResultCloud(result) {
   return firebase.functions().httpsCallable('awardMatchResult')({ result: result });
 }
