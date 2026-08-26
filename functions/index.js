@@ -114,7 +114,7 @@ exports.openBooster = onCall(async (request) => {
     const snap = await tx.get(userRef);
     const data = snap.exists ? snap.data() : null;
     if (!data || data.coins < BOOSTER_COST) {
-      throw new HttpsError('failed-precondition', 'No tienes suficientes monedas.');
+      throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
     }
     // Darkspoon's own account rolls the pulled Rare's rarity on much better
     // odds (see RARITY_ROLL.darkspoon) instead of the normal table --
@@ -169,7 +169,7 @@ exports.buyCardBack = onCall(async (request) => {
       return { cardBacks: owned };
     }
     if (data.coins < PROTECTOR_COST) {
-      throw new HttpsError('failed-precondition', 'No tienes suficientes monedas.');
+      throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
     }
     const newCardBacks = owned.concat([id]);
     tx.update(userRef, { coins: data.coins - PROTECTOR_COST, cardBacks: newCardBacks });

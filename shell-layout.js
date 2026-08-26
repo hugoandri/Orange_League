@@ -70,13 +70,13 @@ var PIXEL_DIGIT_GLYPHS = {
   '-': ['......', '......', '......', '111111', '111111', '......', '......', '......', '......'],
   '+': ['......', '..11..', '..11..', '111111', '111111', '..11..', '..11..', '......', '......'],
   // Currency glyph (pixelCoinHtml) -- same 6x9 stroke/outline box as every
-  // digit. Two earlier passes tried an S-curve (off '5', then off '3'),
-  // but a smooth curve doesn't read clearly at this resolution -- user
-  // asked for something blockier instead: an "M" (two outer verticals,
-  // cols 0/5) crossed by a "|" through the middle, later asked to make
-  // that crossbar thicker -- it's 2 full columns wide (cols 2-3) instead
-  // of 1, merging into a solid top row where the M's shoulders meet it.
-  '$': ['1.11.1', '111111', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1', '1.11.1'],
+  // digit. Earlier passes tried an S-curve, then a blocky "M crossed by a
+  // thick bar" placeholder -- the game's real currency is now "Orbe" (one
+  // of 4 invented currencies the user designed in a separate reference
+  // page, Divisas/Numeros 16 bits.dc.html: Voltio/Talo/Orbe/Ciro), so this
+  // is that exact glyph ("anillo y puntas" -- a ring with points top and
+  // bottom), copied verbatim from that file's GLYPHS.orbe.
+  'orbe': ['11..11', '.1111.', '111111', '11..11', '11..11', '11..11', '111111', '.1111.', '11..11'],
   // Status-condition badge letters (SLP/BRN/PAR/PSN) plus '?' for Confused's
   // "???" -- same 6x9 stroke, rendered in the 'hueso' palette on a colored
   // plate (see PIXEL_STATUS_BADGES).
@@ -222,12 +222,12 @@ function pixelDigitsHtml(str, paletteName, blockPx, outlineColor) {
 
 // Same pixel-glyph currency icon used throughout the shell (menu balance,
 // shop header, booster price, board profile footer) -- replaces the old
-// plain gradient-circle divs those spots used before. Renders the '$'
+// plain gradient-circle divs those spots used before. Renders the 'orbe'
 // glyph (see PIXEL_DIGIT_GLYPHS) with no rampOffset, same as a normal
 // digit -- the old round coin-disc icon used rampOffset=1 for its own
 // shading, which no longer applies now that this is a stroke glyph.
 function pixelCoinHtml(paletteName, blockPx) {
-  var cells = buildPixelDigitCells('$', paletteName);
+  var cells = buildPixelDigitCells('orbe', paletteName);
   var inner = cells.map(function (c) {
     return '<div style="width:' + blockPx + 'px;height:' + blockPx + 'px;background:' + c.bg + ';"></div>';
   }).join('');
