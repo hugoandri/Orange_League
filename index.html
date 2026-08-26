@@ -504,6 +504,22 @@
     </div>
   </div>
 
+  <!-- Pokémon Powers (see openChoicePickerModal, ui.js): a single generic
+       "pick one option" modal reused for both (a) choosing WHICH of 2+
+       eligible Pokémon's Power to activate, and (b) Electrode's Buzzap
+       energy-type choice -- clicking an option resolves immediately, same
+       one-click pattern as deckSearchModal above (no separate OK button). -->
+  <div id="choicePickerModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="choicePickerPrompt"></p>
+      <div id="choicePickerGrid" class="shell-energy-discard-grid"></div>
+      <div class="shell-modal-actions">
+        <button type="button" id="choicePickerCancel" class="shell-modal-btn">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- No backdrop/close: choosing a new Active after a knockout is
        mandatory, not dismissible (real TCG rules). -->
   <div id="activeChoiceModal" class="card-modal hidden">

@@ -650,6 +650,35 @@ function closeDeckSearchModal() {
   deckSearchOnPick = null;
 }
 
+// Generic "pick one option, resolves on click" modal (see index.html's own
+// comment) -- options: [{id, label, imgUrl}]. Reused by the Pokémon Powers
+// flow below for both picking WHICH eligible Pokémon's Power to activate
+// (2+ candidates) and Buzzap's energy-type choice.
+var choicePickerOnPick = null;
+function openChoicePickerModal(promptText, options, onPick) {
+  choicePickerOnPick = onPick;
+  document.getElementById('choicePickerPrompt').textContent = promptText;
+  var grid = document.getElementById('choicePickerGrid');
+  grid.innerHTML = options.map(function (opt) {
+    return '<button type="button" class="shell-discard-pile-card-item" data-choice-id="' + escapeHtml(opt.id) + '">' +
+      (opt.imgUrl ? '<img src="' + opt.imgUrl + '" alt="" loading="lazy">' : '') +
+      '<span>' + escapeHtml(opt.label) + '</span></button>';
+  }).join('');
+  grid.querySelectorAll('[data-choice-id]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-choice-id');
+      var onPickNow = choicePickerOnPick;
+      closeChoicePickerModal();
+      if (onPickNow) { onPickNow(id); }
+    });
+  });
+  document.getElementById('choicePickerModal').classList.remove('hidden');
+}
+function closeChoicePickerModal() {
+  document.getElementById('choicePickerModal').classList.add('hidden');
+  choicePickerOnPick = null;
+}
+
 // Computer Search's discard-2-as-cost step: pick exactly `count` real hand
 // cards (by id, not index -- unlike energyDiscardState below, hand cards
 // each have their own real id already). onConfirm(ids) fires once that
@@ -1126,8 +1155,11 @@ function handBandHtml(state) {
 
 // Column A's lower half: setup's coin-flip button, or (during play) the
 // Retirada/Habilidad/Terminar turno grid, plus the player's own profile footer.
-// Habilidad stays visible but disabled -- there is no Pokémon Powers/
-// Abilities system in this game yet, only attacks/trainers/retreat/energy.
+// Habilidad is enabled whenever the player has at least 1 Pokémon (Active
+// or Bench) with a currently-usable activatable Power (see
+// usablePokemonPowers, rules-engine.js) -- Machamp's Strikes Back is
+// passive and never makes this list, it just fires automatically inside
+// attack().
 function renderBoardActions() {
   var s = gameState;
   var p = s.players.player;
@@ -1139,9 +1171,10 @@ function renderBoardActions() {
     html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
   } else if (s.phase === 'playing' && !pendingPlayerPrize && !pendingActive) {
     var canRetreatAny = p.bench.some(function (b) { return b && canRetreat(s, 'player', b.id); });
+    var canUsePower = usablePokemonPowers(s, 'player').length > 0;
     html += '<div class="shell-board-actions"><div class="shell-board-actions-grid">' +
       '<button type="button" class="shell-board-action" id="retreatBtn"' + (canRetreatAny ? '' : ' disabled') + '>CAMBIAR POKÉMON</button>' +
-      '<button type="button" class="shell-board-action" disabled title="Próximamente">HABILIDAD</button>' +
+      '<button type="button" class="shell-board-action" id="habilidadBtn"' + (canUsePower ? '' : ' disabled title="No tienes Poderes Pokémon disponibles"') + '>HABILIDAD</button>' +
       '<button type="button" class="shell-board-action-gold" id="endTurnBtn">TERMINAR TURNO ▶</button>' +
       '</div></div>';
   }
@@ -1448,6 +1481,12 @@ function wireBoardButtons() {
   // (renderBoard() re-invokes wireBoardButtons(), which would recreate this
   // closure and silently drop whichever step was already picked).
   var pendingSuperEnergyRemoval = null;
+  // Pokémon Powers (HABILIDAD): tracks the in-progress activation, same
+  // "no renderBoard() in between steps" rule as pendingSuperEnergyRemoval
+  // above -- {ownerId, powerName, step ('from'/'to', Damage Swap/Energy
+  // Trans only), fromInstanceId, handEnergyId (Rain Dance), chosenType
+  // (Buzzap)}. null when no Power activation is in progress.
+  var pendingPowerActivation = null;
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
@@ -1638,6 +1677,75 @@ function wireBoardButtons() {
     });
   }
 
+  // Kicks off the specific target-gathering flow for one Pokémon's Power.
+  // Energy Burn needs no target at all (resolves immediately); the other 3
+  // activatable Powers need 1-2 more clicks (a board Pokémon and/or a hand
+  // Energy card and/or a chosen type) before usePokemonPower() actually
+  // runs -- see the board-card click handler below for how each step
+  // resolves once pendingPowerActivation is set.
+  function startPowerFlow(instance) {
+    var powerName = CARD_STATS[instance.name].pokemonPower.name;
+    if (powerName === 'Energy Burn') {
+      var result = usePokemonPower(gameState, 'player', instance.id, {});
+      if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+      renderBoard();
+      return;
+    }
+    if (powerName === 'Damage Swap' || powerName === 'Energy Trans') {
+      pendingPowerActivation = { ownerId: instance.id, powerName: powerName, step: 'from' };
+      showTargetHintModal(powerName === 'Damage Swap' ? 'Elige el Pokémon con el daño a mover' : 'Elige el Pokémon con la Energía Planta a mover');
+      return;
+    }
+    if (powerName === 'Rain Dance') {
+      var waterCards = gameState.players.player.hand.filter(function (c) { return c.name === 'Water Energy'; });
+      if (waterCards.length === 0) {
+        logEvent(gameState, 'No tienes Energía Agua en la mano -- no puedes usar Rain Dance', 'player');
+        renderBoard();
+        return;
+      }
+      openHandDiscardModal(waterCards, 1, function (ids) {
+        pendingPowerActivation = { ownerId: instance.id, powerName: 'Rain Dance', handEnergyId: ids[0] };
+        showTargetHintModal('Elige uno de tus Pokémon de tipo Agua');
+      });
+      // The modal's real header still says "para descartar" (shared with
+      // Computer Search's step) -- close enough here since the grid/count
+      // mechanics (pick exactly 1) are identical; a dedicated prompt isn't
+      // worth a second modal for this one Power.
+      return;
+    }
+    if (powerName === 'Buzzap') {
+      var typeOptions = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Colorless'].map(function (t) {
+        return { id: t, label: BUZZAP_TYPE_NAME_ES[t], imgUrl: 'Tipos/' + ENERGY_CARD_TYPE_ICON[t] + '.png' };
+      });
+      openChoicePickerModal('Elige un tipo de Energía para Buzzap', typeOptions, function (chosenType) {
+        pendingPowerActivation = { ownerId: instance.id, powerName: 'Buzzap', chosenType: chosenType };
+        showTargetHintModal('Elige otro de tus Pokémon para adjuntarle 2 Energía');
+      });
+      return;
+    }
+  }
+
+  var habilidadBtn = document.getElementById('habilidadBtn');
+  if (habilidadBtn) {
+    habilidadBtn.addEventListener('click', function () {
+      selectedHandId = null;
+      retreatMode = false;
+      var usable = usablePokemonPowers(gameState, 'player');
+      if (usable.length === 0) { return; }
+      if (usable.length === 1) {
+        startPowerFlow(usable[0]);
+      } else {
+        var options = usable.map(function (instance) {
+          return { id: instance.id, label: instance.name + ' (' + CARD_STATS[instance.name].pokemonPower.name + ')', imgUrl: CARD_IMAGE_BY_NAME[instance.name] };
+        });
+        openChoicePickerModal('Elige qué Poder Pokémon usar', options, function (chosenId) {
+          var chosen = usable.find(function (instance) { return instance.id === chosenId; });
+          if (chosen) { startPowerFlow(chosen); }
+        });
+      }
+    });
+  }
+
   document.querySelectorAll('.shell-board-bench-card, .shell-board-active-card').forEach(function (el) {
     el.addEventListener('click', function () {
       var instanceId = el.getAttribute('data-instance-id');
@@ -1671,6 +1779,46 @@ function wireBoardButtons() {
         pendingAttackNeedingTarget = null;
         attack(gameState, 'player', 'Lure', instanceId);
         afterPlayerAction();
+        return;
+      }
+      if (pendingPowerActivation) {
+        var pa = pendingPowerActivation;
+        var ownClick = findInstance(gameState.players.player, instanceId);
+        if (!ownClick) {
+          // Same "log only, keep the flow armed" pattern as Super Energy
+          // Removal's own invalid-click case above -- no renderBoard()
+          // here, it would wipe this very closure mid-flow.
+          logEvent(gameState, 'Elige uno de tus Pokémon', 'player');
+          document.getElementById('log').innerHTML = logHtml(gameState);
+          return;
+        }
+        if (pa.powerName === 'Damage Swap' || pa.powerName === 'Energy Trans') {
+          if (pa.step === 'from') {
+            pa.fromInstanceId = instanceId;
+            pa.step = 'to';
+            showTargetHintModal(pa.powerName === 'Damage Swap' ? 'Elige el Pokémon que recibirá el daño' : 'Elige el Pokémon que recibirá la Energía');
+            return;
+          }
+          pendingPowerActivation = null;
+          var swapResult = usePokemonPower(gameState, 'player', pa.ownerId, { fromInstanceId: pa.fromInstanceId, toInstanceId: instanceId });
+          if (swapResult && !swapResult.legal) { logEvent(gameState, swapResult.reason, 'player'); }
+          afterPlayerAction();
+          return;
+        }
+        if (pa.powerName === 'Rain Dance') {
+          pendingPowerActivation = null;
+          var rainResult = usePokemonPower(gameState, 'player', pa.ownerId, { handEnergyId: pa.handEnergyId, targetInstanceId: instanceId });
+          if (rainResult && !rainResult.legal) { logEvent(gameState, rainResult.reason, 'player'); }
+          afterPlayerAction();
+          return;
+        }
+        if (pa.powerName === 'Buzzap') {
+          pendingPowerActivation = null;
+          var buzzapResult = usePokemonPower(gameState, 'player', pa.ownerId, { chosenType: pa.chosenType, targetInstanceId: instanceId });
+          if (buzzapResult && !buzzapResult.legal) { logEvent(gameState, buzzapResult.reason, 'player'); }
+          afterPlayerAction();
+          return;
+        }
         return;
       }
       if (!selectedHandId) { return; }
@@ -2382,6 +2530,15 @@ var ENERGY_CARD_TYPE_ICON = {
   Psychic: 'psiquico', Fighting: 'lucha', Colorless: 'incoloro'
 };
 
+// Display-only Spanish type names for Buzzap's (Electrode) type-choice
+// modal -- no real card is named just "Colorless Energy", so this doesn't
+// piggyback on translateCardName/TRAINER_NAME_ES like every other
+// Spanish-text lookup in this game.
+var BUZZAP_TYPE_NAME_ES = {
+  Grass: 'Planta', Fire: 'Fuego', Water: 'Agua', Lightning: 'Rayo',
+  Psychic: 'Psíquico', Fighting: 'Lucha', Colorless: 'Incoloro'
+};
+
 function deckComposition(deckKey) {
   var counts = { pokemon: 0, trainer: 0, energy: 0 };
   var energies = [];
@@ -2947,6 +3104,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('deckSearchCancel').addEventListener('click', closeDeckSearchModal);
   document.querySelector('#deckSearchModal .card-modal-backdrop').addEventListener('click', closeDeckSearchModal);
+
+  document.getElementById('choicePickerCancel').addEventListener('click', closeChoicePickerModal);
+  document.querySelector('#choicePickerModal .card-modal-backdrop').addEventListener('click', closeChoicePickerModal);
 
   document.getElementById('energyDiscardCancel').addEventListener('click', closeEnergyDiscardModal);
   document.querySelector('#energyDiscardModal .card-modal-backdrop').addEventListener('click', closeEnergyDiscardModal);

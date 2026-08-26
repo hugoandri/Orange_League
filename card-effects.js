@@ -1,3 +1,89 @@
+// Activatable Pokémon Powers (dispatched by usePokemonPower,
+// rules-engine.js, which already validated the owner belongs to playerId,
+// has this exact Power, and isn't blocked by Asleep/Confused/Paralyzed).
+// Machamp's Strikes Back is NOT here -- it's a passive, always-on effect
+// handled entirely inside attack() itself, with no button and no entry in
+// this registry (usablePokemonPowers, rules-engine.js, explicitly skips it
+// by name for that reason).
+var POKEMON_POWER_EFFECTS = {};
+
+// params: {fromInstanceId, toInstanceId} -- both must be the player's own
+// Pokémon (Active or Bench). "As often as you like" needs no special
+// handling here: nothing stops the player from clicking HABILIDAD and
+// calling this again immediately after.
+POKEMON_POWER_EFFECTS['Damage Swap'] = function (state, playerId, owner, params) {
+  var p = state.players[playerId];
+  var from = findInstance(p, params.fromInstanceId);
+  var to = findInstance(p, params.toInstanceId);
+  if (!from || !to || from.id === to.id) { return { legal: false, reason: 'elige 2 de tus Pokémon distintos' }; }
+  if (from.damage < 10) { return { legal: false, reason: 'ese Pokémon no tiene daño para mover' }; }
+  if (to.damage + 10 >= CARD_STATS[to.name].hp) { return { legal: false, reason: 'no puedes noquear al Pokémon de destino' }; }
+  from.damage -= 10;
+  to.damage += 10;
+  logEvent(state, translatePlayer(playerId) + ' usa Damage Swap (Alakazam)', playerId);
+  return { legal: true };
+};
+
+// params: {handEnergyId, targetInstanceId} -- Water Energy only, target
+// must be one of the player's own Water-type Pokémon. Deliberately does
+// NOT set p.energyAttachedThisTurn (the real text: "this doesn't use up
+// your 1 Energy card attachment for the turn").
+POKEMON_POWER_EFFECTS['Rain Dance'] = function (state, playerId, owner, params) {
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === params.handEnergyId; });
+  if (idx === -1 || p.hand[idx].name !== 'Water Energy') { return { legal: false, reason: 'elige una carta de Energía Agua de tu mano' }; }
+  var target = findInstance(p, params.targetInstanceId);
+  if (!target || (CARD_STATS[target.name].types || []).indexOf('Water') === -1) {
+    return { legal: false, reason: 'solo puedes adjuntarla a uno de tus Pokémon de tipo Agua' };
+  }
+  p.hand.splice(idx, 1);
+  target.attachedEnergy.push('Water');
+  logEvent(state, translatePlayer(playerId) + ' usa Rain Dance (Blastoise) en ' + target.name, playerId);
+  return { legal: true };
+};
+
+// No target -- self-only. See canPayCost (rules-engine.js) for where the
+// energyBurnActive flag it sets actually takes effect.
+POKEMON_POWER_EFFECTS['Energy Burn'] = function (state, playerId, owner) {
+  owner.energyBurnActive = true;
+  logEvent(state, translatePlayer(playerId) + ' usa Energy Burn (Charizard)', playerId);
+  return { legal: true };
+};
+
+// params: {fromInstanceId, toInstanceId} -- same shape as Damage Swap,
+// just moving a Grass Energy card instead of a damage counter.
+POKEMON_POWER_EFFECTS['Energy Trans'] = function (state, playerId, owner, params) {
+  var p = state.players[playerId];
+  var from = findInstance(p, params.fromInstanceId);
+  var to = findInstance(p, params.toInstanceId);
+  if (!from || !to || from.id === to.id) { return { legal: false, reason: 'elige 2 de tus Pokémon distintos' }; }
+  var idx = from.attachedEnergy.indexOf('Grass');
+  if (idx === -1) { return { legal: false, reason: 'el Pokémon de origen no tiene Energía Planta adjunta' }; }
+  from.attachedEnergy.splice(idx, 1);
+  to.attachedEnergy.push('Grass');
+  logEvent(state, translatePlayer(playerId) + ' usa Energy Trans (Venusaur)', playerId);
+  return { legal: true };
+};
+
+// params: {chosenType, targetInstanceId} -- "Electrode becomes an Energy
+// card" fits this engine's existing representation directly: attachedEnergy
+// is already just an array of energy-TYPE strings (not real card objects),
+// so Electrode being Knocked Out (a real KO -- the opponent gets a prize,
+// same as any other) and 2 units of the chosen type landing on another of
+// the player's own Pokémon needs no new data shape at all.
+POKEMON_POWER_EFFECTS['Buzzap'] = function (state, playerId, owner, params) {
+  var p = state.players[playerId];
+  var target = findInstance(p, params.targetInstanceId);
+  if (!target || target.id === owner.id) { return { legal: false, reason: 'elige otro de tus Pokémon' }; }
+  var validTypes = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Colorless'];
+  if (validTypes.indexOf(params.chosenType) === -1) { return { legal: false, reason: 'elige un tipo de Energía válido' }; }
+  owner.damage = CARD_STATS[owner.name].hp;
+  knockOutIfNeeded(state, playerId, owner);
+  target.attachedEnergy.push(params.chosenType, params.chosenType);
+  logEvent(state, translatePlayer(playerId) + ' usa Buzzap (Electrode) y adjunta 2 Energía ' + params.chosenType + ' a ' + target.name, playerId);
+  return { legal: true };
+};
+
 var TRAINER_EFFECTS = {};
 
 TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {

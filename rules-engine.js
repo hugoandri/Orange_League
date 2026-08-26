@@ -181,7 +181,13 @@ function makeFreshInstance(id, name, turnCounter) {
     // Pidgeotto's Mirror Move: {amount, turn} -- the real damage this
     // instance took from an attack, recorded in dealDamage, so Mirror Move
     // can replay it the following turn.
-    lastDamageTaken: null
+    lastDamageTaken: null,
+    // Charizard's Energy Burn (Pokémon Power): while true, every Energy
+    // attached to this instance counts as Fire for canPayCost -- checked
+    // there instead of the static attachedEnergy array. Cleared at the end
+    // of the OWNER's own turn (endTurn's sweep), matching "for the rest of
+    // the turn".
+    energyBurnActive: false
   };
 }
 
@@ -261,7 +267,10 @@ function evolve(state, playerId, handId, targetInstanceId) {
 }
 
 function canPayCost(instance, cost) {
-  var attached = instance.attachedEnergy.slice();
+  // Charizard's Energy Burn (Pokémon Power): every attached Energy counts
+  // as Fire for the rest of the turn -- Charizard's only real attack (Fire
+  // Spin) is the sole thing this could ever matter for.
+  var attached = instance.energyBurnActive ? instance.attachedEnergy.map(function () { return 'Fire'; }) : instance.attachedEnergy.slice();
   var colorlessNeeded = 0;
   var needed = {};
   cost.forEach(function (c) {
@@ -713,6 +722,48 @@ function canAttack(state, playerId, attackName) {
   return canPayCost(p.active, atk.cost);
 }
 
+// Returns the list of the player's own Pokémon (Active or Bench) that
+// currently have a Pokémon Power the player can actually activate right
+// now -- i.e. excludes passive-only powers (Machamp's Strikes Back, which
+// has no button and never appears here) and anything blocked by the
+// Active's own Special Conditions. Drives ui.js's HABILIDAD button: it's
+// disabled whenever this list is empty.
+function usablePokemonPowers(state, playerId) {
+  var p = state.players[playerId];
+  if (state.activePlayerId !== playerId) { return []; }
+  return allInstances(p).filter(function (instance) {
+    var power = CARD_STATS[instance.name] && CARD_STATS[instance.name].pokemonPower;
+    if (!power || power.name === 'Strikes Back') { return false; }
+    if (typeof POKEMON_POWER_EFFECTS === 'undefined' || !POKEMON_POWER_EFFECTS[power.name]) { return false; }
+    if (instance === p.active && (hasStatus(instance, 'Asleep') || hasStatus(instance, 'Confused') || hasStatus(instance, 'Paralyzed'))) { return false; }
+    return true;
+  });
+}
+
+// params carries whatever extra targeting info a given Power needs (see
+// each POKEMON_POWER_EFFECTS entry, card-effects.js) -- e.g.
+// {fromInstanceId, toInstanceId} for Damage Swap/Energy Trans,
+// {handEnergyId, targetInstanceId} for Rain Dance, {chosenType,
+// targetInstanceId} for Buzzap, or nothing at all for Energy Burn.
+function usePokemonPower(state, playerId, ownerInstanceId, params) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede usar' }; }
+  var p = state.players[playerId];
+  var owner = findInstance(p, ownerInstanceId);
+  if (!owner) { return { legal: false, reason: 'ese Pokémon no es tuyo' }; }
+  var power = CARD_STATS[owner.name] && CARD_STATS[owner.name].pokemonPower;
+  if (!power) { return { legal: false, reason: 'ese Pokémon no tiene Poder Pokémon' }; }
+  // Powers are blocked by Special Conditions only when the owner is
+  // actually the Active Pokémon -- Bench Pokémon never carry Special
+  // Conditions in this engine in the first place (see retreat's own
+  // comment), so the check only ever matters for p.active.
+  if (owner === p.active && (hasStatus(owner, 'Asleep') || hasStatus(owner, 'Confused') || hasStatus(owner, 'Paralyzed'))) {
+    return { legal: false, reason: 'no se puede usar: Dormido, Confundido o Paralizado' };
+  }
+  var effectFn = (typeof POKEMON_POWER_EFFECTS !== 'undefined') ? POKEMON_POWER_EFFECTS[power.name] : null;
+  if (!effectFn) { return { legal: false, reason: 'este Poder aún no está implementado' }; }
+  return effectFn(state, playerId, owner, params || {});
+}
+
 // targetInstanceId (optional): only meaningful for Ninetales' Lure, the
 // one real Base Set attack that (like a Trainer) needs the player to
 // choose a specific opposing Bench Pokémon -- every other attack always
@@ -868,7 +919,13 @@ function endTurn(state) {
   // across the ending player's WHOLE side (not just whatever's still
   // Active), so retreating away from it before ending the turn can't
   // leave a stale +10ATK badge on a Benched Pokémon forever.
-  allInstances(state.players[justFinished]).forEach(function (instance) { instance.plusPowerAttached = false; });
+  allInstances(state.players[justFinished]).forEach(function (instance) {
+    instance.plusPowerAttached = false;
+    // Energy Burn (Charizard's Pokémon Power): "for the rest of the turn"
+    // -- always cleared at the end of its OWNER's own turn, same sweep as
+    // PlusPower above.
+    instance.energyBurnActive = false;
+  });
   // Shields (Onix's Harden, Squirtle/Wartortle's Withdraw, Defender's
   // reduceFlat, ...) used to only ever get cleared reactively, inside
   // dealDamage, the next time something actually attacked the shielded

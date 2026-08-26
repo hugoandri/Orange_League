@@ -2202,3 +2202,150 @@ function mkPokemon(id, name, overrides) {
   check('Fire Spin discards 2 of the attached energy (any type)', p.active.attachedEnergy.length, 2);
   check('Fire Spin deals its 100 damage once paid', cpu.active.damage, 100);
 })();
+
+(function testDamageSwapMovesOneCounterWithoutKnockingOutTheTarget() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('ak1', 'Alakazam', { damage: 30 });
+  p.bench = [mkPokemon('b1', 'Rattata', { damage: 10 }), null, null, null, null]; // 30 HP -- 10+10 would NOT KO it
+
+  var result = usePokemonPower(state, 'player', 'ak1', { fromInstanceId: 'ak1', toInstanceId: 'b1' });
+
+  checkTrue('Damage Swap is legal here', result.legal);
+  check('1 damage counter (10) left Alakazam', p.active.damage, 20);
+  check('1 damage counter (10) landed on the Bench target', p.bench[0].damage, 20);
+})();
+
+(function testDamageSwapRefusesToKnockOutTheTarget() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('ak1', 'Alakazam', { damage: 30 });
+  // Rattata: 30 HP, already at 20 -- moving 1 more counter (10) would hit
+  // exactly 30, a Knock Out, which Damage Swap explicitly forbids.
+  p.bench = [mkPokemon('b1', 'Rattata', { damage: 20 }), null, null, null, null];
+
+  var result = usePokemonPower(state, 'player', 'ak1', { fromInstanceId: 'ak1', toInstanceId: 'b1' });
+
+  checkTrue('Damage Swap refuses a move that would Knock Out the target', !result.legal);
+  check('no damage actually moved', p.active.damage, 30);
+  check('the target is untouched', p.bench[0].damage, 20);
+})();
+
+(function testRainDanceAttachesWaterWithoutUsingTheTurnsEnergyDrop() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('bl1', 'Blastoise', {});
+  p.bench = [mkPokemon('sq1', 'Squirtle', {}), null, null, null, null];
+  p.hand = [{ id: 'e1', name: 'Water Energy' }];
+  p.energyAttachedThisTurn = false;
+
+  var result = usePokemonPower(state, 'player', 'bl1', { handEnergyId: 'e1', targetInstanceId: 'sq1' });
+
+  checkTrue('Rain Dance is legal (target is a Water-type Pokémon)', result.legal);
+  check('the Water Energy attached to the target', p.bench[0].attachedEnergy, ['Water']);
+  check('the card left the hand', p.hand.length, 0);
+  checkTrue('Rain Dance does NOT use up the turn\'s normal Energy attachment', !p.energyAttachedThisTurn);
+})();
+
+(function testRainDanceRejectsNonWaterTarget() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('bl1', 'Blastoise', {});
+  p.bench = [mkPokemon('mc1', 'Machop', {}), null, null, null, null];
+  p.hand = [{ id: 'e1', name: 'Water Energy' }];
+
+  var result = usePokemonPower(state, 'player', 'bl1', { handEnergyId: 'e1', targetInstanceId: 'mc1' });
+
+  checkTrue('Rain Dance rejects a non-Water target', !result.legal);
+  check('the card stays in hand', p.hand.length, 1);
+})();
+
+(function testEnergyBurnMakesAllAttachedEnergyCountAsFireForCost() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('cz1', 'Charizard', { attachedEnergy: ['Water', 'Lightning', 'Grass', 'Psychic'] });
+
+  checkTrue('Fire Spin is illegal before Energy Burn (no real Fire attached)', !canAttack(state, 'player', 'Fire Spin'));
+
+  var result = usePokemonPower(state, 'player', 'cz1', {});
+  checkTrue('Energy Burn is legal (self-only, no target)', result.legal);
+  checkTrue('Fire Spin becomes legal once Energy Burn is active', canAttack(state, 'player', 'Fire Spin'));
+
+  endTurn(state);
+  checkTrue('Energy Burn clears at the end of the turn it was used', !p.active.energyBurnActive);
+})();
+
+(function testEnergyTransMovesOneGrassEnergyBetweenOwnPokemon() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('vs1', 'Venusaur', { attachedEnergy: ['Grass', 'Grass'] });
+  p.bench = [mkPokemon('tg1', 'Tangela', { attachedEnergy: [] }), null, null, null, null];
+
+  var result = usePokemonPower(state, 'player', 'vs1', { fromInstanceId: 'vs1', toInstanceId: 'tg1' });
+
+  checkTrue('Energy Trans is legal', result.legal);
+  check('Venusaur has 1 Grass Energy left', p.active.attachedEnergy, ['Grass']);
+  check('the Bench target now has the Grass Energy', p.bench[0].attachedEnergy, ['Grass']);
+})();
+
+(function testEnergyTransRejectsWithNoGrassOnSource() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('vs1', 'Venusaur', { attachedEnergy: [] });
+  p.bench = [mkPokemon('tg1', 'Tangela', { attachedEnergy: [] }), null, null, null, null];
+
+  var result = usePokemonPower(state, 'player', 'vs1', { fromInstanceId: 'vs1', toInstanceId: 'tg1' });
+  checkTrue('Energy Trans is illegal with no Grass Energy on the source', !result.legal);
+})();
+
+(function testBuzzapKnocksOutElectrodeAndAttachesTwoChosenEnergy() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('el1', 'Electrode', { damage: 0 });
+  p.bench = [mkPokemon('vt1', 'Voltorb', { attachedEnergy: [] }), null, null, null, null];
+  p.prizes = [{ id: 'pz1', name: 'Bill' }];
+  var cpu = state.players.cpu;
+  cpu.active = mkPokemon('c1', 'Machop', {});
+  cpu.prizes = [{ id: 'pz2', name: 'Bill' }];
+
+  var result = usePokemonPower(state, 'player', 'el1', { chosenType: 'Fighting', targetInstanceId: 'vt1' });
+
+  checkTrue('Buzzap is legal', result.legal);
+  check('Electrode itself is Knocked Out', p.active, null);
+  check('the target gets 2 of the chosen type', p.bench[0].attachedEnergy, ['Fighting', 'Fighting']);
+  // Electrode's owner is 'player', so the OPPONENT ('cpu') gets a prize for
+  // this KO, same as any other -- the CPU auto-takes it immediately
+  // (knockOutIfNeeded's own non-'player' branch), landing in its hand.
+  check('the opponent\'s prize slot is now empty', cpu.prizes[0], null);
+  checkTrue('the opponent\'s taken prize landed in hand', cpu.hand.some(function (c) { return c.id === 'pz2'; }));
+})();
+
+(function testUsablePokemonPowersExcludesStrikesBackAndBlockedByStatus() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('m1', 'Machamp', {}); // Strikes Back is passive-only -- never listed
+  p.bench = [mkPokemon('ak1', 'Alakazam', { damage: 10 }), mkPokemon('bl1', 'Blastoise', {}), null, null, null];
+
+  var usable = usablePokemonPowers(state, 'player');
+  check('Strikes Back never shows up (passive, no button)', usable.some(function (i) { return i.name === 'Machamp'; }), false);
+  check('2 Bench Pokémon with real activatable Powers are usable', usable.length, 2);
+
+  p.active.statusConditions = ['Asleep']; // irrelevant here -- Alakazam/Blastoise are on the Bench, not Active
+  var usable2 = usablePokemonPowers(state, 'player');
+  check('Bench Powers are unaffected by the ACTIVE Machamp being Asleep', usable2.length, 2);
+
+  p.active = p.bench[0];
+  p.active.statusConditions = ['Confused'];
+  p.bench[0] = null;
+  var usable3 = usablePokemonPowers(state, 'player');
+  check('a Confused Active with a Power is excluded', usable3.some(function (i) { return i.id === 'ak1'; }), false);
+})();
