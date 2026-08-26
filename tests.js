@@ -1334,6 +1334,10 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   applyEndOfTurnCheckup(state); // checkup no longer lives inside endTurn() itself -- see its own comment
   check('Burned deals 10 damage at checkup', p.active.damage, 10);
   checkTrue('Burned heals on a heads coin flip', p.active.statusConditions.indexOf('Burned') === -1);
+  // Real reported bug (same class as Asleep's own, below): Burned's own
+  // damage, and actually curing it, both used to happen silently.
+  checkTrue('Burned\'s own damage is logged, same as Poisoned\'s', state.log.some(function (e) { return e.msg === 'Bulbasaur sufre daño por quemadura'; }));
+  checkTrue('curing Burned is logged too, not just silently cleared', state.log.some(function (e) { return e.msg === 'Bulbasaur se curó de la quemadura'; }));
 })();
 
 (function testAsleepWakesOnHeads() {
@@ -1344,6 +1348,9 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   endTurn(state);
   applyEndOfTurnCheckup(state); // checkup no longer lives inside endTurn() itself -- see its own comment
   checkTrue('Asleep wakes up on a heads coin flip', p.active.statusConditions.indexOf('Asleep') === -1);
+  // Real reported bug: falling asleep logs "ahora está Dormido" (attack()'s
+  // own newStatuses handling), but waking back up was completely silent.
+  checkTrue('waking up is logged, not just silently cleared', state.log.some(function (e) { return e.msg === 'Bulbasaur se despertó'; }));
 })();
 
 (function testAddStatusExclusivity() {

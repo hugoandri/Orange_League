@@ -994,10 +994,21 @@ function applyCheckupDamage(state, playerId) {
     }
     if (hasStatus(instance, 'Burned')) {
       instance.damage += 10;
-      if (coinFlip(state) === 'H') { instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Burned'; }); }
+      // Real reported bug (same class): the Poisoned branch above already
+      // logs its own damage, but Burned's never did, and neither branch
+      // ever logged actually CURING a condition (waking up from Asleep,
+      // curing off Burned) -- silent either way, even though gaining the
+      // same status logs "ahora está X" (see attack()'s own newStatuses
+      // handling). Both directions now log symmetrically.
+      logEvent(state, instance.name + ' sufre daño por quemadura', playerId);
+      if (coinFlip(state) === 'H') {
+        instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Burned'; });
+        logEvent(state, instance.name + ' se curó de la quemadura', playerId);
+      }
     }
     if (hasStatus(instance, 'Asleep') && coinFlip(state) === 'H') {
       instance.statusConditions = instance.statusConditions.filter(function (s) { return s !== 'Asleep'; });
+      logEvent(state, instance.name + ' se despertó', playerId);
     }
   }
   // The KO sweep still covers the whole bench (e.g. a future effect could
