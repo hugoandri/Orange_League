@@ -661,7 +661,20 @@ function openDiscardPileModal(ownerId) {
   document.getElementById('discardPileGrid').innerHTML = p.discard.map(function (card) {
     var url = CARD_IMAGE_BY_NAME[card.name];
     if (!url) { return ''; }
-    return '<div class="shell-discard-pile-card-item"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' +
+    // Real reported bug: this showed plain art for both sides, regardless
+    // of foil. The player's own cards use the player's real owned
+    // collection tier (getPlayerCardFoilTier, same as everywhere else);
+    // the CPU has no personal collection to check, so its cards use the
+    // same match-scoped "is this its deck's one guaranteed Rare Holo"
+    // check the live board already uses for the CPU's side (isHoloInMatch)
+    // -- there's no secret-tier concept for the CPU.
+    var foilTier = ownerId === 'player' ? getPlayerCardFoilTier(card.name) : (isHoloInMatch('cpu', card.name) ? 'holo' : null);
+    var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
+    var foilOverlay = foilTier === 'secret'
+      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
+    return '<div class="shell-discard-pile-card-item' + tierClass + '">' +
+      '<div class="shell-discard-pile-card-art"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' + foilOverlay + '</div>' +
       '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
   }).join('');
   document.getElementById('discardPileModal').classList.remove('hidden');
