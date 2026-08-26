@@ -52,9 +52,11 @@ function updateActiveDeckCloud(deckKey) {
   return firebase.functions().httpsCallable('updateActiveDeck')({ deckKey: deckKey });
 }
 
-// cards: [{name, count}]. Server re-validates everything (real 60-card/
-// 4-copy/ownership rules) regardless of what the client already checked --
-// see saveCustomDeck, functions/index.js.
-function saveCustomDeckCloud(slot, name, cards) {
-  return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards });
+// cards: [{name, count}]. coverName (optional): a card name from within
+// cards, chosen as the deck's cover photo (see the Deck Builder's PORTADA
+// DEL MAZO box, ui.js). Server re-validates everything (real 60-card/
+// 4-copy/ownership rules, and that coverName is actually in cards) regardless
+// of what the client already checked -- see saveCustomDeck, functions/index.js.
+function saveCustomDeckCloud(slot, name, cards, coverName) {
+  return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards, coverName: coverName || null });
 }

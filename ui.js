@@ -2926,9 +2926,18 @@ function renderCustomDeckCards() {
     el.className = 'shell-deck-card';
     el.setAttribute('data-deck', slot);
     el.setAttribute('data-custom-slot', '1');
+    // deck.coverName (optional): a card name the player picked, from the
+    // ones actually in this deck, as its cover photo (see the Deck
+    // Builder's own PORTADA DEL MAZO box) -- falls back to the plain
+    // initial-letter placeholder for a deck saved before this existed, or
+    // one where the player never bothered picking a cover.
+    var coverImg = deck.coverName && CARD_IMAGE_BY_NAME[deck.coverName];
+    var artHtml = coverImg
+      ? '<div class="shell-deck-card-art"><img src="' + coverImg + '" alt="" loading="lazy"></div>'
+      : '<div class="shell-deck-card-art shell-deck-card-art-placeholder">' + escapeHtml((deck.name || '?').charAt(0).toUpperCase()) + '</div>';
     el.innerHTML =
       '<div class="shell-deck-card-stripe deck-placeholder"></div>' +
-      '<div class="shell-deck-card-art shell-deck-card-art-placeholder">' + escapeHtml((deck.name || '?').charAt(0).toUpperCase()) + '</div>' +
+      artHtml +
       '<div class="shell-deck-card-body">' +
         '<div class="shell-deck-card-name">' + escapeHtml(deck.name.toUpperCase()) + '</div>' +
         '<div class="shell-deck-card-types">MAZO PERSONALIZADO</div>' +
@@ -3049,19 +3058,53 @@ var deckBuilderState = null;
 // custom deck's saved cards, or [] for a blank "Nuevo Mazo"). slot: null or
 // an existing 'custom-N' (EDITAR only -- DUPLICAR always passes null, even
 // when duplicating an existing custom deck, since that's still a NEW deck).
-function showDeckBuilderScreen(initialCards, slot, initialName) {
+// initialCoverName: the previously-chosen cover card's name (EDITAR/
+// DUPLICAR), or null/undefined for a blank "Nuevo Mazo".
+function showDeckBuilderScreen(initialCards, slot, initialName, initialCoverName) {
   var cards = {};
   (initialCards || []).forEach(function (c) { cards[c.name] = c.count; });
-  deckBuilderState = { slot: slot, cards: cards, tiers: {}, search: '' };
+  deckBuilderState = { slot: slot, cards: cards, tiers: {}, search: '', coverName: initialCoverName || null };
   document.getElementById('deckBuilderName').value = initialName || '';
   document.getElementById('deckBuilderSearch').value = '';
   hideDecksScreen();
   document.getElementById('deckBuilderScreen').classList.remove('hidden');
+  renderDeckBuilderCover();
   renderDeckBuilderScreen();
 }
 function hideDeckBuilderScreen() {
   document.getElementById('deckBuilderScreen').classList.add('hidden');
   deckBuilderState = null;
+}
+
+// PORTADA DEL MAZO: pick a cover photo from among the cards CURRENTLY in
+// the deck-in-progress -- reuses openDeckSearchModal (already source-
+// agnostic, just needs {id, name} objects) with id set to the card's own
+// name, since these are plain distinct names, not real per-instance ids.
+function renderDeckBuilderCover() {
+  var s = deckBuilderState;
+  // A card removed from the deck-in-progress can no longer be its cover --
+  // clear it rather than keep showing a photo for something not actually
+  // in the deck.
+  if (s.coverName && !(s.cards[s.coverName] > 0)) { s.coverName = null; }
+  var btn = document.getElementById('deckBuilderCoverBtn');
+  var img = s.coverName && CARD_IMAGE_BY_NAME[s.coverName];
+  btn.innerHTML = img
+    ? '<img src="' + img + '" alt="' + escapeHtml(s.coverName) + '">'
+    : '<span class="shell-deck-builder-cover-placeholder">+<br>ELEGIR<br>FOTO</span>';
+}
+
+function openDeckBuilderCoverPicker() {
+  var s = deckBuilderState;
+  var namesInDeck = Object.keys(s.cards).filter(function (name) { return s.cards[name] > 0; });
+  if (namesInDeck.length === 0) {
+    logEvent(gameState, 'Agrega cartas a tu mazo antes de elegir una portada', 'player');
+    return;
+  }
+  var pool = namesInDeck.map(function (name) { return { id: name, name: name }; });
+  openDeckSearchModal(pool, function (chosenName) {
+    s.coverName = chosenName;
+    renderDeckBuilderCover();
+  });
 }
 
 // Opens a version-picker modal for a card with 2+ owned tiers. Each tier
@@ -3120,6 +3163,7 @@ function renderDeckBuilderScreen() {
   var s = deckBuilderState;
   var total = deckBuilderTotal();
   document.getElementById('deckBuilderCount').textContent = total + '/' + DECK_BUILDER_SIZE + ' CARTAS';
+  renderDeckBuilderCover();
 
   var tierData = ownedTiersByNameClient();
   var search = s.search.toLowerCase();
@@ -3239,17 +3283,18 @@ function chooseSlotForNewDeckThen(onChosen) {
 function saveDeckBuilderState() {
   var name = document.getElementById('deckBuilderName').value.trim().slice(0, 30) || 'Mi Mazo';
   var cards = Object.keys(deckBuilderState.cards).map(function (n) { return { name: n, count: deckBuilderState.cards[n] }; });
+  var coverName = deckBuilderState.coverName || null;
   var status = document.getElementById('deckBuilderStatus');
   var saveBtn = document.getElementById('deckBuilderSaveBtn');
 
   function doSave(slot) {
     saveBtn.disabled = true;
     status.textContent = 'GUARDANDO...';
-    saveCustomDeckCloud(slot, name, cards)
+    saveCustomDeckCloud(slot, name, cards, coverName)
       .then(function () {
         if (econState) {
           econState.customDecks = Object.assign({}, econState.customDecks);
-          econState.customDecks[slot] = { name: name, cards: cards };
+          econState.customDecks[slot] = { name: name, cards: cards, coverName: coverName };
         }
         registerCustomDecks();
         hideDeckBuilderScreen();
@@ -3612,14 +3657,22 @@ document.addEventListener('DOMContentLoaded', function () {
     var deckKey = selectedCard && selectedCard.getAttribute('data-deck');
     var saved = (econState && econState.customDecks) || {};
     if (!deckKey || !saved[deckKey]) { return; }
-    showDeckBuilderScreen(saved[deckKey].cards, deckKey, saved[deckKey].name);
+    showDeckBuilderScreen(saved[deckKey].cards, deckKey, saved[deckKey].name, saved[deckKey].coverName);
   });
   document.getElementById('deckDuplicateBtn').addEventListener('click', function () {
     var selectedCard = document.querySelector('.shell-deck-card.active[data-deck]');
     var deckKey = (selectedCard && selectedCard.getAttribute('data-deck')) || 'overgrowth';
     if (!DECKLISTS[deckKey]) { return; }
     var baseName = DECK_DISPLAY_NAME[deckKey] || deckKey;
-    showDeckBuilderScreen(DECKLISTS[deckKey], null, baseName + ' (Copia)');
+    // Only a custom deck can have a coverName (precons use their own real
+    // box art, not this feature) -- undefined for a precon is fine,
+    // showDeckBuilderScreen already treats a falsy 4th arg as "no cover yet".
+    var saved = (econState && econState.customDecks) || {};
+    var existingCover = saved[deckKey] && saved[deckKey].coverName;
+    showDeckBuilderScreen(DECKLISTS[deckKey], null, baseName + ' (Copia)', existingCover);
+  });
+  document.getElementById('deckBuilderCoverBtn').addEventListener('click', function () {
+    openDeckBuilderCoverPicker();
   });
   document.getElementById('deckBuilderBackBtn').addEventListener('click', function () {
     hideDeckBuilderScreen();

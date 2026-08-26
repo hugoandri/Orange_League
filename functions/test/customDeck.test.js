@@ -61,6 +61,20 @@ async function main() {
   assert.strictEqual(snapAfterActive.data().activeDeck, 'custom-1');
   console.log('PASS: updateActiveDeck accepts a custom slot the player actually saved a deck to');
 
+  const coverRes = await saveCustomDeck({ slot: 'custom-3', name: 'Con Portada', cards: legalDeck, coverName: 'Bulbasaur' });
+  assert.strictEqual(coverRes.data.deck.coverName, 'Bulbasaur');
+  const snapAfterCover = await getDoc(userDocRef);
+  assert.strictEqual(snapAfterCover.data().customDecks['custom-3'].coverName, 'Bulbasaur', 'coverName is persisted on the user doc');
+  console.log('PASS: saveCustomDeck accepts and persists a coverName that is actually in the deck');
+
+  try {
+    await saveCustomDeck({ slot: 'custom-4', name: 'Portada trucha', cards: legalDeck, coverName: 'Charizard' });
+    assert.fail('expected a coverName not present in the deck to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/invalid-argument');
+    console.log('PASS: saveCustomDeck rejects a coverName that is not one of the deck\'s own cards');
+  }
+
   try {
     await updateActiveDeck({ deckKey: 'custom-2' });
     assert.fail('expected an empty custom slot to be rejected as an activeDeck target');

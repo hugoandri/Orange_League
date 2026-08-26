@@ -314,6 +314,13 @@ exports.saveCustomDeck = onCall(async (request) => {
   if (!cards) {
     throw new HttpsError('invalid-argument', 'Lista de cartas inválida.');
   }
+  // Cover photo (optional): must be one of the card names actually in this
+  // deck -- a client bug or tampered request could otherwise claim a cover
+  // the player never even put in the list.
+  const coverName = data.coverName || null;
+  if (coverName !== null && !cards.some((c) => c && c.name === coverName)) {
+    throw new HttpsError('invalid-argument', 'La portada debe ser una carta que esté en el mazo.');
+  }
 
   const userRef = admin.firestore().collection('users').doc(request.auth.uid);
   const savedDeck = await admin.firestore().runTransaction(async (tx) => {
@@ -329,7 +336,7 @@ exports.saveCustomDeck = onCall(async (request) => {
       throw new HttpsError('failed-precondition', check.reason);
     }
     const customDecks = Object.assign({}, uData.customDecks);
-    const deck = { name: name, cards: cards };
+    const deck = { name: name, cards: cards, coverName: coverName };
     customDecks[slot] = deck;
     tx.set(userRef, { customDecks: customDecks }, { merge: true });
     return deck;
