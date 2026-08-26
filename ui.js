@@ -272,7 +272,31 @@ function cardImageTag(name, cls, isHolo) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return ''; }
   var img = '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">';
+  if (isHolo === 'secret') {
+    return '<span class="shell-card-holo-wrap">' + img + '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml() + '</span>';
+  }
   return isHolo ? '<span class="shell-card-holo-wrap">' + img + '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() + '</span>' : img;
+}
+
+// Returns the highest foil tier the player actually owns of a given card
+// name across all sets, or null if only plain copies are owned. Used by
+// the board renderer so holo/secret rare cards show their real foil during
+// a match instead of only the deck's one guaranteed holo.
+function getPlayerCardFoilTier(name) {
+  if (!econState) { return null; }
+  var hasSecret = false;
+  var hasHolo = false;
+  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+    CARD_CATALOG[setKey].forEach(function (c) {
+      if (c.n !== name) { return; }
+      var key = setKey + '-' + c.num;
+      if ((econState.collectionSecret[key] || 0) > 0) { hasSecret = true; }
+      if ((econState.collectionHolo[key] || 0) > 0) { hasHolo = true; }
+    });
+  });
+  if (hasSecret) { return 'secret'; }
+  if (hasHolo) { return 'holo'; }
+  return null;
 }
 
 // Whether ownerId's copy of this exact card name is the deck's one
@@ -383,11 +407,14 @@ function showCardInViewer(name, instanceId) {
   var viewerOwnerId = !instanceId ? 'player'
     : findInstance(gameState.players.player, instanceId) ? 'player'
     : findInstance(gameState.players.cpu, instanceId) ? 'cpu' : null;
-  var viewerIsHolo = !!(viewerOwnerId && isHoloInMatch(viewerOwnerId, name));
+  var viewerFoilTier = viewerOwnerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
+    : (viewerOwnerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null);
+  var viewerIsHolo = !!viewerFoilTier;
 
   var frameHtml = '<div class="shell-board-viewer-frame">' +
     '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '">' +
-    (viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') + '</div>' +
+    (viewerFoilTier === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      : viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') + '</div>' +
     '<div class="shell-board-viewer-corner tl"></div><div class="shell-board-viewer-corner br"></div>' +
     '</div>';
 
@@ -404,7 +431,9 @@ function showCardInViewer(name, instanceId) {
         '<span>/' + stats.hp + '</span></div>' +
       '</div>';
     var statusHtml = (instance && instance.statusConditions.length)
-      ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(translateStatus).join(', ')) + '</div>'
+      ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(function (s) {
+          return translateStatus(s) + (s === 'Poisoned' && instance.severePoison ? ' Severo' : '');
+        }).join(', ')) + '</div>'
       : '';
     // Clefairy Doll: "at any time during your turn before your attack, you
     // may discard it" -- unlike the attack buttons above, this applies
@@ -964,7 +993,8 @@ function renderPrizeChoiceModal() {
       // not the instant they pick the prize, while they're still looking
       // at what they won (see closeCardModal/maybeResumeCpuTurn).
       if (wonCardName) {
-        openCardModal(wonCardName, null, isHoloInMatch('player', wonCardName) ? 'holo' : null);
+        var prizeFoil = getPlayerCardFoilTier(wonCardName) || (isHoloInMatch('player', wonCardName) ? 'holo' : null);
+        openCardModal(wonCardName, null, prizeFoil);
         onCardModalClose = maybeResumeCpuTurn;
       } else {
         maybeResumeCpuTurn();
@@ -994,7 +1024,12 @@ function cardEnergiesOverlayHtml(attachedEnergy) {
 // -- the Bench doesn't display Special Conditions in the real rules (and
 // PlusPower can only ever be attached to an Active in the first place).
 function cardStatusOverlayHtml(activeInstance) {
-  var badges = activeInstance.statusConditions.map(function (s) { return pixelStatusBadgeHtml(s, 2); }).join('');
+  var badges = activeInstance.statusConditions.map(function (s) {
+    if (s === 'Poisoned' && activeInstance.severePoison) {
+      return pixelStatusBadgeHtml('SeverePoison', 2);
+    }
+    return pixelStatusBadgeHtml(s, 2);
+  }).join('');
   if (activeInstance.plusPowerAttached) { badges += pixelPlusPowerBadgeHtml(2); }
   if (activeInstance.shield && activeInstance.shield.type === 'reduceFlat') { badges += pixelDefenderBadgeHtml(2); }
   if (!badges) { return ''; }
@@ -1010,7 +1045,7 @@ function benchCardHtml(instance, mine, flipped) {
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
-    cardImageTag(instance.name, 'shell-board-card-art', isHoloInMatch(mine ? 'player' : 'cpu', instance.name)) +
+    cardImageTag(instance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(instance.name) || isHoloInMatch('player', instance.name)) : isHoloInMatch('cpu', instance.name)) +
     cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
@@ -1071,7 +1106,7 @@ function activeColHtml(activeInstance, mine, flipped) {
     '<div class="shell-board-active-hp"><div class="shell-board-active-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
-    cardImageTag(activeInstance.name, 'shell-board-card-art', isHoloInMatch(mine ? 'player' : 'cpu', activeInstance.name)) +
+    cardImageTag(activeInstance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(activeInstance.name) || isHoloInMatch('player', activeInstance.name)) : isHoloInMatch('cpu', activeInstance.name)) +
     cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
     cardStatusOverlayHtml(activeInstance) +
     '</div>';
@@ -1201,7 +1236,7 @@ function handBandHtml(state) {
     var draggable = !disabled && (isPokemonCard(card.name) || isEnergyCard(card.name));
     return '<button type="button" class="shell-board-hand-card-wrap"' + (draggable ? ' draggable="true"' : '') +
       ' data-hand-id="' + card.id + '" data-card-name="' + escapeHtml(card.name) + '"' + (disabled ? ' disabled' : '') + '>' +
-      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '', isHoloInMatch('player', card.name)) + '</div>' +
+      '<div class="shell-board-hand-card">' + cardImageTag(card.name, '', getPlayerCardFoilTier(card.name) || isHoloInMatch('player', card.name)) + '</div>' +
       '<div class="shell-board-hand-card-name">' + escapeHtml(translateCardName(card.name)) + '</div>' +
       '</button>';
   }).join('');
@@ -1551,10 +1586,31 @@ function wireBoardButtons() {
   // rule as the vars above. {handId, evolutionHandId} while step 2 (the
   // board click) is still pending; null otherwise.
   var pendingPokemonBreeder = null;
+
+  // Real reported UX bug: arming one multi-step flow (Súper Retirar
+  // Energía, a Pokémon Power, Criador Pokémon) and then starting a
+  // DIFFERENT action before finishing it used to leave the abandoned one's
+  // pending-state variable silently set -- harmless in the sense that the
+  // board-click handler's if-chain always checks a fixed order so the
+  // wrong effect never actually fired, but confusing (a stray "Elige..."
+  // hint could persist, and the abandoned flow just sat there inert with
+  // no way to tell it was cancelled). Every entry point that starts a NEW
+  // action (a hand card click, CAMBIAR POKÉMON, HABILIDAD) now calls this
+  // first, so at most one flow is ever "in progress" at a time.
+  function clearPendingFlows() {
+    selectedHandId = null;
+    retreatMode = false;
+    pendingSuperEnergyRemoval = null;
+    pendingPowerActivation = null;
+    pendingPokemonBreeder = null;
+    pendingAttackNeedingTarget = null;
+    closeTargetHintModal();
+  }
+
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
-      retreatMode = false;
+      clearPendingFlows();
       hideHandCardMenu();
       var handId = btn.getAttribute('data-hand-id');
       var p = gameState.players.player;
@@ -1855,7 +1911,7 @@ function wireBoardButtons() {
   var retreatBtn = document.getElementById('retreatBtn');
   if (retreatBtn) {
     retreatBtn.addEventListener('click', function () {
-      selectedHandId = null;
+      clearPendingFlows();
       retreatMode = true;
     });
   }
@@ -1911,8 +1967,7 @@ function wireBoardButtons() {
   var habilidadBtn = document.getElementById('habilidadBtn');
   if (habilidadBtn) {
     habilidadBtn.addEventListener('click', function () {
-      selectedHandId = null;
-      retreatMode = false;
+      clearPendingFlows();
       var usable = usablePokemonPowers(gameState, 'player');
       if (usable.length === 0) { return; }
       if (usable.length === 1) {
@@ -2830,16 +2885,16 @@ function registerCustomDecks() {
   });
 }
 
-// Injects one .shell-deck-card per saved custom deck slot, right before the
-// static "Nuevo Mazo" placeholder card -- re-run every time the Decks
-// screen is (re)shown, so it always reflects the latest econState.
+// Injects one .shell-deck-card per saved custom deck slot after the prebuilt
+// decks. The static "Crear Nuevo Mazo" card stays first in the list -- re-run
+// every time the Decks screen is (re)shown, so it always reflects econState.
 // Previously-injected cards (marked via data-custom-slot) are removed
 // first rather than left to accumulate stale duplicates.
 function renderCustomDeckCards() {
   var list = document.querySelector('.shell-decks-list');
   if (!list) { return; }
   list.querySelectorAll('[data-custom-slot]').forEach(function (el) { el.remove(); });
-  var newDeckCard = document.querySelector('.shell-deck-card[data-deck="new"]');
+  var listSpacer = list.querySelector('.shell-decks-spacer');
   var saved = (econState && econState.customDecks) || {};
   CUSTOM_DECK_SLOTS.forEach(function (slot) {
     var deck = saved[slot];
@@ -2860,7 +2915,7 @@ function renderCustomDeckCards() {
       '</div>' +
       '<span class="shell-deck-card-badge" style="display:none;">EN USO</span>';
     el.addEventListener('click', function () { selectDeckCard(slot); });
-    if (newDeckCard) { list.insertBefore(el, newDeckCard); } else { list.appendChild(el); }
+    if (listSpacer) { list.insertBefore(el, listSpacer); } else { list.appendChild(el); }
   });
 }
 
@@ -2936,11 +2991,36 @@ function ownedCountsByNameClient() {
   return owned;
 }
 
+// {cardName: {total: N, tiers: [{count, holo, secret}]}} -- per-name tier
+// breakdown so the deck builder pool can show foil indicators and the
+// version modal can offer tier-specific adds. Aggregates across every set.
+function ownedTiersByNameClient() {
+  var result = {};
+  if (!econState) { return result; }
+  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+    CARD_CATALOG[setKey].forEach(function (c) {
+      var key = setKey + '-' + c.num;
+      var total = econState.collection[key] || 0;
+      if (total <= 0) { return; }
+      var secretCount = (econState.collectionSecret[key] || 0);
+      var holoCount = (econState.collectionHolo[key] || 0);
+      var plainCount = total - secretCount - holoCount;
+      if (!result[c.n]) { result[c.n] = { total: 0, tiers: [] }; }
+      result[c.n].total += total;
+      if (plainCount > 0) { result[c.n].tiers.push({ count: plainCount, holo: false, secret: false }); }
+      if (holoCount > 0) { result[c.n].tiers.push({ count: holoCount, holo: true, secret: false }); }
+      if (secretCount > 0) { result[c.n].tiers.push({ count: secretCount, holo: false, secret: true }); }
+    });
+  });
+  return result;
+}
+
 // null (new deck, no slot chosen yet), or one of CUSTOM_DECK_SLOTS while
 // editing/saving-over an existing one. cards is {name: count} (a plain map
 // is far more convenient to mutate one +1/-1 at a time than an array) --
 // only ever converted to the real [{name,count}] array shape right before
-// calling saveCustomDeckCloud.
+// calling saveCustomDeckCloud. tiers is {cardName: {holo, secret}} tracking
+// which tier variant the user chose for each card name in the deck.
 var deckBuilderState = null;
 
 // initialCards: [{name, count}] (a precon's DECKLISTS entry, an existing
@@ -2950,15 +3030,55 @@ var deckBuilderState = null;
 function showDeckBuilderScreen(initialCards, slot, initialName) {
   var cards = {};
   (initialCards || []).forEach(function (c) { cards[c.name] = c.count; });
-  deckBuilderState = { slot: slot, cards: cards, search: '' };
+  deckBuilderState = { slot: slot, cards: cards, tiers: {}, search: '' };
   document.getElementById('deckBuilderName').value = initialName || '';
   document.getElementById('deckBuilderSearch').value = '';
+  hideDecksScreen();
   document.getElementById('deckBuilderScreen').classList.remove('hidden');
   renderDeckBuilderScreen();
 }
 function hideDeckBuilderScreen() {
   document.getElementById('deckBuilderScreen').classList.add('hidden');
   deckBuilderState = null;
+}
+
+// Opens a version-picker modal for a card with 2+ owned tiers. Each tier
+// is a clickable .shell-collection-cell showing that tier's art + foil +
+// count. Clicking one adds the card to the deck with that specific tier
+// chosen (tracked in deckBuilderState.tiers[name] for display purposes).
+function openDeckBuilderVersionModal(cardName, tiers) {
+  document.getElementById('deckBuilderVersionTitle').textContent = translateCardName(cardName);
+  var img = CARD_IMAGE_BY_NAME[cardName] || '';
+  var grid = document.getElementById('deckBuilderVersionGrid');
+  grid.innerHTML = tiers.map(function (t) {
+    var isSecret = t.secret;
+    var isHolo = t.holo && !isSecret;
+    var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
+    var tierLabel = isSecret ? 'SECRETA' : (isHolo ? 'HOLOGRÁFICA' : 'RARA');
+    var tierCls = isSecret ? ' secret' : (isHolo ? ' holo' : '');
+    return '<div class="shell-collection-cell' + tierClass + '" data-tier-holo="' + (isHolo ? '1' : '0') + '" data-tier-secret="' + (isSecret ? '1' : '0') + '">' +
+      '<div class="shell-collection-cell-art">' +
+        (img ? '<img src="' + img + '" alt="' + escapeHtml(cardName) + '" loading="lazy">' : '') +
+        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
+        '<span class="shell-collection-cell-count">' + t.count + '</span>' +
+      '</div>' +
+      '<div class="shell-deck-builder-versions-tier' + tierCls + '">' + tierLabel + '</div>' +
+      '</div>';
+  }).join('');
+  grid.querySelectorAll('.shell-collection-cell').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var isHolo = el.getAttribute('data-tier-holo') === '1';
+      var isSecret = el.getAttribute('data-tier-secret') === '1';
+      deckBuilderState.cards[cardName] = (deckBuilderState.cards[cardName] || 0) + 1;
+      deckBuilderState.tiers[cardName] = { holo: isHolo, secret: isSecret };
+      closeDeckBuilderVersionModal();
+      renderDeckBuilderScreen();
+    });
+  });
+  document.getElementById('deckBuilderVersionModal').classList.remove('hidden');
+}
+function closeDeckBuilderVersionModal() {
+  document.getElementById('deckBuilderVersionModal').classList.add('hidden');
 }
 
 function deckBuilderTotal() {
@@ -2979,26 +3099,41 @@ function renderDeckBuilderScreen() {
   var total = deckBuilderTotal();
   document.getElementById('deckBuilderCount').textContent = total + '/' + DECK_BUILDER_SIZE + ' CARTAS';
 
-  var owned = ownedCountsByNameClient();
+  var tierData = ownedTiersByNameClient();
   var search = s.search.toLowerCase();
-  var poolNames = Object.keys(owned).filter(function (name) {
-    if (!CARD_STATS[name]) { return false; } // only real, playable (Base Set) cards can enter a deck
+  var poolNames = Object.keys(tierData).filter(function (name) {
+    if (!CARD_STATS[name]) { return false; }
     if (search && translateCardName(name).toLowerCase().indexOf(search) === -1) { return false; }
     return true;
   }).sort(function (a, b) { return translateCardName(a).localeCompare(translateCardName(b)); });
 
   var poolHtml = poolNames.map(function (name) {
-    var have = owned[name];
+    var info = tierData[name];
+    var have = info.total;
     var inDeck = s.cards[name] || 0;
     var isBasicEnergy = DECK_BUILDER_BASIC_ENERGY.indexOf(name) !== -1;
     var cap = isBasicEnergy ? have : Math.min(have, DECK_BUILDER_MAX_COPIES);
     var atCap = inDeck >= cap || total >= DECK_BUILDER_SIZE;
     var img = CARD_IMAGE_BY_NAME[name] || '';
-    return '<div class="shell-collection-cell' + (atCap ? ' at-cap' : '') + '" data-card-name="' + escapeHtml(name) + '">' +
+    var tiers = info.tiers;
+    var hasMultiTier = tiers.length > 1;
+    var highestTier = tiers.reduce(function (best, t) {
+      if (t.secret) return 'secret';
+      if (t.holo && best !== 'secret') return 'holo';
+      return best;
+    }, 'plain');
+    var tierClass = highestTier !== 'plain' ? ' ' + highestTier : '';
+    var tierBadge = '';
+    if (hasMultiTier) {
+      var badgeCls = highestTier !== 'plain' ? ' ' + highestTier : '';
+      tierBadge = '<span class="shell-deck-builder-tier-badge' + badgeCls + '">' + tiers.length + ' VERS.</span>';
+    }
+    return '<div class="shell-collection-cell' + (atCap ? ' at-cap' : '') + tierClass + '" data-card-name="' + escapeHtml(name) + '" data-multi-tier="' + (hasMultiTier ? '1' : '0') + '">' +
       '<div class="shell-collection-cell-art">' +
         (img ? '<img src="' + img + '" alt="' + escapeHtml(name) + '" loading="lazy">' : '') +
         (inDeck > 0 ? '<span class="shell-deck-builder-cell-indeck">' + inDeck + '</span>' : '') +
         '<span class="shell-collection-cell-count">' + have + '</span>' +
+        tierBadge +
       '</div>' +
       '<div class="shell-collection-cell-num">' + escapeHtml(translateCardName(name)) + '</div>' +
       '</div>';
@@ -3008,16 +3143,31 @@ function renderDeckBuilderScreen() {
   poolGrid.querySelectorAll('.shell-collection-cell:not(.at-cap)').forEach(function (el) {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
-      s.cards[name] = (s.cards[name] || 0) + 1;
-      renderDeckBuilderScreen();
+      var isMultiTier = el.getAttribute('data-multi-tier') === '1';
+      if (isMultiTier) {
+        openDeckBuilderVersionModal(name, tierData[name].tiers);
+      } else {
+        s.cards[name] = (s.cards[name] || 0) + 1;
+        var onlyTier = tierData[name].tiers[0];
+        if (onlyTier) { s.tiers[name] = { holo: !!onlyTier.holo, secret: !!onlyTier.secret }; }
+        renderDeckBuilderScreen();
+      }
     });
   });
 
   var deckNames = Object.keys(s.cards).filter(function (name) { return s.cards[name] > 0; })
     .sort(function (a, b) { return translateCardName(a).localeCompare(translateCardName(b)); });
   var listHtml = deckNames.map(function (name) {
-    return '<div class="shell-deck-builder-list-row" data-card-name="' + escapeHtml(name) + '">' +
+    var t = s.tiers[name];
+    var rowCls = t ? (t.secret ? ' secret' : (t.holo ? ' holo' : '')) : '';
+    var tierLabel = '';
+    if (t) {
+      var tierText = t.secret ? 'SECRETA' : (t.holo ? 'HOLOGRÁFICA' : '');
+      if (tierText) { tierLabel = '<span class="shell-deck-builder-list-row-tier' + (t.secret ? ' secret' : ' holo') + '">' + tierText + '</span>'; }
+    }
+    return '<div class="shell-deck-builder-list-row' + rowCls + '" data-card-name="' + escapeHtml(name) + '">' +
       '<span class="shell-deck-builder-list-row-name">' + escapeHtml(translateCardName(name)) + '</span>' +
+      tierLabel +
       '<span class="shell-deck-builder-list-row-count">×' + s.cards[name] + '</span>' +
       '</div>';
   }).join('');
@@ -3027,7 +3177,7 @@ function renderDeckBuilderScreen() {
     el.addEventListener('click', function () {
       var name = el.getAttribute('data-card-name');
       s.cards[name] = Math.max(0, (s.cards[name] || 0) - 1);
-      if (s.cards[name] === 0) { delete s.cards[name]; }
+      if (s.cards[name] === 0) { delete s.cards[name]; delete s.tiers[name]; }
       renderDeckBuilderScreen();
     });
   });
@@ -3430,6 +3580,11 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('deckNewCard').addEventListener('click', function () {
     showDeckBuilderScreen([], null, '');
   });
+  document.getElementById('deckNewCard').addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') { return; }
+    event.preventDefault();
+    showDeckBuilderScreen([], null, '');
+  });
   document.getElementById('deckEditBtn').addEventListener('click', function () {
     var selectedCard = document.querySelector('.shell-deck-card.active[data-deck]');
     var deckKey = selectedCard && selectedCard.getAttribute('data-deck');
@@ -3455,6 +3610,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!deckBuilderState) { return; }
     deckBuilderState.search = this.value;
     renderDeckBuilderScreen();
+  });
+  document.getElementById('deckBuilderVersionClose').addEventListener('click', function () {
+    closeDeckBuilderVersionModal();
   });
   document.getElementById('decksSaveBtn').addEventListener('click', function () {
     var btn = document.getElementById('decksSaveBtn');
@@ -3565,6 +3723,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('collectionVersionsClose').addEventListener('click', closeCollectionVersionsModal);
   document.querySelector('#collectionVersionsModal .card-modal-backdrop').addEventListener('click', closeCollectionVersionsModal);
+
+  document.querySelector('#deckBuilderVersionModal .card-modal-backdrop').addEventListener('click', closeDeckBuilderVersionModal);
 
   document.getElementById('surrenderCancelBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');

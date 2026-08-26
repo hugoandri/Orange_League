@@ -116,6 +116,7 @@ var PIXEL_STATUS_BADGES = {
   Burned: { letters: 'BRN', plateFrom: '#ffb257', plateTo: '#d2560f', outline: '#5a2408' },
   Paralyzed: { letters: 'PAR', plateFrom: '#ffe561', plateTo: '#e0a80c', outline: '#57400a' },
   Poisoned: { letters: 'PSN', plateFrom: '#b47ce4', plateTo: '#6a2f9e', outline: '#2d1046' },
+  SeverePoison: { letters: 'PSNX2', plateFrom: '#b47ce4', plateTo: '#6a2f9e', outline: '#2d1046' },
   Confused: { letters: '???', plateFrom: '#3c3a37', plateTo: '#141312', outline: '#000000' }
 };
 

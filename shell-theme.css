@@ -461,12 +461,12 @@
   flex:1;min-height:0;padding:20px;overflow-y:auto;
   background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85);
 }
-.shell-collection-grid{display:grid;grid-template-columns:repeat(8,164px);gap:16px;justify-content:center;align-content:start;}
+.shell-collection-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px;justify-content:center;align-content:start;}
 .shell-collection-empty{grid-column:1/-1;text-align:center;padding:40px 0;font-size:12px;letter-spacing:.1em;color:#6d6155;font-family:'Silkscreen',monospace;}
 .shell-collection-cell{display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:transform .12s;font-family:'Silkscreen',monospace;}
 .shell-collection-cell:hover{transform:translateY(-6px);}
 .shell-collection-cell-art{
-  position:relative;width:164px;height:230px;overflow:hidden;
+  position:relative;width:100%;height:200px;overflow:hidden;
   background:#0a0806;border:1px solid #0a0806;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.55);
 }
 .shell-collection-cell-art img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -706,7 +706,7 @@
 
 /* overflow-y:auto (+ min-height:0, needed for a column-flex child to
    actually shrink instead of just overflowing its box) -- 5 real rows
-   (4 decks + the disabled "Nuevo Mazo" placeholder) plus the CTA button
+   (the "Crear Nuevo Mazo" card + 4 decks) plus the CTA button
    no longer fit in the available height without scrolling now that
    Brushfire exists. Without this, the 4th deck card (and the save
    button below it) rendered past the visible area with no way to reach
@@ -1458,8 +1458,8 @@ button.shell-discard-pile-card-item:hover{filter:brightness(1.25);}
    card pool (click a card to add 1 copy), right is the deck-in-progress
    list (click a row to remove 1 copy). */
 .shell-deck-builder-columns{display:flex;gap:24px;width:100%;height:100%;min-height:0;}
-.shell-deck-builder-pool{flex:1.4;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
-.shell-deck-builder-list{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+.shell-deck-builder-pool{flex:2;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+.shell-deck-builder-list{flex:0.7;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
 .shell-deck-builder-col-label{
   font-family:'Pixelify Sans',sans-serif;font-size:14px;letter-spacing:.1em;color:#9a8d7c;
   position:sticky;top:0;background:#141210;padding:2px 0;
@@ -1478,3 +1478,29 @@ button.shell-discard-pile-card-item:hover{filter:brightness(1.25);}
 .shell-deck-builder-list-row-name{flex:1;font-size:13px;color:#efe9dd;}
 .shell-deck-builder-list-row-count{font-size:13px;color:#8dff62;font-weight:700;}
 .shell-deck-builder-list-empty{color:#5c5348;font-size:12px;padding:12px;}
+.shell-deck-builder-tier-badge{
+  position:absolute;right:6px;top:6px;font-size:8px;letter-spacing:.08em;padding:2px 5px;
+  background:linear-gradient(180deg,#2c2822,#1a1714);border:1px solid #0b0907;color:#9a8d7c;
+}
+.shell-deck-builder-tier-badge.holo{color:#e8c46a;border-color:#e8c46a;box-shadow:0 0 8px rgba(232,196,106,.4);}
+.shell-deck-builder-tier-badge.secret{color:#c77dff;border-color:#c77dff;box-shadow:0 0 8px rgba(199,125,255,.4);}
+.shell-deck-builder-list-row.holo{
+  border-color:rgba(232,196,106,.35);
+  background:repeating-linear-gradient(90deg,rgba(232,196,106,.04) 0 1px,transparent 1px 3px),linear-gradient(180deg,#2c2822,#201c18);
+}
+.shell-deck-builder-list-row.secret{
+  border-color:rgba(199,125,255,.35);
+  background:repeating-linear-gradient(90deg,rgba(199,125,255,.04) 0 1px,transparent 1px 3px),linear-gradient(180deg,#2c2822,#201c18);
+}
+.shell-deck-builder-list-row-tier{
+  font-size:9px;letter-spacing:.1em;padding:2px 6px;
+}
+.shell-deck-builder-list-row-tier.holo{color:#e8c46a;}
+.shell-deck-builder-list-row-tier.secret{color:#c77dff;}
+.shell-deck-builder-versions-card{width:auto;max-width:90vw;}
+.shell-deck-builder-versions-grid{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+.shell-deck-builder-versions-grid .shell-collection-cell{cursor:pointer;background:none;border:none;padding:0;font-family:inherit;}
+.shell-deck-builder-versions-grid .shell-collection-cell:hover{filter:brightness(1.25);}
+.shell-deck-builder-versions-tier{font-size:10px;letter-spacing:.1em;color:#9a8d7c;text-align:center;margin-top:6px;}
+.shell-deck-builder-versions-tier.holo{color:#e8c46a;}
+.shell-deck-builder-versions-tier.secret{color:#c77dff;}

@@ -1,4 +1,15 @@
 (function () {
+  // Removes the cold-load spinner (see index.html's own comment) the first
+  // time we actually know which screen to show -- called from both branches
+  // of onAuthStateChanged below. classList.add('hidden') alone would leave
+  // an invisible 9999-z-index fixed-position div sitting over the whole
+  // page forever, silently eating every click, so this removes the element
+  // outright once it's no longer needed.
+  function hideAppLoadingOverlay() {
+    var el = document.getElementById('appLoadingOverlay');
+    if (el) { el.remove(); }
+  }
+
   function showPanel(id) {
     ['authLoginForm', 'authSignupForm', 'authForgotForm'].forEach(function (pid) {
       document.getElementById(pid).classList.toggle('hidden', pid !== id);
@@ -219,8 +230,16 @@
         });
     });
 
+    // Safety net: if Firebase never calls back at all (e.g. it fails to
+    // load/init on a bad connection), don't leave the spinner covering the
+    // page forever -- fall back to whatever's already in the DOM (the raw
+    // authScreen, unhidden by default) so there's at least a login form
+    // and a chance to retry, instead of a dead end.
+    setTimeout(hideAppLoadingOverlay, 15000);
+
     var unsubscribeEconomy = null;
     firebase.auth().onAuthStateChanged(function (user) {
+      hideAppLoadingOverlay();
       if (user) {
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');

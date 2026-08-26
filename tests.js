@@ -1903,12 +1903,17 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   var coinHtml = pixelCoinHtml('oro', 3);
   check('pixelCoinHtml renders one 8x11 grid at the requested block size', (coinHtml.match(/width:3px/g) || []).length, 88);
 
-  // Status badges: one real Special Condition per key, letters match the
-  // handoff's abbreviations, and the glyph count matches the letter count.
-  check('every real Special Condition has a status badge', Object.keys(PIXEL_STATUS_BADGES).sort(), ['Asleep', 'Burned', 'Confused', 'Paralyzed', 'Poisoned'].sort());
+  // Status badges: one real Special Condition per key -- plus SeverePoison,
+  // a distinct badge (not a 6th Special Condition of its own) shown instead
+  // of the plain Poisoned one when instance.severePoison is set (Nidoking's
+  // Toxic), letters match the handoff's abbreviations, and the glyph count
+  // matches the letter count.
+  check('every real Special Condition has a status badge (plus SeverePoison)', Object.keys(PIXEL_STATUS_BADGES).sort(), ['Asleep', 'Burned', 'Confused', 'Paralyzed', 'Poisoned', 'SeverePoison'].sort());
   var poisonedHtml = pixelStatusBadgeHtml('Poisoned', 2);
   check('pixelStatusBadgeHtml renders one glyph per letter (PSN = 3)', (poisonedHtml.match(/display:grid/g) || []).length, 3);
   check('pixelStatusBadgeHtml uses the plate gradient colors', poisonedHtml.indexOf('#b47ce4') !== -1 && poisonedHtml.indexOf('#6a2f9e') !== -1, true);
+  var severePoisonedHtml = pixelStatusBadgeHtml('SeverePoison', 2);
+  check('pixelStatusBadgeHtml renders one glyph per letter for SeverePoison (PSNX2 = 5)', (severePoisonedHtml.match(/display:grid/g) || []).length, 5);
   check('pixelStatusBadgeHtml on an unknown status renders nothing', pixelStatusBadgeHtml('Frozen', 2), '');
 
   // PlusPower's badge reuses the same plate-rendering path as a status

@@ -7,8 +7,33 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="shell-theme.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+<style>
+  /* Inlined (not in shell-theme.css) so this renders instantly on a cold/
+     hard-refresh load, before the external stylesheets or any of the
+     Firebase/game <script> tags at the bottom of the page have finished
+     downloading -- covers the otherwise-visible flash of the raw (always-
+     unhidden-by-default) authScreen markup while onAuthStateChanged is
+     still working out whether to show it or jump straight to the menu.
+     Removed by auth-ui.js's hideAppLoadingOverlay() the first time that
+     fires, with a timeout fallback in case something hangs. */
+  #appLoadingOverlay{
+    position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;gap:18px;
+    align-items:center;justify-content:center;background:#141210;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  #appLoadingOverlay.hidden{display:none;}
+  .shell-loading-spinner{
+    width:48px;height:48px;border-radius:50%;
+    border:5px solid rgba(141,255,98,.18);border-top-color:#8dff62;
+    animation:shell-loading-spin .8s linear infinite;
+  }
+  .shell-loading-text{color:#efe9dd;font-size:13px;letter-spacing:.14em;}
+  @keyframes shell-loading-spin{to{transform:rotate(360deg);}}
+</style>
 </head>
 <body>
+
+  <div id="appLoadingOverlay"><div class="shell-loading-spinner"></div><div class="shell-loading-text">CARGANDO…</div></div>
 
   <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
   <div id="authScreen">
@@ -813,6 +838,19 @@
 
           <div class="shell-decks-body">
             <div class="shell-decks-list">
+              <div class="shell-deck-card" data-deck="new" id="deckNewCard" role="button" tabindex="0">
+                <div class="shell-deck-card-stripe deck-placeholder"></div>
+                <div class="shell-deck-card-art shell-deck-card-art-placeholder" aria-hidden="true">+</div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">+ CREAR NUEVO MAZO</div>
+                  <div class="shell-deck-card-types">ELIGE LAS CARTAS BASE</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer">
+                    <span class="shell-deck-card-note">ARMA UN MAZO CON TU COLECCIÓN</span>
+                  </div>
+                </div>
+              </div>
+
               <div class="shell-deck-card active" data-deck="overgrowth" data-card-name="Overgrowth" data-card-img="Mazos/overgrowth.png">
                 <div class="shell-deck-card-stripe deck-overgrowth"></div>
                 <div class="shell-deck-card-art"><img src="Mazos/overgrowth.png" alt="Caja del mazo Overgrowth"></div>
@@ -867,19 +905,6 @@
                   </div>
                 </div>
                 <span class="shell-deck-card-badge" style="display:none;">EN USO</span>
-              </div>
-
-              <div class="shell-deck-card" data-deck="new" id="deckNewCard">
-                <div class="shell-deck-card-stripe deck-placeholder"></div>
-                <div class="shell-deck-card-art shell-deck-card-art-placeholder">+</div>
-                <div class="shell-deck-card-body">
-                  <div class="shell-deck-card-name">NUEVO MAZO</div>
-                  <div class="shell-deck-card-types">ARMA EL TUYO</div>
-                  <div class="shell-deck-card-spacer"></div>
-                  <div class="shell-deck-card-footer">
-                    <span class="shell-deck-card-note">ARMA UN MAZO CON TU COLECCIÓN</span>
-                  </div>
-                </div>
               </div>
 
               <div class="shell-decks-spacer"></div>
@@ -959,6 +984,15 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="deckBuilderVersionModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card shell-deck-builder-versions-card">
+      <p class="shell-modal-title" id="deckBuilderVersionTitle"></p>
+      <div id="deckBuilderVersionGrid" class="shell-deck-builder-versions-grid"></div>
+      <button type="button" id="deckBuilderVersionClose" class="shell-modal-btn">CANCELAR</button>
     </div>
   </div>
 
