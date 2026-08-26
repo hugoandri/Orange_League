@@ -721,12 +721,36 @@ function applyEndOfTurnCheckup(state) {
   applyCheckupDamage(state, 'cpu');
 }
 
+function allInstances(p) {
+  return (p.active ? [p.active] : []).concat(p.bench.filter(function (b) { return b; }));
+}
+
 function endTurn(state) {
   var justFinished = state.activePlayerId;
   if (state.players[justFinished].active) {
     state.players[justFinished].active.statusConditions = state.players[justFinished].active.statusConditions.filter(function (s) { return s !== 'Paralyzed'; });
   }
-  state.players[justFinished].active && (state.players[justFinished].active.plusPowerAttached = false);
+  // PlusPower: "At the end of your turn, discard PlusPower" -- swept
+  // across the ending player's WHOLE side (not just whatever's still
+  // Active), so retreating away from it before ending the turn can't
+  // leave a stale +10ATK badge on a Benched Pokémon forever.
+  allInstances(state.players[justFinished]).forEach(function (instance) { instance.plusPowerAttached = false; });
+  // Shields (Onix's Harden, Squirtle/Wartortle's Withdraw, Defender's
+  // reduceFlat, ...) used to only ever get cleared reactively, inside
+  // dealDamage, the next time something actually attacked the shielded
+  // Pokémon -- functionally harmless for the no-UI shields (their
+  // untilTurn check already made them correctly inert past their window
+  // regardless), but Defender has a visible "+20DEF" badge keyed off the
+  // shield object's mere presence, so a Pokémon that was never attacked
+  // during the window kept showing it indefinitely. Swept here on BOTH
+  // sides every turn transition (not just the ending player's), since a
+  // shield's owner and whichever side's turn is currently ending aren't
+  // always the same (Defender protects through the OPPONENT's next turn).
+  ['player', 'cpu'].forEach(function (ownerId) {
+    allInstances(state.players[ownerId]).forEach(function (instance) {
+      if (instance.shield && instance.shield.untilTurn <= state.turnCounter) { instance.shield = null; }
+    });
+  });
 
   state.turnCounter += 1;
   state.activePlayerId = opponentOf(justFinished);

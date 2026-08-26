@@ -1032,6 +1032,47 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('reduceFlat keeps applying to every hit in its window, not just the first', dealtAgain, 0);
 })();
 
+(function testDefenderShieldExpiresEvenIfNeverAttacked() {
+  // Real bug report: Defender's shield (and its visible "+20DEF" badge)
+  // used to only ever get cleared reactively, inside dealDamage -- a
+  // Pokémon that was never actually attacked during its window kept the
+  // shield (and the badge) forever. endTurn() now sweeps it away once its
+  // window has genuinely passed, whether or not anything ever hit it.
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.hand = [{ id: 'h1', name: 'Defender' }];
+  var shielded = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  p.active = shielded;
+  p.bench = [null, null, null, null, null];
+  cpu.active = { id: 'c1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  cpu.bench = [null, null, null, null, null];
+
+  TRAINER_EFFECTS['Defender'](state, 'player', 'h1', 'a1');
+  check('Defender is armed for the very next turn', shielded.shield.untilTurn, state.turnCounter + 1);
+
+  endTurn(state); // ends the player's turn (the one Defender was played on) -- shield must survive this
+  checkTrue('the shield survives past the end of the SAME turn it was played', !!shielded.shield);
+
+  endTurn(state); // ends the opponent's turn -- nothing ever attacked "shielded" this whole time
+  check('the shield is swept away once its promised window has fully passed, even though nothing ever attacked it', shielded.shield, null);
+})();
+
+(function testPlusPowerClearsFromBenchIfRetreatedBeforeEndOfTurn() {
+  // Real card: "At the end of your turn, discard PlusPower" -- applies
+  // regardless of where the Pokémon ends up, not just whatever's still
+  // Active the instant the turn ends.
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var retreated = { id: 'r1', name: 'Pikachu', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: true, destinyBond: null };
+  p.active = { id: 'a1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null };
+  p.bench = [retreated, null, null, null, null]; // simulates having retreated away from it earlier this same turn
+  endTurn(state);
+  check('PlusPower clears even on a Pokémon that retreated to Bench before the turn ended', retreated.plusPowerAttached, false);
+})();
+
 (function testCpuTakesALegalTurnWithoutThrowing() {
   var state = createGame(function () { return 0.37; });
   state.activePlayerId = 'cpu';
