@@ -417,3 +417,81 @@ exports.deleteNewsItem = onCall(async (request) => {
   await admin.firestore().collection('news').doc(id).delete();
   return { id: id };
 });
+
+const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
+const ROOM_EXPIRY_MS = 20 * 60 * 1000;
+
+function randomRoomCode() {
+  var code = '';
+  for (var i = 0; i < 6; i++) { code += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)]; }
+  return code;
+}
+
+// Throws if deckId isn't usable -- either a real precon key, or
+// 'custom:<slot>' where the caller actually has a saved deck in that slot.
+async function validateDeckId(uid, deckId) {
+  if (PRECON_DECK_KEYS_LIST.indexOf(deckId) !== -1) { return; }
+  const m = /^custom:(.+)$/.exec(deckId || '');
+  if (!m || CUSTOM_DECK_SLOTS.indexOf(m[1]) === -1) {
+    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  }
+  const userSnap = await admin.firestore().collection('users').doc(uid).get();
+  const customDecks = (userSnap.data() || {}).customDecks || {};
+  if (!customDecks[m[1]]) {
+    throw new HttpsError('invalid-argument', 'Ese mazo personalizado no existe.');
+  }
+}
+
+exports.createRoom = onCall(async (request) => {
+  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
+  const deckId = (request.data || {}).deckId;
+  await validateDeckId(request.auth.uid, deckId);
+
+  const db = admin.firestore();
+  let roomCode;
+  await db.runTransaction(async (tx) => {
+    // Extremely unlikely collision on a 6-char, 32-symbol alphabet
+    // (32^6 ≈ 1 billion) -- retried a few times inside one transaction
+    // rather than assumed away.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = randomRoomCode();
+      const snap = await tx.get(db.collection('rooms').doc(candidate));
+      if (!snap.exists) { roomCode = candidate; break; }
+    }
+    if (!roomCode) { throw new HttpsError('internal', 'No se pudo generar un código de sala.'); }
+    tx.set(db.collection('rooms').doc(roomCode), {
+      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
+      guestUid: null, guestDeckId: null, guestReady: false,
+      status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { roomCode: roomCode };
+});
+
+exports.joinRoom = onCall(async (request) => {
+  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
+  const data = request.data || {};
+  const roomCode = (data.roomCode || '').trim().toUpperCase();
+  const deckId = data.deckId;
+  await validateDeckId(request.auth.uid, deckId);
+
+  const db = admin.firestore();
+  const roomRef = db.collection('rooms').doc(roomCode);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(roomRef);
+    if (!snap.exists) { throw new HttpsError('not-found', 'Ese código no existe.'); }
+    const room = snap.data();
+    const isExpired = room.status === 'waiting' &&
+      room.createdAt && (Date.now() - room.createdAt.toMillis()) > ROOM_EXPIRY_MS;
+    if (isExpired) { throw new HttpsError('not-found', 'Ese código venció.'); }
+    if (room.hostUid === request.auth.uid) {
+      throw new HttpsError('failed-precondition', 'No puedes unirte a tu propia sala.');
+    }
+    if (room.status !== 'waiting' || room.guestUid) {
+      throw new HttpsError('failed-precondition', 'Esa sala ya está llena o ya empezó.');
+    }
+    tx.update(roomRef, { guestUid: request.auth.uid, guestDeckId: deckId });
+  });
+  return { roomCode: roomCode };
+});
