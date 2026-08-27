@@ -495,3 +495,90 @@ exports.joinRoom = onCall(async (request) => {
   });
   return { roomCode: roomCode };
 });
+
+// rules-engine.js is synced verbatim from the client (functions/scripts/
+// sync-shared-engine.js) where CARD_STATS/DECKLISTS/PRECON_DECK_KEYS are
+// script-tag globals (index.html loads data-cards.js/data-decks.js before
+// rules-engine.js) rather than module imports -- rules-engine.js's own
+// functions reference them as bare identifiers with no local declaration.
+// To make that same file work under CommonJS here, these have to be bound
+// onto the true global object before rules-engine.js's functions are
+// called, so its bare references resolve via the scope chain.
+const { CARD_STATS } = require('./lib/dataCards');
+const { DECKLISTS, PRECON_DECK_KEYS } = require('./lib/dataDecks');
+global.CARD_STATS = CARD_STATS;
+global.DECKLISTS = DECKLISTS;
+global.PRECON_DECK_KEYS = PRECON_DECK_KEYS;
+const { createGame, redactMatchState } = require('./lib/rulesEngine');
+
+// Mirrors ui.js's registerCustomDecks() (ui.js:3309) for exactly the one
+// deck this match needs -- reads the caller's own saved custom deck and
+// registers it into the server's own DECKLISTS under a synthetic key, so
+// createGame() (which only ever looks up DECKLISTS[key]) doesn't need any
+// changes to support a custom deck.
+async function resolveDeckKeyForMatch(uid, deckId) {
+  const m = /^custom:(.+)$/.exec(deckId || '');
+  if (!m) { return deckId; } // already a real precon key
+  const userSnap = await admin.firestore().collection('users').doc(uid).get();
+  const customDeck = (userSnap.data() || {}).customDecks || {};
+  const saved = customDeck[m[1]];
+  const syntheticKey = 'pvp_' + uid + '_' + m[1];
+  DECKLISTS[syntheticKey] = saved.cards;
+  return syntheticKey;
+}
+
+exports.setReady = onCall(async (request) => {
+  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
+  const roomCode = ((request.data || {}).roomCode || '').trim().toUpperCase();
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const roomRef = db.collection('rooms').doc(roomCode);
+
+  const roomSnap = await roomRef.get();
+  if (!roomSnap.exists) { throw new HttpsError('not-found', 'Esa sala no existe.'); }
+  const room = roomSnap.data();
+  if (room.status !== 'waiting') { throw new HttpsError('failed-precondition', 'Esa sala ya no está esperando.'); }
+  if (uid !== room.hostUid && uid !== room.guestUid) {
+    throw new HttpsError('permission-denied', 'No formas parte de esa sala.');
+  }
+
+  const isHost = uid === room.hostUid;
+  const readyField = isHost ? 'hostReady' : 'guestReady';
+  const otherReady = isHost ? room.guestReady : room.hostReady;
+
+  if (!otherReady) {
+    await roomRef.update({ [readyField]: true });
+    return { ready: true, matchId: null };
+  }
+
+  // Both sides ready -- resolve deck keys (before the transaction: these
+  // are simple reads plus a DECKLISTS registration, not writes) and build
+  // the match. hostUid always maps to engine slot 'player', guestUid
+  // always to 'cpu' (see this plan's Global Constraints).
+  const hostDeckKey = await resolveDeckKeyForMatch(room.hostUid, room.hostDeckId);
+  const matchRef = db.collection('matches').doc();
+
+  await db.runTransaction(async (tx) => {
+    const freshRoomSnap = await tx.get(roomRef);
+    const freshRoom = freshRoomSnap.data();
+    if (freshRoom.status !== 'waiting') {
+      throw new HttpsError('failed-precondition', 'Esa sala ya no está esperando.');
+    }
+    tx.update(roomRef, { [readyField]: true, status: 'started', matchId: matchRef.id });
+
+    const state = createGame(Math.random, hostDeckKey, { player: true, cpu: true });
+    const redacted = redactMatchState(state, freshRoom.hostUid, freshRoom.guestUid);
+    tx.set(matchRef, redacted.public);
+    tx.set(matchRef.collection('private').doc(freshRoom.hostUid), redacted.private[freshRoom.hostUid]);
+    tx.set(matchRef.collection('private').doc(freshRoom.guestUid), redacted.private[freshRoom.guestUid]);
+    // state.rng is the literal Math.random function reference createGame
+    // stored on the state -- Firestore can't serialize a function, and a
+    // live RNG couldn't survive a round-trip through Firestore anyway.
+    // Persist everything else verbatim; whoever loads serverOnly/state
+    // back out (Tasks 7-9) re-attaches a fresh Math.random before calling
+    // back into the engine.
+    tx.set(matchRef.collection('serverOnly').doc('state'), { state: Object.assign({}, state, { rng: null }) });
+  });
+
+  return { ready: true, matchId: matchRef.id };
+});

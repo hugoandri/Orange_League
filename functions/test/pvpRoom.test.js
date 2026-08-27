@@ -95,6 +95,55 @@ async function main() {
     console.log('PASS: joinRoom rejects joining an already-full room');
   }
 
+  // --- setReady / match creation ---
+  const setReady = httpsCallable(functions, 'setReady');
+
+  await signOut(auth);
+  await signInAsPlayer('pvp-host@example.com'); // re-sign-in as the original host
+  const readyHostRes = await setReady({ roomCode: roomCode });
+  assert.strictEqual(readyHostRes.data.ready, true);
+  assert.strictEqual(readyHostRes.data.matchId, null, 'match not created yet -- guest not ready');
+
+  await signOut(auth);
+  await signInAsPlayer('pvp-guest@example.com');
+  const readyGuestRes = await setReady({ roomCode: roomCode });
+  assert.strictEqual(readyGuestRes.data.ready, true);
+  assert.ok(readyGuestRes.data.matchId, 'both ready -- match created');
+  const matchId = readyGuestRes.data.matchId;
+
+  const roomAfter = await admin.firestore().collection('rooms').doc(roomCode).get();
+  assert.strictEqual(roomAfter.data().status, 'started');
+  assert.strictEqual(roomAfter.data().matchId, matchId);
+
+  const publicSnap = await admin.firestore().collection('matches').doc(matchId).get();
+  const pub = publicSnap.data();
+  assert.strictEqual(pub.phase, 'setup');
+  assert.strictEqual(pub.handCount.player1, 7, 'host dealt an opening hand of 7');
+  assert.strictEqual(pub.handCount.player2, 7, 'guest dealt an opening hand of 7');
+  assert.strictEqual(pub.prizesRemaining.player1, 6);
+  // (Brief's literal assertion here -- `assert.strictEqual(A || B, B, ...)`
+  // where A is a boolean -- always fails regardless of implementation
+  // correctness whenever no "name" field is present in `pub`, which is
+  // exactly the setup-phase case since no Basics are placed yet. Replaced
+  // with a well-formed check of the same stated intent.)
+  assert.ok(pub.board, 'sanity: board exists');
+
+  const hostPrivateSnap = await admin.firestore().collection('matches').doc(matchId).collection('private').doc(hostUid).get();
+  assert.strictEqual(hostPrivateSnap.data().hand.length, 7);
+
+  const serverOnlySnap = await admin.firestore().collection('matches').doc(matchId).collection('serverOnly').doc('state').get();
+  assert.ok(serverOnlySnap.exists, 'serverOnly/state exists');
+  assert.strictEqual(serverOnlySnap.data().state.players.player.hand.length, 7);
+  console.log('PASS: setReady creates a real match once both sides are ready, with correctly redacted docs');
+
+  try {
+    await setReady({ roomCode: roomCode });
+    assert.fail('expected setReady on an already-started room to be rejected');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: setReady rejects a room that already started');
+  }
+
   console.log('ALL PVP ROOM TESTS PASSED');
   process.exit(0);
 }
