@@ -18,5 +18,39 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // PVP Fase 1 (see docs/superpowers/specs/2026-08-27-pvp-fase1-design.md).
+    // A room is created/joined/readied only via Cloud Functions
+    // (createRoom/joinRoom/setReady) -- a joining client never reads a room
+    // directly before joining, so this scoped read is only ever exercised
+    // by the two players actually in it (their own listener, once joined).
+    match /rooms/{roomCode} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.hostUid || request.auth.uid == resource.data.guestUid);
+      allow write: if false;
+    }
+
+    // matches/{matchId}: the public, redacted board both players read
+    // directly in real time. Scoped to just the two participants -- board
+    // state (even redacted) is not any other signed-in player's business.
+    match /matches/{matchId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.players.player1 || request.auth.uid == resource.data.players.player2);
+      allow write: if false;
+
+      // Each player's own real hand -- never readable by the other side.
+      match /private/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // The complete un-redacted engine state (both hands, deck order,
+      // un-taken prize identities) -- no client, ever, ours or theirs.
+      // Only submitMatchAction/setReady (Admin SDK) ever touch this.
+      match /serverOnly/{doc} {
+        allow read: if false;
+        allow write: if false;
+      }
+    }
   }
 }
