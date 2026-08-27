@@ -582,3 +582,115 @@ exports.setReady = onCall(async (request) => {
 
   return { ready: true, matchId: matchRef.id };
 });
+
+const { canPlayBasic, playBasic, startMatch } = require('./lib/rulesEngine');
+
+// Loads a match's full serverOnly state and resolves which engine slot
+// ('player'/'cpu') the calling uid actually is. Every action handler below
+// starts with this. Throws not-found/permission-denied as appropriate.
+async function resolveMatchSide(matchId, uid) {
+  const db = admin.firestore();
+  const matchRef = db.collection('matches').doc(matchId);
+  const matchSnap = await matchRef.get();
+  if (!matchSnap.exists) { throw new HttpsError('not-found', 'Esa partida no existe.'); }
+  const pub = matchSnap.data();
+  let side, opponentSide, opponentUid;
+  if (pub.players.player1 === uid) { side = 'player'; opponentSide = 'cpu'; opponentUid = pub.players.player2; }
+  else if (pub.players.player2 === uid) { side = 'cpu'; opponentSide = 'player'; opponentUid = pub.players.player1; }
+  else { throw new HttpsError('permission-denied', 'No formas parte de esa partida.'); }
+  const serverOnlySnap = await matchRef.collection('serverOnly').doc('state').get();
+  const state = serverOnlySnap.data().state;
+  // state.rng was nulled out before being written to Firestore (see
+  // setReady's comment above -- Firestore can't store a function value).
+  // Re-attach a fresh Math.random here, before returning, so anything
+  // downstream that calls back into the engine (e.g. confirmSetup's
+  // startMatch(state) -> coinFlip(state) -> state.rng()) has a real
+  // function to call instead of crashing on a null.
+  state.rng = Math.random;
+  return { state: state, side: side, opponentSide: opponentSide, uid: uid, opponentUid: opponentUid, matchRef: matchRef };
+}
+
+// Writes the redacted public/private views back after a mutation --
+// side1Uid/side2Uid are always (hostUid, guestUid) regardless of who
+// called this action, matching redactMatchState's own fixed player1='player'/
+// player2='cpu' mapping.
+async function persistMatchState(matchRef, state, hostUid, guestUid) {
+  const redacted = redactMatchState(state, hostUid, guestUid);
+  // Null out state.rng again before writing -- mirrors setReady's exact
+  // pattern above -- Firestore can't serialize a function value.
+  await matchRef.collection('serverOnly').doc('state').set({ state: Object.assign({}, state, { rng: null }) });
+  await matchRef.set(redacted.public);
+  await matchRef.collection('private').doc(hostUid).set(redacted.private[hostUid]);
+  await matchRef.collection('private').doc(guestUid).set(redacted.private[guestUid]);
+}
+
+exports.submitMatchAction = onCall(async (request) => {
+  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
+  const data = request.data || {};
+  const matchId = data.matchId;
+  const action = data.action || {};
+  const { state, side, uid } = await resolveMatchSide(matchId, request.auth.uid);
+  const db = admin.firestore();
+  const matchRef = db.collection('matches').doc(matchId);
+  const pub = (await matchRef.get()).data();
+  const hostUid = pub.players.player1;
+  const guestUid = pub.players.player2;
+
+  switch (action.type) {
+    case 'placeActive': {
+      if (!canPlayBasic(state, side, action.handCardId)) {
+        throw new HttpsError('failed-precondition', 'No puedes jugar esa carta ahí.');
+      }
+      if (state.players[side].active) {
+        throw new HttpsError('failed-precondition', 'Ya tienes un Pokémon Activo.');
+      }
+      // playBasic(state, playerId, handId, benchIndex) needs a benchIndex,
+      // but placing the very first (Active) Pokémon during setup has no
+      // bench slot -- reuse the existing local convention (ui.js's own
+      // drop-on-empty-Active-spot path) of calling playBasic with
+      // benchIndex null. Confirmed against rules-engine.js:230-243:
+      // playBasic places into p.active whenever it's currently null,
+      // regardless of what benchIndex was passed, so this is correct
+      // exactly as written.
+      playBasic(state, side, action.handCardId, null);
+      break;
+    }
+    case 'placeBench': {
+      if (!canPlayBasic(state, side, action.handCardId)) {
+        throw new HttpsError('failed-precondition', 'No puedes jugar esa carta ahí.');
+      }
+      if (typeof action.benchIndex !== 'number' || state.players[side].bench[action.benchIndex]) {
+        throw new HttpsError('invalid-argument', 'Slot de banca inválido u ocupado.');
+      }
+      playBasic(state, side, action.handCardId, action.benchIndex);
+      break;
+    }
+    case 'confirmSetup': {
+      if (state.phase !== 'setup') { throw new HttpsError('failed-precondition', 'La partida ya empezó.'); }
+      // Requires BOTH sides to have placed their opening Active before
+      // this confirm can register -- not just the caller's own side. Real
+      // rules: you can't lock in "ready to start" while your opponent's
+      // board is still empty, since the coin flip (startMatch) needs both
+      // Actives to exist. Confirmed by tracing the exact test above: the
+      // guest's confirmSetup call right after placing their OWN Active
+      // (with the host's Active still unset) must be rejected, even
+      // though the guest's own side already has an Active at that point --
+      // the only check that produces that rejection is one that looks at
+      // both sides, not just the caller's.
+      if (!state.players.player.active || !state.players.cpu.active) {
+        throw new HttpsError('failed-precondition', 'Ambos jugadores deben colocar su Pokémon Activo antes de confirmar.');
+      }
+      state.setupConfirmed = state.setupConfirmed || { player: false, cpu: false };
+      state.setupConfirmed[side] = true;
+      if (state.setupConfirmed.player && state.setupConfirmed.cpu) {
+        startMatch(state);
+      }
+      break;
+    }
+    default:
+      throw new HttpsError('invalid-argument', 'Tipo de acción desconocido o no soportado en Fase 1: ' + action.type);
+  }
+
+  await persistMatchState(matchRef, state, hostUid, guestUid);
+  return { ok: true };
+});
