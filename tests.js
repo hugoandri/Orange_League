@@ -472,6 +472,21 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('bench Pokémon still auto-promoted for the cpu', cpu.active.name, 'Squirtle');
 })();
 
+(function testKnockoutSetsPendingPrizeChoiceToRealAttackerSide() {
+  // The player's active gets KO'd by cpu's attack -- cpu is the attacker
+  // taking the prize. With cpu humanControlled (PVP), pendingPrizeChoice
+  // must be keyed to 'cpu' (the side that actually needs to pick), not
+  // hardcoded to 'player' -- takePrize's own guard already compares
+  // state.pendingPrizeChoice.playerId against the caller's real side.
+  var state = createGame(function () { return 0.99; }, 'overgrowth', { player: true, cpu: true });
+  var player = state.players.player;
+  player.active = makeFreshInstance('t7', 'Charmander', 1);
+  player.active.damage = 999;
+  player.bench = [];
+  knockOutIfNeeded(state, 'player', player.active);
+  check('pendingPrizeChoice is keyed to cpu, the real attacking side', state.pendingPrizeChoice, { playerId: 'cpu', count: 1 });
+})();
+
 (function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
   var state = createGame(function () { return 0.42; });
   state.activePlayerId = 'player';

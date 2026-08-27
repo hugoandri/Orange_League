@@ -124,8 +124,8 @@ function createGame(rng, playerDeckKey, humanControlled) {
     turnCounter: 1,
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
     phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
-    pendingPrizeChoice: null, // { playerId: 'player', count: N } while the player must pick prize card(s)
-    pendingActiveChoice: null, // 'player' while they must pick which Bench Pokémon becomes their new Active
+    pendingPrizeChoice: null, // { playerId: 'player'|'cpu', count: N } while that side must pick prize card(s) -- either side can populate this once humanControlled makes 'cpu' a real player too
+    pendingActiveChoice: null, // 'player'|'cpu' while that side must pick which Bench Pokémon becomes their new Active
     // Whether each side is a real human waiting to be asked, vs. today's
     // local bot ('cpu') which is always auto-resolved. Defaults preserve
     // every existing call site's exact behavior -- only PVP match creation
@@ -709,8 +709,8 @@ function knockOutIfNeeded(state, ownerId, instance) {
       // aside face down in createGame) -- let them pick which face-down slot
       // to flip rather than auto-taking the first one. take Prize() resolves
       // this once the UI collects the player's choice.
-      if (!state.pendingPrizeChoice || state.pendingPrizeChoice.playerId !== 'player') {
-        state.pendingPrizeChoice = { playerId: 'player', count: 0 };
+      if (!state.pendingPrizeChoice || state.pendingPrizeChoice.playerId !== attackerId) {
+        state.pendingPrizeChoice = { playerId: attackerId, count: 0 };
       }
       state.pendingPrizeChoice.count += 1;
       logEvent(state, 'Jugador debe elegir una carta de premio', 'player');
