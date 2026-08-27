@@ -72,6 +72,51 @@ a clear "todavía no disponible en PVP" error.
   chess-clock feature (`timeBankMs` is not synced/enforced for PVP this
   phase).
 - Explicit "cancelar sala" button for the host (rooms simply expire).
+- Real player display names in the shared match log — a PVP log line
+  reads "Jugador"/"CPU" (see Section 3.1) exactly as the engine always
+  produces it, not each player's actual username. Purely cosmetic;
+  fixing it needs log-text generation changes beyond a small addition.
+
+## 3.1. One necessary rules-engine.js change
+
+Planning surfaced a real conflict with Section 4's "reuse unmodified"
+premise: `knockOutIfNeeded` and `discardOwnPokemonInPlay` hardcode
+`ownerId === 'player'` to decide who gets a real choice of new Active
+Pokémon (the `'cpu'` side is always auto-promoted, no choice asked —
+correct for today's local bot, wrong for a real human mapped onto the
+`'cpu'` slot in a PVP match).
+
+Fix: `createGame(rng, playerDeckKey, humanControlled)` gains a 4th,
+optional parameter — `{ player: boolean, cpu: boolean }`, defaulting to
+`{ player: true, cpu: false }` when omitted (so every existing call
+site, and all 633 client tests, keep today's exact behavior with zero
+changes). It's stored as `state.humanControlled`. `knockOutIfNeeded`'s
+and `discardOwnPokemonInPlay`'s `ownerId === 'player'` checks become
+`state.humanControlled[ownerId]`. PVP match creation is the only
+caller that ever passes `{ player: true, cpu: true }`. This is the one
+place in the whole spec where `rules-engine.js`'s actual behavior
+changes (additively, opt-in, default-preserving) — everywhere else
+"reused unmodified" holds exactly as written.
+
+Two related asymmetries surfaced by the same research turned out to
+need no engine change at all, only correct orchestration in
+`submitMatchAction` (Section 7):
+
+- `endTurn()` only calls `drawForTurnStart(state, 'player')` for the
+  literal `'player'` slot — the `'cpu'` slot's turn-start draw normally
+  happens inside `ai.js`'s `cpuTakeTurn()` instead, which never runs in
+  a PVP match. `submitMatchAction`'s own `endTurn` action handler calls
+  `endTurn(state)` and then, if the side it just handed the turn to is
+  `state.humanControlled`-true and isn't `'player'`, calls
+  `drawForTurnStart(state, activePlayerIdAfter)` itself — reusing the
+  existing exported function, no `rules-engine.js` edit needed.
+- `translatePlayer`/`logEvent`-generated log text hardcodes "Jugador"/
+  "CPU" wording, so a PVP match's shared log will literally read "CPU
+  ataca con…" for whichever side is internally mapped to the `'cpu'`
+  slot, even though a real second player is behind it. Fixing this
+  properly (real display names in log text) is more than a small
+  addition and is **out of scope for Fase 1** — added to Section 3's
+  Non-Goals as a known, acknowledged cosmetic rough edge.
 
 ## 4. Sharing rules-engine.js/card-effects.js with Cloud Functions
 
@@ -85,14 +130,28 @@ hand-maintained mirror copy — fine for a ~1800-line data table that
 rarely changes, too risky to hand-sync for ~2550 lines of active game
 logic.
 
+`rules-engine.js` itself also depends on two OTHER root files that are
+just as DOM-free and must be mirrored alongside it: `data-cards.js`
+(defines `CARD_STATS`, every card's HP/attacks/retreat cost/etc.) and
+`data-decks.js` (`DECKLISTS`/`PRECON_DECK_KEYS`, the 4 precon
+decklists). `card-effects.js` needs `CARD_STATS` too. Missing any of
+these server-side wouldn't just fail loudly — `attack()`'s own
+`typeof ATTACK_EFFECTS !== 'undefined'` guard means an un-mirrored
+`card-effects.js` would silently make **every** attack fall through to
+the generic damage-only path, including ones with real special
+effects, which is exactly the wrong-answer failure mode this whole
+design exists to prevent. All four files are mirrored together.
+
 Fase 1 adds a generated mirror instead of a hand-maintained one:
 
-- `rules-engine.js` and `card-effects.js` stay at the repo root as the
-  single edited source, loaded by the browser via `<script>` exactly as
-  today — no change to their content or behavior.
-- A new script, `functions/scripts/sync-shared-engine.js`, copies both
-  files verbatim into `functions/lib/rulesEngine.js` and
-  `functions/lib/cardEffects.js`, appending a small footer:
+- `data-cards.js`, `data-decks.js`, `rules-engine.js`, and
+  `card-effects.js` stay at the repo root as the single edited source,
+  loaded by the browser via `<script>` exactly as today — no change to
+  their content or behavior (aside from Section 3.1's one addition).
+- A new script, `functions/scripts/sync-shared-engine.js`, copies all
+  four files verbatim into `functions/lib/dataCards.js`,
+  `functions/lib/dataDecks.js`, `functions/lib/rulesEngine.js`, and
+  `functions/lib/cardEffects.js`, appending a small footer to each:
   ```js
   if (typeof module !== 'undefined') {
     module.exports = { attack, playBasic, evolve, attachEnergy, retreat,
