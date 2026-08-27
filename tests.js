@@ -2838,3 +2838,35 @@ function mkPokemon(id, name, overrides) {
   fullBenchState.players.player.bench = [mkPokemon('x1', 'Rattata', {}), mkPokemon('x2', 'Rattata', {}), mkPokemon('x3', 'Rattata', {}), mkPokemon('x4', 'Rattata', {}), mkPokemon('x5', 'Rattata', {})];
   checkTrue('Revive is illegal with a full Bench', !TRAINER_EFFECTS['Revive'](fullBenchState, 'player', 'h1', 'disc1').legal);
 })();
+
+(function testRedactMatchStateNeverExposesEitherHandOrDeckOrderInThePublicView() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  var redacted = redactMatchState(state, 'uidHost', 'uidGuest');
+  var json = JSON.stringify(redacted.public);
+  checkTrue('player hand card ids do not leak into public view', state.players.player.hand.every(function (c) { return json.indexOf(c.id) === -1; }));
+  checkTrue('cpu hand card ids do not leak into public view', state.players.cpu.hand.every(function (c) { return json.indexOf(c.id) === -1; }));
+  check('public handCount.player1 matches the real player hand length', redacted.public.handCount.player1, state.players.player.hand.length);
+  check('public handCount.player2 matches the real cpu hand length', redacted.public.handCount.player2, state.players.cpu.hand.length);
+  check('public deckCount.player1 matches the real player deck length', redacted.public.deckCount.player1, state.players.player.deck.length);
+  check('public prizesRemaining.player1 matches remainingPrizes(player)', redacted.public.prizesRemaining.player1, remainingPrizes(state.players.player));
+})();
+
+(function testRedactMatchStateGivesEachPrivateViewOnlyItsOwnOwnersRealHand() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  var redacted = redactMatchState(state, 'uidHost', 'uidGuest');
+  check('uidHost private hand matches the real player hand ids', redacted.private.uidHost.hand.map(function (c) { return c.id; }), state.players.player.hand.map(function (c) { return c.id; }));
+  check('uidGuest private hand matches the real cpu hand ids', redacted.private.uidGuest.hand.map(function (c) { return c.id; }), state.players.cpu.hand.map(function (c) { return c.id; }));
+})();
+
+(function testRedactMatchStateRepresentsBoardPokemonWithNameDamageStatusEnergyButNoHiddenFields() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  state.players.player.active = makeFreshInstance('x1', 'Charmander', 1);
+  state.players.player.active.damage = 20;
+  state.players.player.active.attachedEnergy = ['Fire'];
+  var redacted = redactMatchState(state, 'uidHost', 'uidGuest');
+  var view = redacted.public.board.player1.active;
+  check('view.name is the Pokémon name', view.name, 'Charmander');
+  check('view.damage is the real damage', view.damage, 20);
+  check('view.attachedEnergy is the real attached energy', view.attachedEnergy, ['Fire']);
+  check('instance id is server-internal, not part of the public view', view.id, undefined);
+})();

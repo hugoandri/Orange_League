@@ -1132,3 +1132,50 @@ function getWinner(state) {
   if (state.players.cpu.timeBankMs <= 0) { return 'player'; }
   return null;
 }
+
+// Splits the engine's full, un-redacted gameState into what each side of a
+// PVP match is actually allowed to see -- see docs/superpowers/specs/
+// 2026-08-27-pvp-fase1-design.md Section 5. side1Uid is always the host
+// (engine slot 'player'), side2Uid always the guest (engine slot 'cpu') --
+// see that spec's Global Constraints for why this mapping is fixed.
+function publicPokemonView(instance) {
+  if (!instance) { return null; }
+  return {
+    name: instance.name,
+    damage: instance.damage,
+    statusConditions: instance.statusConditions.slice(),
+    attachedEnergy: instance.attachedEnergy.slice()
+  };
+}
+
+function redactMatchState(state, side1Uid, side2Uid) {
+  var p = state.players.player;
+  var c = state.players.cpu;
+  var publicView = {
+    players: { player1: side1Uid, player2: side2Uid },
+    activePlayerId: state.activePlayerId === 'player' ? 'player1' : (state.activePlayerId === 'cpu' ? 'player2' : null),
+    turnCounter: state.turnCounter,
+    phase: state.phase,
+    winner: getWinner(state) === 'player' ? 'player1' : (getWinner(state) === 'cpu' ? 'player2' : null),
+    board: {
+      player1: { active: publicPokemonView(p.active), bench: p.bench.map(publicPokemonView) },
+      player2: { active: publicPokemonView(c.active), bench: c.bench.map(publicPokemonView) }
+    },
+    discard: {
+      player1: p.discard.map(function (card) { return { name: card.name }; }),
+      player2: c.discard.map(function (card) { return { name: card.name }; })
+    },
+    prizesRemaining: { player1: remainingPrizes(p), player2: remainingPrizes(c) },
+    deckCount: { player1: p.deck.length, player2: c.deck.length },
+    handCount: { player1: p.hand.length, player2: c.hand.length },
+    pendingPrizeChoice: state.pendingPrizeChoice
+      ? { side: state.pendingPrizeChoice.playerId === 'player' ? 'player1' : 'player2', count: state.pendingPrizeChoice.count }
+      : null,
+    pendingActiveChoice: state.pendingActiveChoice === 'player' ? 'player1' : (state.pendingActiveChoice === 'cpu' ? 'player2' : null),
+    log: state.log.slice()
+  };
+  var privateViews = {};
+  privateViews[side1Uid] = { hand: p.hand.map(function (card) { return { id: card.id, name: card.name }; }) };
+  privateViews[side2Uid] = { hand: c.hand.map(function (card) { return { id: card.id, name: card.name }; }) };
+  return { public: publicView, private: privateViews };
+}
