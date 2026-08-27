@@ -438,6 +438,40 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('getWinner declares cpu the winner (no active, empty bench)', getWinner(state2), 'cpu');
 })();
 
+(function testKnockoutDefaultsToAutoPromotingCpuSide() {
+  // humanControlled omitted entirely -- must behave exactly as before.
+  var state = createGame(function () { return 0.99; }, 'overgrowth');
+  var cpu = state.players.cpu;
+  cpu.active = makeFreshInstance('t1', 'Charmander', 1);
+  cpu.active.damage = 999;
+  cpu.bench[0] = makeFreshInstance('t2', 'Squirtle', 1);
+  knockOutIfNeeded(state, 'cpu', cpu.active);
+  check('cpu auto-promotes, no choice pending', state.pendingActiveChoice, null);
+  check('the bench Pokémon was auto-promoted', cpu.active.name, 'Squirtle');
+})();
+
+(function testKnockoutAsksRealChoiceWhenCpuIsHumanControlled() {
+  var state = createGame(function () { return 0.99; }, 'overgrowth', { player: true, cpu: true });
+  var cpu = state.players.cpu;
+  cpu.active = makeFreshInstance('t3', 'Charmander', 1);
+  cpu.active.damage = 999;
+  cpu.bench[0] = makeFreshInstance('t4', 'Squirtle', 1);
+  knockOutIfNeeded(state, 'cpu', cpu.active);
+  check('cpu now gets a real active-choice pending, just like player does', state.pendingActiveChoice, 'cpu');
+  check('not auto-promoted -- waiting on chooseNewActive', cpu.active, null);
+})();
+
+(function testKnockoutStillAutoPromotesCpuWhenOnlyPlayerHumanControlledExplicitly() {
+  var state = createGame(function () { return 0.99; }, 'overgrowth', { player: true, cpu: false });
+  var cpu = state.players.cpu;
+  cpu.active = makeFreshInstance('t5', 'Charmander', 1);
+  cpu.active.damage = 999;
+  cpu.bench[0] = makeFreshInstance('t6', 'Squirtle', 1);
+  knockOutIfNeeded(state, 'cpu', cpu.active);
+  check('pendingActiveChoice stays null when only player is humanControlled', state.pendingActiveChoice, null);
+  check('bench Pokémon still auto-promoted for the cpu', cpu.active.name, 'Squirtle');
+})();
+
 (function testEndTurnClearsPerTurnFlagsAndAdvancesTurn() {
   var state = createGame(function () { return 0.42; });
   state.activePlayerId = 'player';
@@ -2035,7 +2069,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('collectionProgress owned is 0 for an empty collection', empty.owned, 0);
 
   var real = collectionProgress({}, CARD_CATALOG);
-  check('collectionProgress total matches the real catalog (base+jungle+fossil)', real.total, 228);
+  check('collectionProgress total matches the real catalog (base+jungle+fossil+basep+espromo)', real.total, 261);
 })();
 
 // Shared by the remaining-35-Pokémon mechanic tests below -- mirrors

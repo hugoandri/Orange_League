@@ -107,7 +107,7 @@ function tickClock(state, ownerId, elapsedMs) {
 // persisted as econState.activeDeck), the CPU gets the other of the two --
 // there are only ever these two real preset decks, so "the other one" is
 // unambiguous.
-function createGame(rng, playerDeckKey) {
+function createGame(rng, playerDeckKey, humanControlled) {
   rng = rng || Math.random;
   playerDeckKey = DECKLISTS[playerDeckKey] ? playerDeckKey : 'overgrowth';
   // The CPU gets a random one of every OTHER real PRECON deck -- Zap!/
@@ -126,6 +126,12 @@ function createGame(rng, playerDeckKey) {
     phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
     pendingPrizeChoice: null, // { playerId: 'player', count: N } while the player must pick prize card(s)
     pendingActiveChoice: null, // 'player' while they must pick which Bench Pokémon becomes their new Active
+    // Whether each side is a real human waiting to be asked, vs. today's
+    // local bot ('cpu') which is always auto-resolved. Defaults preserve
+    // every existing call site's exact behavior -- only PVP match creation
+    // (Task 6) ever passes {player:true, cpu:true}. See knockOutIfNeeded/
+    // discardOwnPokemonInPlay below, the only two places this is read.
+    humanControlled: humanControlled || { player: true, cpu: false },
     rng: rng,
     log: [],
     players: {
@@ -671,13 +677,13 @@ function knockOutIfNeeded(state, ownerId, instance) {
   var attackerId = opponentOf(ownerId);
   logEvent(state, instance.name + ' (' + translatePlayer(ownerId) + ') fue noqueado', ownerId);
   if (owner.active && owner.active.id === instance.id) {
-    if (ownerId === 'player' && benchCount(owner) > 0) {
+    if (state.humanControlled[ownerId] && benchCount(owner) > 0) {
       // Let the player choose which Bench Pokémon becomes their new Active
       // instead of auto-promoting the first one -- see chooseNewActive(),
       // resolved from the UI's active-choice modal. The CPU still
       // auto-promotes (first non-null slot): no player input to wait on there.
       owner.active = null;
-      state.pendingActiveChoice = 'player';
+      state.pendingActiveChoice = ownerId;
       logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
     } else {
       var promoteIdx = owner.bench.findIndex(function (b) { return b; });
@@ -698,7 +704,7 @@ function knockOutIfNeeded(state, ownerId, instance) {
   // else above and below (leaving play, discard, Destiny Bond) still
   // happens normally, only the opponent's prize is skipped.
   if (!stats.noKnockOutPrize && remainingPrizes(attackerPlayer) > 0) {
-    if (attackerId === 'player') {
+    if (state.humanControlled[attackerId]) {
       // The player's own prizes are specific, already-determined cards (set
       // aside face down in createGame) -- let them pick which face-down slot
       // to flip rather than auto-taking the first one. take Prize() resolves
@@ -756,8 +762,8 @@ function discardOwnPokemonInPlay(state, playerId, instanceId) {
   var isActive = p.active && p.active.id === target.id;
   if (isActive) {
     p.active = null;
-    if (playerId === 'player' && benchCount(p) > 0) {
-      state.pendingActiveChoice = 'player';
+    if (state.humanControlled[playerId] && benchCount(p) > 0) {
+      state.pendingActiveChoice = playerId;
       logEvent(state, 'Jugador debe elegir un nuevo Pokémon Activo', 'player');
     } else if (benchCount(p) > 0) {
       var promoteIdx = p.bench.findIndex(function (b) { return b; });
