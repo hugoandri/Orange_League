@@ -2584,6 +2584,7 @@ function stopGameClock() {
 }
 
 function startNewMatch() {
+  resetPvpMatchState();
   matchWinner = null;
   cpuTurnInProgress = false;
   stopGameClock();
@@ -3643,6 +3644,22 @@ var pvpMode = false;
 // against firing more than once for the same match.
 var pvpMatchEnded = false;
 
+// C5 (final-review fix): pvpMode used to only ever get set to true (in the
+// match listener callback below) and never back to false anywhere -- not on
+// match end, not on returning to the menu, not on starting a fresh local
+// match -- which permanently broke local-vs-CPU play (every guarded handler
+// kept routing through submitMatchActionCloud) for the rest of the page
+// session after any PVP match. Called at every point that leaves a PVP
+// match behind: starting a fresh local match (startNewMatch), and every
+// "return to menu" handler (matchEndCancelBtn, pauseExit).
+function resetPvpMatchState() {
+  pvpMode = false;
+  pvpActiveMatchId = null;
+  pvpMySide = null;
+  pvpMatchEnded = false;
+  if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
+}
+
 // Reshapes {public, myHand} (from initPvpMatchListeners) into the same
 // gameState shape renderBoard()/showAttackOverlay()/etc. already know how
 // to read locally -- 'me'/'opponent' keys stand in for 'player'/'cpu' so
@@ -4380,6 +4397,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
+    resetPvpMatchState();
     hideBoardScreen();
     showMenu();
   });
@@ -4457,6 +4475,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseExit').addEventListener('click', function () {
     closePauseMenu();
+    resetPvpMatchState();
     hideBoardScreen();
     showMenu();
   });
