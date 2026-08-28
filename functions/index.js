@@ -673,6 +673,12 @@ exports.submitMatchAction = onCall(async (request) => {
     const { state, side, matchRef, pub } = await resolveMatchSide(tx, matchId, request.auth.uid);
     const hostUid = pub.players.player1;
     const guestUid = pub.players.player2;
+    // Captured BEFORE the switch runs so the draw-compensation guard below
+    // can tell "a turn transition just happened" (activePlayerId changed)
+    // apart from "it's already this side's turn and they're submitting
+    // another ordinary action" (activePlayerId unchanged). See that guard's
+    // comment for why this distinction is required.
+    const activeBefore = state.activePlayerId;
 
     switch (action.type) {
       case 'placeActive': {
@@ -823,14 +829,38 @@ exports.submitMatchAction = onCall(async (request) => {
     // since attack() ALSO ends the turn internally (via its own
     // endThisTurn() -> endTurn(state), unconditionally, every single time an
     // attack resolves, regardless of KO). Placed once, right here, after the
-    // whole switch, so it applies uniformly to both. Never double-draws:
-    // most actions never change activePlayerId at all (this guard only
-    // fires on a REAL turn transition), turnCounter > 1 excludes turn 1 (no
-    // "previous" turn to have ended), and endTurn(state) itself only ever
-    // draws for the 'player' slot on its own -- it never also draws for a
+    // whole switch, so it applies uniformly to both.
+    //
+    // Regression fix (fix-wave re-review): this guard MUST also check that
+    // activePlayerId actually changed across the switch (activeBefore !==
+    // state.activePlayerId) -- without that comparison, the guard was true
+    // for EVERY action the guest submitted during their OWN turn (attach
+    // Energy, retreat, attack, ...), not just the one action that started
+    // it, since "activePlayerId === 'cpu' && humanControlled.cpu" stays true
+    // for the whole duration of the guest's turn. That drew the guest an
+    // extra, unearned card on every single action, eventually emptying
+    // their deck (state.deckedOut) and auto-losing them -- far worse than
+    // the bug this whole compensation was meant to fix. Requiring a real
+    // transition (activeBefore !== state.activePlayerId) makes this fire
+    // exactly once per turn handoff: most actions never change
+    // activePlayerId at all, and endTurn(state) itself only ever draws for
+    // the 'player' slot on its own -- it never also draws for a
     // humanControlled non-'player' side, so there's nothing here to
     // double up with for that side.
-    if (state.turnCounter > 1 && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
+    //
+    // turnCounter > 1 is STILL required alongside activeBefore, and for a
+    // different reason than just "no previous turn to have ended": the
+    // 'confirmSetup' case (via startMatch(), rules-engine.js:175-185) also
+    // transitions activePlayerId from null to whichever side won the coin
+    // flip, AND startMatch() already calls drawForTurnStart for that side
+    // itself, unconditionally, as part of starting the match. Without
+    // turnCounter > 1 here, a guest who wins the coin flip and starts first
+    // would get double-drawn right at match start (once from startMatch's
+    // own call, once from this guard reacting to the null -> 'cpu'
+    // transition). turnCounter is set to exactly 1 by startMatch and only
+    // ever incremented by endTurn(), so requiring > 1 excludes exactly that
+    // match-start transition while still catching every later turn handoff.
+    if (state.turnCounter > 1 && state.activePlayerId !== activeBefore && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
       drawForTurnStart(state, state.activePlayerId);
     }
 

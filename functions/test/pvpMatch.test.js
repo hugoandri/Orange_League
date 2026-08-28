@@ -305,6 +305,99 @@ async function main() {
   );
   console.log('PASS (C4 regression): the guest gets a turn-start draw when the host ends their turn by attacking, not just via the explicit endTurn action');
 
+  // --- Regression test (fix-wave re-review of C4): the draw-compensation
+  // guard must fire EXACTLY ONCE per real turn handoff to the guest -- not
+  // once per action the guest happens to submit while their turn is
+  // already in progress. The bug: the original guard only checked "is it
+  // currently the guest's turn AND are they humanControlled"
+  // (state.activePlayerId !== 'player' && state.humanControlled[...]), with
+  // no comparison against what activePlayerId was BEFORE the switch ran --
+  // so it was true, and fired, for EVERY action the guest submitted during
+  // their own turn (attachEnergy, retreat, ...), not just the one action
+  // that started it. Left unfixed this draws the guest a free, unearned
+  // card on every single action of their own turn, which can eventually
+  // empty their deck (state.deckedOut) and auto-lose them via getWinner() --
+  // a worse bug than the one the original C4 fix addressed. This test gets
+  // the guest to their own turn (host calls the plain 'endTurn' action --
+  // simpler than routing through attack() again, since that path is already
+  // covered above), then has the guest submit TWO separate legal actions
+  // (attachEnergy, then retreat) in that same turn without ever calling
+  // endTurn in between, asserting the guest's hand only ever reflects the
+  // ONE legitimate turn-start draw plus whatever a given action itself
+  // legitimately removes from hand -- never an extra card per action.
+  const regressionSeed = (await serverOnlyRef.get()).data().state;
+  regressionSeed.phase = 'playing';
+  regressionSeed.activePlayerId = 'player';
+  regressionSeed.pendingPrizeChoice = null;
+  regressionSeed.pendingActiveChoice = null;
+  // Guest (engine slot 'cpu'): a retreatCost-0 Active (Rattata) plus a
+  // Bench mon (Diglett) to retreat into, so retreat is legal without first
+  // needing to attach enough Energy of the right type to pay a real
+  // retreat cost -- keeps this fixture minimal and focused on the actual
+  // bug (double-draw per action), not on satisfying retreat's cost rules.
+  regressionSeed.players.cpu.active = makeActive('regressionGuestActive', 'Rattata', 0);
+  regressionSeed.players.cpu.bench = [makeActive('regressionGuestBench', 'Diglett', 0), null, null, null, null];
+  regressionSeed.players.cpu.energyAttachedThisTurn = false;
+  regressionSeed.players.cpu.retreatedThisTurn = false;
+  const regressionEnergyCardId = 'regression-energy-card';
+  const regressionFillerCardId = 'regression-filler-card';
+  // Hand fully replaced with a small, known set of cards (rather than
+  // appended to whatever random hand this match happened to accumulate by
+  // now) so the length math below is exact and easy to verify by hand.
+  regressionSeed.players.cpu.hand = [
+    { id: regressionFillerCardId, name: 'Rattata' },
+    { id: regressionEnergyCardId, name: 'Grass Energy' }
+  ];
+  const regressionGuestHandLenBeforeTurnStart = regressionSeed.players.cpu.hand.length; // 2
+  await serverOnlyRef.set({ state: regressionSeed });
+  await matchDocRef.set(redactMatchState(regressionSeed, hostUid, guestUid).public);
+
+  await signInAsUid(hostUid); // engine slot 'player' == player1 == hostUid
+  await submitMatchAction({ matchId: matchId, action: { type: 'endTurn' } });
+  const pubAfterRegressionEndTurn = (await matchDocRef.get()).data();
+  assert.strictEqual(pubAfterRegressionEndTurn.activePlayerId, 'player2', 'ending the host\'s turn hands it to the guest');
+
+  const guestHandAfterTurnStartDraw = await getPrivateHand(matchId, guestUid);
+  assert.strictEqual(
+    guestHandAfterTurnStartDraw.length,
+    regressionGuestHandLenBeforeTurnStart + 1,
+    'guest gets exactly the one legitimate turn-start draw when the turn transitions to them'
+  );
+
+  // Guest's FIRST action of their own turn: attachEnergy. Legitimate
+  // behavior removes exactly the one played card from hand and draws
+  // nothing further. Under the bug, the guard would ALSO fire here (it only
+  // checked "is it currently the guest's turn", true for this call too),
+  // masking as a net-ZERO hand-size change (-1 for the card played, +1 for
+  // the phantom draw) instead of the real -1 -- so this assertion catches
+  // the regression even though the hand still shrinks somewhat.
+  await signInAsUid(guestUid);
+  const guestActiveId = pubAfterRegressionEndTurn.board.player2.active.id;
+  await submitMatchAction({ matchId: matchId, action: { type: 'attachEnergy', handCardId: regressionEnergyCardId, targetInstanceId: guestActiveId } });
+  const guestHandAfterAttachEnergy = await getPrivateHand(matchId, guestUid);
+  assert.strictEqual(
+    guestHandAfterAttachEnergy.length,
+    guestHandAfterTurnStartDraw.length - 1,
+    'REGRESSION: attachEnergy during the guest\'s own already-in-progress turn must not trigger a second, unearned turn-start draw'
+  );
+
+  // Guest's SECOND action of the SAME turn (still no endTurn in between):
+  // retreat. Legitimate behavior touches no hand cards at all (net zero) --
+  // under the bug, the guard would fire yet again, adding another phantom
+  // card.
+  const pubBeforeRegressionRetreat = (await matchDocRef.get()).data();
+  const guestBenchInstance = pubBeforeRegressionRetreat.board.player2.bench.find(function (b) { return b; });
+  await submitMatchAction({ matchId: matchId, action: { type: 'retreat', targetInstanceId: guestBenchInstance.id } });
+  const guestHandAfterRetreat = await getPrivateHand(matchId, guestUid);
+  assert.strictEqual(
+    guestHandAfterRetreat.length,
+    guestHandAfterAttachEnergy.length,
+    'REGRESSION: retreat during the guest\'s own already-in-progress turn must not trigger a second, unearned turn-start draw either'
+  );
+  const pubAfterRegressionRetreat = (await matchDocRef.get()).data();
+  assert.strictEqual(pubAfterRegressionRetreat.activePlayerId, 'player2', 'still the guest\'s turn after retreat -- retreat does not end the turn');
+  console.log('PASS (regression, fix-wave re-review): the guest does not get an extra unearned draw for each additional action taken during their own already-in-progress turn');
+
   console.log('ALL PVP MATCH TESTS PASSED (setup + generic turn actions + vanilla attacks)');
   process.exit(0);
 }
