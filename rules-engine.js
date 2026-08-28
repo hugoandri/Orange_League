@@ -107,7 +107,7 @@ function tickClock(state, ownerId, elapsedMs) {
 // persisted as econState.activeDeck), the CPU gets the other of the two --
 // there are only ever these two real preset decks, so "the other one" is
 // unambiguous.
-function createGame(rng, playerDeckKey, humanControlled) {
+function createGame(rng, playerDeckKey, humanControlled, cpuDeckKey) {
   rng = rng || Math.random;
   playerDeckKey = DECKLISTS[playerDeckKey] ? playerDeckKey : 'overgrowth';
   // The CPU gets a random one of every OTHER real PRECON deck -- Zap!/
@@ -119,7 +119,17 @@ function createGame(rng, playerDeckKey, humanControlled) {
   // that same DECKLISTS object at runtime -- the CPU must never end up
   // playing one of the PLAYER's own personally-built decks.
   var otherDeckKeys = PRECON_DECK_KEYS.filter(function (k) { return k !== playerDeckKey; });
-  var cpuDeckKey = otherDeckKeys[Math.floor(rng() * otherDeckKeys.length)];
+  // cpuDeckKey (optional 4th param): when the caller already knows exactly
+  // which deck the 'cpu' side should get (PVP's setReady passes the GUEST's
+  // own chosen deck here, since a real PVP match must not silently discard
+  // the guest's deck choice for a random precon), use it directly instead of
+  // picking randomly -- but only when it's actually a registered deck.
+  // Omitted (every existing call site -- local-vs-CPU play never passes
+  // this) or invalid falls back to the exact original random pick below,
+  // rng() called exactly as before, so this is 100% backward compatible.
+  var resolvedCpuDeckKey = (cpuDeckKey && DECKLISTS[cpuDeckKey])
+    ? cpuDeckKey
+    : otherDeckKeys[Math.floor(rng() * otherDeckKeys.length)];
   var state = {
     turnCounter: 1,
     activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
@@ -141,7 +151,7 @@ function createGame(rng, playerDeckKey, humanControlled) {
       // deck each side actually ended up with, now that either one is
       // possible on either side.
       player: { deckKey: playerDeckKey, deck: shuffle(expandDecklist(DECKLISTS[playerDeckKey]), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS },
-      cpu: { deckKey: cpuDeckKey, deck: shuffle(expandDecklist(DECKLISTS[cpuDeckKey]), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
+      cpu: { deckKey: resolvedCpuDeckKey, deck: shuffle(expandDecklist(DECKLISTS[resolvedCpuDeckKey]), rng), hand: [], active: null, bench: [null, null, null, null, null], discard: [], prizes: [], hasHadActive: false, energyAttachedThisTurn: false, retreatedThisTurn: false, timeBankMs: DEFAULT_TIME_BANK_MS }
     }
   };
 
