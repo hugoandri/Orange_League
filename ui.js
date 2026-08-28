@@ -1999,6 +1999,14 @@ function wireBoardButtons() {
       // no board card element on the page to click as a target anyway.
       // So complete the play immediately instead of waiting for a target click.
       if (p.active === null && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
+        // C2 (final-review fix): this immediate-play shortcut bypassed the
+        // server entirely in PVP -- the drag-and-drop path (resolveHandDrop)
+        // was guarded, this click-to-play equivalent wasn't.
+        if (pvpMode) {
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'placeActive', handCardId: handId })
+            .catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+          return;
+        }
         playBasic(gameState, 'player', handId);
         selectedHandId = null;
         renderBoard();
@@ -2307,6 +2315,30 @@ function wireBoardButtons() {
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
+      // C2 (final-review fix): this click-to-select-then-click-target
+      // fallback for placeBench/evolve/attachEnergy bypassed the server
+      // entirely in PVP -- only the drag-and-drop equivalent (resolveHandDrop)
+      // was guarded. Only intercept+return when one of these 3 vanilla
+      // actions actually matches -- anything else (Trainer-card effects)
+      // falls through to the existing logic below unchanged, since Trainer
+      // cards stay an accepted, unguarded Fase-2-scope gap in PVP (same as
+      // every other Trainer-effect path in this file), not something this
+      // finding asked to fix.
+      if (pvpMode) {
+        var pvpBoardClickAction = null;
+        if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
+          pvpBoardClickAction = { type: 'placeBench', handCardId: selectedHandId, benchIndex: gameState.players.player.bench.indexOf(null) };
+        } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
+          pvpBoardClickAction = { type: 'evolve', handCardId: selectedHandId, targetInstanceId: instanceId };
+        } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
+          pvpBoardClickAction = { type: 'attachEnergy', handCardId: selectedHandId, targetInstanceId: instanceId };
+        }
+        if (pvpBoardClickAction) {
+          submitMatchActionCloud(pvpActiveMatchId, pvpBoardClickAction).catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+          selectedHandId = null;
+          return;
+        }
+      }
       var superPotionTarget = handCard.name === 'Super Potion' ? findInstance(p, instanceId) : null;
       var energyRemovalTarget = handCard.name === 'Energy Removal' ? findInstance(gameState.players.cpu, instanceId) : null;
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
@@ -2415,6 +2447,16 @@ function wireBoardButtons() {
       if (!handCard) { return; }
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
         var benchIndex = parseInt(el.getAttribute('data-bench-index'), 10);
+        // C2 (final-review fix): this click-a-specific-empty-bench-slot
+        // fallback bypassed the server entirely in PVP.
+        if (pvpMode) {
+          var pvpBenchAction = gameState.players.player.active
+            ? { type: 'placeBench', handCardId: selectedHandId, benchIndex: benchIndex }
+            : { type: 'placeActive', handCardId: selectedHandId };
+          submitMatchActionCloud(pvpActiveMatchId, pvpBenchAction).catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+          selectedHandId = null;
+          return;
+        }
         playBasic(gameState, 'player', selectedHandId, benchIndex);
       }
       selectedHandId = null;
