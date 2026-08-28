@@ -64,6 +64,27 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #boardScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+/* PVP room screens (crear/unirse) -- same full-screen-overlay pattern as
+   every other screen above. These shipped with ZERO CSS (final-review fix
+   C1): class="hidden" alone does nothing without this pair, so both were
+   visible from page load, unstyled, layered below #menuScreen/#boardScreen
+   (no z-index at all). */
+#pvpCreateScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#pvpCreateScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
+#pvpJoinScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#pvpJoinScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
+/* Sub-panels inside those two screens (deck picker / waiting-for-rival /
+   code-entry step) -- same plain display:none idiom already used for other
+   screens' own inner sub-panels (see .shell-trainer-played.hidden,
+   .shell-attack-overlay.hidden in shell-theme.css), not the animated
+   opacity/visibility pair above (only the full-screen surface needs that). */
+#pvpCreateDeckPicker.hidden,#pvpCreateWaiting.hidden,
+#pvpJoinCodeStep.hidden,#pvpJoinDeckPicker.hidden{display:none;}
+
 /* ===================== MODALS ===================== */
 /* Visual styling for every modal's content now lives in shell-theme.css
    (.shell-modal-*, .shell-card-zoom, .shell-profile-modal, .shell-booster-*,
