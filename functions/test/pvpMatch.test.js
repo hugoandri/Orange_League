@@ -72,13 +72,19 @@ async function main() {
     console.log('PASS: placeActive rejects an unowned/invalid hand card id');
   }
 
-  // Guest places their opening Basic.
+  // Guest places their opening Basic. Opening hand size is normally 7, but
+  // real rules give a bonus draw to whichever side's OPPONENT mulliganed
+  // (see rules-engine.js's dealOpeningHand + createGame's post-mulligan
+  // bonus-draw lines) -- since these tests shuffle with real Math.random,
+  // a mulligan can genuinely happen on either side, so the expected
+  // post-placeActive hand count is computed from the actual dealt hand
+  // size rather than hardcoded, to avoid a rare, legitimate flake.
   const guestHand = await getPrivateHand(matchId, guestUid);
   const guestBasic = guestHand.find(function (c) { return isBasic(c.name, CARD_STATS); });
   await submitMatchAction({ matchId: matchId, action: { type: 'placeActive', handCardId: guestBasic.id } });
   let pub = (await admin.firestore().collection('matches').doc(matchId).get()).data();
   assert.strictEqual(pub.board.player2.active.name, guestBasic.name);
-  assert.strictEqual(pub.handCount.player2, 6);
+  assert.strictEqual(pub.handCount.player2, guestHand.length - 1);
   console.log('PASS: placeActive moves the named hand card onto the board and out of the private hand count');
 
   try {
@@ -93,6 +99,15 @@ async function main() {
   await signInAsPlayer('pvpm-host@example.com');
   const hostHand = await getPrivateHand(matchId, hostUid);
   const hostBasic = hostHand.find(function (c) { return isBasic(c.name, CARD_STATS); });
+
+  try {
+    await submitMatchAction({ matchId: matchId, action: { type: 'placeBench', handCardId: hostBasic.id, benchIndex: 0 } });
+    assert.fail('expected placeBench to be rejected before this side has placed an Active');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: placeBench rejects a side with no Active placed yet');
+  }
+
   await submitMatchAction({ matchId: matchId, action: { type: 'placeActive', handCardId: hostBasic.id } });
   await submitMatchAction({ matchId: matchId, action: { type: 'confirmSetup' } });
   pub = (await admin.firestore().collection('matches').doc(matchId).get()).data();
