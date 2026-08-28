@@ -2891,3 +2891,75 @@ function mkPokemon(id, name, overrides) {
   check('prizesRemaining.player1 still correctly counts down to 5', redactedAfter.public.prizesRemaining.player1, 5);
   check('prizeSlots.player2 is untouched by player1 taking a prize', redactedAfter.public.prizeSlots.player2, [true, true, true, true, true, true]);
 })();
+
+// Rock-paper-scissors: PVP-only opening call, played BEFORE either side
+// places their board (user-requested Yu-Gi-Oh-style house rule, replacing
+// the plain coin flip for real PVP matches specifically).
+(function testCreateGameStartsInRpsPhaseForPvpButSetupForLocalPlay() {
+  var localState = createGame(function () { return 0.5; }, 'overgrowth');
+  check('local play (humanControlled omitted) still starts in setup, unchanged', localState.phase, 'setup');
+  var pvpState = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  check('a real PVP match starts in rps instead', pvpState.phase, 'rps');
+  check('rpsChoices starts with both sides unset', pvpState.rpsChoices, { player: null, cpu: null });
+})();
+
+(function testSubmitRpsChoiceWaitsForBothSidesBeforeResolving() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  submitRpsChoice(state, 'player', 'rock');
+  check('phase stays rps with only one side chosen', state.phase, 'rps');
+  check('activePlayerId is still undecided', state.activePlayerId, null);
+})();
+
+(function testSubmitRpsChoiceTieClearsBothChoicesForARetry() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  submitRpsChoice(state, 'player', 'paper');
+  submitRpsChoice(state, 'cpu', 'paper');
+  check('a tie stays in rps phase', state.phase, 'rps');
+  check('both choices are cleared for a re-prompt', state.rpsChoices, { player: null, cpu: null });
+})();
+
+(function testSubmitRpsChoiceResolvesAWinnerAndMovesToSetup() {
+  // rock beats scissors
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  submitRpsChoice(state, 'player', 'rock');
+  submitRpsChoice(state, 'cpu', 'scissors');
+  check('a real result moves the match into setup', state.phase, 'setup');
+  check('the winner (player, rock beats scissors) is recorded as activePlayerId', state.activePlayerId, 'player');
+  check('rpsChoices is cleared once resolved', state.rpsChoices, { player: null, cpu: null });
+
+  // startMatch(state, predecidedWinner) must reuse this exact result rather
+  // than flipping its own coin -- confirmed with an rng that would otherwise
+  // always pick 'cpu' (coinFlip: rng() < 0.5 -> 'H'/'player'; 0.9 -> 'T'/'cpu').
+  state.rng = function () { return 0.9; };
+  startMatch(state, state.activePlayerId);
+  check('startMatch keeps the RPS-decided winner instead of re-flipping', state.activePlayerId, 'player');
+})();
+
+(function testStartMatchStillFlipsACoinWhenNoWinnerIsPredecided() {
+  // Every existing local-play call site omits the 2nd argument -- confirms
+  // that path is 100% unchanged by the new optional parameter.
+  var state = createGame(function () { return 0.99; }, 'overgrowth'); // rng()=0.99 -> tails -> 'cpu'
+  startMatch(state);
+  check('local play with no predecided winner still coin-flips as before', state.activePlayerId, 'cpu');
+})();
+
+(function testRedactMatchStateNeverExposesTheActualRpsChoiceOnlyWhetherEachSideSubmitted() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  submitRpsChoice(state, 'player', 'rock');
+  var redacted = redactMatchState(state, 'uidHost', 'uidGuest');
+  check('rpsSubmitted correctly reports player1 has chosen', redacted.public.rpsSubmitted, { player1: true, player2: false });
+  checkTrue('the actual committed choice never appears anywhere in the public view', JSON.stringify(redacted.public).indexOf('rock') === -1);
+})();
+
+(function testDrawForTurnStartLogsThirdPersonForBothSidesInPvpButOnlyPlayerLocally() {
+  var pvpState = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  pvpState.log = [];
+  drawForTurnStart(pvpState, 'cpu');
+  check('PVP: the guest (cpu slot) gets a real third-person log line, not silence', pvpState.log.length, 1);
+  check('PVP: the line is attributed to the cpu slot', pvpState.log[0].ownerId, 'cpu');
+
+  var localState = createGame(function () { return 0.5; }, 'overgrowth');
+  localState.log = [];
+  drawForTurnStart(localState, 'cpu');
+  check('local play: the bot (cpu slot) still gets no log line at all, unchanged', localState.log.length, 0);
+})();

@@ -1420,7 +1420,7 @@ function activeColHtml(activeInstance, mine, flipped) {
 
 function sideHeaderHtml(ownerId) {
   var mine = ownerId === 'player';
-  var name = mine ? escapeHtml(playerDisplayName()) : 'CPU';
+  var name = mine ? escapeHtml(playerDisplayName()) : (pvpMode && pvpOpponentName ? escapeHtml(pvpOpponentName) : 'CPU');
   var avatar = mine ? playerPhotoUrl() : PROFILE_PHOTO_URL.cpu;
   var on = gameState.activePlayerId === ownerId;
   return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
@@ -3877,18 +3877,46 @@ function hideMenu() {
 // already available client-side (see registerCustomDecks, ui.js:3309) --
 // deliberately NOT reusing the full Decks screen's rich card list/detail
 // view, just enough to pick a deckId.
+// Same box art/stripe-color/types-label the real "Mi Mazo" screen already
+// uses for these 4 precons (index.html's own static #decksScreen markup) --
+// mirrored here so the PVP picker looks and feels like the rest of the app
+// instead of a plain list of text buttons.
+var PRECON_DECK_ART = {
+  overgrowth: { img: 'Mazos/overgrowth.png', stripe: 'deck-overgrowth', types: 'PLANTA · AGUA' },
+  blackout: { img: 'Mazos/blackout.png', stripe: 'deck-blackout', types: 'AGUA · LUCHA' },
+  zap: { img: 'Mazos/zap.jpg', stripe: 'deck-zap', types: 'RAYO · PSÍQUICO' },
+  brushfire: { img: 'Mazos/brushfire.jpg', stripe: 'deck-brushfire', types: 'FUEGO · PLANTA' }
+};
 function renderPvpDeckPicker(containerId, onPicked) {
   var el = document.getElementById(containerId);
   if (!el) { return; }
+  el.className = 'shell-decks-list shell-pvp-deck-list';
   var options = PRECON_DECK_KEYS.map(function (key) {
-    return { id: key, label: DECK_DISPLAY_NAME[key] || key };
+    var art = PRECON_DECK_ART[key] || {};
+    return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
   });
   var saved = (econState && econState.customDecks) || {};
   CUSTOM_DECK_SLOTS.forEach(function (slot) {
-    if (saved[slot]) { options.push({ id: 'custom:' + slot, label: saved[slot].name }); }
+    if (saved[slot]) {
+      var deck = saved[slot];
+      options.push({
+        id: 'custom:' + slot, label: deck.name, types: 'MAZO PERSONALIZADO',
+        img: deck.coverName && CARD_IMAGE_BY_NAME[deck.coverName]
+      });
+    }
   });
   el.innerHTML = options.map(function (o) {
-    return '<button type="button" class="shell-modal-btn-primary" data-pvp-deck-id="' + escapeHtml(o.id) + '">' + escapeHtml(o.label.toUpperCase()) + '</button>';
+    var artHtml = o.img
+      ? '<div class="shell-deck-card-art"><img src="' + escapeHtml(o.img) + '" alt="" loading="lazy"></div>'
+      : '<div class="shell-deck-card-art shell-deck-card-art-placeholder">' + escapeHtml((o.label || '?').charAt(0).toUpperCase()) + '</div>';
+    return '<button type="button" class="shell-deck-card" data-pvp-deck-id="' + escapeHtml(o.id) + '">' +
+      (o.stripe ? '<div class="shell-deck-card-stripe ' + o.stripe + '"></div>' : '') +
+      artHtml +
+      '<div class="shell-deck-card-body">' +
+        '<div class="shell-deck-card-name">' + escapeHtml((o.label || '').toUpperCase()) + '</div>' +
+        '<div class="shell-deck-card-types">' + escapeHtml(o.types) + '</div>' +
+      '</div>' +
+      '</button>';
   }).join('');
   el.querySelectorAll('[data-pvp-deck-id]').forEach(function (btn) {
     btn.addEventListener('click', function () { onPicked(btn.getAttribute('data-pvp-deck-id')); });
@@ -3917,7 +3945,9 @@ function resetPvpMatchState() {
   pvpActiveMatchId = null;
   pvpMySide = null;
   pvpMatchEnded = false;
+  pvpOpponentName = null;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
+  hideRpsScreen();
 }
 
 // Reshapes {public, myHand} (from initPvpMatchListeners) into the same
@@ -3925,9 +3955,27 @@ function resetPvpMatchState() {
 // to read locally -- 'me'/'opponent' keys stand in for 'player'/'cpu' so
 // none of the existing render code needs to change; wireBoardButtons'
 // PVP guards are the only code that needs to know pvpMySide at all.
+// Real display name for the board's opponent slot in PVP (sideHeaderHtml
+// reads this instead of the hardcoded 'CPU' literal whenever pvpMode is on)
+// -- set by buildPvpGameState below, the only place that has pub.hostUsername/
+// guestUsername available.
+var pvpOpponentName = null;
 function buildPvpGameState(data, mySide) {
   var pub = data.public;
   var oppSide = mySide === 'player1' ? 'player2' : 'player1';
+  pvpOpponentName = (oppSide === 'player1' ? pub.hostUsername : pub.guestUsername) || 'Rival';
+  // "Jugador"/"CPU" in log text always literally mean the host/guest engine
+  // slots respectively (translatePlayer, rules-engine.js -- a fixed
+  // convention, not viewer-relative), so the real-username substitution is
+  // the same fixed mapping for every viewer: host's name always replaces
+  // "Jugador", guest's name always replaces "CPU". Global regex (not a
+  // single replace) since some lines narrate both sides at once (e.g. the
+  // rock-paper-scissors resolution).
+  var hostName = pub.hostUsername || 'Jugador';
+  var guestName = pub.guestUsername || 'Rival';
+  function withRealNames(msg) {
+    return msg.split('Jugador').join(hostName).split('CPU').join(guestName);
+  }
   // Log entries carry ENGINE-internal ownerId ('player' = host, 'cpu' =
   // guest) -- unlike activePlayerId/pendingActiveChoice, redactMatchState
   // does NOT translate these to player1/player2 terms, so the translation
@@ -3973,7 +4021,7 @@ function buildPvpGameState(data, mySide) {
     pendingActiveChoice: pub.pendingActiveChoice === mySide ? 'player' : (pub.pendingActiveChoice === oppSide ? 'cpu' : null),
     log: pub.log.map(function (entry) {
       var translatedOwnerId = entry.ownerId === engineMySide ? 'player' : (entry.ownerId === engineOppSide ? 'cpu' : entry.ownerId);
-      return Object.assign({}, entry, { ownerId: translatedOwnerId });
+      return Object.assign({}, entry, { ownerId: translatedOwnerId, msg: withRealNames(entry.msg) });
     }),
     players: {
       player: boardSide(mySide, data.myHand),
@@ -3991,6 +4039,11 @@ function enterPvpMatch(matchId) {
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
     pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
     pvpMode = true;
+    if (data.public.phase === 'rps') {
+      renderRpsScreen(data.public);
+      return;
+    }
+    hideRpsScreen();
     gameState = buildPvpGameState(data, pvpMySide);
     if (gameState.winner && !pvpMatchEnded) {
       pvpMatchEnded = true;
@@ -4000,6 +4053,26 @@ function enterPvpMatch(matchId) {
     }
   });
   showBoardScreen();
+}
+
+// Rock-paper-scissors: shown instead of the normal board while phase is
+// 'rps' (see createGame/submitRpsChoice, rules-engine.js) -- deliberately
+// reads the raw public doc directly rather than going through
+// buildPvpGameState, since this isn't board state at all. rpsSubmitted is
+// the only thing ever exposed about an in-progress round (never the actual
+// committed choice -- see redactMatchState's own comment on why).
+function renderRpsScreen(pub) {
+  document.getElementById('pvpRpsScreen').classList.remove('hidden');
+  var mySubmitted = pub.rpsSubmitted[pvpMySide];
+  document.getElementById('pvpRpsChoices').classList.toggle('hidden', mySubmitted);
+  document.getElementById('pvpRpsWaiting').classList.toggle('hidden', !mySubmitted);
+  var hostName = pub.hostUsername || 'Jugador';
+  var guestName = pub.guestUsername || 'Rival';
+  document.getElementById('pvpRpsMatchup').textContent = hostName + ' vs ' + guestName;
+}
+function hideRpsScreen() {
+  var el = document.getElementById('pvpRpsScreen');
+  if (el) { el.classList.add('hidden'); }
 }
 
 // ── Tablero de duelo ──────────────────────────────────────────────
@@ -4017,7 +4090,14 @@ function hideBoardScreen() {
 // Configuración, the surrender confirm) closes back to a live match --
 // never while setup/game-over, so it can't resurrect a finished match's clock.
 function resumeGameClockIfNeeded() {
-  if (gameState && gameState.phase === 'playing' && !getWinner(gameState)) { startGameClock(); }
+  if (gameState && gameState.phase === 'playing' && !getWinner(gameState)) {
+    startGameClock();
+    // Resumes (not restarts) the duel track from wherever it was paused --
+    // covers returning here from Configuración, which deliberately plays no
+    // music of its own (stopScreenMusic) while it's open.
+    var bg = document.getElementById('bgMusic');
+    if (bg.paused) { bg.play().catch(function () {}); }
+  }
 }
 
 function initMenuParticles() {
@@ -4145,6 +4225,14 @@ function playScreenMusic(file) {
   bg.currentTime = 0;
   bg.play().catch(function () {});
 }
+// Configuración plays no music of its own, on purpose -- whatever screen
+// the player returns to afterward (showMenu, etc.) already calls
+// playScreenMusic itself and restarts correctly, since this clears
+// currentScreenMusicFile the same way entering a duel does.
+function stopScreenMusic() {
+  currentScreenMusicFile = null;
+  document.getElementById('bgMusic').pause();
+}
 
 // Called once the coin flip actually starts the duel (startMatchBtn) --
 // loops for the whole match, real volume from the Música slider.
@@ -4250,6 +4338,7 @@ var configReturnTo = 'menu';
 
 function showConfigScreen(returnTo) {
   configReturnTo = returnTo;
+  stopScreenMusic();
   document.getElementById('configAccountPhoto').src = playerPhotoUrl();
   document.getElementById('configAccountName').textContent = playerDisplayName();
   document.getElementById('configThemeSelect').value = document.body.classList.contains('light') ? 'light' : 'dark';
@@ -4334,12 +4423,14 @@ document.addEventListener('DOMContentLoaded', function () {
   if (menuPvpBtn) {
     menuPvpBtn.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.remove('hidden');
+      playScreenMusic('Songs/PVP_MUSIC_MATCHMAKING.mp3');
     });
   }
   var pvpModalClose = document.getElementById('pvpModalClose');
   if (pvpModalClose) {
     pvpModalClose.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.add('hidden');
+      playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
     });
   }
 
@@ -4354,6 +4445,7 @@ document.addEventListener('DOMContentLoaded', function () {
         createRoomCloud(deckId).then(function (res) {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+          document.getElementById('pvpCreateWaitingName').textContent = playerDisplayName();
           document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
           startPvpRoomWait(res.roomCode, deckId);
         }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
@@ -4417,6 +4509,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
             document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
             document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+            document.getElementById('pvpCreateWaitingName').textContent = playerDisplayName();
             document.getElementById('pvpRoomCodeDisplay').textContent = code;
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
@@ -4435,6 +4528,13 @@ document.addEventListener('DOMContentLoaded', function () {
       showMenu();
     });
   }
+
+  document.querySelectorAll('#pvpRpsChoices [data-rps-choice]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      submitMatchActionCloud(pvpActiveMatchId, { type: 'submitRpsChoice', choice: btn.getAttribute('data-rps-choice') })
+        .catch(function (err) { alert(err.message || 'No se pudo enviar tu elección.'); });
+    });
+  });
 
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();

@@ -64,6 +64,54 @@ async function main() {
   const readyRes = await setReady({ roomCode: roomCode });
   const matchId = readyRes.data.matchId;
 
+  // A real PVP match starts in 'rps' -- rock-paper-scissors decides who
+  // goes first, BEFORE either side places their board (see rules-engine.js's
+  // createGame/submitRpsChoice). Currently signed in as the guest.
+  let pubAtRps = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+  assert.strictEqual(pubAtRps.phase, 'rps');
+  assert.strictEqual(pubAtRps.rpsSubmitted.player1, false);
+  assert.strictEqual(pubAtRps.rpsSubmitted.player2, false);
+
+  try {
+    await submitMatchAction({ matchId: matchId, action: { type: 'placeActive', handCardId: 'not-a-real-id' } });
+    assert.fail('expected placeActive to be rejected before rps resolves');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: placeActive is rejected while the match is still in the rps phase');
+  }
+
+  // Tie first (both pick 'paper') -- proves a tie stays in rps and clears
+  // both choices for a real re-prompt, instead of resolving arbitrarily.
+  await submitMatchAction({ matchId: matchId, action: { type: 'submitRpsChoice', choice: 'paper' } }); // guest
+  let pubAfterGuestChoice = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+  assert.strictEqual(pubAfterGuestChoice.rpsSubmitted.player2, true, 'guest\'s submission is publicly visible as "submitted", not yet resolved');
+  assert.strictEqual(pubAfterGuestChoice.rpsSubmitted.player1, false);
+  checkPublicDocNeverLeaksRawRpsChoice(pubAfterGuestChoice);
+
+  await signOut(auth);
+  await signInAsPlayer('pvpm-host@example.com');
+  await submitMatchAction({ matchId: matchId, action: { type: 'submitRpsChoice', choice: 'paper' } }); // host, same as guest -> tie
+  const pubAfterTie = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+  assert.strictEqual(pubAfterTie.phase, 'rps', 'a tie does not advance the match');
+  assert.strictEqual(pubAfterTie.rpsSubmitted.player1, false, 'both choices are cleared for a re-prompt');
+  assert.strictEqual(pubAfterTie.rpsSubmitted.player2, false);
+  console.log('PASS: a rock-paper-scissors tie clears both choices instead of resolving arbitrarily');
+
+  // Real result this time: host plays rock, guest plays scissors -> host wins.
+  await submitMatchAction({ matchId: matchId, action: { type: 'submitRpsChoice', choice: 'rock' } }); // host
+  await signOut(auth);
+  await signInAsPlayer('pvpm-guest@example.com');
+  await submitMatchAction({ matchId: matchId, action: { type: 'submitRpsChoice', choice: 'scissors' } }); // guest
+  const pubAfterRps = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+  assert.strictEqual(pubAfterRps.phase, 'setup', 'a real result moves the match into setup');
+  assert.strictEqual(pubAfterRps.activePlayerId, 'player1', 'host (rock) beat guest (scissors) and goes first');
+  console.log('PASS: rock-paper-scissors resolves a real winner and starts setup -- currently signed in as guest');
+
+  function checkPublicDocNeverLeaksRawRpsChoice(pub) {
+    assert.ok(JSON.stringify(pub).indexOf('paper') === -1 && JSON.stringify(pub).indexOf('rock') === -1 && JSON.stringify(pub).indexOf('scissors') === -1,
+      'the actual committed rps choice never appears anywhere in the public doc while unresolved');
+  }
+
   try {
     await submitMatchAction({ matchId: matchId, action: { type: 'placeActive', handCardId: 'not-a-real-id' } });
     assert.fail('expected placing an unowned card to be rejected');
@@ -166,7 +214,8 @@ async function main() {
     assert.fail('expected the player who just ended their turn to be rejected calling endTurn again immediately');
   } catch (e) {
     assert.strictEqual(e.code, 'functions/failed-precondition');
-    console.log('PASS: endTurn rejects a call from the side that no longer holds the turn');
+    assert.strictEqual(e.message, 'No puedes jugar, aún no es tu turno.');
+    console.log('PASS: endTurn rejects a call from the side that no longer holds the turn, with the specific requested message');
   }
 
   // --- vanilla attack -> KO -> prize -> winner, contrived board state ---

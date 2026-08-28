@@ -1055,9 +1055,10 @@
         <p class="shell-modal-title">ELEGÍ TU MAZO</p>
         <div id="pvpCreateDeckList"></div>
       </div>
-      <div id="pvpCreateWaiting" class="hidden">
-        <p class="shell-modal-title">ESPERANDO RIVAL…</p>
-        <div id="pvpRoomCodeDisplay" style="font-size:48px;letter-spacing:.2em;"></div>
+      <div id="pvpCreateWaiting" class="hidden shell-pvp-waiting">
+        <p class="shell-modal-title">ESPERANDO A UN RIVAL…</p>
+        <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
+        <div class="shell-pvp-room-code" id="pvpRoomCodeDisplay"></div>
         <div class="shell-loading-spinner"></div>
       </div>
       <button type="button" class="shell-modal-btn" id="pvpCreateBackBtn">VOLVER</button>
@@ -1076,6 +1077,26 @@
         <div id="pvpJoinDeckList"></div>
       </div>
       <button type="button" class="shell-modal-btn" id="pvpJoinBackBtn">VOLVER</button>
+    </div></div>
+  </div>
+
+  <!-- Rock-paper-scissors: decides who goes first, BEFORE either side places
+       their opening board -- shown whenever a PVP match's phase is 'rps'
+       (see rules-engine.js's createGame/submitRpsChoice). -->
+  <div id="pvpRpsScreen" class="hidden">
+    <div class="shell-viewport"><div class="shell-stage">
+      <p class="shell-modal-title">PIEDRA, PAPEL O TIJERA</p>
+      <p class="shell-pvp-rps-subtitle">Quien gana empieza la partida</p>
+      <p class="shell-pvp-rps-matchup" id="pvpRpsMatchup"></p>
+      <div id="pvpRpsChoices" class="shell-pvp-rps-choices">
+        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="rock"><span>✊</span>PIEDRA</button>
+        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="paper"><span>✋</span>PAPEL</button>
+        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="scissors"><span>✌️</span>TIJERA</button>
+      </div>
+      <div id="pvpRpsWaiting" class="hidden shell-pvp-waiting">
+        <p class="shell-modal-title">ESPERANDO A TU RIVAL…</p>
+        <div class="shell-loading-spinner"></div>
+      </div>
     </div></div>
   </div>
 

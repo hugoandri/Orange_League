@@ -77,13 +77,52 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #pvpJoinScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+/* Rock-paper-scissors -- same full-screen-overlay pattern as every other
+   screen above (see the room screens' own comment). */
+#pvpRpsScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#pvpRpsScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
 /* Sub-panels inside those two screens (deck picker / waiting-for-rival /
    code-entry step) -- same plain display:none idiom already used for other
    screens' own inner sub-panels (see .shell-trainer-played.hidden,
    .shell-attack-overlay.hidden in shell-theme.css), not the animated
    opacity/visibility pair above (only the full-screen surface needs that). */
 #pvpCreateDeckPicker.hidden,#pvpCreateWaiting.hidden,
-#pvpJoinCodeStep.hidden,#pvpJoinDeckPicker.hidden{display:none;}
+#pvpJoinCodeStep.hidden,#pvpJoinDeckPicker.hidden,
+#pvpRpsChoices.hidden,#pvpRpsWaiting.hidden{display:none;}
+
+/* .shell-stage is a fixed 1920x1080 absolutely-positioned canvas with no
+   centering of its own (every other screen that uses it lays out its own
+   content with absolute positions or a .shell-page wrapper) -- these 3
+   screens are simple enough to just flex-center directly, scoped to only
+   these ids so no other screen's .shell-stage usage is affected. */
+#pvpCreateScreen .shell-stage,#pvpJoinScreen .shell-stage,#pvpRpsScreen .shell-stage{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+}
+#pvpCreateDeckList,#pvpJoinDeckList{display:flex;flex-direction:column;gap:14px;width:640px;max-height:640px;overflow-y:auto;}
+/* Reused for the PVP deck picker instead of the "Mi Mazo" screen's own
+   grid, so a real <button> here (native keyboard activation, unlike the
+   real Decks screen's div[role=button] cards) doesn't pick up default
+   browser button chrome -- .shell-deck-card already sets its own
+   background/border/display:flex, this just neutralizes the rest. */
+button.shell-deck-card{margin:0;width:100%;font:inherit;color:inherit;text-align:left;appearance:none;-webkit-appearance:none;}
+
+.shell-pvp-waiting{display:flex;flex-direction:column;align-items:center;gap:16px;}
+.shell-pvp-waiting-name{font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.08em;color:#8dff62;margin:0;}
+.shell-pvp-room-code{font-family:'Pixelify Sans',sans-serif;font-size:48px;letter-spacing:.3em;color:#efe9dd;text-shadow:0 0 24px rgba(141,255,98,.5);}
+
+.shell-pvp-rps-subtitle{font-family:'Silkscreen',monospace;font-size:12px;letter-spacing:.08em;color:#a49785;margin:0;}
+.shell-pvp-rps-matchup{font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.06em;color:#efe9dd;margin:0;}
+.shell-pvp-rps-choices{display:flex;gap:20px;}
+.shell-pvp-rps-btn{
+  display:flex;flex-direction:column;align-items:center;gap:10px;width:150px;padding:24px 12px;cursor:pointer;
+  background:linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 4px 0 #110f0c,0 8px 16px rgba(0,0,0,.4);
+  font-family:'Silkscreen',monospace;font-size:12px;letter-spacing:.08em;color:#efe9dd;transition:filter .12s;
+}
+.shell-pvp-rps-btn span{font-size:44px;}
+.shell-pvp-rps-btn:hover{filter:brightness(1.25);}
 
 /* ===================== MODALS ===================== */
 /* Visual styling for every modal's content now lives in shell-theme.css

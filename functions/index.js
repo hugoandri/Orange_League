@@ -967,10 +967,21 @@ async function validateDeckId(uid, deckId) {
   }
 }
 
+// Real display name for the room's own two participants -- players can
+// only ever read their OWN users/{uid} doc (firestore.rules), so the
+// opponent's username has to be captured server-side (Admin SDK bypasses
+// that rule) and carried on the room/match docs themselves, rather than
+// ever asking the client to read it directly.
+async function fetchUsername(uid) {
+  const snap = await admin.firestore().collection('users').doc(uid).get();
+  return (snap.data() || {}).username || 'Jugador';
+}
+
 exports.createRoom = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
   const deckId = (request.data || {}).deckId;
   await validateDeckId(request.auth.uid, deckId);
+  const hostUsername = await fetchUsername(request.auth.uid);
 
   const db = admin.firestore();
   let roomCode;
@@ -985,8 +996,8 @@ exports.createRoom = onCall(async (request) => {
     }
     if (!roomCode) { throw new HttpsError('internal', 'No se pudo generar un código de sala.'); }
     tx.set(db.collection('rooms').doc(roomCode), {
-      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
-      guestUid: null, guestDeckId: null, guestReady: false,
+      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false, hostUsername: hostUsername,
+      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null,
       status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
     });
   });
@@ -999,6 +1010,7 @@ exports.joinRoom = onCall(async (request) => {
   const roomCode = (data.roomCode || '').trim().toUpperCase();
   const deckId = data.deckId;
   await validateDeckId(request.auth.uid, deckId);
+  const guestUsername = await fetchUsername(request.auth.uid);
 
   const db = admin.firestore();
   const roomRef = db.collection('rooms').doc(roomCode);
@@ -1015,7 +1027,7 @@ exports.joinRoom = onCall(async (request) => {
     if (room.status !== 'waiting' || room.guestUid) {
       throw new HttpsError('failed-precondition', 'Esa sala ya está llena o ya empezó.');
     }
-    tx.update(roomRef, { guestUid: request.auth.uid, guestDeckId: deckId });
+    tx.update(roomRef, { guestUid: request.auth.uid, guestDeckId: deckId, guestUsername: guestUsername });
   });
   return { roomCode: roomCode };
 });
@@ -1112,7 +1124,14 @@ exports.setReady = onCall(async (request) => {
 
     const state = createGame(Math.random, hostDeckKey, { player: true, cpu: true }, guestDeckKey);
     const redacted = redactMatchState(state, freshRoom.hostUid, freshRoom.guestUid);
-    tx.set(matchRef, redacted.public);
+    // Real usernames aren't part of the engine's own state (redactMatchState
+    // has no concept of them) -- carried on the match doc itself, straight
+    // from the room doc that already captured them at create/join time. The
+    // client substitutes these for "Jugador"/"CPU" in board labels and log
+    // text (buildPvpGameState, ui.js).
+    tx.set(matchRef, Object.assign({}, redacted.public, {
+      hostUsername: freshRoom.hostUsername, guestUsername: freshRoom.guestUsername
+    }));
     tx.set(matchRef.collection('private').doc(freshRoom.hostUid), redacted.private[freshRoom.hostUid]);
     tx.set(matchRef.collection('private').doc(freshRoom.guestUid), redacted.private[freshRoom.guestUid]);
     // state.rng is the literal Math.random function reference createGame
@@ -1127,7 +1146,17 @@ exports.setReady = onCall(async (request) => {
   return { ready: true, matchId: matchRef.id };
 });
 
-const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive, canAttack, attack } = require('./lib/rulesEngine');
+const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive, canAttack, attack, submitRpsChoice } = require('./lib/rulesEngine');
+
+// Shared by every action below that only ever makes sense on the acting
+// side's own turn -- gives one specific, consistent rejection message
+// instead of each case's own generic "can't do that here" text, which
+// could also fire for unrelated reasons (bad target, insufficient energy,
+// ...). Deliberately excludes placeActive/placeBench during 'setup' (both
+// sides act simultaneously there, no turn order yet), confirmSetup/
+// submitRpsChoice/takePrize/chooseActive (none of these are turn-gated --
+// each has its own specific pending-state check instead).
+const TURN_GATED_ACTIONS = ['placeActive', 'placeBench', 'evolve', 'attachEnergy', 'retreat', 'endTurn', 'attack'];
 // ATTACK_EFFECTS is already required + bound to global above (I5 fix),
 // before ./lib/rulesEngine is first required -- no need to require it again.
 
@@ -1174,7 +1203,11 @@ function persistMatchState(tx, matchRef, state, hostUid, guestUid) {
   // Null out state.rng again before writing -- mirrors setReady's exact
   // pattern above -- Firestore can't serialize a function value.
   tx.set(matchRef.collection('serverOnly').doc('state'), { state: Object.assign({}, state, { rng: null }) });
-  tx.set(matchRef, redacted.public);
+  // merge:true -- redactMatchState's output never includes hostUsername/
+  // guestUsername (setReady is the only writer of those two fields, once,
+  // at match creation); a bare tx.set here would otherwise wipe them out on
+  // literally the very next action taken.
+  tx.set(matchRef, redacted.public, { merge: true });
   tx.set(matchRef.collection('private').doc(hostUid), redacted.private[hostUid]);
   tx.set(matchRef.collection('private').doc(guestUid), redacted.private[guestUid]);
 }
@@ -1203,6 +1236,13 @@ exports.submitMatchAction = onCall(async (request) => {
     // another ordinary action" (activePlayerId unchanged). See that guard's
     // comment for why this distinction is required.
     const activeBefore = state.activePlayerId;
+
+    // One specific, user-facing message for "you tried to act but it isn't
+    // your turn" -- covers every turn-gated action uniformly, before any
+    // individual case's own (more generic) legality check ever runs.
+    if (TURN_GATED_ACTIONS.indexOf(action.type) !== -1 && state.phase === 'playing' && activeBefore !== side) {
+      throw new HttpsError('failed-precondition', 'No puedes jugar, aún no es tu turno.');
+    }
 
     switch (action.type) {
       case 'placeActive': {
@@ -1259,7 +1299,11 @@ exports.submitMatchAction = onCall(async (request) => {
         state.setupConfirmed = state.setupConfirmed || { player: false, cpu: false };
         state.setupConfirmed[side] = true;
         if (state.setupConfirmed.player && state.setupConfirmed.cpu) {
-          startMatch(state);
+          // A real PVP match already decided this via rock-paper-scissors
+          // (submitRpsChoice, before setup even started) -- state.activePlayerId
+          // already holds that winner, so pass it straight through instead
+          // of letting startMatch flip its own coin.
+          startMatch(state, state.activePlayerId);
         }
         break;
       }
@@ -1326,6 +1370,16 @@ exports.submitMatchAction = onCall(async (request) => {
           throw new HttpsError('failed-precondition', 'Ese ataque todavía no está disponible en PVP (Fase 2).');
         }
         attack(state, side, action.attackName);
+        break;
+      }
+      case 'submitRpsChoice': {
+        if (state.phase !== 'rps') {
+          throw new HttpsError('failed-precondition', 'La partida no está en la fase de piedra, papel o tijera.');
+        }
+        if (['rock', 'paper', 'scissors'].indexOf(action.choice) === -1) {
+          throw new HttpsError('invalid-argument', 'Elección inválida.');
+        }
+        submitRpsChoice(state, side, action.choice);
         break;
       }
       case 'chooseActive': {

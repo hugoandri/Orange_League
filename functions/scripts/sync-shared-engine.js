@@ -25,7 +25,8 @@ const FILES = [
     'evolve', 'canAttachEnergy', 'attachEnergy', 'canRetreat', 'retreat',
     'takePrize', 'chooseNewActive', 'canAttack', 'attack',
     'applyEndOfTurnCheckup', 'endTurn', 'drawForTurnStart', 'getWinner',
-    'redactMatchState', 'remainingPrizes', 'benchCount', 'findInstance'
+    'redactMatchState', 'remainingPrizes', 'benchCount', 'findInstance',
+    'submitRpsChoice'
   ]],
   ['card-effects.js', 'cardEffects.js', ['ATTACK_EFFECTS', 'TRAINER_EFFECTS', 'POKEMON_POWER_EFFECTS']]
 ];

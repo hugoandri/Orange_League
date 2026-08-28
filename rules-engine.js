@@ -70,7 +70,17 @@ function drawForTurnStart(state, playerId) {
   }
   drawCard(state, playerId, 1);
   state.turnDrewCard = true;
-  if (playerId === 'player') { logEvent(state, 'Tu Turno - Robas 1 Carta', 'player'); }
+  if (state.humanControlled.cpu) {
+    // PVP: both sides are real players sharing one log, so this needs
+    // third-person, name-attributed phrasing on both sides (the client
+    // substitutes each side's real username for "Jugador"/"CPU" -- see
+    // buildPvpGameState, ui.js) instead of the local-only, second-person
+    // "Tu Turno" wording below, which only makes sense addressed to
+    // whoever's actually sitting at this browser.
+    logEvent(state, translatePlayer(playerId) + ' - Roba 1 Carta', playerId);
+  } else if (playerId === 'player') {
+    logEvent(state, 'Tu Turno - Robas 1 Carta', 'player');
+  }
 }
 
 function dealOpeningHand(state, playerId) {
@@ -132,8 +142,24 @@ function createGame(rng, playerDeckKey, humanControlled, cpuDeckKey) {
     : otherDeckKeys[Math.floor(rng() * otherDeckKeys.length)];
   var state = {
     turnCounter: 1,
-    activePlayerId: null, // decided by startMatch()'s coin flip, once both sides have set up
-    phase: 'setup', // 'setup' until startMatch() is called, then 'playing'
+    activePlayerId: null, // decided by startMatch()'s coin flip (local) or the RPS result (PVP), once both sides have set up
+    // Local play (humanControlled.cpu false, the default) starts straight in
+    // 'setup', exactly as before this field existed. A real PVP match starts
+    // in 'rps' instead -- real Pokémon-TCG-adjacent house rule requested for
+    // this app: rock-paper-scissors decides who goes first, BEFORE either
+    // side even places their opening board, same relative ordering as a real
+    // Yu-Gi-Oh duel's opening call. submitRpsChoice() below resolves this and
+    // transitions to 'setup' once there's a winner (re-prompting both sides
+    // on a tie). 'playing' still only ever starts via startMatch().
+    phase: (humanControlled && humanControlled.cpu) ? 'rps' : 'setup',
+    // { player: 'rock'|'paper'|'scissors'|null, cpu: ...|null } while phase
+    // is 'rps' -- deliberately never exposed by redactMatchState (a
+    // committed-but-not-yet-revealed choice is exactly the kind of hidden
+    // information this game's whole Firestore split exists to protect;
+    // only whether each side HAS submitted is public, see
+    // redactMatchState's rpsSubmitted). Unused outside 'rps', harmless to
+    // always initialize.
+    rpsChoices: { player: null, cpu: null },
     pendingPrizeChoice: null, // { playerId: 'player'|'cpu', count: N } while that side must pick prize card(s) -- either side can populate this once humanControlled makes 'cpu' a real player too
     pendingActiveChoice: null, // 'player'|'cpu' while that side must pick which Bench Pokémon becomes their new Active
     // Whether each side is a real human waiting to be asked, vs. today's
@@ -172,10 +198,17 @@ function createGame(rng, playerDeckKey, humanControlled, cpuDeckKey) {
 // Bench) during the 'setup' phase. Flips a coin to decide who takes the
 // first turn -- heads the player, tails the CPU -- and switches the game
 // into 'playing'. Turn 1 begins immediately after for whoever won the flip.
-function startMatch(state) {
+// predecidedWinner (optional, 'player'|'cpu'): a PVP match already settled
+// this via rock-paper-scissors (submitRpsChoice, below) before setup ever
+// started -- pass its result straight through instead of flipping again.
+// Omitted (every local-play call site) preserves the exact original coin
+// flip, rng() called exactly as before.
+function startMatch(state, predecidedWinner) {
   state.phase = 'playing';
   state.turnCounter = 1;
-  state.activePlayerId = coinFlip(state) === 'H' ? 'player' : 'cpu';
+  state.activePlayerId = (predecidedWinner === 'player' || predecidedWinner === 'cpu')
+    ? predecidedWinner
+    : (coinFlip(state) === 'H' ? 'player' : 'cpu');
   // "match-start" gets the same bigger/bolder log styling as "turn-end"
   // (see logHtml, ui.js) -- who actually won the coin flip used to be
   // easy to miss, sitting in the log at the same small size as everything
@@ -183,6 +216,35 @@ function startMatch(state) {
   // "TURNO DEL RIVAL") also fires and then quickly fades.
   logEvent(state, (state.activePlayerId === 'player' ? 'Jugador' : 'CPU') + ' empieza la partida', state.activePlayerId, 'match-start');
   drawForTurnStart(state, state.activePlayerId);
+}
+
+// PVP-only (phase 'rps', humanControlled.cpu true) -- rock-paper-scissors
+// decides who goes first, played BEFORE either side places their opening
+// board (see createGame's own comment on why 'rps' is the very first phase
+// for a real match). Each side calls this once per round via
+// submitMatchAction's submitRpsChoice case; resolves once BOTH sides have
+// chosen -- a tie clears both choices for a re-prompt, a real result sets
+// activePlayerId and moves the match into 'setup'. Deliberately does
+// nothing local play ever calls.
+var RPS_BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+var RPS_LABEL_ES = { rock: 'Piedra', paper: 'Papel', scissors: 'Tijera' };
+function submitRpsChoice(state, playerId, choice) {
+  state.rpsChoices[playerId] = choice;
+  var mine = state.rpsChoices.player;
+  var theirs = state.rpsChoices.cpu;
+  if (!mine || !theirs) { return; } // still waiting on the other side
+  if (mine === theirs) {
+    logEvent(state, 'Empate en piedra, papel o tijera (ambos eligieron ' + RPS_LABEL_ES[mine] + ') -- vuelven a elegir.', null);
+    state.rpsChoices.player = null;
+    state.rpsChoices.cpu = null;
+    return;
+  }
+  var winner = RPS_BEATS[mine] === theirs ? 'player' : 'cpu';
+  logEvent(state, translatePlayer('player') + ' eligió ' + RPS_LABEL_ES[mine] + ', ' + translatePlayer('cpu') + ' eligió ' + RPS_LABEL_ES[theirs] + '. ' + translatePlayer(winner) + ' gana la tirada y empieza.', null, 'match-start');
+  state.activePlayerId = winner;
+  state.phase = 'setup';
+  state.rpsChoices.player = null;
+  state.rpsChoices.cpu = null;
 }
 
 function makeFreshInstance(id, name, turnCounter) {
@@ -1204,6 +1266,12 @@ function redactMatchState(state, side1Uid, side2Uid) {
       ? { side: state.pendingPrizeChoice.playerId === 'player' ? 'player1' : 'player2', count: state.pendingPrizeChoice.count }
       : null,
     pendingActiveChoice: state.pendingActiveChoice === 'player' ? 'player1' : (state.pendingActiveChoice === 'cpu' ? 'player2' : null),
+    // Only WHETHER each side has committed a rock/paper/scissors choice --
+    // never the choice itself, which stays server-only (state.rpsChoices)
+    // until submitRpsChoice resolves it (the resolution's own logEvent line
+    // is what reveals both choices, at the one moment it's no longer
+    // sensitive -- both sides have already committed by then).
+    rpsSubmitted: { player1: !!state.rpsChoices.player, player2: !!state.rpsChoices.cpu },
     log: state.log.slice()
   };
   var privateViews = {};
