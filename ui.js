@@ -1083,6 +1083,13 @@ function renderActiveChoiceModal() {
   }).join('');
   grid.querySelectorAll('.shell-active-choice-card').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (pvpMode) {
+        var chosenInstanceId = btn.getAttribute('data-instance-id');
+        var chosenBenchIndex = gameState.players.player.bench.findIndex(function (b) { return b && b.id === chosenInstanceId; });
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'chooseActive', benchIndex: chosenBenchIndex, benchInstanceId: chosenInstanceId })
+          .catch(function (err) { alert(err.message || 'No se pudo elegir Activo.'); });
+        return;
+      }
       chooseNewActive(gameState, 'player', btn.getAttribute('data-instance-id'));
       afterPlayerAction();
       // Now that the choice is made and the modal is closing, show whatever
@@ -1121,6 +1128,11 @@ function renderPrizeChoiceModal() {
   grid.querySelectorAll('.shell-prize-choice-slot:not(.taken)').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var index = parseInt(btn.getAttribute('data-prize-index'), 10);
+      if (pvpMode) {
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'takePrize', prizeIndex: index })
+          .catch(function (err) { alert(err.message || 'No se pudo tomar el premio.'); });
+        return;
+      }
       var wonCard = gameState.players.player.prizes[index];
       var wonCardName = wonCard && wonCard.name;
       takePrize(gameState, 'player', index);
@@ -2033,6 +2045,11 @@ function wireBoardButtons() {
   var startMatchBtn = document.getElementById('startMatchBtn');
   if (startMatchBtn) {
     startMatchBtn.addEventListener('click', function () {
+      if (pvpMode) {
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmSetup' })
+          .catch(function (err) { alert(err.message || 'No se pudo confirmar.'); });
+        return;
+      }
       if (gameState.phase === 'setup' && gameState.players.player.active) {
         startMatch(gameState);
         startGameClock();
