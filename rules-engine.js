@@ -1188,6 +1188,16 @@ function redactMatchState(state, side1Uid, side2Uid) {
       player2: c.discard.map(function (card) { return { name: card.name }; })
     },
     prizesRemaining: { player1: remainingPrizes(p), player2: remainingPrizes(c) },
+    // Fixed 6-slot presence mask (true = still there, false = already
+    // taken/null in the real array) -- p.prizes/c.prizes are NEVER
+    // compacted (a taken prize is set to null IN PLACE, see takePrize/
+    // attack's knockOut prize-award branch), so a client rebuilding its own
+    // local prizes array needs this mask to keep matching indices with the
+    // server's real fixed-slot layout. prizesRemaining alone (just a count)
+    // isn't enough once the FIRST prize is taken -- see final-review fix
+    // I1: a naive `new Array(count).fill({})` compacts, desyncing every
+    // subsequent takePrize click's index from the server's real slot.
+    prizeSlots: { player1: p.prizes.map(function (card) { return !!card; }), player2: c.prizes.map(function (card) { return !!card; }) },
     deckCount: { player1: p.deck.length, player2: c.deck.length },
     handCount: { player1: p.hand.length, player2: c.hand.length },
     pendingPrizeChoice: state.pendingPrizeChoice

@@ -2869,3 +2869,25 @@ function mkPokemon(id, name, overrides) {
   check('view.damage is the real damage', view.damage, 20);
   check('view.attachedEnergy is the real attached energy', view.attachedEnergy, ['Fire']);
 })();
+
+// Final-review fix I1: p.prizes/c.prizes are a FIXED 6-slot array (a taken
+// prize is set to null IN PLACE, never spliced out -- see takePrize/
+// knockOutIfNeeded's own prize-award branch) -- redactMatchState's
+// prizeSlots mask has to keep matching that real fixed-slot layout even
+// after prizes are taken, not just report a shrinking count, or a client
+// rebuilding a compacted array desyncs its prizeIndex from the server's
+// real slot the instant the first prize is taken.
+(function testRedactMatchStatePrizeSlotsStaysAFixedSixSlotMaskAsPrizesAreTaken() {
+  var state = createGame(function () { return 0.5; }, 'overgrowth', { player: true, cpu: true });
+  var redactedBefore = redactMatchState(state, 'uidHost', 'uidGuest');
+  check('prizeSlots.player1 starts as all 6 slots present', redactedBefore.public.prizeSlots.player1, [true, true, true, true, true, true]);
+  check('prizeSlots.player2 starts as all 6 slots present', redactedBefore.public.prizeSlots.player2, [true, true, true, true, true, true]);
+
+  // Take specifically slot index 2 (not slot 0) -- proves the mask tracks
+  // the REAL slot position, not just how many remain.
+  takePrize(state, 'player', 2);
+  var redactedAfter = redactMatchState(state, 'uidHost', 'uidGuest');
+  check('prizeSlots.player1 has exactly slot 2 now false, all others still true', redactedAfter.public.prizeSlots.player1, [true, true, false, true, true, true]);
+  check('prizesRemaining.player1 still correctly counts down to 5', redactedAfter.public.prizesRemaining.player1, 5);
+  check('prizeSlots.player2 is untouched by player1 taking a prize', redactedAfter.public.prizeSlots.player2, [true, true, true, true, true, true]);
+})();
