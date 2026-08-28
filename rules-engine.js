@@ -1145,7 +1145,18 @@ function publicPokemonView(instance) {
     name: instance.name,
     damage: instance.damage,
     statusConditions: instance.statusConditions.slice(),
-    attachedEnergy: instance.attachedEnergy.slice()
+    attachedEnergy: instance.attachedEnergy.slice(),
+    // Legitimately public information -- visible board state an opponent
+    // can see (status/lock badges) in the real game, same reasoning as the
+    // id field above. canAttack() reads lockedAttacks/tempLockedAttack
+    // unconditionally for every attack (including vanilla ones), and
+    // evolutionTimingAllowed() reads turnEnteredCurrentForm -- without
+    // these, both are silently broken for every PVP match (canAttack always
+    // throws, canEvolve's timing check always evaluates false since
+    // `undefined < turnCounter` is always false in JS).
+    lockedAttacks: instance.lockedAttacks.slice(),
+    tempLockedAttack: instance.tempLockedAttack,
+    turnEnteredCurrentForm: instance.turnEnteredCurrentForm
   };
 }
 

@@ -3570,6 +3570,10 @@ var pvpActiveMatchId = null;
 var pvpMySide = null; // 'player1' | 'player2'
 var pvpMatchUnsubscribe = null;
 var pvpMode = false;
+// Firestore's onSnapshot can re-deliver a snapshot after the match has
+// already ended (e.g. on reconnect) -- guards finishMatch/awardMatchResultCloud
+// against firing more than once for the same match.
+var pvpMatchEnded = false;
 
 // Reshapes {public, myHand} (from initPvpMatchListeners) into the same
 // gameState shape renderBoard()/showAttackOverlay()/etc. already know how
@@ -3579,11 +3583,22 @@ var pvpMode = false;
 function buildPvpGameState(data, mySide) {
   var pub = data.public;
   var oppSide = mySide === 'player1' ? 'player2' : 'player1';
+  // Log entries carry ENGINE-internal ownerId ('player' = host, 'cpu' =
+  // guest) -- unlike activePlayerId/pendingActiveChoice, redactMatchState
+  // does NOT translate these to player1/player2 terms, so the translation
+  // here has to use the engine-side mapping instead of the player1/player2
+  // one everything else in this function uses. For the host (mySide ===
+  // 'player1', engineMySide === 'player') this is a no-op (player->player,
+  // cpu->cpu); only the guest's view actually swaps 'player'/'cpu' so their
+  // own actions show as "mine" (green) instead of "rival" (red).
+  var engineMySide = mySide === 'player1' ? 'player' : 'cpu';
+  var engineOppSide = engineMySide === 'player' ? 'cpu' : 'player';
   function boardSide(sideKey, hand) {
     var b = pub.board[sideKey];
     return {
       active: b.active, bench: b.bench, hand: hand || [],
       discard: pub.discard[sideKey], prizes: new Array(pub.prizesRemaining[sideKey]).fill({}),
+      deck: new Array(pub.deckCount[sideKey]).fill({}),
       hasHadActive: !!b.active || pub.turnCounter > 1
     };
   }
@@ -3591,9 +3606,13 @@ function buildPvpGameState(data, mySide) {
     phase: pub.phase,
     turnCounter: pub.turnCounter,
     activePlayerId: pub.activePlayerId === mySide ? 'player' : 'cpu',
+    winner: pub.winner === mySide ? 'player' : (pub.winner === oppSide ? 'cpu' : null),
     pendingPrizeChoice: pub.pendingPrizeChoice ? { playerId: pub.pendingPrizeChoice.side === mySide ? 'player' : 'cpu', count: pub.pendingPrizeChoice.count } : null,
     pendingActiveChoice: pub.pendingActiveChoice === mySide ? 'player' : (pub.pendingActiveChoice === oppSide ? 'cpu' : null),
-    log: pub.log,
+    log: pub.log.map(function (entry) {
+      var translatedOwnerId = entry.ownerId === engineMySide ? 'player' : (entry.ownerId === engineOppSide ? 'cpu' : entry.ownerId);
+      return Object.assign({}, entry, { ownerId: translatedOwnerId });
+    }),
     players: {
       player: boardSide(mySide, data.myHand),
       cpu: boardSide(oppSide, null) // opponent's hand contents never arrive client-side at all
@@ -3603,6 +3622,7 @@ function buildPvpGameState(data, mySide) {
 
 function enterPvpMatch(matchId) {
   pvpActiveMatchId = matchId;
+  pvpMatchEnded = false;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
@@ -3610,7 +3630,12 @@ function enterPvpMatch(matchId) {
     pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
     pvpMode = true;
     gameState = buildPvpGameState(data, pvpMySide);
-    renderBoard();
+    if (gameState.winner && !pvpMatchEnded) {
+      pvpMatchEnded = true;
+      finishMatch(gameState.winner);
+    } else if (!gameState.winner) {
+      renderBoard();
+    }
   });
   showBoardScreen();
 }
