@@ -3663,9 +3663,26 @@ function buildPvpGameState(data, mySide) {
   var engineOppSide = engineMySide === 'player' ? 'cpu' : 'player';
   function boardSide(sideKey, hand) {
     var b = pub.board[sideKey];
+    // prizes: p.prizes/c.prizes are a FIXED 6-slot array server-side (a
+    // taken prize is set to null IN PLACE, never spliced out -- see
+    // rules-engine.js's takePrize/knockOutIfNeeded and its own comment on
+    // remainingPrizes) -- the prize-choice modal sends the CLIENT array's
+    // index straight back as prizeIndex, so rebuilding a merely-compacted
+    // array here (one entry per remaining prize) would desync from the
+    // server's real slot indices the instant the FIRST prize is taken.
+    // pub.prizeSlots is the per-slot presence mask redactMatchState emits
+    // for exactly this reason -- rebuild the same 6-length sparse shape.
+    var prizes = pub.prizeSlots[sideKey].map(function (present) { return present ? {} : null; });
+    // hand: the opponent's real hand contents never reach this client at
+    // all (hand is always null for that side, see the boardSide(oppSide,
+    // null) call below) -- but their real hand SIZE is public information
+    // (pub.handCount), so populate that many face-down placeholders instead
+    // of an always-empty array, matching how the CPU's hand already renders
+    // face-down locally today.
+    var handArr = hand || new Array(pub.handCount[sideKey]).fill({ id: null, name: null });
     return {
-      active: b.active, bench: b.bench, hand: hand || [],
-      discard: pub.discard[sideKey], prizes: new Array(pub.prizesRemaining[sideKey]).fill({}),
+      active: b.active, bench: b.bench, hand: handArr,
+      discard: pub.discard[sideKey], prizes: prizes,
       deck: new Array(pub.deckCount[sideKey]).fill({}),
       hasHadActive: !!b.active || pub.turnCounter > 1
     };
