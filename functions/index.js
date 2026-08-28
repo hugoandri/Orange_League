@@ -583,7 +583,8 @@ exports.setReady = onCall(async (request) => {
   return { ready: true, matchId: matchRef.id };
 });
 
-const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive } = require('./lib/rulesEngine');
+const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive, canAttack, attack } = require('./lib/rulesEngine');
+const { ATTACK_EFFECTS } = require('./lib/cardEffects');
 
 // Loads a match's full serverOnly state and resolves which engine slot
 // ('player'/'cpu') the calling uid actually is. Every action handler below
@@ -755,6 +756,24 @@ exports.submitMatchAction = onCall(async (request) => {
           throw new HttpsError('invalid-argument', 'Índice de premio inválido.');
         }
         takePrize(state, side, action.prizeIndex);
+        break;
+      }
+      case 'attack': {
+        if (!canAttack(state, side, action.attackName)) {
+          throw new HttpsError('failed-precondition', 'No puedes usar ese ataque ahora.');
+        }
+        // Fase 1 only supports the generic damage-only attack path -- any
+        // attack with a real ATTACK_EFFECTS entry (coin flips, status
+        // conditions, self-damage, targeting, ...) is Fase 2 territory and
+        // must be rejected here, BEFORE attack() ever runs, rather than
+        // silently falling back to vanilla damage. Keyed off the
+        // ATTACKER's own name (not the defender's, not the side) since
+        // ATTACK_EFFECTS is indexed by Pokemon name -> attack name.
+        const attackerName = state.players[side].active.name;
+        if (ATTACK_EFFECTS[attackerName] && ATTACK_EFFECTS[attackerName][action.attackName]) {
+          throw new HttpsError('failed-precondition', 'Ese ataque todavía no está disponible en PVP (Fase 2).');
+        }
+        attack(state, side, action.attackName);
         break;
       }
       case 'chooseActive': {

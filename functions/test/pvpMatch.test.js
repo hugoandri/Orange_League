@@ -169,7 +169,105 @@ async function main() {
     console.log('PASS: endTurn rejects a call from the side that no longer holds the turn');
   }
 
-  console.log('ALL PVP MATCH TESTS PASSED (setup + generic turn actions)');
+  // --- vanilla attack -> KO -> prize -> winner, contrived board state ---
+  // Directly manipulating serverOnly/state via the Admin SDK to force a
+  // deterministic lethal setup (real gameplay RNG makes "attack for exactly
+  // lethal damage" hard to arrange from a real shuffled match) is the
+  // pragmatic approach here -- every other functions test file in this repo
+  // that needs a specific board state does the same (see
+  // rareOdds.test.js's pattern of seeding exact Firestore docs directly).
+  const { ATTACK_EFFECTS } = require('../lib/cardEffects');
+  const { redactMatchState, canAttack } = require('../lib/rulesEngine');
+  // rules-engine.js's functions reference CARD_STATS as a bare global (see
+  // index.js's own identical setup, required for the exact same reason,
+  // right before it requires rulesEngine.js) -- this test process never
+  // loads index.js, so canAttack() below would otherwise throw a
+  // ReferenceError the instant it looked up CARD_STATS[p.active.name].
+  global.CARD_STATS = CARD_STATS;
+  // Find a real Base Set attack with no ATTACK_EFFECTS entry (vanilla) and
+  // one WITH an entry (special, must be rejected) by inspecting the loaded
+  // tables directly -- keeps this test resilient to which specific cards
+  // exist rather than hardcoding a card name that might not be in overgrowth/blackout.
+  let vanillaAttackerName, vanillaAttackName, specialAttackerName, specialAttackName;
+  Object.keys(CARD_STATS).forEach(function (name) {
+    (CARD_STATS[name].attacks || []).forEach(function (atk) {
+      if (!vanillaAttackerName && !(ATTACK_EFFECTS[name] && ATTACK_EFFECTS[name][atk.name])) {
+        vanillaAttackerName = name; vanillaAttackName = atk.name;
+      }
+      if (!specialAttackerName && ATTACK_EFFECTS[name] && ATTACK_EFFECTS[name][atk.name]) {
+        specialAttackerName = name; specialAttackName = atk.name;
+      }
+    });
+  });
+  assert.ok(vanillaAttackerName && specialAttackerName, 'test setup needs at least one vanilla and one special attack in the catalog');
+
+  const matchDocRef = admin.firestore().collection('matches').doc(matchId);
+  const serverOnlyRef = matchDocRef.collection('serverOnly').doc('state');
+  const seeded = (await serverOnlyRef.get()).data().state;
+  seeded.phase = 'playing';
+  seeded.activePlayerId = 'player';
+
+  function makeActive(id, name, damage) {
+    return { id: id, name: name, attachedEnergy: [], damage: damage || 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null, severePoison: false, weaknessOverride: null, resistanceOverride: null, tempLockedAttack: null, lastDamageTaken: null, energyBurnActive: false };
+  }
+
+  // NOTE ON FIXTURE DESIGN (deviates from the brief's literal Step 1 here):
+  // the loop above picks the FIRST vanilla attacker/attack pair and the
+  // FIRST special attacker/attack pair it finds independently -- in this
+  // card catalog those come out to two DIFFERENT Pokemon (Kadabra's "Super
+  // Psy" vs Beedrill's "Twineedle", which Kadabra doesn't even know). If
+  // the rejection test put specialAttackName on the VANILLA Pokemon's
+  // active slot (as the brief's single seeded board literally does),
+  // canAttack() would reject it anyway for a totally different reason
+  // (that attack isn't even in this Pokemon's own attack list) than the
+  // ATTACK_EFFECTS check this task actually adds -- both produce the same
+  // failed-precondition code, so that version of the test would pass
+  // without ever proving the new check works. Fixed by seeding the
+  // special-attack rejection against an active Pokemon that genuinely
+  // knows that attack (specialAttackerName, cost fully paid), as a separate
+  // board state from the vanilla-attack/KO scenario below, and by asserting
+  // canAttack() directly to prove the attack really is otherwise-legal.
+  const specialAtkDef = CARD_STATS[specialAttackerName].attacks.find(function (a) { return a.name === specialAttackName; });
+  seeded.players.player.active = makeActive('specialTestAttacker', specialAttackerName, 0);
+  seeded.players.player.active.attachedEnergy = (specialAtkDef.cost || []).slice();
+  await serverOnlyRef.set({ state: seeded });
+  await matchDocRef.set(redactMatchState(seeded, hostUid, guestUid).public);
+
+  // Confirm locally that canAttack() alone would actually allow this attack
+  // (real Pokemon, real attack, cost fully paid, no status blocking it) --
+  // proves the rejection below comes from the new ATTACK_EFFECTS check
+  // added in this task, not from canAttack() rejecting it for some other
+  // reason.
+  assert.strictEqual(canAttack(seeded, 'player', specialAttackName), true, 'test setup: this attack must be otherwise-legal so the ATTACK_EFFECTS rejection is what is actually being tested');
+
+  await signInAsUid(hostUid); // engine slot 'player' == player1 == hostUid
+
+  try {
+    await submitMatchAction({ matchId: matchId, action: { type: 'attack', attackName: specialAttackName } });
+    assert.fail('expected a special-effect attack to be rejected in Fase 1');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: a special-effect attack (present in ATTACK_EFFECTS) is rejected -- Fase 2 territory');
+  }
+
+  // Now the real vanilla-attack -> KO -> prize/winner scenario: reseed the
+  // Active Pokemon on both sides directly (koTestAttacker/koTestDefender),
+  // with the defender exactly one damage below its own KO threshold so any
+  // real positive-damage vanilla attack finishes it off.
+  const vanillaAtkDef = CARD_STATS[vanillaAttackerName].attacks.find(function (a) { return a.name === vanillaAttackName; });
+  seeded.players.player.active = makeActive('koTestAttacker', vanillaAttackerName, 0);
+  seeded.players.player.active.attachedEnergy = (vanillaAtkDef.cost || []).slice();
+  seeded.players.cpu.active = makeActive('koTestDefender', 'Pidgey', CARD_STATS['Pidgey'].hp - 1);
+  await serverOnlyRef.set({ state: seeded });
+  await matchDocRef.set(redactMatchState(seeded, hostUid, guestUid).public);
+
+  await submitMatchAction({ matchId: matchId, action: { type: 'attack', attackName: vanillaAttackName } });
+  const pubAfterAttack = (await matchDocRef.get()).data();
+  assert.strictEqual(pubAfterAttack.board.player2.active, null, 'defender was knocked out');
+  assert.ok(pubAfterAttack.pendingPrizeChoice || pubAfterAttack.winner, 'a prize choice is pending, or the match already ended if that was the last prize');
+  console.log('PASS: a vanilla attack applies real damage via the generic damage path and KOs correctly');
+
+  console.log('ALL PVP MATCH TESTS PASSED (setup + generic turn actions + vanilla attacks)');
   process.exit(0);
 }
 
