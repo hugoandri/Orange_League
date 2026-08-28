@@ -2781,7 +2781,7 @@ var shopReturnTo = 'menu';
 function showShopScreen(returnTo) {
   shopReturnTo = returnTo;
   document.getElementById('shopScreen').classList.remove('hidden');
-  playScreenMusic('Songs/Card Shop Corner.mp3');
+  playScreenMusic('Songs/Booster Pack Bazaar.mp3');
   showShopTab('packs');
   renderShopScreen();
 }
