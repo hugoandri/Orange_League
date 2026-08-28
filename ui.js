@@ -523,6 +523,11 @@ function showCardInViewer(name, instanceId) {
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
           return;
         }
+        if (pvpMode) {
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName })
+            .catch(function (err) { alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
         attack(gameState, 'player', atkName);
         showAttackOverlayIfAny(afterPlayerAction);
       });
@@ -1997,6 +2002,20 @@ function wireBoardButtons() {
     var p = gameState.players.player;
     var handCard = p.hand.find(function (c) { return c.id === handId; });
     if (!handCard) { return; }
+    if (pvpMode) {
+      var pvpAction = null;
+      if (isEmptySlotDrop && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
+        pvpAction = (gameState.players.player.active ? { type: 'placeBench', handCardId: handId, benchIndex: benchIndex } : { type: 'placeActive', handCardId: handId });
+      } else if (targetInstanceId && canEvolve(gameState, 'player', handId, targetInstanceId)) {
+        pvpAction = { type: 'evolve', handCardId: handId, targetInstanceId: targetInstanceId };
+      } else if (targetInstanceId && canAttachEnergy(gameState, 'player', handId, targetInstanceId)) {
+        pvpAction = { type: 'attachEnergy', handCardId: handId, targetInstanceId: targetInstanceId };
+      }
+      if (pvpAction) {
+        submitMatchActionCloud(pvpActiveMatchId, pvpAction).catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+      }
+      return;
+    }
     if (isEmptySlotDrop && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
       playBasic(gameState, 'player', handId, benchIndex);
       afterPlayerAction();
@@ -2050,6 +2069,10 @@ function wireBoardButtons() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
+      if (pvpMode) {
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'endTurn' }).catch(function (err) { alert(err.message || 'No puedes terminar tu turno ahora.'); });
+        return;
+      }
       // Real reported bug: "HAS TERMINADO TU TURNO" used to log from
       // inside endTurn() itself (rules-engine.js), which fired the instant
       // an attack auto-ended the turn -- visible immediately (the attack
@@ -2152,6 +2175,16 @@ function wireBoardButtons() {
         if (canRetreat(gameState, 'player', instanceId)) {
           var activePokemon = gameState.players.player.active;
           var retreatCostNow = CARD_STATS[activePokemon.name].retreatCost;
+          if (pvpMode) {
+            // Fase 1 PVP retreats always let the server pick which Energy to
+            // discard when the cost is >0 (omitting energyIndices falls back
+            // to "the first `cost` many," same as the AI/tests already do) --
+            // the richer "choose which specific Energy" modal stays
+            // local-only for now, a small, explicitly acceptable UX gap.
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId })
+              .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+            return;
+          }
           if (retreatCostNow === 0) {
             retreat(gameState, 'player', instanceId);
             renderBoard();
@@ -3516,16 +3549,53 @@ function renderPvpDeckPicker(containerId, onPicked) {
   });
 }
 
-// Filled in by Task 14 -- for now, just tears down the room-wait UI and
-// records which match/side we're in, so Task 14 has something real to
-// build the board-rendering guard against.
 var pvpActiveMatchId = null;
 var pvpMySide = null; // 'player1' | 'player2'
+var pvpMatchUnsubscribe = null;
+var pvpMode = false;
+
+// Reshapes {public, myHand} (from initPvpMatchListeners) into the same
+// gameState shape renderBoard()/showAttackOverlay()/etc. already know how
+// to read locally -- 'me'/'opponent' keys stand in for 'player'/'cpu' so
+// none of the existing render code needs to change; wireBoardButtons'
+// PVP guards are the only code that needs to know pvpMySide at all.
+function buildPvpGameState(data, mySide) {
+  var pub = data.public;
+  var oppSide = mySide === 'player1' ? 'player2' : 'player1';
+  function boardSide(sideKey, hand) {
+    var b = pub.board[sideKey];
+    return {
+      active: b.active, bench: b.bench, hand: hand || [],
+      discard: pub.discard[sideKey], prizes: new Array(pub.prizesRemaining[sideKey]).fill({}),
+      hasHadActive: !!b.active || pub.turnCounter > 1
+    };
+  }
+  return {
+    phase: pub.phase,
+    turnCounter: pub.turnCounter,
+    activePlayerId: pub.activePlayerId === mySide ? 'player' : 'cpu',
+    pendingPrizeChoice: pub.pendingPrizeChoice ? { playerId: pub.pendingPrizeChoice.side === mySide ? 'player' : 'cpu', count: pub.pendingPrizeChoice.count } : null,
+    pendingActiveChoice: pub.pendingActiveChoice === mySide ? 'player' : (pub.pendingActiveChoice === oppSide ? 'cpu' : null),
+    log: pub.log,
+    players: {
+      player: boardSide(mySide, data.myHand),
+      cpu: boardSide(oppSide, null) // opponent's hand contents never arrive client-side at all
+    }
+  };
+}
+
 function enterPvpMatch(matchId) {
   pvpActiveMatchId = matchId;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
-  // Task 14 replaces this alert with the real match-screen transition.
-  alert('Partida encontrada: ' + matchId + ' (pantalla de juego PVP: Task 14)');
+  var myUid = firebase.auth().currentUser.uid;
+  if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
+  pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
+    pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
+    pvpMode = true;
+    gameState = buildPvpGameState(data, pvpMySide);
+    renderBoard();
+  });
+  showBoardScreen();
 }
 
 // ── Tablero de duelo ──────────────────────────────────────────────
