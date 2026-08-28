@@ -759,13 +759,14 @@ exports.submitMatchAction = onCall(async (request) => {
           throw new HttpsError('failed-precondition', 'No es tu turno.');
         }
         endTurn(state);
-        // See spec Section 3.1: endTurn() only auto-draws for the literal
-        // 'player' slot -- a humanControlled 'cpu' side (real PVP guest)
-        // needs this called explicitly here, since ai.js's cpuTakeTurn (the
-        // only other caller) never runs in a PVP match.
-        if (state.turnCounter > 1 && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
-          drawForTurnStart(state, state.activePlayerId);
-        }
+        // C4 (final-review fix): the turn-start-draw compensation used to
+        // live here, but attack() ALSO ends the turn internally (via its own
+        // endThisTurn() -> endTurn(state) call, unconditionally, every time
+        // an attack resolves) -- and the 'attack' case had no equivalent
+        // compensation at all, so the guest lost their turn-start draw almost
+        // every turn cycle (attacking is the normal way a turn ends). Moved
+        // to run once, unconditionally, right after this whole switch --
+        // see the comment down there for the full reasoning.
         break;
       }
       case 'takePrize': {
@@ -810,6 +811,27 @@ exports.submitMatchAction = onCall(async (request) => {
       }
       default:
         throw new HttpsError('invalid-argument', 'Tipo de acción desconocido o no soportado en Fase 1: ' + action.type);
+    }
+
+    // C4 (final-review fix): endTurn() (rules-engine.js) only auto-draws for
+    // the literal 'player' slot -- ai.js's cpuTakeTurn (the only other
+    // caller of drawForTurnStart for the 'cpu' slot) never runs in PVP, so a
+    // humanControlled non-'player' side (a real PVP guest) needs its
+    // turn-start draw compensated for here. This has to run after ANY
+    // action that might have just handed the turn to that side via an
+    // internal endTurn() call -- not just the explicit 'endTurn' action --
+    // since attack() ALSO ends the turn internally (via its own
+    // endThisTurn() -> endTurn(state), unconditionally, every single time an
+    // attack resolves, regardless of KO). Placed once, right here, after the
+    // whole switch, so it applies uniformly to both. Never double-draws:
+    // most actions never change activePlayerId at all (this guard only
+    // fires on a REAL turn transition), turnCounter > 1 excludes turn 1 (no
+    // "previous" turn to have ended), and endTurn(state) itself only ever
+    // draws for the 'player' slot on its own -- it never also draws for a
+    // humanControlled non-'player' side, so there's nothing here to
+    // double up with for that side.
+    if (state.turnCounter > 1 && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
+      drawForTurnStart(state, state.activePlayerId);
     }
 
     persistMatchState(tx, matchRef, state, hostUid, guestUid);

@@ -267,6 +267,44 @@ async function main() {
   assert.ok(pubAfterAttack.pendingPrizeChoice || pubAfterAttack.winner, 'a prize choice is pending, or the match already ended if that was the last prize');
   console.log('PASS: a vanilla attack applies real damage via the generic damage path and KOs correctly');
 
+  // --- C4 regression: the guest's turn-start draw must not be skipped when
+  // the HOST's turn ends via an ATTACK, not just via the explicit endTurn
+  // action. endTurn() (rules-engine.js) only auto-draws for the literal
+  // 'player' slot -- ai.js's cpuTakeTurn (the only other caller of
+  // drawForTurnStart for 'cpu') never runs in PVP. attack() ends the turn
+  // internally (endThisTurn() -> endTurn(state)) EVERY time it resolves,
+  // unconditionally, regardless of KO -- so without this fix the guest
+  // would lose their turn-start draw almost every turn cycle, since
+  // attacking is the normal way a turn ends. ---
+  // Re-seed a fresh, KO-free scenario (host's active can legally attack;
+  // guest -- engine slot 'cpu', humanControlled true in this PVP match --
+  // has no active Pokémon on the receiving end, so attack() takes its
+  // early "no defender" return path, still ending the turn unconditionally
+  // with no KO/prize-choice complexity to account for).
+  const guestHandBeforeHostAttack = await getPrivateHand(matchId, guestUid);
+  const drawTestSeed = (await serverOnlyRef.get()).data().state;
+  drawTestSeed.phase = 'playing';
+  drawTestSeed.activePlayerId = 'player';
+  drawTestSeed.pendingPrizeChoice = null;
+  drawTestSeed.pendingActiveChoice = null;
+  drawTestSeed.players.player.active = makeActive('drawTestAttacker', vanillaAttackerName, 0);
+  drawTestSeed.players.player.active.attachedEnergy = (vanillaAtkDef.cost || []).slice();
+  drawTestSeed.players.cpu.active = null;
+  await serverOnlyRef.set({ state: drawTestSeed });
+  await matchDocRef.set(redactMatchState(drawTestSeed, hostUid, guestUid).public);
+
+  await signInAsUid(hostUid); // engine slot 'player' == player1 == hostUid
+  await submitMatchAction({ matchId: matchId, action: { type: 'attack', attackName: vanillaAttackName } });
+  const pubAfterHostAttack = (await matchDocRef.get()).data();
+  assert.strictEqual(pubAfterHostAttack.activePlayerId, 'player2', 'the host attacking ends their turn and hands it to the guest');
+  const guestHandAfterHostAttack = await getPrivateHand(matchId, guestUid);
+  assert.strictEqual(
+    guestHandAfterHostAttack.length,
+    guestHandBeforeHostAttack.length + 1,
+    'the guest still gets their turn-start draw even though the host ended their turn via attack(), not the explicit endTurn action'
+  );
+  console.log('PASS (C4 regression): the guest gets a turn-start draw when the host ends their turn by attacking, not just via the explicit endTurn action');
+
   console.log('ALL PVP MATCH TESTS PASSED (setup + generic turn actions + vanilla attacks)');
   process.exit(0);
 }
