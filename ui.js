@@ -3864,7 +3864,7 @@ function toggleTheme() {
 // ── Menu ───────────────────────────────────────────────────────────
 function showMenu() {
   document.getElementById('menuScreen').classList.remove('hidden');
-  playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
+  playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
@@ -4430,7 +4430,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (pvpModalClose) {
     pvpModalClose.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.add('hidden');
-      playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
+      playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
     });
   }
 

@@ -267,7 +267,7 @@
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
       if (user) {
-        playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
+        playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
         showAccountVerifyingOverlay();
