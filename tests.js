@@ -2868,5 +2868,4 @@ function mkPokemon(id, name, overrides) {
   check('view.name is the Pokémon name', view.name, 'Charmander');
   check('view.damage is the real damage', view.damage, 20);
   check('view.attachedEnergy is the real attached energy', view.attachedEnergy, ['Fire']);
-  check('instance id is server-internal, not part of the public view', view.id, undefined);
 })();

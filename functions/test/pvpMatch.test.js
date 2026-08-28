@@ -121,7 +121,55 @@ async function main() {
   assert.ok(pub.activePlayerId === 'player1' || pub.activePlayerId === 'player2', 'coin flip decided a real starting side');
   console.log('PASS: confirmSetup from both sides starts the match (coin flip + playing phase)');
 
-  console.log('ALL PVP MATCH SETUP TESTS PASSED');
+  // Whoever the coin flip picked attaches an Energy card if they have one,
+  // otherwise just ends their turn -- keep this test deck-agnostic rather
+  // than assuming a specific starting hand.
+  async function currentTurnUid() {
+    const p = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+    return p.activePlayerId === 'player1' ? hostUid : guestUid;
+  }
+  async function signInAsUid(uid) {
+    await signOut(auth);
+    const email = uid === hostUid ? 'pvpm-host@example.com' : 'pvpm-guest@example.com';
+    await signInWithEmailAndPassword(auth, email, 'password123');
+  }
+
+  const firstTurnUid = await currentTurnUid();
+  await signInAsUid(firstTurnUid);
+  const firstHand = await getPrivateHand(matchId, firstTurnUid);
+  const energyCard = firstHand.find(function (c) { return c.name.indexOf('Energy') !== -1 && c.name !== 'Double Colorless Energy'; });
+
+  if (energyCard) {
+    const pubBefore = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+    const mySide = pubBefore.activePlayerId; // 'player1' | 'player2'
+    const activeView = mySide === 'player1' ? pubBefore.board.player1.active : pubBefore.board.player2.active;
+    await submitMatchAction({ matchId: matchId, action: { type: 'attachEnergy', handCardId: energyCard.id, targetInstanceId: activeView.id } });
+    const pubAfter = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+    const activeAfter = mySide === 'player1' ? pubAfter.board.player1.active : pubAfter.board.player2.active;
+    assert.strictEqual(activeAfter.attachedEnergy.length, activeView.attachedEnergy.length + 1);
+    console.log('PASS: attachEnergy moves the named hand card onto the target and shows up in the public board view');
+  } else {
+    console.log('SKIP: no Energy card in this random opening hand to test attachEnergy with');
+  }
+
+  const mySideBeforeEndTurn = (await admin.firestore().collection('matches').doc(matchId).get()).data().activePlayerId;
+  try {
+    await submitMatchAction({ matchId: matchId, action: { type: 'endTurn' } });
+  } catch (e) { assert.fail('endTurn should be legal for whoever\'s turn it is: ' + e.message); }
+  const pubAfterEndTurn = (await admin.firestore().collection('matches').doc(matchId).get()).data();
+  assert.strictEqual(pubAfterEndTurn.turnCounter, 2);
+  assert.notStrictEqual(pubAfterEndTurn.activePlayerId, mySideBeforeEndTurn);
+  console.log('PASS: endTurn advances turnCounter and flips activePlayerId');
+
+  try {
+    await submitMatchAction({ matchId: matchId, action: { type: 'endTurn' } });
+    assert.fail('expected the player who just ended their turn to be rejected calling endTurn again immediately');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: endTurn rejects a call from the side that no longer holds the turn');
+  }
+
+  console.log('ALL PVP MATCH TESTS PASSED (setup + generic turn actions)');
   process.exit(0);
 }
 

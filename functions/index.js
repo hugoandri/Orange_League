@@ -583,7 +583,7 @@ exports.setReady = onCall(async (request) => {
   return { ready: true, matchId: matchRef.id };
 });
 
-const { canPlayBasic, playBasic, startMatch } = require('./lib/rulesEngine');
+const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive } = require('./lib/rulesEngine');
 
 // Loads a match's full serverOnly state and resolves which engine slot
 // ('player'/'cpu') the calling uid actually is. Every action handler below
@@ -709,6 +709,63 @@ exports.submitMatchAction = onCall(async (request) => {
         if (state.setupConfirmed.player && state.setupConfirmed.cpu) {
           startMatch(state);
         }
+        break;
+      }
+      case 'evolve': {
+        if (!canEvolve(state, side, action.handCardId, action.targetInstanceId)) {
+          throw new HttpsError('failed-precondition', 'Esa evolución no es legal ahí.');
+        }
+        evolve(state, side, action.handCardId, action.targetInstanceId);
+        break;
+      }
+      case 'attachEnergy': {
+        if (!canAttachEnergy(state, side, action.handCardId, action.targetInstanceId)) {
+          throw new HttpsError('failed-precondition', 'No puedes adjuntar esa Energía ahí.');
+        }
+        attachEnergy(state, side, action.handCardId, action.targetInstanceId);
+        break;
+      }
+      case 'retreat': {
+        if (!canRetreat(state, side, action.targetInstanceId)) {
+          throw new HttpsError('failed-precondition', 'No puedes retirarte ahí.');
+        }
+        retreat(state, side, action.targetInstanceId, action.discardEnergyIndices);
+        break;
+      }
+      case 'endTurn': {
+        if (state.phase !== 'playing' || state.activePlayerId !== side) {
+          throw new HttpsError('failed-precondition', 'No es tu turno.');
+        }
+        endTurn(state);
+        // See spec Section 3.1: endTurn() only auto-draws for the literal
+        // 'player' slot -- a humanControlled 'cpu' side (real PVP guest)
+        // needs this called explicitly here, since ai.js's cpuTakeTurn (the
+        // only other caller) never runs in a PVP match.
+        if (state.turnCounter > 1 && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
+          drawForTurnStart(state, state.activePlayerId);
+        }
+        break;
+      }
+      case 'takePrize': {
+        if (!state.pendingPrizeChoice || state.pendingPrizeChoice.playerId !== side) {
+          throw new HttpsError('failed-precondition', 'No tienes un premio pendiente para elegir.');
+        }
+        const prizes = state.players[side].prizes;
+        if (typeof action.prizeIndex !== 'number' || action.prizeIndex < 0 || action.prizeIndex >= prizes.length || !prizes[action.prizeIndex]) {
+          throw new HttpsError('invalid-argument', 'Índice de premio inválido.');
+        }
+        takePrize(state, side, action.prizeIndex);
+        break;
+      }
+      case 'chooseActive': {
+        if (state.pendingActiveChoice !== side) {
+          throw new HttpsError('failed-precondition', 'No tienes una elección de Activo pendiente.');
+        }
+        const bench = state.players[side].bench;
+        if (typeof action.benchIndex !== 'number' || !bench[action.benchIndex] || bench[action.benchIndex].id !== action.benchInstanceId) {
+          throw new HttpsError('invalid-argument', 'Selección de banca inválida.');
+        }
+        chooseNewActive(state, side, action.benchInstanceId);
         break;
       }
       default:

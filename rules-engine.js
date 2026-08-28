@@ -1141,6 +1141,7 @@ function getWinner(state) {
 function publicPokemonView(instance) {
   if (!instance) { return null; }
   return {
+    id: instance.id,
     name: instance.name,
     damage: instance.damage,
     statusConditions: instance.statusConditions.slice(),
