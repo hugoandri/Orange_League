@@ -3491,6 +3491,43 @@ function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
 }
 
+// ── PVP: sala (crear/unirse) ──────────────────────────────────────
+// Minimal deck picker for PVP room setup: precon keys + the player's own
+// saved custom decks (same universe validateDeckId, functions/index.js,
+// accepts) -- reuses PRECON_DECK_KEYS/DECK_DISPLAY_NAME/econState.customDecks,
+// already available client-side (see registerCustomDecks, ui.js:3309) --
+// deliberately NOT reusing the full Decks screen's rich card list/detail
+// view, just enough to pick a deckId.
+function renderPvpDeckPicker(containerId, onPicked) {
+  var el = document.getElementById(containerId);
+  if (!el) { return; }
+  var options = PRECON_DECK_KEYS.map(function (key) {
+    return { id: key, label: DECK_DISPLAY_NAME[key] || key };
+  });
+  var saved = (econState && econState.customDecks) || {};
+  CUSTOM_DECK_SLOTS.forEach(function (slot) {
+    if (saved[slot]) { options.push({ id: 'custom:' + slot, label: saved[slot].name }); }
+  });
+  el.innerHTML = options.map(function (o) {
+    return '<button type="button" class="shell-modal-btn-primary" data-pvp-deck-id="' + escapeHtml(o.id) + '">' + escapeHtml(o.label.toUpperCase()) + '</button>';
+  }).join('');
+  el.querySelectorAll('[data-pvp-deck-id]').forEach(function (btn) {
+    btn.addEventListener('click', function () { onPicked(btn.getAttribute('data-pvp-deck-id')); });
+  });
+}
+
+// Filled in by Task 14 -- for now, just tears down the room-wait UI and
+// records which match/side we're in, so Task 14 has something real to
+// build the board-rendering guard against.
+var pvpActiveMatchId = null;
+var pvpMySide = null; // 'player1' | 'player2'
+function enterPvpMatch(matchId) {
+  pvpActiveMatchId = matchId;
+  document.getElementById('pvpCreateScreen').classList.add('hidden');
+  // Task 14 replaces this alert with the real match-screen transition.
+  alert('Partida encontrada: ' + matchId + ' (pantalla de juego PVP: Task 14)');
+}
+
 // ── Tablero de duelo ──────────────────────────────────────────────
 function showBoardScreen() {
   document.getElementById('boardScreen').classList.remove('hidden');
@@ -3790,6 +3827,112 @@ document.addEventListener('DOMContentLoaded', function () {
     showBoardScreen();
     startNewMatch();
   });
+  var menuPvpBtn = document.getElementById('menuPvp');
+  if (menuPvpBtn) {
+    menuPvpBtn.addEventListener('click', function () {
+      document.getElementById('pvpModal').classList.remove('hidden');
+    });
+  }
+  var pvpModalClose = document.getElementById('pvpModalClose');
+  if (pvpModalClose) {
+    pvpModalClose.addEventListener('click', function () {
+      document.getElementById('pvpModal').classList.add('hidden');
+    });
+  }
+
+  var pvpCreateRoomBtn = document.getElementById('pvpCreateRoomBtn');
+  if (pvpCreateRoomBtn) {
+    pvpCreateRoomBtn.addEventListener('click', function () {
+      document.getElementById('pvpModal').classList.add('hidden');
+      document.getElementById('pvpCreateScreen').classList.remove('hidden');
+      document.getElementById('pvpCreateDeckPicker').classList.remove('hidden');
+      document.getElementById('pvpCreateWaiting').classList.add('hidden');
+      renderPvpDeckPicker('pvpCreateDeckList', function (deckId) {
+        createRoomCloud(deckId).then(function (res) {
+          document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+          document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+          document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
+          startPvpRoomWait(res.roomCode, deckId);
+        }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
+      });
+    });
+  }
+
+  var pvpRoomUnsubscribe = null;
+  function startPvpRoomWait(roomCode, deckId) {
+    if (pvpRoomUnsubscribe) { pvpRoomUnsubscribe(); }
+    pvpRoomUnsubscribe = initPvpRoomListener(roomCode, function (room) {
+      if (!room) { return; }
+      // setReady is called automatically once both sides are actually
+      // present -- per the spec, picking a deck IS readying up, no
+      // separate "listo" button this phase. The host calls it once,
+      // right after creating; if this is the host's own listener firing
+      // because the guest just joined, nothing more to do here -- the
+      // GUEST's own join flow (Step 3) is the one that calls setReadyCloud
+      // for the guest side. The host already called it once at creation.
+      if (room.status === 'started' && room.matchId) {
+        pvpRoomUnsubscribe();
+        enterPvpMatch(room.matchId);
+      }
+    });
+    setReadyCloud(roomCode).catch(function (err) { console.error('setReady (host) failed', err); });
+  }
+
+  var pvpCreateBackBtn = document.getElementById('pvpCreateBackBtn');
+  if (pvpCreateBackBtn) {
+    pvpCreateBackBtn.addEventListener('click', function () {
+      if (pvpRoomUnsubscribe) { pvpRoomUnsubscribe(); pvpRoomUnsubscribe = null; }
+      document.getElementById('pvpCreateScreen').classList.add('hidden');
+      showMenu();
+    });
+  }
+
+  var pvpJoinRoomBtn = document.getElementById('pvpJoinRoomBtn');
+  if (pvpJoinRoomBtn) {
+    pvpJoinRoomBtn.addEventListener('click', function () {
+      document.getElementById('pvpModal').classList.add('hidden');
+      document.getElementById('pvpJoinScreen').classList.remove('hidden');
+      document.getElementById('pvpJoinCodeStep').classList.remove('hidden');
+      document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
+      document.getElementById('pvpJoinCodeInput').value = '';
+      document.getElementById('pvpJoinCodeStatus').textContent = '';
+    });
+  }
+
+  var pvpJoinCodeInput = document.getElementById('pvpJoinCodeInput');
+  if (pvpJoinCodeInput) {
+    pvpJoinCodeInput.addEventListener('input', function () {
+      var code = pvpJoinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      pvpJoinCodeInput.value = code;
+      if (code.length === 6) {
+        document.getElementById('pvpJoinCodeStep').classList.add('hidden');
+        document.getElementById('pvpJoinDeckPicker').classList.remove('hidden');
+        renderPvpDeckPicker('pvpJoinDeckList', function (deckId) {
+          joinRoomCloud(code, deckId).then(function () {
+            startPvpRoomWait(code, deckId);
+            document.getElementById('pvpJoinScreen').classList.add('hidden');
+            document.getElementById('pvpCreateScreen').classList.remove('hidden');
+            document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+            document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+            document.getElementById('pvpRoomCodeDisplay').textContent = code;
+          }).catch(function (err) {
+            document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
+            document.getElementById('pvpJoinCodeStep').classList.remove('hidden');
+            document.getElementById('pvpJoinCodeStatus').textContent = err.message || 'No se pudo unir a la sala.';
+          });
+        });
+      }
+    });
+  }
+
+  var pvpJoinBackBtn = document.getElementById('pvpJoinBackBtn');
+  if (pvpJoinBackBtn) {
+    pvpJoinBackBtn.addEventListener('click', function () {
+      document.getElementById('pvpJoinScreen').classList.add('hidden');
+      showMenu();
+    });
+  }
+
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();
     showDecksScreen();
