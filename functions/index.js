@@ -796,3 +796,22 @@ exports.submitMatchAction = onCall(async (request) => {
 
   return { ok: true };
 });
+
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+
+// Backstop for joinRoom's own lazy expiry check (Task 5) -- deletes
+// 'waiting' rooms nobody ever joined, past ROOM_EXPIRY_MS old, so they
+// don't accumulate in Firestore forever even if nobody ever tries to join
+// them (which is the only other place staleness gets checked).
+exports.cleanupExpiredRooms = onSchedule('every 15 minutes', async () => {
+  const db = admin.firestore();
+  const cutoff = Date.now() - ROOM_EXPIRY_MS;
+  const snap = await db.collection('rooms').where('status', '==', 'waiting').get();
+  const deletions = [];
+  snap.forEach((doc) => {
+    const createdAt = doc.data().createdAt;
+    if (createdAt && createdAt.toMillis() < cutoff) { deletions.push(doc.ref.delete()); }
+  });
+  await Promise.all(deletions);
+  console.log('cleanupExpiredRooms: deleted ' + deletions.length + ' expired room(s)');
+});
