@@ -19,11 +19,12 @@ connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 const db = getFirestore(app);
 connectFirestoreEmulator(db, '127.0.0.1', 8080);
 
-async function signInAsPlayer(email, username) {
+async function signInAsPlayer(email, username, photo) {
   const existing = await admin.auth().getUserByEmail(email).catch(() => null);
   const uid = existing ? existing.uid : (await admin.auth().createUser({ email: email, password: 'password123' })).uid;
   const seed = { coins: 500, collection: {} };
   if (username) { seed.username = username; }
+  if (photo) { seed.photo = photo; }
   await admin.firestore().collection('users').doc(uid).set(seed, { merge: true });
   await signInWithEmailAndPassword(auth, email, 'password123');
   return uid;
@@ -41,16 +42,18 @@ async function main() {
     console.log('PASS: createRoom requires auth');
   }
 
-  const hostUid = await signInAsPlayer('pvp-host@example.com', 'Darkspoon');
+  const hostUid = await signInAsPlayer('pvp-host@example.com', 'Darkspoon', 'data:image/png;base64,AAAA');
   const createRes = await createRoom({ deckId: 'overgrowth' });
   const roomCode = createRes.data.roomCode;
   assert.ok(/^[A-Z2-9]{6}$/.test(roomCode), 'roomCode is a 6-char code from the ambiguity-free alphabet');
   const roomSnap = await admin.firestore().collection('rooms').doc(roomCode).get();
   assert.strictEqual(roomSnap.data().hostUid, hostUid);
   assert.strictEqual(roomSnap.data().hostUsername, 'Darkspoon', 'createRoom captures the real username, not just the uid');
+  assert.strictEqual(roomSnap.data().hostPhoto, 'data:image/png;base64,AAAA', 'createRoom captures the real photo, not just the uid');
   assert.strictEqual(roomSnap.data().hostDeckId, 'overgrowth');
   assert.strictEqual(roomSnap.data().status, 'waiting');
   assert.strictEqual(roomSnap.data().guestUid, null);
+  assert.strictEqual(roomSnap.data().guestPhoto, null);
   console.log('PASS: createRoom creates a waiting room with a valid code');
 
   await signOut(auth);
@@ -81,12 +84,13 @@ async function main() {
   }
 
   await signOut(auth);
-  const guestUid = await signInAsPlayer('pvp-guest@example.com', 'RivalRosa');
+  const guestUid = await signInAsPlayer('pvp-guest@example.com', 'RivalRosa', 'data:image/png;base64,BBBB');
   await joinRoom({ roomCode: roomCode, deckId: 'blackout' });
   const joinedSnap = await admin.firestore().collection('rooms').doc(roomCode).get();
   assert.strictEqual(joinedSnap.data().guestUid, guestUid);
   assert.strictEqual(joinedSnap.data().guestDeckId, 'blackout');
   assert.strictEqual(joinedSnap.data().guestUsername, 'RivalRosa', 'joinRoom captures the real username, not just the uid');
+  assert.strictEqual(joinedSnap.data().guestPhoto, 'data:image/png;base64,BBBB', 'joinRoom captures the real photo, not just the uid');
   console.log('PASS: joinRoom sets the guest side of the room');
 
   await signOut(auth);

@@ -967,21 +967,23 @@ async function validateDeckId(uid, deckId) {
   }
 }
 
-// Real display name for the room's own two participants -- players can
-// only ever read their OWN users/{uid} doc (firestore.rules), so the
-// opponent's username has to be captured server-side (Admin SDK bypasses
-// that rule) and carried on the room/match docs themselves, rather than
-// ever asking the client to read it directly.
-async function fetchUsername(uid) {
+// Real display name (and profile photo, for the waiting-room "VS" screen)
+// for the room's own two participants -- players can only ever read their
+// OWN users/{uid} doc (firestore.rules), so the opponent's username/photo
+// has to be captured server-side (Admin SDK bypasses that rule) and carried
+// on the room/match docs themselves, rather than ever asking the client to
+// read it directly. One doc read covers both fields.
+async function fetchProfile(uid) {
   const snap = await admin.firestore().collection('users').doc(uid).get();
-  return (snap.data() || {}).username || 'Jugador';
+  const data = snap.data() || {};
+  return { username: data.username || 'Jugador', photo: data.photo || null };
 }
 
 exports.createRoom = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
   const deckId = (request.data || {}).deckId;
   await validateDeckId(request.auth.uid, deckId);
-  const hostUsername = await fetchUsername(request.auth.uid);
+  const hostProfile = await fetchProfile(request.auth.uid);
 
   const db = admin.firestore();
   let roomCode;
@@ -996,8 +998,9 @@ exports.createRoom = onCall(async (request) => {
     }
     if (!roomCode) { throw new HttpsError('internal', 'No se pudo generar un código de sala.'); }
     tx.set(db.collection('rooms').doc(roomCode), {
-      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false, hostUsername: hostUsername,
-      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null,
+      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
+      hostUsername: hostProfile.username, hostPhoto: hostProfile.photo,
+      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null, guestPhoto: null,
       status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
     });
   });
@@ -1010,7 +1013,7 @@ exports.joinRoom = onCall(async (request) => {
   const roomCode = (data.roomCode || '').trim().toUpperCase();
   const deckId = data.deckId;
   await validateDeckId(request.auth.uid, deckId);
-  const guestUsername = await fetchUsername(request.auth.uid);
+  const guestProfile = await fetchProfile(request.auth.uid);
 
   const db = admin.firestore();
   const roomRef = db.collection('rooms').doc(roomCode);
@@ -1027,7 +1030,10 @@ exports.joinRoom = onCall(async (request) => {
     if (room.status !== 'waiting' || room.guestUid) {
       throw new HttpsError('failed-precondition', 'Esa sala ya está llena o ya empezó.');
     }
-    tx.update(roomRef, { guestUid: request.auth.uid, guestDeckId: deckId, guestUsername: guestUsername });
+    tx.update(roomRef, {
+      guestUid: request.auth.uid, guestDeckId: deckId,
+      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo
+    });
   });
   return { roomCode: roomCode };
 });

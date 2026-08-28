@@ -677,6 +677,7 @@
                     <select class="shell-config-select" id="configDuelMusicSelect">
                       <optgroup label="ORANGE LEAGUE">
                         <option value="orange_duel">Duel Music</option>
+                        <option value="orange_duel2">Duel Music 2</option>
                         <option value="orange_duel3">Duel Music 3</option>
                         <option value="orange_duel4">Duel Music 4</option>
                         <option value="orange_duel9">Duel Music 9</option>
@@ -1057,9 +1058,27 @@
       </div>
       <div id="pvpCreateWaiting" class="hidden shell-pvp-waiting">
         <p class="shell-modal-title">ESPERANDO A UN RIVAL…</p>
-        <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
+        <div class="shell-pvp-vs-row">
+          <div class="hidden shell-pvp-vs-deck" id="pvpWaitingMyDeckWrap">
+            <img id="pvpWaitingMyDeckArt" src="" alt="">
+          </div>
+          <div class="shell-pvp-vs-player">
+            <div class="shell-pvp-vs-avatar"><img id="pvpWaitingMyPhoto" src="" alt=""></div>
+            <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
+          </div>
+          <div class="shell-pvp-vs-badge">VS</div>
+          <div class="shell-pvp-vs-player">
+            <div class="shell-pvp-vs-avatar shell-pvp-vs-avatar-opponent">
+              <div class="shell-loading-spinner" id="pvpWaitingOpponentSpinner"></div>
+              <img id="pvpWaitingOpponentPhoto" src="" alt="" class="hidden">
+            </div>
+            <p class="shell-pvp-waiting-name" id="pvpWaitingOpponentName">ESPERANDO…</p>
+          </div>
+          <div class="hidden shell-pvp-vs-deck" id="pvpWaitingOpponentDeckWrap">
+            <img id="pvpWaitingOpponentDeckArt" src="" alt="">
+          </div>
+        </div>
         <div class="shell-pvp-room-code" id="pvpRoomCodeDisplay"></div>
-        <div class="shell-loading-spinner"></div>
       </div>
       <button type="button" class="shell-modal-btn" id="pvpCreateBackBtn">VOLVER</button>
     </div></div>

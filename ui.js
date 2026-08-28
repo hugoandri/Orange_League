@@ -3923,6 +3923,77 @@ function renderPvpDeckPicker(containerId, onPicked) {
   });
 }
 
+// Resolves a deckId (as stored on the rooms/{roomCode} doc's hostDeckId/
+// guestDeckId fields) to display art -- precons resolve the same for any
+// viewer (PRECON_DECK_ART is a fixed table), but a custom deck only
+// resolves when it's MY OWN (econState.customDecks is scoped to the signed-
+// in user by firestore.rules, same as everywhere else in this file) --
+// there is no server-side plumbing (unlike hostPhoto/guestPhoto below) to
+// see the OPPONENT's custom deck art, so that case falls back to null and
+// the caller just leaves that deck slot hidden.
+function pvpDeckArtFor(deckId) {
+  if (!deckId) { return null; }
+  var art = PRECON_DECK_ART[deckId];
+  if (art) { return { img: art.img }; }
+  if (deckId.indexOf('custom:') === 0) {
+    var slot = deckId.slice('custom:'.length);
+    var saved = (econState && econState.customDecks) || {};
+    var deck = saved[slot];
+    if (deck && deck.coverName && CARD_IMAGE_BY_NAME[deck.coverName]) {
+      return { img: CARD_IMAGE_BY_NAME[deck.coverName] };
+    }
+  }
+  return null;
+}
+
+function setPvpWaitingDeckSlot(wrapId, imgId, deckId) {
+  var wrap = document.getElementById(wrapId);
+  var art = pvpDeckArtFor(deckId);
+  if (art) {
+    document.getElementById(imgId).src = art.img;
+    wrap.classList.remove('hidden');
+  } else {
+    wrap.classList.add('hidden');
+  }
+}
+
+// Called the instant the "esperando a un rival" screen appears (both for
+// the host, right after creating the room, and the guest, right after
+// joining it) -- shows MY OWN photo/deck immediately since those never
+// depend on the network round-trip, and resets the opponent slot to its
+// unknown state (spinner, no deck) until a room snapshot says otherwise.
+function renderPvpWaitingMine(deckId) {
+  document.getElementById('pvpWaitingMyPhoto').src = playerPhotoUrl();
+  document.getElementById('pvpCreateWaitingName').textContent = playerDisplayName();
+  setPvpWaitingDeckSlot('pvpWaitingMyDeckWrap', 'pvpWaitingMyDeckArt', deckId);
+  document.getElementById('pvpWaitingOpponentSpinner').classList.remove('hidden');
+  document.getElementById('pvpWaitingOpponentPhoto').classList.add('hidden');
+  document.getElementById('pvpWaitingOpponentName').textContent = 'ESPERANDO…';
+  document.getElementById('pvpWaitingOpponentDeckWrap').classList.add('hidden');
+}
+
+// Fired on every rooms/{roomCode} snapshot (initPvpRoomListener) while the
+// waiting screen is up -- fills in the opponent's real photo/name/deck the
+// moment they've joined (room.guestUid or, for the guest's own brief look
+// at this same screen, room.hostUid is already present from the very first
+// snapshot). hostPhoto/guestPhoto fall back to the generic rival avatar
+// when that side never set one (same fallback local CPU play already uses).
+function renderPvpWaitingOpponentFromRoom(room) {
+  var myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+  var iAmHost = room.hostUid === myUid;
+  var oppUid = iAmHost ? room.guestUid : room.hostUid;
+  if (!oppUid) { return; }
+  var oppName = iAmHost ? room.guestUsername : room.hostUsername;
+  var oppPhoto = (iAmHost ? room.guestPhoto : room.hostPhoto) || PROFILE_PHOTO_URL.cpu;
+  var oppDeckId = iAmHost ? room.guestDeckId : room.hostDeckId;
+  document.getElementById('pvpWaitingOpponentSpinner').classList.add('hidden');
+  var oppImg = document.getElementById('pvpWaitingOpponentPhoto');
+  oppImg.src = oppPhoto;
+  oppImg.classList.remove('hidden');
+  document.getElementById('pvpWaitingOpponentName').textContent = oppName || 'Rival';
+  setPvpWaitingDeckSlot('pvpWaitingOpponentDeckWrap', 'pvpWaitingOpponentDeckArt', oppDeckId);
+}
+
 var pvpActiveMatchId = null;
 var pvpMySide = null; // 'player1' | 'player2'
 var pvpMatchUnsubscribe = null;
@@ -4129,6 +4200,7 @@ function applyMenuLogo() {
 // into an HTML attribute, so no manual escaping is needed.
 var DUEL_MUSIC_TRACKS = {
   orange_duel: { label: 'Duel Music', file: 'Songs/Duel_Music.mp3' },
+  orange_duel2: { label: 'Duel Music 2', file: 'Songs/Duel_Music_2.mp3' },
   orange_duel3: { label: 'Duel Music 3', file: 'Songs/Duel_Music_3.mp3' },
   orange_duel4: { label: 'Duel Music 4', file: 'Songs/Duel_Music_4.mp3' },
   orange_duel9: { label: 'Duel Music 9', file: 'Songs/Duel_Music_9.mp3' },
@@ -4445,7 +4517,7 @@ document.addEventListener('DOMContentLoaded', function () {
         createRoomCloud(deckId).then(function (res) {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
-          document.getElementById('pvpCreateWaitingName').textContent = playerDisplayName();
+          renderPvpWaitingMine(deckId);
           document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
           startPvpRoomWait(res.roomCode, deckId);
         }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
@@ -4458,6 +4530,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pvpRoomUnsubscribe) { pvpRoomUnsubscribe(); }
     pvpRoomUnsubscribe = initPvpRoomListener(roomCode, function (room) {
       if (!room) { return; }
+      renderPvpWaitingOpponentFromRoom(room);
       // setReady is called automatically once both sides are actually
       // present -- per the spec, picking a deck IS readying up, no
       // separate "listo" button this phase. The host calls it once,
@@ -4509,7 +4582,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
             document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
             document.getElementById('pvpCreateWaiting').classList.remove('hidden');
-            document.getElementById('pvpCreateWaitingName').textContent = playerDisplayName();
+            renderPvpWaitingMine(deckId);
             document.getElementById('pvpRoomCodeDisplay').textContent = code;
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
