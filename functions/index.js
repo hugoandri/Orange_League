@@ -569,7 +569,13 @@ exports.setReady = onCall(async (request) => {
   // are simple reads plus a DECKLISTS registration, not writes) and build
   // the match. hostUid always maps to engine slot 'player', guestUid
   // always to 'cpu' (see this plan's Global Constraints).
+  // C3 (final-review fix): the guest's own chosen deck (room.guestDeckId)
+  // used to be validated and stored but never actually USED -- createGame's
+  // 'cpu' side always picked a random precon instead. Resolve the guest's
+  // deck key too, exactly the same way the host's already is, and pass it
+  // through as createGame's new 4th (cpuDeckKey) argument below.
   const hostDeckKey = await resolveDeckKeyForMatch(room.hostUid, room.hostDeckId);
+  const guestDeckKey = await resolveDeckKeyForMatch(room.guestUid, room.guestDeckId);
   const matchRef = db.collection('matches').doc();
 
   await db.runTransaction(async (tx) => {
@@ -580,7 +586,7 @@ exports.setReady = onCall(async (request) => {
     }
     tx.update(roomRef, { [readyField]: true, status: 'started', matchId: matchRef.id });
 
-    const state = createGame(Math.random, hostDeckKey, { player: true, cpu: true });
+    const state = createGame(Math.random, hostDeckKey, { player: true, cpu: true }, guestDeckKey);
     const redacted = redactMatchState(state, freshRoom.hostUid, freshRoom.guestUid);
     tx.set(matchRef, redacted.public);
     tx.set(matchRef.collection('private').doc(freshRoom.hostUid), redacted.private[freshRoom.hostUid]);
