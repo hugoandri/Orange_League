@@ -92,6 +92,10 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    // Starts immediately on load rather than waiting for Firebase's
+    // onAuthStateChanged callback below, which can take a moment to fire.
+    playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+
     document.getElementById('authShowSignup').addEventListener('click', function (e) {
       e.preventDefault();
       showPanel('authSignupForm');
@@ -262,11 +266,8 @@
     var unsubscribeCustomPacks = null;
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
-      // Login screen and main menu deliberately share the same track --
-      // whichever of the two branches below applies, this is the right
-      // music either way.
-      playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
       if (user) {
+        playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
         showAccountVerifyingOverlay();
@@ -277,6 +278,7 @@
         if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }
         unsubscribeCustomPacks = initCustomPacksListener();
       } else {
+        playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         hideAccountVerifyingOverlay();
         if (unsubscribeEconomy) {
           unsubscribeEconomy();
