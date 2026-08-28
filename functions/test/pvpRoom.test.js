@@ -118,8 +118,14 @@ async function main() {
   const publicSnap = await admin.firestore().collection('matches').doc(matchId).get();
   const pub = publicSnap.data();
   assert.strictEqual(pub.phase, 'setup');
-  assert.strictEqual(pub.handCount.player1, 7, 'host dealt an opening hand of 7');
-  assert.strictEqual(pub.handCount.player2, 7, 'guest dealt an opening hand of 7');
+  // Opening hand size is normally 7, but real rules give a bonus draw to
+  // whichever side's OPPONENT mulliganed (see rules-engine.js's
+  // dealOpeningHand + createGame's post-mulligan bonus-draw lines) -- since
+  // this test shuffles with real Math.random (both decks are real precons,
+  // not seeded), a mulligan can genuinely happen on either side, so this
+  // asserts "at least 7", not an exact 7, to avoid a rare, legitimate flake.
+  assert.ok(pub.handCount.player1 >= 7, 'host dealt an opening hand of at least 7');
+  assert.ok(pub.handCount.player2 >= 7, 'guest dealt an opening hand of at least 7');
   assert.strictEqual(pub.prizesRemaining.player1, 6);
   // (Brief's literal assertion here -- `assert.strictEqual(A || B, B, ...)`
   // where A is a boolean -- always fails regardless of implementation
@@ -129,11 +135,11 @@ async function main() {
   assert.ok(pub.board, 'sanity: board exists');
 
   const hostPrivateSnap = await admin.firestore().collection('matches').doc(matchId).collection('private').doc(hostUid).get();
-  assert.strictEqual(hostPrivateSnap.data().hand.length, 7);
+  assert.ok(hostPrivateSnap.data().hand.length >= 7);
 
   const serverOnlySnap = await admin.firestore().collection('matches').doc(matchId).collection('serverOnly').doc('state').get();
   assert.ok(serverOnlySnap.exists, 'serverOnly/state exists');
-  assert.strictEqual(serverOnlySnap.data().state.players.player.hand.length, 7);
+  assert.ok(serverOnlySnap.data().state.players.player.hand.length >= 7);
   console.log('PASS: setReady creates a real match once both sides are ready, with correctly redacted docs');
 
   try {
