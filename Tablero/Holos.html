@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<script src="image-slot.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#0b0a09; }
+  a { color:#8dff62; text-decoration:none; }
+  a:hover { color:#c6ffab; }
+  *::selection { background:rgba(141,255,98,.3); }
+  @keyframes holoPan { 0% { background-position:0% 50%; } 100% { background-position:200% 50%; } }
+  @keyframes holoSweep { 0% { background-position:0% 50%; } 100% { background-position:-200% 50%; } }
+  @keyframes cuadroPan { 0% { background-position:0 0; } 100% { background-position:52px 52px; } }
+  @keyframes cuadroPanRev { 0% { background-position:0 0; } 100% { background-position:-40px 40px; } }
+  @keyframes brillo {
+    0%, 100% { opacity:.06; }
+    50% { opacity:.95; }
+  }
+  @keyframes chispa {
+    0%, 100% { opacity:.12; transform:scale(.55) rotate(0deg); }
+    50% { opacity:1; transform:scale(1.2) rotate(45deg); }
+  }
+</style>
+</helmet>
+
+<div style="width:1920px;min-height:100vh;padding:56px 80px 96px;font-family:'Silkscreen',monospace;color:#efe9dd;background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 5px),radial-gradient(130% 90% at 50% -8%,#332d24 0%,#191612 52%,#0b0a09 100%)">
+
+  <div style="display:flex;align-items:flex-end;gap:28px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,.07)">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:34px;height:2px;background:#e8c46a"></div>
+        <div style="font-size:12px;letter-spacing:.28em;color:#e8c46a">REVERSOS · TRES ÉPOCAS</div>
+      </div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:52px;font-weight:700;letter-spacing:.02em;line-height:1">Reversos de carta</div>
+      <div style="font-size:13px;line-height:1.9;color:#a49785;max-width:820px">Tres reversos con la proporción de la carta real — 63 × 88 mm, 340 × 476 px aquí — construidos con el mismo vocabulario que las cifras: marco de dos bloques, bisel de luz arriba y corte abajo, trama de puntos sobre el fondo. El emblema y la marca van en huecos: suelta ahí tu arte.</div>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;padding-bottom:6px">
+      <div style="font-size:11px;letter-spacing:.16em;color:#6d6155">PROPORCIÓN</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;color:#e8c46a">340 × 476</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:44px;padding:52px 0 0;align-items:flex-start">
+
+    <!-- OCCIDENTAL -->
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start;perspective:1500px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#7f9dff"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#a8bcff">OCCIDENTAL</div>
+      </div>
+
+      <div style="width:340px;height:476px;padding:9px;border-radius:16px;background:linear-gradient(160deg,#efe9dd 0%,#b8b0a0 38%,#6f6857 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.7),0 14px 0 rgba(0,0,0,.45),0 22px 40px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:9px;overflow:hidden;background:conic-gradient(from 200deg at 50% 48%,#2e44a0 0deg,#16204f 70deg,#3a56bd 140deg,#131c47 210deg,#2b3f8f 280deg,#2e44a0 360deg)">
+          <div style="position:absolute;inset:0;background:radial-gradient(58% 52% at 50% 46%,rgba(219,228,255,.42) 0%,rgba(90,110,200,.18) 42%,transparent 70%)"></div>
+          <div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.16) 1px,transparent 1px);background-size:4px 4px;mix-blend-mode:overlay"></div>
+          <div style="position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(10,8,6,.55),inset 0 3px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.4)"></div>
+
+          <div style="position:absolute;left:0;right:0;top:30px;display:flex;justify-content:center">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:38px;font-weight:700;letter-spacing:.04em;color:#ffd24a;text-shadow:3px 0 0 #16204f,-3px 0 0 #16204f,0 3px 0 #16204f,0 -3px 0 #16204f,0 7px 0 rgba(0,0,0,.45)">{{ rotulo }}</div>
+          </div>
+
+          <div style="position:absolute;left:50%;top:50%;width:168px;height:168px;margin:-84px 0 0 -84px;border-radius:50%;padding:5px;background:linear-gradient(180deg,#efe9dd,#8e8677);box-shadow:0 8px 0 rgba(0,0,0,.35)">
+            <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#101833">
+              <image-slot id="reverso-occidental-emblema" shape="circle" fit="cover" placeholder="EMBLEMA"></image-slot>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:30px;display:flex;justify-content:center;transform:rotate(180deg)">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:38px;font-weight:700;letter-spacing:.04em;color:#ffd24a;text-shadow:3px 0 0 #16204f,-3px 0 0 #16204f,0 3px 0 #16204f,0 -3px 0 #16204f,0 7px 0 rgba(0,0,0,.45)">{{ rotulo }}</div>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ mostrarFichas }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;justify-content:center;width:340px">
+          <div style="padding:9px 18px;background:linear-gradient(180deg,#ff6a5a,#a02012);border:2px solid #12100d;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 rgba(0,0,0,.45);font-family:'Pixelify Sans',monospace;font-size:18px;font-weight:700;letter-spacing:.04em;color:#fff6f2">1999 — PRESENTE</div>
+        </div>
+      </sc-if>
+      <div style="width:340px;font-size:11px;line-height:1.9;color:#8a7e6f">Remolino cobalto y marco plateado. La marca se repite arriba y abajo, girada, para que la carta se lea en las dos direcciones.</div>
+    </div>
+
+    <!-- JAPONÉS 1996 -->
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start;perspective:1500px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#e8c46a"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#e8c46a">JAPONÉS · PRIMERA ÉPOCA</div>
+      </div>
+
+      <div style="width:340px;height:476px;padding:9px;border-radius:16px;background:linear-gradient(160deg,#3b4a86 0%,#1a2350 46%,#0c1130 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.28),0 14px 0 rgba(0,0,0,.45),0 22px 40px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:9px;overflow:hidden;background:radial-gradient(70% 60% at 50% 46%,#2b3f8f 0%,#141d4a 55%,#0a0f2c 100%)">
+          <div style="position:absolute;left:50%;top:46%;width:640px;height:640px;margin:-320px 0 0 -320px;background:repeating-conic-gradient(from 8deg at 50% 50%,rgba(244,242,236,.92) 0deg 5deg,transparent 5deg 45deg);mask-image:radial-gradient(closest-side,transparent 22%,#000 34%,#000 100%);-webkit-mask-image:radial-gradient(closest-side,transparent 22%,#000 34%,#000 100%)"></div>
+          <div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.14) 1px,transparent 1px);background-size:4px 4px;mix-blend-mode:overlay"></div>
+          <div style="position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(10,8,6,.6),inset 0 3px 0 rgba(255,255,255,.18),inset 0 -4px 0 rgba(0,0,0,.45)"></div>
+
+          <div style="position:absolute;left:0;right:0;top:34px;display:flex;justify-content:center">
+            <div style="font-size:15px;letter-spacing:.42em;color:#ffd24a;text-shadow:2px 2px 0 rgba(10,8,6,.85)">{{ rotulo }}</div>
+          </div>
+
+          <div style="position:absolute;left:50%;top:50%;width:176px;height:176px;margin:-88px 0 0 -88px;border-radius:50%;padding:5px;background:linear-gradient(180deg,#f4dd9a,#82601a);box-shadow:0 8px 0 rgba(0,0,0,.4)">
+            <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#101833">
+              <image-slot id="reverso-jp1996-emblema" shape="circle" fit="cover" placeholder="EMBLEMA"></image-slot>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:52px;display:flex;justify-content:center">
+            <div style="padding:8px 26px;background:linear-gradient(180deg,#f4dd9a,#b8912f);border:2px solid #4a3a0c;box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 5px 0 rgba(0,0,0,.4);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%);font-size:12px;letter-spacing:.2em;color:#3a2b06">JUEGO DE CARTAS</div>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ mostrarFichas }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;justify-content:center;width:340px">
+          <div style="padding:9px 18px;background:linear-gradient(180deg,#ff6a5a,#a02012);border:2px solid #12100d;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 rgba(0,0,0,.45);font-family:'Pixelify Sans',monospace;font-size:18px;font-weight:700;letter-spacing:.04em;color:#fff6f2">1996 — 2001</div>
+        </div>
+      </sc-if>
+      <div style="width:340px;font-size:11px;line-height:1.9;color:#8a7e6f">Radios blancos desde el centro, aro dorado y banderola inferior. Toda la jerarquía la lleva el rayado, no un marco interior.</div>
+    </div>
+
+    <!-- JAPONÉS 2001 -->
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start;perspective:1500px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#8dff62"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#8dff62">JAPONÉS · SEGUNDA ÉPOCA</div>
+      </div>
+
+      <div style="width:340px;height:476px;padding:10px;border-radius:16px;background:linear-gradient(160deg,#ffe9a8 0%,#dbb257 40%,#8e6c1c 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.75),0 14px 0 rgba(0,0,0,.45),0 22px 40px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:8px;overflow:hidden;background:linear-gradient(112deg,#3a58c8 0%,#7f6fd8 18%,#d47fb8 34%,#f2c26a 50%,#8fd9a8 66%,#6fc8d8 82%,#3a58c8 100%);background-size:200% 100%;animation:holoPan 9s linear infinite">
+          <div style="position:absolute;inset:0;background:radial-gradient(62% 54% at 50% 44%,rgba(255,255,255,.55) 0%,rgba(255,255,255,.12) 40%,transparent 68%)"></div>
+          <div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.2) 1px,transparent 1px);background-size:4px 4px;mix-blend-mode:overlay"></div>
+          <div style="position:absolute;left:34px;top:150px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.95),rgba(255,255,255,.15) 60%,transparent 72%)"></div>
+          <div style="position:absolute;right:40px;top:196px;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.9),rgba(255,255,255,.12) 60%,transparent 72%)"></div>
+          <div style="position:absolute;left:70px;top:290px;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.85),rgba(255,255,255,.1) 60%,transparent 72%)"></div>
+          <div style="position:absolute;right:76px;top:308px;width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.9),rgba(255,255,255,.12) 60%,transparent 72%)"></div>
+          <div style="position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(28,22,8,.5),inset 0 3px 0 rgba(255,255,255,.4),inset 0 -4px 0 rgba(0,0,0,.28)"></div>
+
+          <div style="position:absolute;left:0;right:0;top:28px;display:flex;justify-content:center">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:36px;font-weight:700;letter-spacing:.04em;color:#ffd24a;text-shadow:3px 0 0 #1c2a6b,-3px 0 0 #1c2a6b,0 3px 0 #1c2a6b,0 -3px 0 #1c2a6b,0 7px 0 rgba(0,0,0,.35)">{{ rotulo }}</div>
+          </div>
+
+          <div style="position:absolute;left:50%;top:50%;width:158px;height:158px;margin:-79px 0 0 -79px;border-radius:50%;padding:5px;background:linear-gradient(180deg,#ffffff,#9a9282);box-shadow:0 8px 0 rgba(0,0,0,.25)">
+            <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:#101833">
+              <image-slot id="reverso-jp2001-emblema" shape="circle" fit="cover" placeholder="EMBLEMA"></image-slot>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:28px;display:flex;justify-content:center;transform:rotate(180deg)">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:36px;font-weight:700;letter-spacing:.04em;color:#ffd24a;text-shadow:3px 0 0 #1c2a6b,-3px 0 0 #1c2a6b,0 3px 0 #1c2a6b,0 -3px 0 #1c2a6b,0 7px 0 rgba(0,0,0,.35)">{{ rotulo }}</div>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ mostrarFichas }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;justify-content:center;width:340px">
+          <div style="padding:9px 18px;background:linear-gradient(180deg,#ff6a5a,#a02012);border:2px solid #12100d;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 rgba(0,0,0,.45);font-family:'Pixelify Sans',monospace;font-size:18px;font-weight:700;letter-spacing:.04em;color:#fff6f2">2001 — PRESENTE</div>
+        </div>
+      </sc-if>
+      <div style="width:340px;font-size:11px;line-height:1.9;color:#8a7e6f">Marco dorado, fondo holográfico en movimiento y esferas de luz. La marca vuelve a repetirse girada, como en el occidental.</div>
+    </div>
+
+    <!-- NOTAS -->
+    <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:22px;padding-top:36px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#a49785"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#a49785">CÓMO USARLO</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;padding:28px 30px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <div style="font-size:12px;line-height:2;color:#a49785">Los tres comparten la misma caja y el mismo canto: marco exterior de nueve o diez píxeles con luz arriba y sombra sólida abajo, cara interior con radio de ocho y trama de puntos de cuatro píxeles. Cambiar de época es cambiar el fondo y el metal del marco, nunca la geometría.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">El emblema central y el rótulo son huecos, no dibujo: arrastra tu arte al círculo y escribe la marca en <span style="color:#e8c46a">Rótulo</span>. Así el reverso queda listo para tu propia identidad en vez de una imitación del original.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">A tamaño de mesa reduce la carta a la mitad exacta — 170 × 238 — para que la trama siga cayendo en píxeles enteros.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">Los reversos van mates: el holo es cosa del frente. El único brillo aquí es el de la época de 2001, que ya lo llevaba impreso.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRENTE HOLO -->
+  <div style="display:flex;gap:44px;padding:72px 0 0;align-items:flex-start;perspective:1500px">
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#ff9a3c"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#ffb765">FRENTE · HOLOGRÁFICA</div>
+      </div>
+
+      <div data-holo="1" style="width:340px;height:476px;padding:11px;border-radius:16px;background:linear-gradient(160deg,#ffe9a8 0%,#e6bd5e 42%,#8e6c1c 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.75),0 14px 0 rgba(0,0,0,.45),0 22px 40px rgba(0,0,0,.55);transform-style:preserve-3d;transition:transform .2s ease-out;will-change:transform">
+        <div style="position:relative;width:100%;height:100%;border-radius:8px;overflow:hidden;padding:11px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#f6efdc,#ddd0b1);box-shadow:inset 0 0 0 2px rgba(58,44,14,.5),inset 0 3px 0 rgba(255,255,255,.6),inset 0 -4px 0 rgba(0,0,0,.16)">
+
+          <div style="display:flex;align-items:flex-end;gap:9px">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:27px;font-weight:700;line-height:1;color:#2b241a">BRASA</div>
+            <div style="flex:1"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#7a6a4c;padding-bottom:3px">PS</div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:27px;font-weight:700;line-height:1;color:#b4291a">70</div>
+            <img src="tipos/fuego.png" alt="" style="width:23px;height:23px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.45)">
+          </div>
+
+          <div style="position:relative;height:172px;flex:none;overflow:hidden;background:#1a1d3a;box-shadow:0 0 0 3px #6f5a2a,inset 0 2px 0 rgba(255,255,255,.18)">
+            <image-slot id="frente-holo-arte" fit="cover" placeholder="ARTE"></image-slot>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(111,90,42,.16);font-size:9px;letter-spacing:.14em;color:#6b5c3f">
+            <div>BÁSICO</div>
+            <div style="width:1px;height:9px;background:rgba(107,92,63,.4)"></div>
+            <div>NIVEL 16</div>
+            <div style="flex:1"></div>
+            <div>NO. 004</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:7px;padding-top:2px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="display:flex;gap:3px;flex:none">
+                <img src="tipos/fuego.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+              </div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:17px;font-weight:700;color:#2b241a">ASCUA</div>
+              <div style="flex:1"></div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:21px;font-weight:700;color:#2b241a">20</div>
+            </div>
+            <div style="height:1px;background:rgba(58,44,14,.18)"></div>
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="display:flex;gap:3px;flex:none;padding-top:1px">
+                <img src="tipos/fuego.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+                <img src="tipos/incoloro.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <div style="font-family:'Pixelify Sans',monospace;font-size:17px;font-weight:700;color:#2b241a">LLAMARADA</div>
+                <div style="font-size:9px;line-height:1.7;color:#6b5c3f;max-width:190px">Descarta una energía Fuego para usar este ataque.</div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:21px;font-weight:700;color:#2b241a">50</div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0 0;border-top:1px solid rgba(58,44,14,.25);font-size:9px;letter-spacing:.1em;color:#6b5c3f">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>DEB</div>
+              <img src="tipos/agua.png" alt="" style="width:14px;height:14px;display:block;border-radius:50%">
+              <div>×2</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>RES</div>
+              <div>—</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>RETIRADA</div>
+              <img src="tipos/incoloro.png" alt="" style="width:14px;height:14px;display:block;border-radius:50%">
+            </div>
+            <div style="width:11px;height:11px;background:#2b241a;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)"></div>
+          </div>
+
+          <div style="position:absolute;inset:0;z-index:5;pointer-events:none;mix-blend-mode:hue;background:linear-gradient(112deg,rgba(70,180,255,.95) 4%,rgba(255,90,215,.95) 20%,rgba(255,215,90,.95) 36%,rgba(110,255,180,.95) 52%,rgba(140,130,255,.95) 68%,rgba(70,180,255,.95) 84%);background-size:220% 100%;animation:holoSweep 8s linear infinite"></div>
+          <div style="position:absolute;inset:0;z-index:6;pointer-events:none;mix-blend-mode:overlay;background:linear-gradient(112deg,transparent 2%,rgba(160,220,255,.55) 16%,rgba(255,170,235,.5) 30%,rgba(255,240,170,.55) 44%,rgba(180,255,220,.5) 58%,rgba(200,190,255,.45) 72%,transparent 92%);background-size:220% 100%;animation:holoSweep 8s linear infinite"></div>
+          <sc-if value="{{ mostrarEstrellas }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;inset:0;z-index:7;pointer-events:none">
+              <sc-for list="{{ estrellas }}" as="s" hint-placeholder-count="26">
+                <div style="position:absolute;left:{{ s.x }};top:{{ s.y }};width:{{ s.w }};height:{{ s.w }};margin-left:{{ s.off }};margin-top:{{ s.off }};background:{{ s.tono }};clip-path:polygon(50% 0,57% 43%,100% 50%,57% 57%,50% 100%,43% 57%,0 50%,43% 43%);filter:drop-shadow(0 0 5px rgba(255,255,255,.55)) drop-shadow(0 1px 0 rgba(40,28,8,.35));animation-name:chispa;animation-duration:{{ s.dur }};animation-delay:{{ s.delay }};animation-iteration-count:infinite;animation-timing-function:ease-in-out"></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="position:absolute;inset:0;z-index:8;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:overlay;background:radial-gradient(130% 100% at var(--mx,50%) var(--my,50%),rgba(120,220,255,.9) 0%,rgba(255,120,220,.7) 34%,rgba(255,235,140,.6) 54%,transparent 80%)"></div>
+          <div style="position:absolute;inset:0;z-index:9;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:screen;background:radial-gradient(42% 34% at var(--mx,50%) var(--my,50%),rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 44%,transparent 70%)"></div>
+          <div style="position:absolute;inset:0;z-index:10;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:screen;background:linear-gradient(105deg,transparent 36%,rgba(255,255,255,.22) 50%,transparent 64%)"></div>
+        </div>
+      </div>
+
+      <div style="width:340px;font-size:11px;line-height:1.9;color:#8a7e6f">Marco dorado e interior en papel bajo el foil. El holo cubre la carta entera — marco, texto y ventana de arte — como una lámina prensada por encima.</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;align-items:flex-start">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#ffe066"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#ffe89a">FRENTE · SECRETA</div>
+      </div>
+
+      <div data-holo="1" style="width:340px;height:476px;padding:11px;border-radius:16px;background:linear-gradient(160deg,#fffbe6 0%,#ffe07a 34%,#d9a422 68%,#7d5a12 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.9),0 14px 0 rgba(0,0,0,.45),0 22px 46px rgba(255,214,120,.16),0 22px 40px rgba(0,0,0,.55);transform-style:preserve-3d;transition:transform .2s ease-out;will-change:transform">
+        <div style="position:relative;width:100%;height:100%;border-radius:8px;overflow:hidden;padding:11px;display:flex;flex-direction:column;gap:9px;background:linear-gradient(180deg,#fdf7e4,#e3d7b6);box-shadow:inset 0 0 0 2px rgba(58,44,14,.5),inset 0 3px 0 rgba(255,255,255,.7),inset 0 -4px 0 rgba(0,0,0,.14)">
+
+          <div style="display:flex;align-items:flex-end;gap:9px">
+            <div style="font-family:'Pixelify Sans',monospace;font-size:27px;font-weight:700;line-height:1;color:#2b241a">BRASA</div>
+            <div style="flex:1"></div>
+            <div style="font-size:10px;letter-spacing:.1em;color:#7a6a4c;padding-bottom:3px">PS</div>
+            <div style="font-family:'Pixelify Sans',monospace;font-size:27px;font-weight:700;line-height:1;color:#b4291a">70</div>
+            <img src="tipos/fuego.png" alt="" style="width:23px;height:23px;display:block;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.45)">
+          </div>
+
+          <div style="position:relative;height:172px;flex:none;overflow:hidden;background:#1a1d3a;box-shadow:0 0 0 3px #a8811f,inset 0 2px 0 rgba(255,255,255,.18)">
+            <image-slot id="frente-secreta-arte" fit="cover" placeholder="ARTE"></image-slot>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(111,90,42,.16);font-size:9px;letter-spacing:.14em;color:#6b5c3f">
+            <div>BÁSICO</div>
+            <div style="width:1px;height:9px;background:rgba(107,92,63,.4)"></div>
+            <div>NIVEL 16</div>
+            <div style="flex:1"></div>
+            <div>NO. 103/102</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:7px;padding-top:2px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="display:flex;gap:3px;flex:none">
+                <img src="tipos/fuego.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+              </div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:17px;font-weight:700;color:#2b241a">ASCUA</div>
+              <div style="flex:1"></div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:21px;font-weight:700;color:#2b241a">20</div>
+            </div>
+            <div style="height:1px;background:rgba(58,44,14,.18)"></div>
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="display:flex;gap:3px;flex:none;padding-top:1px">
+                <img src="tipos/fuego.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+                <img src="tipos/incoloro.png" alt="" style="width:17px;height:17px;display:block;border-radius:50%">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <div style="font-family:'Pixelify Sans',monospace;font-size:17px;font-weight:700;color:#2b241a">LLAMARADA</div>
+                <div style="font-size:9px;line-height:1.7;color:#6b5c3f;max-width:190px">Descarta una energía Fuego para usar este ataque.</div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="font-family:'Pixelify Sans',monospace;font-size:21px;font-weight:700;color:#2b241a">50</div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0 0;border-top:1px solid rgba(58,44,14,.25);font-size:9px;letter-spacing:.1em;color:#6b5c3f">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>DEB</div>
+              <img src="tipos/agua.png" alt="" style="width:14px;height:14px;display:block;border-radius:50%">
+              <div>×2</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>RES</div>
+              <div>—</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div>SECRETA</div>
+              <div style="display:flex;gap:2px">
+                <div style="width:9px;height:9px;background:#2b241a;transform:rotate(45deg)"></div>
+                <div style="width:9px;height:9px;background:#2b241a;transform:rotate(45deg)"></div>
+                <div style="width:9px;height:9px;background:#2b241a;transform:rotate(45deg)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:absolute;inset:0;z-index:5;pointer-events:none;mix-blend-mode:hue;background:linear-gradient(118deg,rgba(60,190,255,1) 3%,rgba(255,70,220,1) 19%,rgba(255,220,70,1) 35%,rgba(90,255,180,1) 51%,rgba(150,120,255,1) 67%,rgba(60,190,255,1) 83%);background-size:220% 100%;animation:holoSweep 6s linear infinite"></div>
+          <div style="position:absolute;inset:0;z-index:6;pointer-events:none;mix-blend-mode:overlay;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.72) 0% 25%,rgba(255,255,255,0) 0% 50%);background-size:26px 26px;animation:cuadroPan 7s linear infinite"></div>
+          <div style="position:absolute;inset:0;z-index:7;pointer-events:none;mix-blend-mode:screen;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(190,240,255,.3) 0% 25%,rgba(255,225,255,0) 0% 50%);background-size:13px 13px;animation:cuadroPanRev 5s linear infinite"></div>
+          <div style="position:absolute;inset:0;z-index:8;pointer-events:none;mix-blend-mode:screen;background:linear-gradient(118deg,transparent 4%,rgba(210,245,255,.5) 18%,rgba(255,215,250,.45) 32%,rgba(255,250,205,.5) 46%,rgba(215,255,240,.45) 60%,transparent 88%);background-size:220% 100%;animation:holoSweep 6s linear infinite"></div>
+          <sc-if value="{{ mostrarEstrellas }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;left:11px;top:11px;right:11px;bottom:11px;z-index:9;pointer-events:none;overflow:hidden">
+              <sc-for list="{{ cuadros }}" as="q" hint-placeholder-count="34">
+                <div style="position:absolute;left:{{ q.x }};top:{{ q.y }};width:{{ q.w }};height:{{ q.w }};background:{{ q.tono }};box-shadow:0 0 9px rgba(255,255,255,.7);animation-name:brillo;animation-duration:{{ q.dur }};animation-delay:{{ q.delay }};animation-iteration-count:infinite;animation-timing-function:ease-in-out"></div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="position:absolute;inset:0;z-index:10;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:overlay;background:radial-gradient(130% 100% at var(--mx,50%) var(--my,50%),rgba(150,235,255,1) 0%,rgba(255,140,235,.85) 34%,rgba(255,245,165,.75) 54%,transparent 82%)"></div>
+          <div style="position:absolute;inset:0;z-index:11;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:screen;background:radial-gradient(46% 38% at var(--mx,50%) var(--my,50%),rgba(255,255,255,.72) 0%,rgba(255,255,255,.2) 44%,transparent 72%)"></div>
+          <div style="position:absolute;inset:0;z-index:12;pointer-events:none;opacity:var(--holo-op,0);transition:opacity .3s ease-out;mix-blend-mode:screen;background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.3) 50%,transparent 66%)"></div>
+        </div>
+      </div>
+
+      <div style="width:340px;font-size:11px;line-height:1.9;color:#8a7e6f">Damero de 26 y 13 píxeles sobre el arcoíris, marco de oro pálido y treinta y cuatro celdas que se encienden por turnos. Más brillo y más contraste que la holo normal.</div>
+    </div>
+
+    <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:22px;padding-top:36px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:22px;height:2px;background:#a49785"></div>
+        <div style="font-size:12px;letter-spacing:.22em;color:#a49785">EL EFECTO</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;padding:28px 30px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <div style="font-size:12px;line-height:2;color:#a49785">Pasa el cursor por encima. La carta se inclina hacia el puntero y el brillo nace donde está. El foil cubre toda la superficie en cinco capas: el arcoíris tiñe en <i>hue</i> — así el papel toma color sin quemarse y el texto sigue legible —, el lustre va en <i>overlay</i>, el reflejo y la banda diagonal en <i>screen</i>, y entre ellas centellean veintiséis estrellas de cuatro puntas en fases distintas.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">La barrida de color corre sola, sin ratón, para que la carta también brille en reposo. El arte es un hueco: arrastra tu ilustración a la ventana y el foil queda por encima de ella igual que del resto.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">La <span style="color:#ffe89a">secreta</span> cambia el grano: donde la holo normal lleva estrellas de cuatro puntas, esta prensa un damero de veintiséis y trece píxeles y enciende celdas sueltas. El arcoíris gira más rápido y el reflejo va casi a tope, así que la carta brilla incluso quieta.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:12px;line-height:2;color:#a49785">En Tweaks: <span style="color:#e8c46a">intensidad</span> del brillo y apagado del <span style="color:#e8c46a">grano</span> — estrellas y cuadraditos a la vez.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;rotulo&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;CARTAS&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Marca&quot;},&quot;mostrarFichas&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Marca&quot;},&quot;mostrarEstrellas&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Holo&quot;},&quot;intensidadHolo&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.85,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Holo&quot;}}">
+// Campo de estrellas determinista: mismo reparto en cada render, sin dos
+// destellos vecinos en fase. El seno hace de generador para no depender de
+// Math.random (que cambiaría el dibujo en cada repintado).
+function campoEstrellas(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.abs(Math.sin((i + 1) * 12.9898) * 43758.5453) % 1;
+    const b = Math.abs(Math.sin((i + 1) * 78.233) * 12345.6789) % 1;
+    const c = Math.abs(Math.sin((i + 1) * 39.425) * 9876.5432) % 1;
+    const w = c < .12 ? 22 : c < .38 ? 14 : 9;
+    out.push({
+      x: (6 + a * 88).toFixed(2) + '%',
+      y: (5 + b * 90).toFixed(2) + '%',
+      w: w + 'px',
+      off: (-w / 2) + 'px',
+      dur: (2.2 + c * 3.4).toFixed(2) + 's',
+      delay: (-c * 5.5).toFixed(2) + 's',
+      tono: a < .34 ? '#ffffff' : a < .58 ? '#bdf0ff' : a < .8 ? '#ffd0f2' : '#fff0b8',
+    });
+  }
+  return out;
+}
+
+// Cuadraditos del foil secreto: posiciones ancladas a la retícula de 26 px, de
+// modo que los destellos caen justo sobre las celdas del damero.
+function campoCuadros(n) {
+  const paso = 26, cols = 12, filas = 17, out = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.abs(Math.sin((i + 1) * 24.113) * 43758.5453) % 1;
+    const b = Math.abs(Math.sin((i + 1) * 55.907) * 12345.6789) % 1;
+    const c = Math.abs(Math.sin((i + 1) * 91.331) * 9876.5432) % 1;
+    const lado = c < .22 ? paso : paso / 2;
+    out.push({
+      x: Math.floor(a * cols) * paso + 'px',
+      y: Math.floor(b * filas) * paso + 'px',
+      w: lado + 'px',
+      tono: c < .3 ? '#ffffff' : c < .52 ? '#c8f4ff' : c < .74 ? '#ffd8f6' : '#fff4c4',
+      dur: (1.5 + c * 2.6).toFixed(2) + 's',
+      delay: (-c * 4.2).toFixed(2) + 's',
+    });
+  }
+  return out;
+}
+
+class Component extends DCLogic {
+  componentDidMount() {
+    // El brillo sigue al puntero y la carta se inclina hacia él: dos variables
+    // CSS y un transform, escritos directamente en el nodo para no repintar.
+    this._move = (e) => {
+      const nodos = document.querySelectorAll('[data-holo]');
+      const activo = e.target && e.target.closest ? e.target.closest('[data-holo]') : null;
+      const fuerza = this.props.intensidadHolo ?? .85;
+      nodos.forEach((n) => {
+        if (n === activo) return;
+        n.style.setProperty('--holo-op', '0');
+        n.style.transform = 'rotateX(0deg) rotateY(0deg)';
+      });
+      if (!activo) return;
+      const r = activo.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width;
+      const py = (e.clientY - r.top) / r.height;
+      activo.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
+      activo.style.setProperty('--my', (py * 100).toFixed(1) + '%');
+      activo.style.setProperty('--holo-op', String(fuerza));
+      activo.style.transform = 'rotateY(' + ((px - .5) * 15).toFixed(2) + 'deg) rotateX(' + ((.5 - py) * 15).toFixed(2) + 'deg)';
+    };
+    window.addEventListener('mousemove', this._move);
+  }
+  componentWillUnmount() { window.removeEventListener('mousemove', this._move); }
+  renderVals() {
+    return {
+      rotulo: this.props.rotulo ?? 'CARTAS',
+      mostrarFichas: this.props.mostrarFichas ?? true,
+      mostrarEstrellas: this.props.mostrarEstrellas ?? true,
+      estrellas: campoEstrellas(26),
+      cuadros: campoCuadros(34),
+    };
+  }
+}
+</script>
+</body>
+</html>

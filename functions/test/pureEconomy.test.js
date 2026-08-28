@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { BOOSTER_COST, PROTECTOR_COST, PROTECTOR_IDS, RARITY_ROLL, computeMatchReward, drawBoosterCards } = require('../lib/pureEconomy');
+const { BOOSTER_COST, PROTECTOR_COST, PROTECTOR_IDS, RARITY_ROLL, computeMatchReward, drawBoosterCards, pickWeighted } = require('../lib/pureEconomy');
 
 assert.strictEqual(BOOSTER_COST, 100, 'booster costs 100 coins');
 console.log('PASS: BOOSTER_COST is 100');
@@ -17,19 +17,43 @@ console.log('PASS: win reward is 75');
 assert.strictEqual(computeMatchReward('loss'), 0, 'a loss pays 0 coins');
 console.log('PASS: loss reward is 0');
 
+// A real set always has far more than 3 Uncommons / 7 Commons, so this pool
+// (4 Uncommons, 8 Commons) is realistic, not a contrived edge case.
+var bigPool = [
+  { n: 'RareOne', num: 'r1', r: 'Rare' },
+  { n: 'U1', num: 'u1', r: 'Uncommon' }, { n: 'U2', num: 'u2', r: 'Uncommon' },
+  { n: 'U3', num: 'u3', r: 'Uncommon' }, { n: 'U4', num: 'u4', r: 'Uncommon' },
+  { n: 'C1', num: 'c1', r: 'Common' }, { n: 'C2', num: 'c2', r: 'Common' },
+  { n: 'C3', num: 'c3', r: 'Common' }, { n: 'C4', num: 'c4', r: 'Common' },
+  { n: 'C5', num: 'c5', r: 'Common' }, { n: 'C6', num: 'c6', r: 'Common' },
+  { n: 'C7', num: 'c7', r: 'Common' }, { n: 'C8', num: 'c8', r: 'Common' }
+];
+var cards = drawBoosterCards(bigPool, function () { return 0; });
+assert.strictEqual(cards.length, 11, 'a booster always has 11 cards');
+assert.strictEqual(cards[0].r, 'Rare', 'the first card is always the Rare/Rare Holo slot');
+var uncommonNames = cards.filter(function (c) { return c.r === 'Uncommon'; }).map(function (c) { return c.n; });
+var commonNames = cards.filter(function (c) { return c.r === 'Common'; }).map(function (c) { return c.n; });
+assert.strictEqual(uncommonNames.length, 3, 'exactly 3 Uncommons');
+assert.strictEqual(commonNames.length, 7, 'exactly 7 Commons');
+console.log('PASS: drawBoosterCards returns 1 Rare + 3 Uncommon + 7 Common');
+
+// rng() always returning 0 always picks whatever is CURRENTLY first in the
+// shrinking scratch pool (see pickRandomUnique) -- under the old with-
+// replacement behavior this would deterministically produce 3x U1 + 7x C1
+// (all duplicates); with sampling-without-replacement it walks U1, U2, U3
+// and C1..C7 instead, so this doubles as a real regression check for
+// "a veces vienen hasta 3 cartas iguales", not just a shape check.
+assert.strictEqual(new Set(uncommonNames).size, 3, 'the 3 Uncommons in one pack are never duplicated');
+assert.strictEqual(new Set(commonNames).size, 7, 'the 7 Commons in one pack are never duplicated');
+console.log('PASS: drawBoosterCards never repeats a card within the same pack');
+
+// Kept small on purpose -- the tests below only ever look at cards[0]'s
+// pulledRarity (the Rare/Rare Holo slot), never the total card count.
 var pool = [
   { n: 'RareOne', num: '1', r: 'Rare' },
   { n: 'UncommonOne', num: '2', r: 'Uncommon' },
   { n: 'CommonOne', num: '3', r: 'Common' }
 ];
-var cards = drawBoosterCards(pool, function () { return 0; });
-assert.strictEqual(cards.length, 11, 'a booster always has 11 cards');
-assert.strictEqual(cards[0].r, 'Rare', 'the first card is always the Rare/Rare Holo slot');
-var uncommonCount = cards.filter(function (c) { return c.r === 'Uncommon'; }).length;
-var commonCount = cards.filter(function (c) { return c.r === 'Common'; }).length;
-assert.strictEqual(uncommonCount, 3, 'exactly 3 Uncommons');
-assert.strictEqual(commonCount, 7, 'exactly 7 Commons');
-console.log('PASS: drawBoosterCards returns 1 Rare + 3 Uncommon + 7 Common');
 
 assert.deepStrictEqual(RARITY_ROLL.normal, { secret: 0.01, holo: 0.10 }, 'normal odds: 1% secret, 10% holo, 89% rare');
 assert.deepStrictEqual(RARITY_ROLL.darkspoon, { secret: 0.45, holo: 0.50 }, 'darkspoon odds: 45% secret, 50% holo, 5% rare');
@@ -68,6 +92,38 @@ console.log('PASS: catalog rarity no longer locks in the pulled rarity');
 // drawBoosterCards clones before tagging pulledRarity (see its own comment).
 assert.strictEqual(pool[0].pulledRarity, undefined, 'the original catalog card object is never mutated');
 console.log('PASS: drawBoosterCards clones before tagging pulledRarity, never mutates the shared pool');
+
+// ── pickWeighted (the admin's "Probabilidades" tab, setRareOdds) ───────
+var weightedList = [{ n: 'A' }, { n: 'B' }, { n: 'C' }];
+
+assert.strictEqual(pickWeighted(weightedList, null, function () { return 0.5; }).n, 'B',
+  'with no weights config at all, pickWeighted behaves like plain uniform pickRandom');
+
+assert.strictEqual(pickWeighted(weightedList, { A: 0, C: 0 }, function () { return 0.999; }).n, 'B',
+  'zeroing out every other card makes the remaining one certain, regardless of the roll');
+
+assert.strictEqual(pickWeighted(weightedList, { A: 0, B: 0, C: 0 }, function () { return 0.5; }).n, 'B',
+  'if every weight is 0, it falls back to plain uniform odds instead of ever returning undefined');
+
+// B is 9x as likely as A or C (weights 1:9:1, total 11) -- rolls near the
+// start/end of B's slice land on B, just outside it land on A/C.
+var skewed = { A: 1, B: 9, C: 1 };
+assert.strictEqual(pickWeighted(weightedList, skewed, function () { return 0; }).n, 'A');
+assert.strictEqual(pickWeighted(weightedList, skewed, function () { return 1 / 11 + 0.001; }).n, 'B');
+assert.strictEqual(pickWeighted(weightedList, skewed, function () { return 10 / 11 - 0.001; }).n, 'B');
+assert.strictEqual(pickWeighted(weightedList, skewed, function () { return 10 / 11 + 0.001; }).n, 'C');
+console.log('PASS: pickWeighted respects configured weights, defaulting missing names to 1');
+
+// drawBoosterCards' rare slot actually uses those weights, keyed by card name.
+var rareOddsPool = [
+  { n: 'RareA', num: '1', r: 'Rare' },
+  { n: 'RareB', num: '2', r: 'Rare' },
+  { n: 'UncommonOne', num: '3', r: 'Uncommon' },
+  { n: 'CommonOne', num: '4', r: 'Common' }
+];
+var alwaysRareA = drawBoosterCards(rareOddsPool, function () { return 0.9; }, false, { RareA: 1, RareB: 0 });
+assert.strictEqual(alwaysRareA[0].n, 'RareA', 'a 0-weighted rare is never pulled, even on a high roll');
+console.log('PASS: drawBoosterCards\' rare slot honors an admin-configured rareWeights argument');
 
 // ── Custom deck-builder validation (Phase 4) ──────────────────────────
 const { DECK_SIZE, MAX_COPIES_PER_CARD, BASIC_ENERGY_NAMES, ownedCountsByName, supertypeByName, validateCustomDeck } = require('../lib/pureEconomy');

@@ -19,6 +19,15 @@ function layoutShellStages() {
 // match-end modal and finishMatch() read from.
 var matchWinner = null;
 
+// True from the moment an attack (or the CPU's whole reveal sequence) starts
+// playing out on screen until afterPlayerAction() actually runs. tickGameClock
+// (below) polls getWinner() every 250ms independent of any animation -- since
+// attack() already mutates gameState synchronously (before the ~2.2s overlay
+// even shows), that poll used to catch a match-ending KO and pop "Has Ganado"/
+// "Has Perdido" while the attack overlay was still mid-animation. This flag
+// makes tickGameClock hold off until the reveal actually finishes.
+var revealAnimationInProgress = false;
+
 // Menu's "Novedades" panel (see initNewsListener, economy.js, and
 // admin.html for how items actually get published). items: [{id, title,
 // body, tag, featured, createdAt}], newest first. The most recently
@@ -27,8 +36,56 @@ var matchWinner = null;
 // always shows something there rather than an empty box) and is excluded
 // from the regular list below it.
 var NEWS_MONTH_ES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-var NEWS_TAG_LABEL = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO' };
+var NEWS_TAG_LABEL = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO', gift: 'REGALO' };
+// Kept up to date on every news snapshot regardless of whether the Novedades
+// panel is even visible right now -- the Tienda's "PACK GRATIS" slot
+// (renderShopScreen) and its modal (openGiftBoosterModal) both read this
+// directly, since a player can have pending gift boosters without ever
+// having opened Novedades this session.
+var latestNewsItems = [];
+// 'booster' (a real base/jungle/fossil set) and 'custompack' (an admin-
+// curated customPacks/{packId}, see admin.html's "Packs" tab) both share the
+// claim-then-open split: "Reclamar" in Novedades (claimNewsGiftCloud) only
+// registers the claim, it doesn't draw anything -- the pack then shows up
+// here, in the Tienda's "PACK GRATIS" slot, until the player actually opens
+// it (openClaimedGiftCloud). A 'card' gift has no randomness to defer, so
+// it's granted the instant it's claimed and never appears in this list.
+function isGiftPackKind(gift) {
+  return gift && (gift.kind === 'booster' || gift.kind === 'custompack');
+}
+
+// Merges the two sources a pending-to-open pack can come from -- a news
+// gift (claimed via Novedades, tracked per-newsId) and a redeemed code
+// (Configuración's "Canjear código", tracked in econState.pendingCodePacks,
+// see redeemGiftCodeCloud) -- into one normalized list the Tienda's "PACK
+// GRATIS" slot/modal can render without caring which source it came from.
+function pendingGiftBoosters() {
+  var fromNews = latestNewsItems
+    .filter(function (it) { return isGiftPackKind(it.gift) && it.claimed && !it.opened; })
+    .map(function (it) { return { source: 'news', id: it.id, gift: it.gift, label: it.title }; });
+  var pendingCodes = (econState && econState.pendingCodePacks) ? econState.pendingCodePacks : [];
+  var fromCodes = pendingCodes.map(function (p) {
+    return { source: 'code', id: p.code, gift: p.gift, label: 'Código ' + p.code };
+  });
+  return fromNews.concat(fromCodes);
+}
+
+// {name, art} for either a real set's booster or a custom pack, wherever a
+// pending gift pack needs to show itself (Tienda's "PACK GRATIS" card, its
+// modal's per-row listing).
+function giftPackDisplay(gift) {
+  if (gift.kind === 'booster') {
+    return { name: 'PACK ' + (BOOSTER_NAMES[gift.setKey] || gift.setKey).toUpperCase(), art: BOOSTER_PACKS[gift.setKey][0] };
+  }
+  var pack = customPacksCache[gift.packId];
+  return {
+    name: (pack && pack.name) ? pack.name.toUpperCase() : 'PACK ESPECIAL',
+    art: (pack && pack.art && pack.art[0]) || ''
+  };
+}
+
 function renderNewsPanel(items) {
+  latestNewsItems = items;
   var badge = document.getElementById('newsBadge');
   var featuredEl = document.getElementById('newsFeatured');
   var listEl = document.getElementById('newsList');
@@ -44,10 +101,12 @@ function renderNewsPanel(items) {
     featuredEl.innerHTML =
       '<div class="shell-news-featured-meta">' +
         '<span class="shell-news-chip-featured">DESTACADO</span>' +
+        (featured.gift ? '<span class="shell-news-chip-gift">REGALO</span>' : '') +
         '<span class="shell-news-featured-date">' + escapeHtml(dateStr) + '</span>' +
       '</div>' +
       '<div class="shell-news-featured-title">' + escapeHtml(featured.title) + '</div>' +
-      '<div class="shell-news-featured-body">' + escapeHtml(featured.body) + '</div>';
+      '<div class="shell-news-featured-body">' + escapeHtml(featured.body) + '</div>' +
+      newsGiftButtonHtml(featured);
   } else {
     featuredEl.innerHTML = '';
   }
@@ -62,11 +121,69 @@ function renderNewsPanel(items) {
           '<div class="shell-news-item-body">' +
             '<div class="shell-news-item-title">' + escapeHtml(it.title) + '</div>' +
             '<div class="shell-news-item-summary">' + escapeHtml(it.body) + '</div>' +
+            newsGiftButtonHtml(it) +
           '</div>' +
+          // A "REGALO" category tag already says it -- only add the
+          // automatic chip when the admin picked some OTHER category, so a
+          // gift-tagged post never shows "REGALO" twice.
+          (it.gift && it.tag !== 'gift' ? '<span class="shell-news-item-tag shell-news-item-tag--gift">REGALO</span>' : '') +
           (tagLabel ? '<span class="shell-news-item-tag shell-news-item-tag--' + escapeHtml(it.tag) + '">' + tagLabel + '</span>' : '') +
           '</div>';
       }).join('')
     : (featured ? '' : '<div class="shell-news-empty">Sin novedades todavía.</div>');
+
+  wireNewsGiftButtons(items);
+}
+
+function newsGiftButtonHtml(it) {
+  if (!it.gift) { return ''; }
+  // While the claim check (economy.js's initNewsListener) is still in
+  // flight -- right after a fresh page load, before it knows whether this
+  // player already claimed it -- show the same muted state as "RECLAMADO"
+  // instead of "RECLAMAR", so an already-claimed gift never flashes as
+  // reclaimable for the brief window before the real answer arrives.
+  if (!it.claimChecked) { return '<button type="button" class="shell-news-gift-btn claimed" disabled>REVISANDO…</button>'; }
+  if (it.claimed) { return '<button type="button" class="shell-news-gift-btn claimed" disabled>RECLAMADO</button>'; }
+  return '<button type="button" class="shell-news-gift-btn" data-news-gift-id="' + escapeHtml(it.id) + '">🎁 RECLAMAR</button>';
+}
+
+function wireNewsGiftButtons(items) {
+  document.querySelectorAll('[data-news-gift-id]').forEach(function (btn) {
+    var id = btn.getAttribute('data-news-gift-id');
+    var item = items.filter(function (it) { return it.id === id; })[0];
+    if (!item) { return; }
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      btn.textContent = 'RECLAMANDO…';
+      claimNewsGiftCloud(id).then(function (result) {
+        item.claimed = true;
+        item.opened = result.opened;
+        // Only a 'card' gift comes back already opened (real cards to
+        // reveal) -- a 'booster'/'custompack' gift is just registered as
+        // claimed here, with nothing drawn yet (see claimNewsGift), so
+        // there's nothing to reveal until it's opened from the Tienda.
+        if (result.opened) { showBoosterResult(result.cards, item.gift.setKey || item.gift.packId); }
+        btn.textContent = 'RECLAMADO';
+        btn.classList.add('claimed');
+        // Keeps the Tienda's "PACK GRATIS" slot (where a claimed-but-
+        // unopened pack becomes available to open, see renderShopScreen/
+        // openGiftBoosterModal) in sync in case that screen is open behind
+        // this one -- a no-op if it isn't (renderShopScreen bails out when
+        // its grid isn't in the DOM).
+        renderShopScreen();
+      }).catch(function (err) {
+        if (err && err.code === 'functions/already-exists') {
+          item.claimed = true;
+          btn.textContent = 'RECLAMADO';
+          btn.classList.add('claimed');
+        } else {
+          alert(err.message || 'No se pudo reclamar el regalo.');
+          btn.disabled = false;
+          btn.textContent = '🎁 RECLAMAR';
+        }
+      });
+    });
+  });
 }
 
 function renderCoinCount() {
@@ -211,9 +328,18 @@ function renderCardBackPicker() {
 // their Fossil/Jungle art (this lookup has no set/num to disambiguate by,
 // unlike the Collection grid, which reads each pulled card's own img
 // directly instead of going through this by-name lookup at all).
+// Every real catalog set, in this exact order -- 'base' first is what
+// guarantees Base Set art wins in CARD_IMAGE_BY_NAME's first-wins lookup
+// below (see that comment); basep/espromo (Wizards Black Star Promos +
+// Special Promos, gift-only, never sold as boosters -- see renderShopScreen,
+// which deliberately keeps its own literal ['base','jungle','fossil'] list
+// instead of using this one) are appended last so they only ever fill in
+// names the 3 real sets don't already cover.
+var CARD_SET_KEYS = ['base', 'jungle', 'fossil', 'basep', 'espromo'];
+
 var CARD_IMAGE_BY_NAME = {};
 var CARD_SUPERTYPE_BY_NAME = {};
-['base', 'jungle', 'fossil'].forEach(function (setKey) {
+CARD_SET_KEYS.forEach(function (setKey) {
   (CARD_CATALOG[setKey] || []).forEach(function (c) {
     if (CARD_IMAGE_BY_NAME.hasOwnProperty(c.n)) { return; }
     CARD_IMAGE_BY_NAME[c.n] = c.img;
@@ -248,7 +374,7 @@ function preloadCardImages() {
   if (cardImagePreloadDone) { return; }
   cardImagePreloadDone = true;
   var urls = {};
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+  CARD_SET_KEYS.forEach(function (setKey) {
     (CARD_CATALOG[setKey] || []).forEach(function (c) { if (c.img) { urls[c.img] = true; } });
   });
   urls[CARD_BACK_URL] = true;
@@ -332,7 +458,11 @@ function cardImageTag(name, cls, isHolo) {
 // Returns the highest foil tier the player actually owns of a given card
 // name across all sets, or null if only plain copies are owned. Used by
 // the board renderer so holo/secret rare cards show their real foil during
-// a match instead of only the deck's one guaranteed holo.
+// a match instead of only the deck's one guaranteed holo. Deliberately real
+// sets only (NOT CARD_SET_KEYS/basep/espromo) -- promos aren't deck-legal
+// (see ownedCountsByNameClient/ownedTiersByNameClient below), so a Secret
+// Rare promo Pikachu must never leak its foil onto an unrelated plain
+// Base Set Pikachu that's actually in the player's deck.
 function getPlayerCardFoilTier(name) {
   if (!econState) { return null; }
   var hasSecret = false;
@@ -541,6 +671,7 @@ function showCardInViewer(name, instanceId) {
           return;
         }
         attack(gameState, 'player', atkName);
+        revealAnimationInProgress = true;
         showAttackOverlayIfAny(afterPlayerAction);
       });
     });
@@ -1634,6 +1765,10 @@ function proceedWithCpuTurn() {
     gameState.lastAttackResult = null;
     var queuedTrainerPlays = gameState.trainerPlaysQueue || [];
     gameState.trainerPlaysQueue = [];
+    // Held true for the whole reveal (Trainer plays -> thinking beat ->
+    // attack overlay) so tickGameClock's independent poll can't jump ahead
+    // of it -- see revealAnimationInProgress's own comment.
+    revealAnimationInProgress = true;
     // Reveal what the CPU actually did in chronological order: any
     // Trainer(s) it played (showTrainerPlaysSequence, ~1.5s each) come
     // first, and only once that finishes does the real board render --
@@ -1680,6 +1815,9 @@ function proceedWithCpuTurn() {
 // review the result of their own action (damage dealt, effects applied,
 // etc. in the log) before the board changes again.
 function afterPlayerAction() {
+  // The reveal (if any) that led here has now actually finished -- let
+  // tickGameClock resume checking for a win/loss on its own again.
+  revealAnimationInProgress = false;
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
@@ -2259,6 +2397,7 @@ function wireBoardButtons() {
         }
         pendingAttackNeedingTarget = null;
         attack(gameState, 'player', 'Lure', instanceId);
+        revealAnimationInProgress = true;
         showAttackOverlayIfAny(afterPlayerAction);
         return;
       }
@@ -2567,6 +2706,12 @@ function tickGameClock() {
   clockLastTickAt = now;
   tickClock(gameState, currentClockOwner(), elapsed);
   renderClocks();
+  // Don't let this independent 250ms poll race ahead of an attack reveal
+  // still animating on screen -- afterPlayerAction() (called once that
+  // reveal actually finishes) already re-checks getWinner() itself right
+  // after clearing this flag, so nothing is missed, only delayed until the
+  // player has actually seen why the match ended.
+  if (revealAnimationInProgress) { return; }
   var winner = getWinner(gameState);
   if (winner) { finishMatch(winner); }
 }
@@ -2636,6 +2781,7 @@ var shopReturnTo = 'menu';
 function showShopScreen(returnTo) {
   shopReturnTo = returnTo;
   document.getElementById('shopScreen').classList.remove('hidden');
+  playScreenMusic('Songs/Card Shop Corner.mp3');
   showShopTab('packs');
   renderShopScreen();
 }
@@ -2680,7 +2826,7 @@ function renderShopScreen() {
       '<div class="shell-shop-card" data-set="' + setKey + '">' +
         '<div class="shell-shop-card-art"><img src="' + randomPack + '" alt="' + BOOSTER_NAMES[setKey] + '"></div>' +
         '<div class="shell-shop-card-text">' +
-          '<div class="shell-shop-card-name">SOBRE ' + BOOSTER_NAMES[setKey].toUpperCase() + '</div>' +
+          '<div class="shell-shop-card-name">PACK ' + BOOSTER_NAMES[setKey].toUpperCase() + '</div>' +
           '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
         '</div>' +
         '<div class="shell-shop-card-footer">' +
@@ -2689,17 +2835,38 @@ function renderShopScreen() {
         '</div>' +
       '</div>';
   });
-  html +=
-    '<div class="shell-shop-card shell-shop-card-disabled">' +
-      '<div class="shell-shop-card-art"><span class="shell-shop-card-placeholder">PRÓXIMAMENTE</span></div>' +
-      '<div class="shell-shop-card-text">' +
-        '<div class="shell-shop-card-name">NUEVO SOBRE</div>' +
-        '<div class="shell-shop-card-desc">EN UNA PRÓXIMA ACTUALIZACIÓN</div>' +
-      '</div>' +
-      '<div class="shell-shop-card-footer">' +
-        '<button type="button" class="shell-shop-card-btn" disabled>PRÓXIMAMENTE</button>' +
-      '</div>' +
-    '</div>';
+  // This 4th slot doubles as the entry point for any pending news-gift
+  // packs (see claimNewsGiftCloud/pendingGiftBoosters), falling back to an
+  // explicit "no tienes packs de regalo" state once none are left to claim
+  // (previously a generic "coming soon" placeholder, back before gifting
+  // was a real feature).
+  var pending = pendingGiftBoosters();
+  if (pending.length) {
+    var giftPack = giftPackDisplay(pending[0].gift).art;
+    html +=
+      '<div class="shell-shop-card" id="giftBoosterShopCard">' +
+        '<div class="shell-shop-card-art"><img src="' + giftPack + '" alt="Pack gratis"></div>' +
+        '<div class="shell-shop-card-text">' +
+          '<div class="shell-shop-card-name">PACK GRATIS</div>' +
+          '<div class="shell-shop-card-desc">' + pending.length + (pending.length === 1 ? ' PACK PENDIENTE' : ' PACKS PENDIENTES') + '</div>' +
+        '</div>' +
+        '<div class="shell-shop-card-footer">' +
+          '<button type="button" class="shell-shop-card-btn" id="giftBoosterShopBtn">ABRIR</button>' +
+        '</div>' +
+      '</div>';
+  } else {
+    html +=
+      '<div class="shell-shop-card shell-shop-card-disabled">' +
+        '<div class="shell-shop-card-art"><span class="shell-shop-card-placeholder">SIN REGALOS</span></div>' +
+        '<div class="shell-shop-card-text">' +
+          '<div class="shell-shop-card-name">PACK GRATIS</div>' +
+          '<div class="shell-shop-card-desc">NO TIENES PACKS DE REGALOS</div>' +
+        '</div>' +
+        '<div class="shell-shop-card-footer">' +
+          '<button type="button" class="shell-shop-card-btn" disabled>NO DISPONIBLE</button>' +
+        '</div>' +
+      '</div>';
+  }
   grid.innerHTML = html;
 
   grid.querySelectorAll('.shell-shop-card[data-set]').forEach(function (card) {
@@ -2707,6 +2874,81 @@ function renderShopScreen() {
       openBoosterSelectModal(card.getAttribute('data-set'));
     });
   });
+  var giftBtn = document.getElementById('giftBoosterShopBtn');
+  if (giftBtn) { giftBtn.addEventListener('click', openGiftBoosterModal); }
+}
+
+function openGiftBoosterModal() {
+  renderGiftBoosterModalList();
+  document.getElementById('giftBoosterModal').classList.remove('hidden');
+}
+
+function closeGiftBoosterModal() {
+  document.getElementById('giftBoosterModal').classList.add('hidden');
+}
+
+function renderGiftBoosterModalList() {
+  var listEl = document.getElementById('giftBoosterModalList');
+  if (!listEl) { return; }
+  var pending = pendingGiftBoosters();
+  if (!pending.length) {
+    closeGiftBoosterModal();
+    return;
+  }
+  listEl.innerHTML = pending.map(function (it) {
+    var display = giftPackDisplay(it.gift);
+    return '<div class="shell-gift-booster-row">' +
+      '<img src="' + display.art + '" alt="' + escapeHtml(display.name) + '">' +
+      '<div class="shell-gift-booster-row-text">' +
+        '<div class="shell-gift-booster-row-name">' + escapeHtml(display.name) + '</div>' +
+        '<div class="shell-gift-booster-row-source">' + escapeHtml(it.label) + '</div>' +
+      '</div>' +
+      '<button type="button" class="shell-shop-card-btn" data-open-gift-source="' + escapeHtml(it.source) + '" data-open-gift-id="' + escapeHtml(it.id) + '">ABRIR</button>' +
+    '</div>';
+  }).join('');
+  listEl.querySelectorAll('[data-open-gift-id]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-open-gift-id');
+      var source = btn.getAttribute('data-open-gift-source');
+      var item = pending.filter(function (it) { return it.id === id && it.source === source; })[0];
+      if (!item) { return; }
+      btn.disabled = true;
+      btn.textContent = 'ABRIENDO…';
+      var openPromise = source === 'code' ? openCodePackCloud(id) : openClaimedGiftCloud(id);
+      openPromise.then(function (cards) {
+        markGiftPackOpened(item);
+        closeGiftBoosterModal();
+        showBoosterResult(cards, item.gift.setKey || item.gift.packId);
+        renderShopScreen();
+        // The Novedades panel's own DOM was built before this open (its
+        // "RECLAMADO" state doesn't change here, but re-rendering keeps
+        // latestNewsItems' own mutation visible if the player goes back) --
+        // cheap no-op otherwise.
+        renderNewsPanel(latestNewsItems);
+      }).catch(function (err) {
+        if (err && err.code === 'functions/already-exists') {
+          markGiftPackOpened(item);
+          renderGiftBoosterModalList();
+        } else {
+          alert(err.message || 'No se pudo abrir el pack.');
+          btn.disabled = false;
+          btn.textContent = 'ABRIR';
+        }
+      });
+    });
+  });
+}
+
+// Marks a pending pack as opened in whichever underlying store it actually
+// came from (see pendingGiftBoosters) so it stops showing as pending right
+// away, instead of waiting for the next Firestore snapshot to confirm it.
+function markGiftPackOpened(item) {
+  if (item.source === 'news') {
+    var newsItem = latestNewsItems.filter(function (it) { return it.id === item.id; })[0];
+    if (newsItem) { newsItem.opened = true; }
+  } else if (econState && econState.pendingCodePacks) {
+    econState.pendingCodePacks = econState.pendingCodePacks.filter(function (p) { return p.code !== item.id; });
+  }
 }
 
 // Protectores: real cosmetic card backs bought with real coins (Cloud
@@ -2760,7 +3002,13 @@ var COLLECTION_RARITIES = [
   { key: 'Common', label: 'COMÚN', color: '#8dff62' },
   { key: 'Uncommon', label: 'INFRECUENTE', color: '#8dff62' },
   { key: 'Rare', label: 'RARA', color: '#e8c46a' },
-  { key: 'Rare Holo', label: 'HOLOGRÁFICA', color: '#ff8a72' }
+  { key: 'Rare Holo', label: 'HOLOGRÁFICA', color: '#ff8a72' },
+  // basep/espromo (Wizards Black Star Promos + Special Promos) are all
+  // catalogued with r:"Promo" (see data-sets.js) since they're gift-only,
+  // never pulled from a real booster -- this is their own filter bucket
+  // rather than folding them into "Rare" so a claimed gift card is easy to
+  // find without implying it was a normal booster pull.
+  { key: 'Promo', label: 'PROMO', color: '#c9a6ff' }
 ];
 
 function showCollectionScreen(returnTo) {
@@ -2769,6 +3017,7 @@ function showCollectionScreen(returnTo) {
   var searchInput = document.getElementById('collectionSearch');
   if (searchInput) { searchInput.value = ''; }
   document.getElementById('collectionScreen').classList.remove('hidden');
+  playScreenMusic('Songs/Mi Colección.mp3');
   renderCollectionScreen();
 }
 
@@ -2779,7 +3028,7 @@ function hideCollectionScreen() {
 // Flattens the 3-set catalog into one list, joined with real owned counts.
 function collectionAllCards() {
   var all = [];
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+  CARD_SET_KEYS.forEach(function (setKey) {
     var setTotal = CARD_CATALOG[setKey].length;
     CARD_CATALOG[setKey].forEach(function (c) {
       var key = setKey + '-' + c.num;
@@ -2957,11 +3206,11 @@ function openBoosterSelectModal(setKey) {
       '<span class="shell-booster-variant-name">' + name.toUpperCase() + '</span>' +
       '</button>';
   });
-  document.getElementById('boosterModalTitle').textContent = 'SOBRE ' + BOOSTER_NAMES[setKey].toUpperCase();
+  document.getElementById('boosterModalTitle').textContent = 'PACK ' + BOOSTER_NAMES[setKey].toUpperCase();
   document.getElementById('boosterModalPrice').innerHTML = pixelDigitsHtml(100, 'oro', 2);
   document.getElementById('boosterModalGrid').innerHTML = html;
   document.getElementById('boosterOpenBtn').disabled = true;
-  document.getElementById('boosterSelectedInfo').textContent = 'TOCÁ UN SOBRE PARA SELECCIONARLO';
+  document.getElementById('boosterSelectedInfo').textContent = 'TOCA UN PACK PARA SELECCIONARLO';
   boosterSelectState = { setKey: setKey, selectedPack: null };
 
   document.querySelectorAll('.shell-booster-variant').forEach(function (el) {
@@ -2995,7 +3244,7 @@ function openBoosterAndPurchase() {
       showBoosterResult(cards, setKey);
     })
     .catch(function (err) {
-      alert(err.message || 'No se pudo abrir el sobre.');
+      alert(err.message || 'No se pudo abrir el pack.');
       document.getElementById('boosterOpenBtn').disabled = false;
     });
 }
@@ -3013,7 +3262,11 @@ var BOOSTER_RESULT_RARITY = {
 var boosterResultSetKey = null;
 
 function showBoosterResult(cards, setKey) {
-  boosterResultSetKey = setKey;
+  // Reused for news-gift reveals (see claimNewsGift/renderNewsPanel) --
+  // 'basep'/'espromo' gift cards have no purchasable pack art in
+  // BOOSTER_PACKS, so "ABRIR OTRO" has nothing real to reopen for them.
+  boosterResultSetKey = BOOSTER_PACKS[setKey] ? setKey : null;
+  document.getElementById('boosterResultAgain').style.display = boosterResultSetKey ? '' : 'none';
   var html = '';
   cards.forEach(function (c) {
     // c.img is this exact card's own art (straight from the set that was
@@ -3046,7 +3299,7 @@ function showBoosterResult(cards, setKey) {
   });
   document.getElementById('boosterResultGrid').innerHTML = html;
   document.getElementById('boosterResultTitle').innerHTML =
-    pixelDigitsHtml(cards.length, 'fosforo', 3) + ' CARTAS NUEVAS';
+    pixelDigitsHtml(cards.length, 'fosforo', 3) + ' CARTA' + (cards.length === 1 ? '' : 'S') + ' NUEVA' + (cards.length === 1 ? '' : 'S');
 
   document.getElementById('boosterResultModal').classList.remove('hidden');
 
@@ -3272,6 +3525,7 @@ function showDecksScreen() {
   document.getElementById('decksSaveStatus').textContent = '';
   document.getElementById('decksSaveStatus').className = 'shell-decks-save-status';
   document.getElementById('decksScreen').classList.remove('hidden');
+  playScreenMusic('Songs/Deck Builder Serenade.mp3');
 }
 function hideDecksScreen() {
   document.getElementById('decksScreen').classList.add('hidden');
@@ -3290,6 +3544,10 @@ var DECK_BUILDER_BASIC_ENERGY = ['Grass Energy', 'Fire Energy', 'Water Energy', 
 // {cardName: totalOwnedCount}, aggregated across every set/tier -- deck-
 // building rules are name-based, not print-based (see ownedCountsByName,
 // functions/lib/pureEconomy.js, the server-side equivalent of this).
+// Deliberately real sets only -- promos (basep/espromo) are collectible
+// but not deck-legal for now, so they must never inflate this pool (the
+// server enforces the same real-sets-only restriction independently, see
+// PLAYABLE_CARD_CATALOG in functions/index.js's saveCustomDeck).
 function ownedCountsByNameClient() {
   var owned = {};
   if (!econState) { return owned; }
@@ -3304,7 +3562,8 @@ function ownedCountsByNameClient() {
 
 // {cardName: {total: N, tiers: [{count, holo, secret}]}} -- per-name tier
 // breakdown so the deck builder pool can show foil indicators and the
-// version modal can offer tier-specific adds. Aggregates across every set.
+// version modal can offer tier-specific adds. Real sets only, same reason
+// as ownedCountsByNameClient above -- promos aren't deck-legal yet.
 function ownedTiersByNameClient() {
   var result = {};
   if (!econState) { return result; }
@@ -3605,6 +3864,7 @@ function toggleTheme() {
 // ── Menu ───────────────────────────────────────────────────────────
 function showMenu() {
   document.getElementById('menuScreen').classList.remove('hidden');
+  playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
@@ -3788,6 +4048,13 @@ function applyMenuLogo() {
 // verbatim (spaces/apostrophes and all); set as a JS property, not written
 // into an HTML attribute, so no manual escaping is needed.
 var DUEL_MUSIC_TRACKS = {
+  orange_duel: { label: 'Duel Music', file: 'Songs/Duel_Music.mp3' },
+  orange_duel3: { label: 'Duel Music 3', file: 'Songs/Duel_Music_3.mp3' },
+  orange_duel4: { label: 'Duel Music 4', file: 'Songs/Duel_Music_4.mp3' },
+  orange_duel9: { label: 'Duel Music 9', file: 'Songs/Duel_Music_9.mp3' },
+  orange_determination: { label: 'Determination Battle', file: 'Songs/Determination Battle.mp3' },
+  orange_determined: { label: 'Determined Duelist', file: 'Songs/Determined Duelist.mp3' },
+  orange_hard: { label: 'Some Hard Duel', file: 'Songs/Some Hard Duel.mp3' },
   pkmntcg_duel: { label: 'Duel', file: 'Songs/Pokemon_TCG.mp3' },
   pkmntcg_club: { label: 'Club Master Duel', file: 'Songs/14 Club Master Duel.mp3' },
   pkmntcg_ronald: { label: 'Ronald', file: "Songs/16 Ronald's Theme.mp3" },
@@ -3798,7 +4065,7 @@ var DUEL_MUSIC_TRACKS = {
   ygodlk_tag: { label: 'Tag Duel', file: 'Songs/Ygodlk - Tag Duel.mp3' },
   ygomsd_duel: { label: 'Duel', file: 'Songs/YGOMSD - Duel.mp3' }
 };
-var DUEL_MUSIC_DEFAULT = 'ygofbm_free';
+var DUEL_MUSIC_DEFAULT = 'orange_duel';
 var MATCH_END_MUSIC = { win: 'Songs/06 Win!.mp3', loss: 'Songs/08 Lost.mp3' };
 
 function getMusicVolume() {
@@ -3859,9 +4126,30 @@ function cpuThinkDelayMs(difficulty) {
   return Math.round(range[0] + Math.random() * (range[1] - range[0]));
 }
 
+// Whichever non-duel screen's ambient track is playing right now on
+// #bgMusic (login, main menu, tienda, colección, mi mazo) -- tracked
+// separately from bg.src itself since the browser re-encodes spaces/accents
+// in that property (e.g. "Mi Colección.mp3" -> "...Mi%20Colecci%C3%B3n.mp3"),
+// making a plain substring check against the raw filename unreliable.
+// Cleared by startDuelMusic()/playMatchEndMusic() so returning to any of
+// these screens after a match always restarts the right track instead of
+// leaving the duel/fanfare audio playing underneath.
+var currentScreenMusicFile = null;
+function playScreenMusic(file) {
+  var bg = document.getElementById('bgMusic');
+  if (currentScreenMusicFile === file && !bg.paused) { return; }
+  currentScreenMusicFile = file;
+  bg.src = file;
+  bg.loop = true;
+  bg.volume = getMusicVolume() / 100;
+  bg.currentTime = 0;
+  bg.play().catch(function () {});
+}
+
 // Called once the coin flip actually starts the duel (startMatchBtn) --
 // loops for the whole match, real volume from the Música slider.
 function startDuelMusic() {
+  currentScreenMusicFile = null;
   var bg = document.getElementById('bgMusic');
   var track = DUEL_MUSIC_TRACKS[getDuelMusicKey()];
   bg.src = track.file;
@@ -3876,6 +4164,7 @@ function stopDuelMusic() {
 }
 // Stops the duel music and plays the real Win!/Lost fanfare once (no loop).
 function playMatchEndMusic(winner) {
+  currentScreenMusicFile = null;
   stopDuelMusic();
   var el = document.getElementById('matchEndMusic');
   el.src = winner === 'player' ? MATCH_END_MUSIC.win : MATCH_END_MUSIC.loss;
@@ -4245,6 +4534,61 @@ document.addEventListener('DOMContentLoaded', function () {
     if (configReturnTo === 'menu') { showMenu(); } else { resumeGameClockIfNeeded(); }
   });
 
+  // Canjear código -- a 'card' gift is granted instantly and reveals right
+  // here (reuses the same showBoosterResult grid claimNewsGift's card
+  // branch already uses); a 'booster'/'custompack' gift is only registered
+  // (nothing drawn yet, see redeemGiftCodeCloud) and instead shows up in
+  // the Tienda's "PACK GRATIS" slot, same as a claimed news pack gift.
+  document.getElementById('configCancelCodeBtn').addEventListener('click', function () {
+    document.getElementById('configCodeInput').value = '';
+    var statusEl = document.getElementById('configCodeStatus');
+    statusEl.textContent = '';
+    statusEl.className = 'shell-config-code-status';
+  });
+  document.getElementById('configRedeemCodeBtn').addEventListener('click', function () {
+    var input = document.getElementById('configCodeInput');
+    var statusEl = document.getElementById('configCodeStatus');
+    var code = input.value.trim();
+    if (!code) {
+      statusEl.className = 'shell-config-code-status error';
+      statusEl.textContent = 'Ingresá un código.';
+      return;
+    }
+    var btn = document.getElementById('configRedeemCodeBtn');
+    btn.disabled = true;
+    statusEl.className = 'shell-config-code-status';
+    statusEl.textContent = 'Canjeando…';
+    redeemGiftCodeCloud(code).then(function (result) {
+      btn.disabled = false;
+      input.value = '';
+      statusEl.className = 'shell-config-code-status ok';
+      statusEl.textContent = '¡Código canjeado!';
+      if (result.kind === 'card') {
+        showBoosterResult(result.cards, null);
+      } else {
+        document.getElementById('codeRedeemModalText').textContent =
+          'Tu pack está esperando en la Tienda (PACK GRATIS) para que lo abras.';
+        document.getElementById('codeRedeemModal').classList.remove('hidden');
+      }
+    }).catch(function (err) {
+      btn.disabled = false;
+      statusEl.className = 'shell-config-code-status error';
+      statusEl.textContent = err.message || 'No se pudo canjear el código.';
+    });
+  });
+  document.getElementById('codeRedeemModalClose').addEventListener('click', function () {
+    document.getElementById('codeRedeemModal').classList.add('hidden');
+  });
+  document.querySelector('#codeRedeemModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('codeRedeemModal').classList.add('hidden');
+  });
+  document.getElementById('codeRedeemModalGotoShop').addEventListener('click', function () {
+    document.getElementById('codeRedeemModal').classList.add('hidden');
+    hideConfigScreen();
+    showMenu();
+    showShopScreen('menu');
+  });
+
   initConfigSliders();
   renderCardBackPicker();
 
@@ -4409,6 +4753,10 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('boosterModalClose').addEventListener('click', closeBoosterSelectModal);
   document.querySelector('#boosterSelectModal .card-modal-backdrop').addEventListener('click', closeBoosterSelectModal);
   document.getElementById('boosterOpenBtn').addEventListener('click', openBoosterAndPurchase);
+
+  // Gift booster modal (Tienda's "PACK GRATIS" slot)
+  document.getElementById('giftBoosterModalClose').addEventListener('click', closeGiftBoosterModal);
+  document.querySelector('#giftBoosterModal .card-modal-backdrop').addEventListener('click', closeGiftBoosterModal);
 
   // Booster result modal
   document.getElementById('boosterResultClose').addEventListener('click', function () {

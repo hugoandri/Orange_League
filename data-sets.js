@@ -1600,5 +1600,241 @@ const CARD_CATALOG = {
       "r": "Common",
       "img": "Cartas/base3/62_hires.png"
     }
+  ],
+  "basep": [
+    {
+      "n": "Pikachu",
+      "num": "1",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/1_hires.png"
+    },
+    {
+      "n": "Electabuzz",
+      "num": "2",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/2_hires.png"
+    },
+    {
+      "n": "Mewtwo",
+      "num": "3",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/3_hires.png"
+    },
+    {
+      "n": "Pikachu",
+      "num": "4",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/4_hires.png"
+    },
+    {
+      "n": "Dragonite",
+      "num": "5",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/5_hires.png"
+    },
+    {
+      "n": "Arcanine",
+      "num": "6",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/6_hires.png"
+    },
+    {
+      "n": "Jigglypuff",
+      "num": "7",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/7_hires.png"
+    },
+    {
+      "n": "Mew",
+      "num": "8",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/8_hires.png"
+    },
+    {
+      "n": "Mew",
+      "num": "9",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/9_hires.png"
+    },
+    {
+      "n": "Meowth",
+      "num": "10",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/10_hires.png"
+    },
+    {
+      "n": "Eevee",
+      "num": "11",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/11_hires.png"
+    },
+    {
+      "n": "Mewtwo",
+      "num": "12",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/12_hires.png"
+    },
+    {
+      "n": "Venusaur",
+      "num": "13",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/13_hires.png"
+    },
+    {
+      "n": "Mewtwo",
+      "num": "14",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/14_hires.png"
+    },
+    {
+      "n": "Cool Porygon",
+      "num": "15",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/15_hires.png"
+    },
+    {
+      "n": "Computer Error",
+      "num": "16",
+      "st": "Trainer",
+      "r": "Promo",
+      "img": "Cartas/basep/16_hires.png"
+    },
+    {
+      "n": "Dark Persian",
+      "num": "17",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/17_hires.png"
+    },
+    {
+      "n": "Team Rocket's Meowth",
+      "num": "18",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/18_hires.png"
+    },
+    {
+      "n": "Sabrina's Abra",
+      "num": "19",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/19_hires.png"
+    },
+    {
+      "n": "Psyduck",
+      "num": "20",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/20_hires.png"
+    },
+    {
+      "n": "Moltres",
+      "num": "21",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/21_hires.png"
+    },
+    {
+      "n": "Articuno",
+      "num": "22",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/22_hires.png"
+    },
+    {
+      "n": "Zapdos",
+      "num": "23",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/23_hires.png"
+    },
+    {
+      "n": "_____'s Pikachu",
+      "num": "24",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/24_hires.png"
+    },
+    {
+      "n": "Flying Pikachu",
+      "num": "25",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/25_hires.png"
+    },
+    {
+      "n": "Pikachu",
+      "num": "26",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/26_hires.png"
+    },
+    {
+      "n": "Pikachu",
+      "num": "27",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/27_hires.png"
+    },
+    {
+      "n": "Surfing Pikachu",
+      "num": "28",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/basep/28_hires.png"
+    }
+  ]
+,
+  "espromo": [
+    {
+      "n": "Articuno (GB)",
+      "num": "1",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/Especial Promo/Articuno GB.png"
+    },
+    {
+      "n": "Zapdos (GB)",
+      "num": "2",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/Especial Promo/Zapdos GB.png"
+    },
+    {
+      "n": "Moltres (GB)",
+      "num": "3",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/Especial Promo/Moltres GB.png"
+    },
+    {
+      "n": "Articuno, Moltres and Zapdos",
+      "num": "4",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/Especial Promo/Articuno, Moltres, and Zapdos.png"
+    },
+    {
+      "n": "Imakuni?",
+      "num": "5",
+      "st": "Pokémon",
+      "r": "Promo",
+      "img": "Cartas/Especial Promo/imakuni.png"
+    }
   ]
 };

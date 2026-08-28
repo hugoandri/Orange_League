@@ -4,18 +4,39 @@
 <meta charset="UTF-8">
 <title>Admin · Novedades</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Reused ONLY by the preview modal below, so "Previsualizar" renders the
+     post with the exact same classes/colors the real Novedades panel uses
+     (shell-news-featured*, shell-news-chip-*) instead of an approximation
+     that could drift from the real look. Every admin.html class lives
+     outside the shell-* namespace, so there's no collision. -->
+<link rel="stylesheet" href="shell-theme.css">
 <style>
   :root{color-scheme:dark;}
   *{box-sizing:border-box;}
   body{
     margin:0;min-height:100vh;background:#141210;color:#efe9dd;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    padding:32px 20px 80px;
+    padding:0;
   }
-  .wrap{max-width:720px;margin:0 auto;}
+  .layout{display:flex;max-width:1040px;margin:0 auto;min-height:100vh;align-items:flex-start;}
+  .sidebar{
+    width:190px;flex:none;padding:32px 14px;position:sticky;top:0;
+    border-right:1px solid #2c2822;
+  }
+  .sidebar-title{font-size:12px;letter-spacing:.1em;color:#6d6155;text-transform:uppercase;margin:0 0 16px;padding:0 10px;}
+  .side-link{
+    display:block;width:100%;text-align:left;background:none;border:none;color:#a49785;
+    font-size:14px;font-weight:600;padding:10px 10px;border-radius:6px;cursor:pointer;margin-bottom:4px;
+    font-family:inherit;
+  }
+  .side-link:hover{background:#1d1a15;color:#efe9dd;}
+  .side-link.active{background:#2c2822;color:#8dff62;}
+  .content{flex:1;min-width:0;padding:32px 20px 80px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
   h1{font-size:22px;margin:0 0 6px;}
   .sub{color:#8a7e6f;font-size:13px;margin:0 0 28px;}
-  .state-box{background:#1d1a15;border:1px solid #2c2822;border-radius:8px;padding:24px;text-align:center;color:#a49785;}
+  .state-box{background:#1d1a15;border:1px solid #2c2822;border-radius:8px;padding:24px;text-align:center;color:#a49785;margin:32px 20px;}
   .state-box a{color:#8dff62;}
   .card{background:#1d1a15;border:1px solid #2c2822;border-radius:8px;padding:20px;margin-bottom:20px;}
   .card h2{font-size:15px;margin:0 0 16px;color:#efe9dd;}
@@ -47,6 +68,13 @@
   .news-row-body{flex:1;min-width:0;}
   .news-row-title{font-size:14px;font-weight:700;}
   .news-row-meta{font-size:11px;color:#8a7e6f;margin-top:2px;}
+  .news-row-gift{font-size:11px;color:#8dff62;margin-top:4px;}
+  .gift-card-preview{
+    display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;
+    background:#141210;border:1px solid #3a342c;border-radius:6px;
+  }
+  .gift-card-preview img{width:64px;border-radius:4px;display:block;}
+  .gift-card-preview span{font-size:13px;color:#efe9dd;}
   .news-row-tag{
     display:inline-block;font-size:10px;letter-spacing:.08em;padding:3px 7px;border-radius:4px;
     background:#2c2822;color:#a49785;margin-right:6px;
@@ -55,43 +83,277 @@
   .news-row-actions{display:flex;gap:8px;flex:none;}
   .news-row-actions button{padding:6px 12px;font-size:12px;}
   .empty-note{color:#6d6155;font-size:13px;text-align:center;padding:20px 0;}
+  .users-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .users-count{color:#8a7e6f;font-size:12px;}
+  table.users-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.users-table th{
+    text-align:left;color:#6d6155;font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    padding:8px 10px;border-bottom:1px solid #2c2822;
+  }
+  table.users-table td{padding:10px 10px;border-bottom:1px solid #241f19;}
+  table.users-table tr:last-child td{border-bottom:none;}
+  table.users-table td.coins{color:#8dff62;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;}
+  table.users-table td.uid{color:#6d6155;font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+
+  .odds-set-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .odds-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #241f19;}
+  .odds-row:last-of-type{border-bottom:none;}
+  .odds-row-name{flex:1;min-width:0;font-size:13px;}
+  .odds-row-weight{width:80px;text-align:right;}
+  .odds-row-pct{width:56px;text-align:right;color:#8dff62;font-size:12px;font-variant-numeric:tabular-nums;}
+
+  .pack-card-list{
+    max-height:340px;overflow-y:auto;margin-top:10px;border:1px solid #3a342c;border-radius:6px;
+    background:#141210;
+  }
+  .pack-card-row{
+    display:flex;align-items:center;gap:10px;padding:7px 12px;font-size:13px;cursor:pointer;
+    border-bottom:1px solid #241f19;
+  }
+  .pack-card-row:last-child{border-bottom:none;}
+  .pack-card-row:hover{background:#1d1a15;}
+  .pack-card-row .pack-card-qty{width:52px;flex:none;padding:4px 6px;font-size:13px;text-align:center;}
+  .pack-card-row-rarity{font-size:11px;color:#a49785;}
+  .pack-card-row-set{margin-left:auto;font-size:10px;color:#6d6155;letter-spacing:.04em;}
+  .pack-art-picker{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+  .pack-art-option{
+    position:relative;cursor:pointer;border-radius:6px;border:2px solid transparent;padding:2px;line-height:0;
+  }
+  .pack-art-option img{width:64px;border-radius:4px;display:block;}
+  .pack-art-option.selected{border-color:#8dff62;box-shadow:0 0 0 1px #8dff62;}
+  .pack-art-option input{position:absolute;top:4px;left:4px;margin:0;width:auto;}
+  .pack-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #2c2822;}
+  .pack-row:last-child{border-bottom:none;}
+  .pack-row-art{display:flex;gap:6px;flex:none;}
+  .pack-row-art img{width:36px;border-radius:4px;display:block;}
+  .pack-row-body{flex:1;min-width:0;}
+  .pack-row-name{font-size:14px;font-weight:700;}
+  .pack-row-meta{font-size:11px;color:#8a7e6f;margin-top:2px;}
+  .pack-row-actions{display:flex;gap:8px;flex:none;}
+  .pack-row-actions button{padding:6px 12px;font-size:12px;}
+
+  .preview-modal-overlay{
+    position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:40px 20px;
+  }
+  .preview-modal-overlay.hidden{display:none;}
+  .preview-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72);}
+  .preview-modal-card{
+    position:relative;z-index:1;width:520px;max-width:100%;max-height:90vh;overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,.7);
+  }
+  .preview-modal-close{
+    position:absolute;top:14px;right:14px;z-index:2;width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:14px;color:#a49785;background:linear-gradient(180deg,#332e27,#201c18);border:1px solid #0b0907;
+    border-radius:6px;
+  }
+  .preview-modal-close:hover{color:#efe9dd;filter:brightness(1.25);}
+  .preview-modal-tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Panel de Novedades</h1>
-    <p class="sub">Publicá, editá o borrá las novedades que se muestran en el menú principal.</p>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="sidebar-title">Admin</div>
+      <button type="button" class="side-link active" data-panel="news">Novedades</button>
+      <button type="button" class="side-link" data-panel="users">Usuarios</button>
+      <button type="button" class="side-link" data-panel="odds">Probabilidades</button>
+      <button type="button" class="side-link" data-panel="packs">Packs</button>
+      <button type="button" class="side-link" data-panel="codes">Códigos</button>
+    </nav>
+    <main class="content">
+      <div id="stateBox" class="state-box">Cargando…</div>
 
-    <div id="stateBox" class="state-box">Cargando…</div>
+      <div id="adminPanel" style="display:none;">
+        <section id="panel-news" class="panel active">
+          <h1>Panel de Novedades</h1>
+          <p class="sub">Publica, edita o borra las novedades que se muestran en el menú principal.</p>
 
-    <div id="adminPanel" style="display:none;">
-      <div class="card">
-        <h2 id="formTitle">Nueva novedad</h2>
-        <label for="fieldTitle">Título</label>
-        <input type="text" id="fieldTitle" maxlength="80" placeholder="Ej: Sobre Holo disponible en la tienda">
-        <label for="fieldBody">Cuerpo</label>
-        <textarea id="fieldBody" maxlength="400" placeholder="Descripción breve de la novedad"></textarea>
-        <label for="fieldTag">Etiqueta</label>
-        <select id="fieldTag">
-          <option value="balance">EQUILIBRIO</option>
-          <option value="shop">TIENDA</option>
-          <option value="notice">AVISO</option>
-        </select>
-        <div class="row">
-          <input type="checkbox" id="fieldFeatured">
-          <label for="fieldFeatured">Destacar (reemplaza cualquier otra novedad destacada)</label>
-        </div>
-        <div class="actions">
-          <button type="button" class="btn-primary" id="submitBtn">Publicar</button>
-          <button type="button" class="btn-secondary" id="cancelEditBtn" style="display:none;">Cancelar edición</button>
-        </div>
-        <p class="status-msg" id="formStatus"></p>
+          <div class="card">
+            <h2 id="formTitle">Nueva novedad</h2>
+            <label for="fieldTitle">Título</label>
+            <input type="text" id="fieldTitle" maxlength="80" placeholder="Ej: Pack Holo disponible en la tienda">
+            <label for="fieldBody">Cuerpo</label>
+            <textarea id="fieldBody" maxlength="400" placeholder="Descripción breve de la novedad"></textarea>
+            <label for="fieldTag">Etiqueta</label>
+            <select id="fieldTag">
+              <option value="balance">EQUILIBRIO</option>
+              <option value="shop">TIENDA</option>
+              <option value="notice">AVISO</option>
+              <option value="gift">REGALO</option>
+            </select>
+            <div class="row">
+              <input type="checkbox" id="fieldFeatured">
+              <label for="fieldFeatured">Destacar (reemplaza cualquier otra novedad destacada)</label>
+            </div>
+
+            <label for="fieldGiftKind">Regalo adjunto (opcional)</label>
+            <select id="fieldGiftKind">
+              <option value="">Sin regalo</option>
+              <option value="booster">Pack</option>
+              <option value="custompack">Pack personalizado</option>
+              <option value="card">Carta promo</option>
+            </select>
+
+            <div id="giftBoosterFields" style="display:none;">
+              <label for="fieldGiftBoosterSet">Set del pack</label>
+              <select id="fieldGiftBoosterSet">
+                <option value="base">Base Set</option>
+                <option value="jungle">Jungle</option>
+                <option value="fossil">Fossil</option>
+              </select>
+            </div>
+
+            <div id="giftCustomPackFields" style="display:none;">
+              <label for="fieldGiftCustomPack">Pack personalizado</label>
+              <select id="fieldGiftCustomPack"></select>
+            </div>
+
+            <div id="giftCardFields" style="display:none;">
+              <label for="fieldGiftCardSet">Colección de promos</label>
+              <select id="fieldGiftCardSet">
+                <option value="basep">Wizards Black Star Promos</option>
+                <option value="espromo">Promos especiales</option>
+              </select>
+              <label for="fieldGiftCardNum">Carta</label>
+              <select id="fieldGiftCardNum"></select>
+              <div id="giftCardPreview" class="gift-card-preview"></div>
+              <label for="fieldGiftCardRarity">Rareza</label>
+              <select id="fieldGiftCardRarity">
+                <option value="rare">Rara</option>
+                <option value="holo">Rara Holográfica</option>
+                <option value="secret">Rara Secreta</option>
+              </select>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn-primary" id="submitBtn">Publicar</button>
+              <button type="button" class="btn-secondary" id="previewBtn">Previsualizar</button>
+              <button type="button" class="btn-secondary" id="cancelEditBtn" style="display:none;">Cancelar edición</button>
+            </div>
+            <p class="status-msg" id="formStatus"></p>
+          </div>
+
+          <div class="card">
+            <h2>Novedades publicadas</h2>
+            <div id="newsRows"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </section>
+
+        <section id="panel-users" class="panel">
+          <h1>Usuarios</h1>
+          <p class="sub">Cuentas registradas y las monedas que tienen por el momento.</p>
+
+          <div class="card">
+            <div class="users-toolbar">
+              <span class="users-count" id="usersCount"></span>
+              <button type="button" class="btn-secondary" id="refreshUsersBtn">Actualizar</button>
+            </div>
+            <div id="usersTableWrap"><div class="empty-note">Todavía no se cargó la lista.</div></div>
+          </div>
+        </section>
+
+        <section id="panel-odds" class="panel">
+          <h1>Probabilidades</h1>
+          <p class="sub">Elegí qué tan probable es que salga cada carta rara en el sobre de cada edición. El número es un peso relativo, no tiene que sumar 100 -- el % de al lado se calcula solo.</p>
+          <div id="oddsSets"><div class="empty-note">Todavía no se cargó.</div></div>
+        </section>
+
+        <section id="panel-packs" class="panel">
+          <h1>Packs</h1>
+          <p class="sub">Packs personalizados que solo se pueden conseguir de regalo. Elegí qué cartas pueden salir -- cada apertura reparte 11 cartas únicas al azar de esa lista.</p>
+
+          <div class="card">
+            <h2 id="packFormTitle">Nuevo pack</h2>
+            <label for="packFieldId">Id (solo al crear, no se puede cambiar después)</label>
+            <input type="text" id="packFieldId" placeholder="orangeleague">
+            <label for="packFieldName">Nombre</label>
+            <input type="text" id="packFieldName" placeholder="Orange League">
+            <label>Imágenes del pack</label>
+            <div id="packArtPicker" class="pack-art-picker"></div>
+            <label>Cartas disponibles en este pack (<span id="packSelectedCount">0</span> cartas en el pool, mínimo 11 -- poné más de 1 para que pueda repetirse, ej. 2 Energía Planta)</label>
+            <input type="text" id="packCardFilter" placeholder="Buscar carta por nombre...">
+            <div id="packCardList" class="pack-card-list"></div>
+            <div class="actions">
+              <button type="button" class="btn-primary" id="packSaveBtn">Guardar pack</button>
+              <button type="button" class="btn-secondary" id="packCancelEditBtn" style="display:none;">Cancelar edición</button>
+            </div>
+            <p class="status-msg" id="packFormStatus"></p>
+          </div>
+
+          <div class="card">
+            <h2>Packs creados</h2>
+            <div id="packRows"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </section>
+
+        <section id="panel-codes" class="panel">
+          <h1>Códigos</h1>
+          <p class="sub">Códigos canjeables una vez por jugador desde Configuración. Elegí qué regalo entrega cada código.</p>
+
+          <div class="card">
+            <h2 id="codeFormTitle">Nuevo código</h2>
+            <label for="codeFieldCode">Código (solo al crear, no se puede cambiar después)</label>
+            <input type="text" id="codeFieldCode" placeholder="ORANGE2026" maxlength="30">
+
+            <label for="codeFieldGiftKind">Regalo</label>
+            <select id="codeFieldGiftKind">
+              <option value="booster">Pack</option>
+              <option value="custompack">Pack personalizado</option>
+              <option value="card">Carta promo</option>
+            </select>
+
+            <div id="codeGiftBoosterFields">
+              <label for="codeFieldGiftBoosterSet">Set del pack</label>
+              <select id="codeFieldGiftBoosterSet">
+                <option value="base">Base Set</option>
+                <option value="jungle">Jungle</option>
+                <option value="fossil">Fossil</option>
+              </select>
+            </div>
+
+            <div id="codeGiftCustomPackFields" style="display:none;">
+              <label for="codeFieldGiftCustomPack">Pack personalizado</label>
+              <select id="codeFieldGiftCustomPack"></select>
+            </div>
+
+            <div id="codeGiftCardFields" style="display:none;">
+              <label for="codeFieldGiftCardSet">Colección de promos</label>
+              <select id="codeFieldGiftCardSet">
+                <option value="basep">Wizards Black Star Promos</option>
+                <option value="espromo">Promos especiales</option>
+              </select>
+              <label for="codeFieldGiftCardNum">Carta</label>
+              <select id="codeFieldGiftCardNum"></select>
+              <div id="codeGiftCardPreview" class="gift-card-preview"></div>
+              <label for="codeFieldGiftCardRarity">Rareza</label>
+              <select id="codeFieldGiftCardRarity">
+                <option value="rare">Rara</option>
+                <option value="holo">Rara Holográfica</option>
+                <option value="secret">Rara Secreta</option>
+              </select>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn-primary" id="codeSaveBtn">Guardar código</button>
+              <button type="button" class="btn-secondary" id="codeCancelEditBtn" style="display:none;">Cancelar edición</button>
+            </div>
+            <p class="status-msg" id="codeFormStatus"></p>
+          </div>
+
+          <div class="card">
+            <h2>Códigos creados</h2>
+            <div id="codeRows"><div class="empty-note">Cargando…</div></div>
+          </div>
+        </section>
       </div>
+    </main>
+  </div>
 
-      <div class="card">
-        <h2>Novedades publicadas</h2>
-        <div id="newsRows"><div class="empty-note">Cargando…</div></div>
-      </div>
+  <div id="previewModal" class="preview-modal-overlay hidden">
+    <div class="preview-modal-backdrop"></div>
+    <div class="preview-modal-card shell-news-featured">
+      <button type="button" id="previewModalClose" class="preview-modal-close">✕</button>
+      <div id="previewModalContent"></div>
     </div>
   </div>
 
@@ -100,13 +362,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
   <script src="firebase-init.js"></script>
+  <script src="data-sets.js"></script>
   <script>
   (function () {
     // Client-side check only for UX (hiding the form) -- the REAL
-    // enforcement is server-side (publishNews/updateNewsItem/deleteNewsItem,
-    // functions/index.js, all check request.auth.uid === ADMIN_UID
-    // themselves), so this can't be bypassed into an actual write even if
-    // someone tampered with this page.
+    // enforcement is server-side (publishNews/updateNewsItem/deleteNewsItem/
+    // listUsers, functions/index.js, all check request.auth.uid === ADMIN_UID
+    // themselves), so this can't be bypassed into an actual read/write even
+    // if someone tampered with this page.
     var ADMIN_UID = '4ViFsoJm7fMsop8eCS16u89wIxQ2';
     var MONTH_ES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
@@ -117,19 +380,187 @@
     var fieldBody = document.getElementById('fieldBody');
     var fieldTag = document.getElementById('fieldTag');
     var fieldFeatured = document.getElementById('fieldFeatured');
+    var fieldGiftKind = document.getElementById('fieldGiftKind');
+    var giftBoosterFields = document.getElementById('giftBoosterFields');
+    var fieldGiftBoosterSet = document.getElementById('fieldGiftBoosterSet');
+    var giftCustomPackFields = document.getElementById('giftCustomPackFields');
+    var fieldGiftCustomPack = document.getElementById('fieldGiftCustomPack');
+    var giftCardFields = document.getElementById('giftCardFields');
+    var fieldGiftCardSet = document.getElementById('fieldGiftCardSet');
+    var fieldGiftCardNum = document.getElementById('fieldGiftCardNum');
+    var fieldGiftCardRarity = document.getElementById('fieldGiftCardRarity');
+    var giftCardPreview = document.getElementById('giftCardPreview');
     var submitBtn = document.getElementById('submitBtn');
+    var previewBtn = document.getElementById('previewBtn');
+    var previewModal = document.getElementById('previewModal');
+    var previewModalContent = document.getElementById('previewModalContent');
+    var previewModalClose = document.getElementById('previewModalClose');
     var cancelEditBtn = document.getElementById('cancelEditBtn');
     var formStatus = document.getElementById('formStatus');
     var newsRows = document.getElementById('newsRows');
+    var sideLinks = document.querySelectorAll('.side-link');
+    var panels = document.querySelectorAll('.panel');
+    var usersTableWrap = document.getElementById('usersTableWrap');
+    var usersCount = document.getElementById('usersCount');
+    var refreshUsersBtn = document.getElementById('refreshUsersBtn');
 
     var editingId = null; // null = creating a new item; otherwise the id being edited
     var unsubscribeNews = null;
+    var usersLoadedOnce = false;
+    var oddsLoadedOnce = false;
+    var packsLoadedOnce = false;
+    var codesLoadedOnce = false;
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     }
+
+    // ── Sidebar navigation ──────────────────────────────────────────────
+    sideLinks.forEach(function (link) {
+      link.addEventListener('click', function () {
+        var target = link.getAttribute('data-panel');
+        sideLinks.forEach(function (l) { l.classList.toggle('active', l === link); });
+        panels.forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + target); });
+        if (target === 'users' && !usersLoadedOnce) { loadUsers(); }
+        if (target === 'odds' && !oddsLoadedOnce) { loadRareOdds(); }
+        if (target === 'packs' && !packsLoadedOnce) { loadCustomPacks(); }
+        if (target === 'codes' && !codesLoadedOnce) { loadGiftCodes(); }
+      });
+    });
+
+    // ── Novedades ───────────────────────────────────────────────────────
+    // ── Regalo adjunto (pack o carta promo) ───────────────────────────
+    var GIFT_BOOSTER_NAMES = { base: 'Base Set', jungle: 'Jungle', fossil: 'Fossil' };
+    var GIFT_RARITY_LABEL = { rare: 'Rara', holo: 'Holo', secret: 'Secreta' };
+    var TAG_LABEL = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO', gift: 'REGALO' };
+
+    function updateGiftFieldsVisibility() {
+      giftBoosterFields.style.display = fieldGiftKind.value === 'booster' ? '' : 'none';
+      giftCustomPackFields.style.display = fieldGiftKind.value === 'custompack' ? '' : 'none';
+      giftCardFields.style.display = fieldGiftKind.value === 'card' ? '' : 'none';
+    }
+
+    // Populated from a live customPacks listener (see showAdminPanel) so
+    // creating/renaming/deleting a pack in the Packs tab immediately shows
+    // up here too, without needing to reload the page.
+    var availableCustomPacksCache = {};
+    function renderGiftCustomPackOptions() {
+      var ids = Object.keys(availableCustomPacksCache);
+      var selected = fieldGiftCustomPack.value;
+      fieldGiftCustomPack.innerHTML = ids.length
+        ? ids.map(function (id) {
+            return '<option value="' + escapeHtml(id) + '">' + escapeHtml(availableCustomPacksCache[id].name || id) + '</option>';
+          }).join('')
+        : '<option value="">(no hay packs personalizados creados todavía)</option>';
+      if (selected && availableCustomPacksCache[selected]) { fieldGiftCustomPack.value = selected; }
+    }
+    fieldGiftKind.addEventListener('change', updateGiftFieldsVisibility);
+
+    // Shows the exact card art before publishing -- picking cards by name in
+    // a plain <select> is easy to fat-finger among ~30 similarly-named
+    // promos (e.g. the 5 separate "Mewtwo"/"Pikachu" prints), so this is
+    // what actually confirms it's the right one.
+    function renderGiftCardPreview() {
+      var entry = (CARD_CATALOG[fieldGiftCardSet.value] || []).filter(function (c) { return c.num === fieldGiftCardNum.value; })[0];
+      if (!entry) { giftCardPreview.innerHTML = ''; return; }
+      giftCardPreview.innerHTML = '<img src="' + escapeHtml(entry.img) + '" alt="' + escapeHtml(entry.n) + '">' +
+        '<span>' + escapeHtml(entry.n) + ' (#' + escapeHtml(entry.num) + ')</span>';
+    }
+
+    function populateGiftCardOptions(setKey, selectedNum) {
+      var cards = (CARD_CATALOG[setKey] || []).slice().sort(function (a, b) { return Number(a.num) - Number(b.num); });
+      fieldGiftCardNum.innerHTML = cards.map(function (c) {
+        return '<option value="' + escapeHtml(c.num) + '">' + escapeHtml(c.n) + ' (#' + escapeHtml(c.num) + ')</option>';
+      }).join('');
+      if (selectedNum) { fieldGiftCardNum.value = selectedNum; }
+      renderGiftCardPreview();
+    }
+    fieldGiftCardSet.addEventListener('change', function () { populateGiftCardOptions(fieldGiftCardSet.value); });
+    fieldGiftCardNum.addEventListener('change', renderGiftCardPreview);
+    populateGiftCardOptions(fieldGiftCardSet.value);
+
+    function currentGiftField() {
+      if (fieldGiftKind.value === 'booster') {
+        return { kind: 'booster', setKey: fieldGiftBoosterSet.value };
+      }
+      if (fieldGiftKind.value === 'custompack') {
+        return { kind: 'custompack', packId: fieldGiftCustomPack.value };
+      }
+      if (fieldGiftKind.value === 'card') {
+        return { kind: 'card', setKey: fieldGiftCardSet.value, num: fieldGiftCardNum.value, rarity: fieldGiftCardRarity.value };
+      }
+      return null;
+    }
+
+    function applyGiftToForm(gift) {
+      if (gift && gift.kind === 'booster') {
+        fieldGiftKind.value = 'booster';
+        fieldGiftBoosterSet.value = gift.setKey;
+      } else if (gift && gift.kind === 'custompack') {
+        fieldGiftKind.value = 'custompack';
+        fieldGiftCustomPack.value = gift.packId;
+      } else if (gift && gift.kind === 'card') {
+        fieldGiftKind.value = 'card';
+        fieldGiftCardSet.value = gift.setKey;
+        populateGiftCardOptions(gift.setKey, gift.num);
+        fieldGiftCardRarity.value = gift.rarity;
+      } else {
+        fieldGiftKind.value = '';
+      }
+      updateGiftFieldsVisibility();
+    }
+
+    function giftSummaryText(gift) {
+      if (!gift) { return ''; }
+      if (gift.kind === 'booster') {
+        return '🎁 Pack: ' + (GIFT_BOOSTER_NAMES[gift.setKey] || gift.setKey);
+      }
+      if (gift.kind === 'custompack') {
+        var pack = availableCustomPacksCache[gift.packId];
+        return '🎁 Pack personalizado: ' + (pack ? pack.name : gift.packId);
+      }
+      var entry = (CARD_CATALOG[gift.setKey] || []).filter(function (c) { return c.num === gift.num; })[0];
+      var rarityLabel = GIFT_RARITY_LABEL[gift.rarity] || gift.rarity;
+      return '🎁 Carta: ' + (entry ? entry.n : gift.setKey + ' #' + gift.num) + ' (' + rarityLabel + ')';
+    }
+
+    // Renders the form's current (unsaved) values with the EXACT same
+    // markup/classes the real Novedades panel uses for its featured card
+    // (shell-news-featured*, ui.js's renderNewsPanel) -- so "Previsualizar"
+    // shows what will actually ship, not an admin-only approximation. The
+    // gift button is a static label here (there's nothing to claim on an
+    // unpublished draft), and the date is always "today" since createdAt is
+    // only ever assigned server-side at the real publish/edit moment.
+    function openPreviewModal() {
+      var title = fieldTitle.value.trim() || '(sin título)';
+      var body = fieldBody.value.trim() || '(sin cuerpo)';
+      var tag = fieldTag.value;
+      var tagLabel = TAG_LABEL[tag] || tag;
+      var featured = fieldFeatured.checked;
+      var gift = currentGiftField();
+      var today = new Date();
+      var dateStr = today.getDate() + ' ' + MONTH_ES[today.getMonth()] + ' ' + today.getFullYear();
+
+      previewModalContent.innerHTML =
+        '<div class="shell-news-featured-meta">' +
+          (featured ? '<span class="shell-news-chip-featured">DESTACADO</span>' : '') +
+          (gift && tag !== 'gift' ? '<span class="shell-news-chip-gift">REGALO</span>' : '') +
+          '<span class="shell-news-featured-date">' + escapeHtml(dateStr) + '</span>' +
+        '</div>' +
+        '<div class="shell-news-featured-title">' + escapeHtml(title) + '</div>' +
+        '<div class="shell-news-featured-body">' + escapeHtml(body) + '</div>' +
+        '<div class="preview-modal-tag-row">' +
+          '<span class="shell-news-item-tag shell-news-item-tag--' + escapeHtml(tag) + '">' + escapeHtml(tagLabel) + '</span>' +
+        '</div>' +
+        (gift ? '<div class="news-row-gift">' + escapeHtml(giftSummaryText(gift)) + '</div>' : '');
+      previewModal.classList.remove('hidden');
+    }
+    function closePreviewModal() { previewModal.classList.add('hidden'); }
+    previewBtn.addEventListener('click', openPreviewModal);
+    previewModalClose.addEventListener('click', closePreviewModal);
+    previewModal.querySelector('.preview-modal-backdrop').addEventListener('click', closePreviewModal);
 
     function resetForm() {
       editingId = null;
@@ -138,6 +569,7 @@
       fieldBody.value = '';
       fieldTag.value = 'balance';
       fieldFeatured.checked = false;
+      applyGiftToForm(null);
       submitBtn.textContent = 'Publicar';
       cancelEditBtn.style.display = 'none';
       formStatus.textContent = '';
@@ -151,6 +583,7 @@
       fieldBody.value = item.body || '';
       fieldTag.value = item.tag || 'balance';
       fieldFeatured.checked = !!item.featured;
+      applyGiftToForm(item.gift || null);
       submitBtn.textContent = 'Guardar cambios';
       cancelEditBtn.style.display = '';
       formStatus.textContent = '';
@@ -173,9 +606,10 @@
       submitBtn.disabled = true;
       formStatus.className = 'status-msg';
       formStatus.textContent = 'Guardando…';
+      var gift = currentGiftField();
       var call = editingId
-        ? firebase.functions().httpsCallable('updateNewsItem')({ id: editingId, title: title, body: body, tag: tag, featured: featured })
-        : firebase.functions().httpsCallable('publishNews')({ title: title, body: body, tag: tag, featured: featured });
+        ? firebase.functions().httpsCallable('updateNewsItem')({ id: editingId, title: title, body: body, tag: tag, featured: featured, gift: gift })
+        : firebase.functions().httpsCallable('publishNews')({ title: title, body: body, tag: tag, featured: featured, gift: gift });
       call.then(function () {
         submitBtn.disabled = false;
         formStatus.className = 'status-msg ok';
@@ -196,13 +630,14 @@
       newsRows.innerHTML = items.map(function (it) {
         var d = it.createdAt;
         var dateStr = d ? (d.getDate() + ' ' + MONTH_ES[d.getMonth()] + ' ' + d.getFullYear()) : '—';
-        var tagLabel = { balance: 'EQUILIBRIO', shop: 'TIENDA', notice: 'AVISO' }[it.tag] || it.tag;
+        var tagLabel = TAG_LABEL[it.tag] || it.tag;
         return '<div class="news-row" data-id="' + escapeHtml(it.id) + '">' +
           '<div class="news-row-body">' +
             (it.featured ? '<span class="news-row-tag featured">DESTACADO</span>' : '') +
             '<span class="news-row-tag">' + escapeHtml(tagLabel) + '</span>' +
             '<div class="news-row-title">' + escapeHtml(it.title) + '</div>' +
             '<div class="news-row-meta">' + escapeHtml(dateStr) + '</div>' +
+            (it.gift ? '<div class="news-row-gift">' + escapeHtml(giftSummaryText(it.gift)) + '</div>' : '') +
           '</div>' +
           '<div class="news-row-actions">' +
             '<button type="button" class="btn-secondary" data-action="edit">Editar</button>' +
@@ -224,6 +659,554 @@
       });
     }
 
+    // ── Usuarios ────────────────────────────────────────────────────────
+    function renderUsersTable(users) {
+      if (!users.length) {
+        usersTableWrap.innerHTML = '<div class="empty-note">No hay cuentas registradas todavía.</div>';
+        usersCount.textContent = '';
+        return;
+      }
+      usersCount.textContent = users.length + (users.length === 1 ? ' cuenta' : ' cuentas');
+      var rows = users.map(function (u) {
+        return '<tr>' +
+          '<td>' + escapeHtml(u.username) + '</td>' +
+          '<td class="uid">' + escapeHtml(u.uid) + '</td>' +
+          '<td class="coins">' + u.coins.toLocaleString('es-AR') + '</td>' +
+        '</tr>';
+      }).join('');
+      usersTableWrap.innerHTML = '<table class="users-table"><thead><tr>' +
+        '<th>Usuario</th><th>UID</th><th>Monedas</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    function loadUsers() {
+      usersLoadedOnce = true;
+      usersTableWrap.innerHTML = '<div class="empty-note">Cargando…</div>';
+      firebase.functions().httpsCallable('listUsers')().then(function (res) {
+        renderUsersTable((res.data && res.data.users) || []);
+      }).catch(function (err) {
+        usersTableWrap.innerHTML = '<div class="empty-note">No se pudo cargar la lista de usuarios.</div>';
+        console.error(err);
+      });
+    }
+
+    refreshUsersBtn.addEventListener('click', loadUsers);
+
+    // ── Probabilidades ──────────────────────────────────────────────────
+    var PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
+
+    // One row per distinct NAME (not per catalog entry) -- some sets (e.g.
+    // jungle) list the same rare name twice, once per foil tier, and a
+    // weight is set per NAME (see setRareOdds, functions/index.js), so
+    // showing it twice would just be confusing, not more precise.
+    function rareNamesForSet(setKey) {
+      var seen = {};
+      var out = [];
+      (CARD_CATALOG[setKey] || []).forEach(function (c) {
+        if ((c.r === 'Rare' || c.r === 'Rare Holo') && !seen[c.n]) {
+          seen[c.n] = true;
+          out.push(c.n);
+        }
+      });
+      return out;
+    }
+
+    function loadRareOdds() {
+      oddsLoadedOnce = true;
+      var wrap = document.getElementById('oddsSets');
+      wrap.innerHTML = '<div class="empty-note">Cargando…</div>';
+      firebase.firestore().collection('config').doc('rareOdds').get().then(function (snap) {
+        renderOddsSets(snap.exists ? (snap.data() || {}) : {});
+      }).catch(function (err) {
+        wrap.innerHTML = '<div class="empty-note">No se pudieron cargar las probabilidades.</div>';
+        console.error(err);
+      });
+    }
+
+    function renderOddsSets(stored) {
+      var wrap = document.getElementById('oddsSets');
+      wrap.innerHTML = PLAYABLE_SET_KEYS.map(function (setKey) {
+        var names = rareNamesForSet(setKey);
+        var weights = stored[setKey] || {};
+        var rows = names.map(function (name) {
+          var w = typeof weights[name] === 'number' ? weights[name] : 1;
+          return '<div class="odds-row" data-name="' + escapeHtml(name) + '">' +
+            '<span class="odds-row-name">' + escapeHtml(name) + '</span>' +
+            '<input type="number" min="0" step="1" class="odds-row-weight" value="' + w + '">' +
+            '<span class="odds-row-pct">—</span>' +
+          '</div>';
+        }).join('');
+        return '<div class="card">' +
+          '<div class="odds-set-header">' +
+            '<h2>' + escapeHtml(GIFT_BOOSTER_NAMES[setKey] || setKey) + '</h2>' +
+            '<button type="button" class="btn-primary" data-save-odds="' + setKey + '">Guardar</button>' +
+          '</div>' +
+          '<div class="odds-rows" data-rows="' + setKey + '">' + rows + '</div>' +
+          '<p class="status-msg" data-status="' + setKey + '"></p>' +
+        '</div>';
+      }).join('');
+
+      PLAYABLE_SET_KEYS.forEach(recalcOddsPercents);
+
+      wrap.querySelectorAll('.odds-row-weight').forEach(function (input) {
+        input.addEventListener('input', function () {
+          recalcOddsPercents(input.closest('[data-rows]').getAttribute('data-rows'));
+        });
+      });
+      wrap.querySelectorAll('[data-save-odds]').forEach(function (btn) {
+        btn.addEventListener('click', function () { saveRareOdds(btn.getAttribute('data-save-odds')); });
+      });
+    }
+
+    function recalcOddsPercents(setKey) {
+      var rowsEl = document.querySelector('[data-rows="' + setKey + '"]');
+      if (!rowsEl) { return; }
+      var rows = rowsEl.querySelectorAll('.odds-row');
+      var total = 0;
+      rows.forEach(function (row) {
+        var v = parseFloat(row.querySelector('.odds-row-weight').value);
+        if (isFinite(v) && v > 0) { total += v; }
+      });
+      rows.forEach(function (row) {
+        var v = parseFloat(row.querySelector('.odds-row-weight').value);
+        v = (isFinite(v) && v >= 0) ? v : 0;
+        var pct = total > 0 ? (v / total * 100) : 0;
+        row.querySelector('.odds-row-pct').textContent = pct.toFixed(1) + '%';
+      });
+    }
+
+    function saveRareOdds(setKey) {
+      var rowsEl = document.querySelector('[data-rows="' + setKey + '"]');
+      var statusEl = document.querySelector('[data-status="' + setKey + '"]');
+      var btn = document.querySelector('[data-save-odds="' + setKey + '"]');
+      var odds = {};
+      rowsEl.querySelectorAll('.odds-row').forEach(function (row) {
+        var v = parseFloat(row.querySelector('.odds-row-weight').value);
+        odds[row.getAttribute('data-name')] = (isFinite(v) && v >= 0) ? v : 0;
+      });
+      btn.disabled = true;
+      statusEl.className = 'status-msg';
+      statusEl.textContent = 'Guardando…';
+      firebase.functions().httpsCallable('setRareOdds')({ setKey: setKey, odds: odds }).then(function () {
+        btn.disabled = false;
+        statusEl.className = 'status-msg ok';
+        statusEl.textContent = 'Guardado ✓';
+      }).catch(function (err) {
+        btn.disabled = false;
+        statusEl.className = 'status-msg error';
+        statusEl.textContent = err.message || 'No se pudo guardar.';
+      });
+    }
+
+    // ── Packs (packs personalizados, gift-only) ─────────────────────────
+    var ALL_CATALOG_SET_KEYS = ['base', 'jungle', 'fossil', 'basep', 'espromo'];
+    var CATALOG_SET_LABEL = {
+      base: 'Base Set', jungle: 'Jungle', fossil: 'Fossil',
+      basep: 'Wizards Promo', espromo: 'Promo Especial'
+    };
+    var CATALOG_RARITY_LABEL = {
+      Common: 'Común', Uncommon: 'Infrecuente', Rare: 'Rara', 'Rare Holo': 'Holo', Promo: 'Promo'
+    };
+    // Hardcoded, same reasoning as ui.js's own BOOSTER_PACKS -- there's no
+    // directory-listing endpoint, so any new box art dropped into Sobres/
+    // (like Promo_Orange_1/2 were for Orange League) needs a line added
+    // here too before it shows up as a pickable option.
+    var PACK_ART_OPTIONS = [
+      'Sobres/base.webp', 'Sobres/base-blastoise.webp', 'Sobres/base-venusaur.webp',
+      'Sobres/jungle.webp', 'Sobres/jungle-flareon.webp', 'Sobres/jungle-wigglytuff.webp',
+      'Sobres/fossil.webp', 'Sobres/fossil-aerodactyl.webp', 'Sobres/fossil-zapdos.webp',
+      'Sobres/Promo_Orange_1.webp', 'Sobres/Promo_Orange_2.png'
+    ];
+    var editingPackId = null;
+    var unsubscribeCustomPacks = null;
+
+    var packFieldId = document.getElementById('packFieldId');
+    var packFieldName = document.getElementById('packFieldName');
+    var packArtPicker = document.getElementById('packArtPicker');
+    var packCardFilter = document.getElementById('packCardFilter');
+    var packCardList = document.getElementById('packCardList');
+    var packSelectedCount = document.getElementById('packSelectedCount');
+    var packSaveBtn = document.getElementById('packSaveBtn');
+    var packCancelEditBtn = document.getElementById('packCancelEditBtn');
+    var packFormTitle = document.getElementById('packFormTitle');
+    var packFormStatus = document.getElementById('packFormStatus');
+    var packRowsEl = document.getElementById('packRows');
+
+    function allCatalogCardOptions() {
+      var out = [];
+      ALL_CATALOG_SET_KEYS.forEach(function (setKey) {
+        (CARD_CATALOG[setKey] || []).forEach(function (c) {
+          out.push({ key: setKey + '-' + c.num, name: c.n, rarity: c.r, setLabel: CATALOG_SET_LABEL[setKey] });
+        });
+      });
+      return out;
+    }
+
+    function renderPackCardListOnce() {
+      if (packCardList.childElementCount) { return; }
+      packCardList.innerHTML = allCatalogCardOptions().map(function (opt) {
+        return '<label class="pack-card-row" data-filter="' + escapeHtml(opt.name.toLowerCase()) + '">' +
+          '<input type="number" min="0" step="1" value="0" class="pack-card-qty" data-key="' + escapeHtml(opt.key) + '">' +
+          '<span>' + escapeHtml(opt.name) + '</span>' +
+          '<span class="pack-card-row-rarity">' + escapeHtml(CATALOG_RARITY_LABEL[opt.rarity] || opt.rarity) + '</span>' +
+          '<span class="pack-card-row-set">' + escapeHtml(opt.setLabel) + '</span>' +
+        '</label>';
+      }).join('');
+      packCardList.querySelectorAll('.pack-card-qty').forEach(function (input) {
+        input.addEventListener('input', updatePackSelectedCount);
+      });
+    }
+
+    // Counts total POOL SLOTS (sum of quantities), not just how many
+    // distinct cards have a nonzero quantity -- a card with quantity 2
+    // counts as 2 toward the real "at least 11" requirement.
+    function updatePackSelectedCount() {
+      var total = 0;
+      packCardList.querySelectorAll('.pack-card-qty').forEach(function (input) {
+        var v = parseInt(input.value, 10);
+        if (v > 0) { total += v; }
+      });
+      packSelectedCount.textContent = total;
+    }
+
+    packCardFilter.addEventListener('input', function () {
+      var q = packCardFilter.value.trim().toLowerCase();
+      packCardList.querySelectorAll('.pack-card-row').forEach(function (row) {
+        row.style.display = (!q || row.getAttribute('data-filter').indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+
+    function renderPackArtPickerOnce() {
+      if (packArtPicker.childElementCount) { return; }
+      packArtPicker.innerHTML = PACK_ART_OPTIONS.map(function (src) {
+        return '<label class="pack-art-option" data-src="' + escapeHtml(src) + '">' +
+          '<input type="checkbox" value="' + escapeHtml(src) + '">' +
+          '<img src="' + escapeHtml(src) + '" alt="">' +
+        '</label>';
+      }).join('');
+      packArtPicker.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+          cb.closest('.pack-art-option').classList.toggle('selected', cb.checked);
+        });
+      });
+    }
+
+    function resetPackForm() {
+      editingPackId = null;
+      packFormTitle.textContent = 'Nuevo pack';
+      packFieldId.value = '';
+      packFieldId.disabled = false;
+      packFieldName.value = '';
+      packArtPicker.querySelectorAll('input:checked').forEach(function (cb) {
+        cb.checked = false;
+        cb.closest('.pack-art-option').classList.remove('selected');
+      });
+      packCardFilter.value = '';
+      packCardList.querySelectorAll('.pack-card-row').forEach(function (row) { row.style.display = ''; });
+      packCardList.querySelectorAll('.pack-card-qty').forEach(function (input) { input.value = 0; });
+      updatePackSelectedCount();
+      packSaveBtn.textContent = 'Guardar pack';
+      packCancelEditBtn.style.display = 'none';
+      packFormStatus.textContent = '';
+      packFormStatus.className = 'status-msg';
+    }
+
+    function startEditingPack(pack) {
+      editingPackId = pack.id;
+      packFormTitle.textContent = 'Editar pack';
+      packFieldId.value = pack.id;
+      packFieldId.disabled = true;
+      packFieldName.value = pack.name || '';
+      var artSet = {};
+      (pack.art || []).forEach(function (src) { artSet[src] = true; });
+      packArtPicker.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+        cb.checked = !!artSet[cb.value];
+        cb.closest('.pack-art-option').classList.toggle('selected', cb.checked);
+      });
+      packCardFilter.value = '';
+      packCardList.querySelectorAll('.pack-card-row').forEach(function (row) { row.style.display = ''; });
+      // Quantity per key = how many times it appears in the saved pool
+      // (repeats are intentional, see saveCustomPack's own comment).
+      var qtyByKey = {};
+      (pack.pool || []).forEach(function (key) { qtyByKey[key] = (qtyByKey[key] || 0) + 1; });
+      packCardList.querySelectorAll('.pack-card-qty').forEach(function (input) {
+        input.value = qtyByKey[input.getAttribute('data-key')] || 0;
+      });
+      updatePackSelectedCount();
+      packSaveBtn.textContent = 'Guardar cambios';
+      packCancelEditBtn.style.display = '';
+      packFormStatus.textContent = '';
+      packFormStatus.className = 'status-msg';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    packCancelEditBtn.addEventListener('click', resetPackForm);
+
+    packSaveBtn.addEventListener('click', function () {
+      var packId = editingPackId || packFieldId.value.trim();
+      var name = packFieldName.value.trim();
+      var art = Array.from(packArtPicker.querySelectorAll('input:checked')).map(function (cb) { return cb.value; });
+      var pool = [];
+      packCardList.querySelectorAll('.pack-card-qty').forEach(function (input) {
+        var qty = parseInt(input.value, 10);
+        if (!(qty > 0)) { return; }
+        var key = input.getAttribute('data-key');
+        for (var i = 0; i < qty; i++) { pool.push(key); }
+      });
+
+      if (!/^[a-z0-9_-]{2,40}$/.test(packId)) {
+        packFormStatus.className = 'status-msg error';
+        packFormStatus.textContent = 'El id debe tener 2-40 caracteres: minúsculas, números, "-" o "_".';
+        return;
+      }
+      if (!name) {
+        packFormStatus.className = 'status-msg error';
+        packFormStatus.textContent = 'El pack necesita un nombre.';
+        return;
+      }
+      if (pool.length < 11) {
+        packFormStatus.className = 'status-msg error';
+        packFormStatus.textContent = 'Elegí al menos 11 cartas (tenés ' + pool.length + ').';
+        return;
+      }
+
+      packSaveBtn.disabled = true;
+      packFormStatus.className = 'status-msg';
+      packFormStatus.textContent = 'Guardando…';
+      firebase.functions().httpsCallable('saveCustomPack')({ packId: packId, name: name, art: art, pool: pool }).then(function () {
+        packSaveBtn.disabled = false;
+        packFormStatus.className = 'status-msg ok';
+        packFormStatus.textContent = 'Guardado ✓';
+        resetPackForm();
+      }).catch(function (err) {
+        packSaveBtn.disabled = false;
+        packFormStatus.className = 'status-msg error';
+        packFormStatus.textContent = err.message || 'No se pudo guardar.';
+      });
+    });
+
+    function renderPackRows(packs) {
+      if (!packs.length) {
+        packRowsEl.innerHTML = '<div class="empty-note">Todavía no creaste ningún pack.</div>';
+        return;
+      }
+      packRowsEl.innerHTML = packs.map(function (p) {
+        var artImgs = (p.art || []).map(function (src) { return '<img src="' + escapeHtml(src) + '" alt="">'; }).join('');
+        return '<div class="pack-row" data-id="' + escapeHtml(p.id) + '">' +
+          '<div class="pack-row-art">' + artImgs + '</div>' +
+          '<div class="pack-row-body">' +
+            '<div class="pack-row-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="pack-row-meta">' + (p.pool || []).length + ' cartas en el pool · id: ' + escapeHtml(p.id) + '</div>' +
+          '</div>' +
+          '<div class="pack-row-actions">' +
+            '<button type="button" class="btn-secondary" data-action="edit">Editar</button>' +
+            '<button type="button" class="btn-danger" data-action="delete">Eliminar</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      packRowsEl.querySelectorAll('.pack-row').forEach(function (row) {
+        var id = row.getAttribute('data-id');
+        var pack = packs.filter(function (p) { return p.id === id; })[0];
+        row.querySelector('[data-action="edit"]').addEventListener('click', function () { startEditingPack(pack); });
+        row.querySelector('[data-action="delete"]').addEventListener('click', function () {
+          if (!window.confirm('¿Borrar el pack "' + pack.name + '"? Esto no se puede deshacer.')) { return; }
+          firebase.functions().httpsCallable('deleteCustomPack')({ packId: id }).catch(function (err) {
+            window.alert(err.message || 'No se pudo borrar.');
+          });
+        });
+      });
+    }
+
+    function loadCustomPacks() {
+      packsLoadedOnce = true;
+      renderPackCardListOnce();
+      renderPackArtPickerOnce();
+      // The actual data comes from the customPacks listener started in
+      // showAdminPanel (it also feeds the news form's "Pack personalizado"
+      // dropdown) -- this just needs the card-picker list built before the
+      // tab is first shown.
+    }
+
+    // ── Códigos (códigos canjeables, gift-only) ─────────────────────────
+    var editingCodeId = null;
+    var unsubscribeGiftCodes = null;
+
+    var codeFieldCode = document.getElementById('codeFieldCode');
+    var codeFieldGiftKind = document.getElementById('codeFieldGiftKind');
+    var codeGiftBoosterFields = document.getElementById('codeGiftBoosterFields');
+    var codeFieldGiftBoosterSet = document.getElementById('codeFieldGiftBoosterSet');
+    var codeGiftCustomPackFields = document.getElementById('codeGiftCustomPackFields');
+    var codeFieldGiftCustomPack = document.getElementById('codeFieldGiftCustomPack');
+    var codeGiftCardFields = document.getElementById('codeGiftCardFields');
+    var codeFieldGiftCardSet = document.getElementById('codeFieldGiftCardSet');
+    var codeFieldGiftCardNum = document.getElementById('codeFieldGiftCardNum');
+    var codeFieldGiftCardRarity = document.getElementById('codeFieldGiftCardRarity');
+    var codeGiftCardPreview = document.getElementById('codeGiftCardPreview');
+    var codeSaveBtn = document.getElementById('codeSaveBtn');
+    var codeCancelEditBtn = document.getElementById('codeCancelEditBtn');
+    var codeFormTitle = document.getElementById('codeFormTitle');
+    var codeFormStatus = document.getElementById('codeFormStatus');
+    var codeRowsEl = document.getElementById('codeRows');
+
+    function updateCodeGiftFieldsVisibility() {
+      codeGiftBoosterFields.style.display = codeFieldGiftKind.value === 'booster' ? '' : 'none';
+      codeGiftCustomPackFields.style.display = codeFieldGiftKind.value === 'custompack' ? '' : 'none';
+      codeGiftCardFields.style.display = codeFieldGiftKind.value === 'card' ? '' : 'none';
+    }
+    codeFieldGiftKind.addEventListener('change', updateCodeGiftFieldsVisibility);
+
+    function renderCodeGiftCardPreview() {
+      var entry = (CARD_CATALOG[codeFieldGiftCardSet.value] || []).filter(function (c) { return c.num === codeFieldGiftCardNum.value; })[0];
+      if (!entry) { codeGiftCardPreview.innerHTML = ''; return; }
+      codeGiftCardPreview.innerHTML = '<img src="' + escapeHtml(entry.img) + '" alt="' + escapeHtml(entry.n) + '">' +
+        '<span>' + escapeHtml(entry.n) + ' (#' + escapeHtml(entry.num) + ')</span>';
+    }
+    function populateCodeGiftCardOptions(setKey, selectedNum) {
+      var cards = (CARD_CATALOG[setKey] || []).slice().sort(function (a, b) { return Number(a.num) - Number(b.num); });
+      codeFieldGiftCardNum.innerHTML = cards.map(function (c) {
+        return '<option value="' + escapeHtml(c.num) + '">' + escapeHtml(c.n) + ' (#' + escapeHtml(c.num) + ')</option>';
+      }).join('');
+      if (selectedNum) { codeFieldGiftCardNum.value = selectedNum; }
+      renderCodeGiftCardPreview();
+    }
+    codeFieldGiftCardSet.addEventListener('change', function () { populateCodeGiftCardOptions(codeFieldGiftCardSet.value); });
+    codeFieldGiftCardNum.addEventListener('change', renderCodeGiftCardPreview);
+    populateCodeGiftCardOptions(codeFieldGiftCardSet.value);
+
+    // Kept in sync with availableCustomPacksCache by the same customPacks
+    // listener (showAdminPanel) that feeds the news form's equivalent dropdown.
+    function renderCodeGiftCustomPackOptions() {
+      var ids = Object.keys(availableCustomPacksCache);
+      var selected = codeFieldGiftCustomPack.value;
+      codeFieldGiftCustomPack.innerHTML = ids.length
+        ? ids.map(function (id) {
+            return '<option value="' + escapeHtml(id) + '">' + escapeHtml(availableCustomPacksCache[id].name || id) + '</option>';
+          }).join('')
+        : '<option value="">(no hay packs personalizados creados todavía)</option>';
+      if (selected && availableCustomPacksCache[selected]) { codeFieldGiftCustomPack.value = selected; }
+    }
+
+    function currentCodeGiftField() {
+      if (codeFieldGiftKind.value === 'booster') {
+        return { kind: 'booster', setKey: codeFieldGiftBoosterSet.value };
+      }
+      if (codeFieldGiftKind.value === 'custompack') {
+        return { kind: 'custompack', packId: codeFieldGiftCustomPack.value };
+      }
+      return { kind: 'card', setKey: codeFieldGiftCardSet.value, num: codeFieldGiftCardNum.value, rarity: codeFieldGiftCardRarity.value };
+    }
+
+    function applyCodeGiftToForm(gift) {
+      if (gift && gift.kind === 'booster') {
+        codeFieldGiftKind.value = 'booster';
+        codeFieldGiftBoosterSet.value = gift.setKey;
+      } else if (gift && gift.kind === 'custompack') {
+        codeFieldGiftKind.value = 'custompack';
+        codeFieldGiftCustomPack.value = gift.packId;
+      } else if (gift && gift.kind === 'card') {
+        codeFieldGiftKind.value = 'card';
+        codeFieldGiftCardSet.value = gift.setKey;
+        populateCodeGiftCardOptions(gift.setKey, gift.num);
+        codeFieldGiftCardRarity.value = gift.rarity;
+      } else {
+        codeFieldGiftKind.value = 'booster';
+      }
+      updateCodeGiftFieldsVisibility();
+    }
+
+    function resetCodeForm() {
+      editingCodeId = null;
+      codeFormTitle.textContent = 'Nuevo código';
+      codeFieldCode.value = '';
+      codeFieldCode.disabled = false;
+      applyCodeGiftToForm(null);
+      codeSaveBtn.textContent = 'Guardar código';
+      codeCancelEditBtn.style.display = 'none';
+      codeFormStatus.textContent = '';
+      codeFormStatus.className = 'status-msg';
+    }
+
+    function startEditingCode(item) {
+      editingCodeId = item.id;
+      codeFormTitle.textContent = 'Editar código';
+      codeFieldCode.value = item.id;
+      codeFieldCode.disabled = true;
+      applyCodeGiftToForm(item.gift);
+      codeSaveBtn.textContent = 'Guardar cambios';
+      codeCancelEditBtn.style.display = '';
+      codeFormStatus.textContent = '';
+      codeFormStatus.className = 'status-msg';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    codeCancelEditBtn.addEventListener('click', resetCodeForm);
+
+    codeSaveBtn.addEventListener('click', function () {
+      var code = editingCodeId || codeFieldCode.value.trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,30}$/.test(code)) {
+        codeFormStatus.className = 'status-msg error';
+        codeFormStatus.textContent = 'El código debe tener 3-30 caracteres: mayúsculas, números, "-" o "_".';
+        return;
+      }
+      var gift = currentCodeGiftField();
+      codeSaveBtn.disabled = true;
+      codeFormStatus.className = 'status-msg';
+      codeFormStatus.textContent = 'Guardando…';
+      firebase.functions().httpsCallable('saveGiftCode')({ code: code, gift: gift }).then(function () {
+        codeSaveBtn.disabled = false;
+        codeFormStatus.className = 'status-msg ok';
+        codeFormStatus.textContent = 'Guardado ✓';
+        resetCodeForm();
+      }).catch(function (err) {
+        codeSaveBtn.disabled = false;
+        codeFormStatus.className = 'status-msg error';
+        codeFormStatus.textContent = err.message || 'No se pudo guardar.';
+      });
+    });
+
+    function renderCodeRows(codes) {
+      if (!codes.length) {
+        codeRowsEl.innerHTML = '<div class="empty-note">Todavía no creaste ningún código.</div>';
+        return;
+      }
+      codeRowsEl.innerHTML = codes.map(function (it) {
+        return '<div class="news-row" data-id="' + escapeHtml(it.id) + '">' +
+          '<div class="news-row-body">' +
+            '<div class="news-row-title">' + escapeHtml(it.id) + '</div>' +
+            '<div class="news-row-gift">' + escapeHtml(giftSummaryText(it.gift)) + '</div>' +
+          '</div>' +
+          '<div class="news-row-actions">' +
+            '<button type="button" class="btn-secondary" data-action="edit">Editar</button>' +
+            '<button type="button" class="btn-danger" data-action="delete">Eliminar</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      codeRowsEl.querySelectorAll('.news-row').forEach(function (row) {
+        var id = row.getAttribute('data-id');
+        var item = codes.filter(function (it) { return it.id === id; })[0];
+        row.querySelector('[data-action="edit"]').addEventListener('click', function () { startEditingCode(item); });
+        row.querySelector('[data-action="delete"]').addEventListener('click', function () {
+          if (!window.confirm('¿Borrar el código "' + item.id + '"? Esto no se puede deshacer.')) { return; }
+          firebase.functions().httpsCallable('deleteGiftCode')({ code: id }).catch(function (err) {
+            window.alert(err.message || 'No se pudo borrar.');
+          });
+        });
+      });
+    }
+
+    function loadGiftCodes() {
+      codesLoadedOnce = true;
+      if (unsubscribeGiftCodes) { unsubscribeGiftCodes(); }
+      unsubscribeGiftCodes = firebase.firestore().collection('giftCodes').onSnapshot(function (snap) {
+        var codes = [];
+        snap.forEach(function (doc) { codes.push(Object.assign({ id: doc.id }, doc.data())); });
+        renderCodeRows(codes);
+      }, function (err) {
+        codeRowsEl.innerHTML = '<div class="empty-note">No se pudieron cargar los códigos.</div>';
+        console.error(err);
+      });
+    }
+
     function showAdminPanel() {
       stateBox.style.display = 'none';
       adminPanel.style.display = '';
@@ -235,6 +1218,7 @@
             var data = doc.data();
             items.push({
               id: doc.id, title: data.title, body: data.body, tag: data.tag, featured: !!data.featured,
+              gift: data.gift || null,
               createdAt: data.createdAt ? data.createdAt.toDate() : null
             });
           });
@@ -243,18 +1227,42 @@
           newsRows.innerHTML = '<div class="empty-note">No se pudieron cargar las novedades.</div>';
           console.error(err);
         });
+
+      // Always-on (not gated behind the Packs tab) since the news form's
+      // own "Pack personalizado" dropdown needs this regardless of whether
+      // the admin ever opens that tab -- also feeds the Packs tab's own
+      // row list (renderPackRows) once packsLoadedOnce's card-picker exists.
+      if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }
+      unsubscribeCustomPacks = firebase.firestore().collection('customPacks').onSnapshot(function (snap) {
+        var packs = [];
+        var byId = {};
+        snap.forEach(function (doc) {
+          var data = Object.assign({ id: doc.id }, doc.data());
+          packs.push(data);
+          byId[doc.id] = data;
+        });
+        availableCustomPacksCache = byId;
+        renderGiftCustomPackOptions();
+        renderCodeGiftCustomPackOptions();
+        renderPackRows(packs);
+      }, function (err) {
+        packRowsEl.innerHTML = '<div class="empty-note">No se pudieron cargar los packs.</div>';
+        console.error(err);
+      });
     }
 
     function hideAdminPanel(message) {
       adminPanel.style.display = 'none';
       if (unsubscribeNews) { unsubscribeNews(); unsubscribeNews = null; }
+      if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); unsubscribeCustomPacks = null; }
+      if (unsubscribeGiftCodes) { unsubscribeGiftCodes(); unsubscribeGiftCodes = null; }
       stateBox.style.display = '';
       stateBox.innerHTML = message;
     }
 
     firebase.auth().onAuthStateChanged(function (user) {
       if (!user) {
-        hideAdminPanel('Iniciá sesión en <a href="/">la app</a> primero, luego volvé a esta página.');
+        hideAdminPanel('Inicia sesión en <a href="/">la app</a> primero, luego vuelve a esta página.');
         return;
       }
       if (user.uid !== ADMIN_UID) {

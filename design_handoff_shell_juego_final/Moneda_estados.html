@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#0b0a09; }
+  a { color:#8dff62; text-decoration:none; }
+  a:hover { color:#c6ffab; }
+  *::selection { background:rgba(141,255,98,.3); }
+  @keyframes shine { 0%,100% { opacity:.35; } 50% { opacity:.9; } }
+</style>
+</helmet>
+
+<div style="width:1920px;min-height:100vh;padding:56px 80px 96px;font-family:'Silkscreen',monospace;color:#efe9dd;background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 5px),radial-gradient(130% 90% at 50% -8%,#332d24 0%,#191612 52%,#0b0a09 100%)">
+
+  <div style="display:flex;align-items:flex-end;gap:28px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,.07)">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:34px;height:2px;background:#e8c46a"></div>
+        <div style="font-size:12px;letter-spacing:.28em;color:#e8c46a">SET DE CIFRAS · 16 BITS</div>
+      </div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:52px;font-weight:700;letter-spacing:.02em;line-height:1">Numerales biselados</div>
+      <div style="font-size:13px;line-height:1.9;color:#a49785;max-width:760px">Cifras dibujadas en una retícula de 6 × 9 (8 × 11 con el contorno) y rampa vertical de nueve tonos: la luz recorre el borde superior exterior del glifo, el corte cierra el final de cada trazo y el contorno mide un bloque. Cuatro paletas, todas tomadas del shell.</div>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;padding-bottom:6px">
+      <div style="font-size:11px;letter-spacing:.16em;color:#6d6155">RETÍCULA</div>
+      <div style="font-family:'Pixelify Sans',monospace;font-size:30px;font-weight:700;color:#e8c46a">8 × 11</div>
+    </div>
+  </div>
+
+  <!-- ORO -->
+  <div style="display:flex;flex-direction:column;gap:22px;padding:48px 0 0">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:26px;height:2px;background:#e8c46a"></div>
+      <div style="font-size:12px;letter-spacing:.24em;color:#e8c46a">ORO Y BRASA · PUNTUACIÓN, ECONOMÍA, RAREZA</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(232,196,106,.3),transparent)"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:30px;padding:34px 36px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+      <sc-for list="{{ gold }}" as="d" hint-placeholder-count="10">
+        <div style="display:grid;grid-template-columns:repeat(8,13px);grid-auto-rows:13px;filter:drop-shadow(0 13px 0 rgba(0,0,0,.5))">
+          <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+            <div style="width:13px;height:13px;background:{{ c.bg }}"></div>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div style="display:grid;grid-template-columns:repeat(8,13px);grid-auto-rows:13px;filter:drop-shadow(0 13px 0 rgba(0,0,0,.5))">
+        <sc-for list="{{ coinIcon }}" as="c" hint-placeholder-count="88">
+          <div style="width:13px;height:13px;background:{{ c.bg }}"></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- FÓSFORO -->
+  <div style="display:flex;flex-direction:column;gap:22px;padding:48px 0 0">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:26px;height:2px;background:#8dff62"></div>
+      <div style="font-size:12px;letter-spacing:.24em;color:#8dff62">FÓSFORO · PUNTOS DE VIDA, ACIERTOS, PROGRESO</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(141,255,98,.3),transparent)"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:30px;padding:34px 36px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+      <sc-for list="{{ phosphor }}" as="d" hint-placeholder-count="10">
+        <div style="display:grid;grid-template-columns:repeat(8,13px);grid-auto-rows:13px;filter:drop-shadow(0 13px 0 rgba(0,0,0,.5))">
+          <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+            <div style="width:13px;height:13px;background:{{ c.bg }}"></div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- DAÑO Y PLATA -->
+  <div style="display:flex;gap:26px;padding:48px 0 0">
+    <div style="flex:1;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:26px;height:2px;background:#ff6a5a"></div>
+        <div style="font-size:12px;letter-spacing:.24em;color:#ff8a72">DAÑO · CONTADORES, PÉRDIDAS</div>
+      </div>
+      <div style="display:flex;gap:8px;padding:26px 24px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <sc-for list="{{ damage }}" as="d" hint-placeholder-count="10">
+          <div style="display:grid;grid-template-columns:repeat(8,9px);grid-auto-rows:9px;filter:drop-shadow(0 9px 0 rgba(0,0,0,.5))">
+            <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+              <div style="width:9px;height:9px;background:{{ c.bg }}"></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:26px;height:2px;background:#cfc6b6"></div>
+        <div style="font-size:12px;letter-spacing:.24em;color:#cfc6b6">PLATA · NEUTRO, NUMERACIÓN, FECHAS</div>
+      </div>
+      <div style="display:flex;gap:8px;padding:26px 24px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <sc-for list="{{ silver }}" as="d" hint-placeholder-count="10">
+          <div style="display:grid;grid-template-columns:repeat(8,9px);grid-auto-rows:9px;filter:drop-shadow(0 9px 0 rgba(0,0,0,.5))">
+            <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+              <div style="width:9px;height:9px;background:{{ c.bg }}"></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADOS -->
+  <div style="display:flex;flex-direction:column;gap:22px;padding:48px 0 0">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:26px;height:2px;background:#a468d8"></div>
+      <div style="font-size:12px;letter-spacing:.24em;color:#c79bee">ESTADOS ALTERADOS · FICHAS SOBRE LA CARTA ACTIVA</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(164,104,216,.3),transparent)"></div>
+    </div>
+    <div style="display:flex;gap:34px;flex-wrap:wrap;padding:38px 36px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:7px;background:#0a0806;filter:drop-shadow(0 7px 0 rgba(0,0,0,.5));clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)">
+          <div style="display:flex;gap:4px;padding:14px 18px;background:linear-gradient(180deg,#c6c6c6,#6e6e6e);box-shadow:inset 0 3px 0 rgba(255,255,255,.42),inset 0 -4px 0 rgba(0,0,0,.34);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)">
+            <sc-for list="{{ slp }}" as="d" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;color:#a49785">DORMIDO</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:7px;background:#0a0806;filter:drop-shadow(0 7px 0 rgba(0,0,0,.5));clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)">
+          <div style="display:flex;gap:4px;padding:14px 18px;background:linear-gradient(180deg,#ffb257,#d2560f);box-shadow:inset 0 3px 0 rgba(255,255,255,.4),inset 0 -4px 0 rgba(0,0,0,.32);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)">
+            <sc-for list="{{ brn }}" as="d" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;color:#a49785">QUEMADO</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:7px;background:#0a0806;filter:drop-shadow(0 7px 0 rgba(0,0,0,.5));clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)">
+          <div style="display:flex;gap:4px;padding:14px 18px;background:linear-gradient(180deg,#ffe561,#e0a80c);box-shadow:inset 0 3px 0 rgba(255,255,255,.45),inset 0 -4px 0 rgba(0,0,0,.28);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)">
+            <sc-for list="{{ par }}" as="d" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;color:#a49785">PARALIZADO</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:7px;background:#0a0806;filter:drop-shadow(0 7px 0 rgba(0,0,0,.5));clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)">
+          <div style="display:flex;gap:4px;padding:14px 18px;background:linear-gradient(180deg,#b47ce4,#6a2f9e);box-shadow:inset 0 3px 0 rgba(255,255,255,.34),inset 0 -4px 0 rgba(0,0,0,.34);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)">
+            <sc-for list="{{ psn }}" as="d" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;color:#a49785">ENVENENADO</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:7px;background:#0a0806;filter:drop-shadow(0 7px 0 rgba(0,0,0,.5));clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)">
+          <div style="display:flex;gap:4px;padding:14px 18px;background:linear-gradient(180deg,#3c3a37,#141312);box-shadow:inset 0 3px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.5);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)">
+            <sc-for list="{{ cnf }}" as="d" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;color:#a49785">CONFUNDIDO</div>
+      </div>
+
+      <div style="flex:1;min-width:220px;display:flex;align-items:center">
+        <div style="font-size:12px;line-height:2;color:#8a7e6f">La sigla se dibuja con las mismas letras de 6 × 9 y el mismo contorno de un bloque, en hueso: el color lo lleva la placa, no el glifo. La placa recorta 14 px en las cuatro esquinas — dos bloques — y repite el bisel de las cifras: luz arriba, corte abajo.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EN CONTEXTO -->
+  <div style="display:flex;flex-direction:column;gap:22px;padding:48px 0 0">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="width:26px;height:2px;background:#a49785"></div>
+      <div style="font-size:12px;letter-spacing:.24em;color:#a49785">EN CONTEXTO</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(164,151,133,.3),transparent)"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px">
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:24px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+        <div style="font-size:10px;letter-spacing:.2em;color:#8dff62">PUNTOS DE VIDA</div>
+        <div style="display:flex;align-items:flex-end;gap:12px">
+          <sc-for list="{{ hpNum }}" as="d" hint-placeholder-count="2">
+            <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px;filter:drop-shadow(0 7px 0 rgba(0,0,0,.45))">
+              <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+              </sc-for>
+            </div>
+          </sc-for>
+          <div style="font-size:13px;color:#6d6155;padding-bottom:4px">/ 40</div>
+        </div>
+        <div style="height:12px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 5px rgba(0,0,0,.9);padding:2px">
+          <div style="height:100%;width:100%;background:linear-gradient(180deg,#8dff62,#2c8a1c);box-shadow:0 0 10px rgba(141,255,98,.5)"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:24px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),linear-gradient(180deg,#3a342c,#221e19);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+        <div style="font-size:10px;letter-spacing:.2em;color:#e8c46a">MONEDAS</div>
+        <div style="display:flex;align-items:flex-end;gap:12px">
+          <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px;filter:drop-shadow(0 7px 0 rgba(0,0,0,.45))">
+            <sc-for list="{{ coinIcon }}" as="c" hint-placeholder-count="88">
+              <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+            </sc-for>
+          </div>
+          <sc-for list="{{ coinNum }}" as="d" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px;filter:drop-shadow(0 7px 0 rgba(0,0,0,.45))">
+              <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:11px;letter-spacing:.1em;color:#8a7e6f;line-height:1.7">Saldo del entrenador</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:24px;background:linear-gradient(180deg,#3a2a26,#241715);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 18px rgba(0,0,0,.5);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)">
+        <div style="font-size:10px;letter-spacing:.2em;color:#ff8a72">CONTADOR DE DAÑO</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:98px;height:98px;border-radius:50%;display:flex;align-items:center;justify-content:center;gap:2px;background:linear-gradient(180deg,#ff6a5a,#a02012);border:2px solid #12100d;box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 4px 12px rgba(0,0,0,.7)">
+            <sc-for list="{{ dmgNum }}" as="d" hint-placeholder-count="2">
+              <div style="display:grid;grid-template-columns:repeat(8,5px);grid-auto-rows:5px">
+                <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                  <div style="width:5px;height:5px;background:{{ c.bg }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:11px;letter-spacing:.1em;color:#d6a99f;line-height:1.7">Ficha sobre<br>la carta activa</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;padding:24px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <div style="font-size:10px;letter-spacing:.2em;color:#a49785">TURNO</div>
+        <div style="display:flex;align-items:flex-end;gap:10px">
+          <sc-for list="{{ turnNum }}" as="d" hint-placeholder-count="2">
+            <div style="display:grid;grid-template-columns:repeat(8,7px);grid-auto-rows:7px;filter:drop-shadow(0 7px 0 rgba(0,0,0,.45))">
+              <sc-for list="{{ d.cells }}" as="c" hint-placeholder-count="88">
+                <div style="width:7px;height:7px;background:{{ c.bg }}"></div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:11px;letter-spacing:.1em;color:#8a7e6f;line-height:1.7">Cifra neutra, sin acento</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANATOMÍA -->
+  <div style="display:flex;gap:40px;align-items:flex-start;padding:48px 0 0">
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:26px;height:2px;background:#a49785"></div>
+        <div style="font-size:12px;letter-spacing:.24em;color:#a49785">ANATOMÍA</div>
+      </div>
+      <div style="display:flex;gap:34px;padding:34px 40px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <div style="display:grid;grid-template-columns:repeat(8,22px);grid-auto-rows:22px">
+          <sc-for list="{{ anatomy }}" as="c" hint-placeholder-count="88">
+            <div style="width:22px;height:22px;background:{{ c.bg }};outline:1px solid rgba(255,255,255,.05)"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;justify-content:center">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:22px;height:22px;background:{{ acentoHi }};border:1px solid #0a0806"></div>
+            <div style="font-size:12px;letter-spacing:.06em;color:#d6cbb9">Luz — recorre el borde superior exterior</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:22px;height:22px;background:{{ acentoBody }};border:1px solid #0a0806"></div>
+            <div style="font-size:12px;letter-spacing:.06em;color:#d6cbb9">Cuerpo — rampa vertical de nueve tonos</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:22px;height:22px;background:{{ acentoLo }};border:1px solid #0a0806"></div>
+            <div style="font-size:12px;letter-spacing:.06em;color:#d6cbb9">Corte — cierra el final de cada trazo</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:22px;height:22px;background:#0a0806;border:1px solid #2a251f"></div>
+            <div style="font-size:12px;letter-spacing:.06em;color:#d6cbb9">Contorno — un bloque, calculado en la matriz</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:26px;height:2px;background:#a49785"></div>
+        <div style="font-size:12px;letter-spacing:.24em;color:#a49785">CÓMO USARLO</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;padding:30px 34px;background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;box-shadow:inset 0 3px 12px rgba(0,0,0,.85)">
+        <div style="font-size:13px;line-height:2;color:#a49785">El trazo ocupa 6 × 9 bloques y el contorno añade un anillo: la caja real es 8 × 11. El bloque es la unidad — a 13 px la cifra mide 104 × 143; a 9 px, 72 × 99; a 7 px, 56 × 77; a 5 px, 40 × 55. Usa siempre múltiplos enteros: un bloque fraccionario rompe el borde.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:13px;line-height:2;color:#a49785">El contorno vive <span style="color:#e8c46a">en la matriz</span>, no en un filtro: cada celda apagada con una vecina ortogonal encendida se pinta de negro. Encadenar <span style="color:#e8c46a">drop-shadow</span> parece más corto, pero cada sombra recibe la anterior como entrada y la silueta se dilata hasta tragarse los huecos del 0, el 4 y el 8. Sobre fondos claros, cambia el negro por el tono más oscuro de la rampa.</div>
+        <div style="height:1px;background:rgba(255,255,255,.06)"></div>
+        <div style="font-size:13px;line-height:2;color:#a49785">Reserva el oro para economía y rareza, el fósforo para vida y progreso, el daño para pérdidas y el neutro para todo lo demás. Dos paletas en una misma cifra nunca.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;acento&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;oro&quot;,&quot;brasa&quot;],&quot;default&quot;:&quot;oro&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Paleta&quot;},&quot;hp&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;40&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Cifras de ejemplo&quot;},&quot;monedas&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;150&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Cifras de ejemplo&quot;},&quot;dano&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;20&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Cifras de ejemplo&quot;},&quot;turno&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;04&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Cifras de ejemplo&quot;}}">
+// Retícula 6 x 9 — un carácter por bloque, '1' encendido
+const GLYPHS = {
+  '0': ['.1111.','11..11','11..11','11..11','11..11','11..11','11..11','11..11','.1111.'],
+  '1': ['..11..','.111..','1111..','..11..','..11..','..11..','..11..','..11..','111111'],
+  '2': ['.1111.','11..11','....11','....11','...11.','..11..','.11...','11....','111111'],
+  '3': ['.1111.','11..11','....11','...11.','..111.','....11','....11','11..11','.1111.'],
+  '4': ['....11','...111','..1.11','.11.11','11..11','111111','111111','....11','....11'],
+  '5': ['111111','11....','11....','11111.','....11','....11','....11','11..11','.1111.'],
+  '6': ['..111.','.11...','11....','11....','11111.','11..11','11..11','11..11','.1111.'],
+  '7': ['111111','111111','....11','...11.','...11.','..11..','..11..','.11...','.11...'],
+  '8': ['.1111.','11..11','11..11','.1111.','.1111.','11..11','11..11','11..11','.1111.'],
+  '9': ['.1111.','11..11','11..11','11..11','.11111','....11','....11','...11.','.111..'],
+  // Moneda — mismo trazo de 2 bloques y misma caja; el disco se apoya en la
+  // línea base de las cifras y la rampa se desplaza 3 filas para que el metal
+  // arranque en el tono más claro igual que un numeral.
+  'moneda': ['......','.1111.','111111','111111','11..11','11..11','111111','111111','.1111.'],
+  // Letras de estado — mismo trazo de 2 bloques y misma caja de 6 x 9
+  'S': ['.1111.','11..11','11....','11....','.1111.','....11','....11','11..11','.1111.'],
+  'L': ['11....','11....','11....','11....','11....','11....','11....','11....','111111'],
+  'P': ['11111.','11..11','11..11','11..11','11111.','11....','11....','11....','11....'],
+  'B': ['11111.','11..11','11..11','11..11','11111.','11..11','11..11','11..11','11111.'],
+  'R': ['11111.','11..11','11..11','11..11','11111.','11.11.','11..11','11..11','11..11'],
+  'N': ['11..11','111.11','111.11','11.111','11.111','11..11','11..11','11..11','11..11'],
+  'A': ['..11..','.1111.','11..11','11..11','111111','111111','11..11','11..11','11..11'],
+  'C': ['.1111.','11..11','11....','11....','11....','11....','11....','11..11','.1111.'],
+  'F': ['111111','11....','11....','11111.','11111.','11....','11....','11....','11....'],
+  '?': ['.1111.','11..11','11..11','....11','...11.','..11..','..11..','......','..11..'],
+};
+
+const PALETTES = {
+  oro:      { ramp:['#f4dd9a','#e8c46a','#dbb257','#c99f45','#b8912f','#a87f26','#96701f','#82601a','#6d5514'], hi:'#fff6d8', lo:'#5c4610' },
+  fosforo:  { ramp:['#b6ff96','#8dff62','#77f14f','#62dd3f','#4fc832','#3fb52a','#329b22','#26811a','#1c6614'], hi:'#e8ffdc', lo:'#14520f' },
+  dano:     { ramp:['#ff9d8c','#ff6a5a','#f45646','#e64a38','#d43c2c','#c02f21','#ac2418','#961a10','#7d120a'], hi:'#ffd9d0', lo:'#5e0d05' },
+  plata:    { ramp:['#efe9dd','#cfc6b6','#bdb3a1','#a89e8b','#948a77','#7f7664','#6b6252','#584f42','#443c31'], hi:'#ffffff', lo:'#2a251f' },
+  brasa:    { ramp:['#ffe1a8','#ffc46a','#ffa945','#f58f2c','#e2761f','#c95f16','#ad4a10','#8e380b','#6e2907'], hi:'#fff4d8', lo:'#521c04' },
+  // Hueso — las letras de estado van casi blancas, con el bisel apenas
+  // insinuado; el color lo lleva la placa, no el glifo.
+  hueso:    { ramp:['#ffffff','#fbfaf7','#f5f2ec','#efebe3','#e8e3d9','#e0dacf','#d7d0c3','#ccc4b5','#c0b7a6'], hi:'#ffffff', lo:'#9a9282' },
+};
+
+// Aplana un glifo a una retícula de 8 x 11 (6 x 9 del trazo + un anillo de
+// contorno). El contorno se calcula aquí, en los datos: toda celda apagada con
+// una vecina ortogonal encendida. Así el borde mide exactamente un bloque y las
+// contraformas del 0, 4, 6, 8 y 9 quedan intactas — encadenar drop-shadow
+// dilataría la silueta hasta rellenarlas.
+function build(ch, paletteName, outlineColor, rampOffset) {
+  const rows = GLYPHS[ch];
+  if (!rows) return [];
+  const p = PALETTES[paletteName] || PALETTES.plata;
+  const line = outlineColor || '#0a0806';
+  const on = (x, y) => x >= 0 && x < 6 && y >= 0 && y < 9 && rows[y][x] === '1';
+
+  const last = [];
+  for (let x = 0; x < 6; x++) {
+    let l = -1;
+    for (let y = 0; y < 9; y++) if (on(x, y)) l = y;
+    last.push(l);
+  }
+
+  // Relleno por inundación desde el borde: el contorno solo se pinta en celdas
+  // apagadas que se alcanzan desde fuera. Sin esto, los huecos cerrados del 0,
+  // 6, 8 y 9 (dos bloques de ancho) quedarían tapados por el contorno interior.
+  const outside = new Set();
+  const stack = [];
+  const key = (x, y) => y * 8 + x;
+  for (let x = 0; x < 8; x++) { stack.push([x, 0]); stack.push([x, 10]); }
+  for (let y = 0; y < 11; y++) { stack.push([0, y]); stack.push([7, y]); }
+  while (stack.length) {
+    const [gx, gy] = stack.pop();
+    if (gx < 0 || gx > 7 || gy < 0 || gy > 10) continue;
+    if (outside.has(key(gx, gy))) continue;
+    if (on(gx - 1, gy - 1)) continue;
+    outside.add(key(gx, gy));
+    stack.push([gx + 1, gy], [gx - 1, gy], [gx, gy + 1], [gx, gy - 1]);
+  }
+
+  // La luz corre por el borde superior exterior del glifo, no por columna: una
+  // celda se ilumina si lo que tiene encima es fondo alcanzable desde fuera.
+  // Repartirla por columna (`first[x]`) dejaba brillos dentro del trazo.
+  const lit = new Set();
+  for (let gy = 0; gy < 11; gy++) {
+    for (let gx = 0; gx < 8; gx++) {
+      if (on(gx - 1, gy - 1) && outside.has(key(gx, gy - 1))) lit.add(key(gx, gy));
+    }
+  }
+  // Una luz sin ninguna vecina de luz (ni ortogonal ni diagonal) se lee como
+  // mota, no como bisel: baja al primer tono de la rampa.
+  const lonely = new Set();
+  lit.forEach((k) => {
+    const gx = k % 8, gy = (k - gx) / 8;
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      if (lit.has(key(gx + dx, gy + dy))) n++;
+    }
+    if (!n) lonely.add(k);
+  });
+
+  const cells = [];
+  for (let gy = 0; gy < 11; gy++) {
+    for (let gx = 0; gx < 8; gx++) {
+      const x = gx - 1, y = gy - 1;
+      const k = key(gx, gy);
+      if (on(x, y)) {
+        let bg = p.ramp[Math.max(0, Math.min(8, y - (rampOffset || 0)))];
+        if (lit.has(k)) bg = lonely.has(k) ? p.ramp[0] : p.hi;
+        else if (y === last[x] && y > 2) bg = p.lo;
+        cells.push({ bg });
+      } else if (outside.has(k) &&
+                 (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1))) {
+        cells.push({ bg: line });
+      } else {
+        cells.push({ bg: 'transparent' });
+      }
+    }
+  }
+  return cells;
+}
+
+const DIGITS = ['0','1','2','3','4','5','6','7','8','9'];
+const row = (pal) => DIGITS.map((ch) => ({ ch, cells: build(ch, pal) }));
+const num = (str, pal, line) => String(str).split('').map((ch) => ({ ch, cells: build(ch, pal, line) }));
+// Sigla de estado: letras en hueso, contorno con el tono profundo de la placa.
+const word = (str, line) => String(str).split('').map((ch) => ({ ch, cells: build(ch, 'hueso', line) }));
+
+class Component extends DCLogic {
+  renderVals() {
+    const acento = PALETTES[this.props.acento] ? this.props.acento : 'oro';
+    const pal = PALETTES[acento];
+    const hp = this.props.hp ?? '40';
+    const monedas = this.props.monedas ?? '150';
+    const dano = this.props.dano ?? '20';
+    const turno = this.props.turno ?? '04';
+    return {
+      gold: row(acento),
+      phosphor: row('fosforo'),
+      damage: row('dano'),
+      silver: row('plata'),
+      hpNum: num(hp, 'fosforo'),
+      coinNum: num(monedas, acento),
+      dmgNum: num(dano, 'plata', 'rgba(58,8,2,.92)'),
+      turnNum: num(turno, 'plata'),
+      anatomy: build('4', acento),
+      coinIcon: build('moneda', acento, null, 1),
+      slp: word('SLP', '#2b2b2b'),
+      brn: word('BRN', '#5a2408'),
+      par: word('PAR', '#57400a'),
+      psn: word('PSN', '#2d1046'),
+      cnf: word('???', '#000000'),
+      acentoHi: pal.hi,
+      acentoBody: pal.ramp[4],
+      acentoLo: pal.lo,
+    };
+  }
+}
+</script>
+</body>
+</html>

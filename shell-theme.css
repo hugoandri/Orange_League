@@ -83,6 +83,7 @@
 }
 .shell-news-featured-meta{display:flex;align-items:center;gap:12px;}
 .shell-news-chip-featured{font-size:10px;letter-spacing:.14em;color:#2b2005;background:linear-gradient(180deg,#f4dd9a,#b8912f);padding:5px 9px;}
+.shell-news-chip-gift{font-size:10px;letter-spacing:.14em;color:#241a3a;background:linear-gradient(180deg,#d9bdfa,#8a5fc7);padding:5px 9px;}
 .shell-news-featured-date{font-size:11px;letter-spacing:.14em;color:#8a7e6f;}
 .shell-news-featured-title{font-family:'Pixelify Sans',sans-serif;font-size:32px;font-weight:700;letter-spacing:.02em;line-height:1.2;color:#efe9dd;text-wrap:pretty;}
 .shell-news-featured-body{font-size:12px;line-height:1.9;color:#a49785;text-wrap:pretty;}
@@ -111,7 +112,19 @@
 .shell-news-item-tag--balance{color:#8dff62;border-color:rgba(141,255,98,.4);}
 .shell-news-item-tag--shop{color:#e8c46a;border-color:rgba(232,196,106,.4);}
 .shell-news-item-tag--notice{color:#ff8a72;border-color:rgba(255,138,114,.4);}
+.shell-news-item-tag--gift{color:#c9a6ff;border-color:rgba(201,166,255,.4);}
 .shell-news-empty{padding:30px 24px;text-align:center;font-size:11px;letter-spacing:.1em;color:#6d6155;font-family:'Silkscreen',monospace;}
+.shell-news-gift-btn{
+  align-self:flex-start;margin-top:2px;padding:9px 16px;cursor:pointer;font-size:10px;letter-spacing:.1em;
+  color:#0d2a06;background:linear-gradient(180deg,#8dff62,#2c8a1c);border:1px solid #0e2c07;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 3px 0 #16480d;font-family:'Silkscreen',monospace;
+  display:inline-block;
+}
+.shell-news-gift-btn:hover{filter:brightness(1.14);}
+.shell-news-gift-btn:disabled{cursor:default;filter:brightness(.9);}
+.shell-news-gift-btn.claimed{
+  color:#6d6155;background:#241f19;border-color:#2c2822;box-shadow:none;cursor:default;
+}
 .shell-news-footer{
   flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;cursor:pointer;
   border-top:1px solid #0b0907;background:linear-gradient(180deg,#2c2721,#1d1a15);transition:filter .12s;
@@ -125,7 +138,8 @@
 .shell-brand{display:flex;flex-direction:column;gap:14px;}
 
 .shell-logo-plate{
-  width:460px;height:150px;position:relative;padding:10px;
+  width:560px;height:175px;position:relative;padding:10px 10px 10px 46px;
+  display:flex;align-items:center;justify-content:flex-start;gap:34px;
   background:
     repeating-linear-gradient(90deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px),
     linear-gradient(180deg,#3a342c,#221e19);
@@ -133,7 +147,8 @@
   box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 0 rgba(0,0,0,.55),0 8px 24px rgba(0,0,0,.6);
   clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
 }
-.shell-logo-plate img{width:100%;height:100%;object-fit:contain;display:block;}
+.shell-logo-plate .shell-logo-main{height:100%;width:auto;max-width:68%;object-fit:contain;display:block;}
+.shell-logo-plate .shell-logo-secondary{height:60%;width:auto;object-fit:contain;display:block;}
 
 .shell-setline{display:flex;align-items:center;gap:12px;}
 .shell-setline-rule{width:34px;height:2px;background:#e8c46a;}
@@ -353,6 +368,17 @@
 .shell-booster-variant-name{font-size:10px;letter-spacing:.1em;}
 .shell-booster-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;border-top:1px solid #0b0907;}
 .shell-booster-selected-info{font-size:10px;letter-spacing:.1em;color:#9a8d7c;}
+
+.shell-gift-booster-list{display:flex;flex-direction:column;gap:12px;padding:18px 22px;max-height:60vh;overflow-y:auto;}
+.shell-gift-booster-row{
+  display:flex;align-items:center;gap:14px;padding:12px;
+  background:linear-gradient(180deg,#15130f,#1d1a15);border:1px solid #0a0806;
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.8);font-family:'Silkscreen',monospace;
+}
+.shell-gift-booster-row img{width:52px;flex:none;display:block;}
+.shell-gift-booster-row-text{flex:1;min-width:0;}
+.shell-gift-booster-row-name{font-size:13px;color:#efe9dd;}
+.shell-gift-booster-row-source{font-size:10px;letter-spacing:.06em;color:#8a7e6f;margin-top:3px;}
 
 /* ===== Booster result modal (cards revealed after opening a pack) -- per
    design_handoff_shell_juego_final's "Apertura de sobre / Estado B", but
@@ -625,6 +651,19 @@
   font-family:'Silkscreen',monospace;appearance:none;-webkit-appearance:none;-moz-appearance:none;
 }
 .shell-config-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#6d6155;font-size:12px;pointer-events:none;}
+
+/* Canjear código */
+.shell-config-code-row{display:flex;gap:12px;}
+.shell-config-code-input{
+  flex:1;height:50px;padding:0 14px;background:#0f0d0b;border:1px solid #0a0806;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.9);font-size:13px;letter-spacing:.08em;color:#efe9dd;
+  font-family:'Silkscreen',monospace;text-transform:uppercase;
+}
+.shell-config-code-input:focus{outline:none;border-color:#8dff62;}
+.shell-config-code-row .shell-config-account-btn{flex:none;width:130px;}
+.shell-config-code-status{font-size:11px;letter-spacing:.06em;min-height:1.4em;margin:0;}
+.shell-config-code-status.ok{color:#8dff62;}
+.shell-config-code-status.error{color:#ff8a72;}
 
 /* Cuenta */
 .shell-config-account-row{display:flex;align-items:center;gap:14px;}

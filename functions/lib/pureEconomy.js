@@ -32,6 +32,22 @@ function pickRandom(list, rng) {
   return list[Math.floor(rng() * list.length)];
 }
 
+// Draws `count` DISTINCT cards from list (no repeats within the same call) --
+// removes each pick from a scratch copy before the next draw, so e.g. the
+// pack's 3 Uncommon slots can never land on the same card twice. Every real
+// set has far more than 3 Uncommons / 7 Commons (see CARD_CATALOG), so this
+// never has to fall back to returning fewer than requested in practice.
+function pickRandomUnique(list, count, rng) {
+  var pool = list.slice();
+  var picked = [];
+  for (var i = 0; i < count && pool.length > 0; i++) {
+    var idx = Math.floor(rng() * pool.length);
+    picked.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return picked;
+}
+
 // Every star-tier pull (the pack's one Rare/Rare Holo slot) rolls its own
 // displayed/persisted rarity independently of what the catalog happens to
 // tag that print as -- the same Clefairy can come out Rare one pack and
@@ -50,24 +66,64 @@ function rollPulledRarity(rng, useDarkspoonOdds) {
   return 'rare';
 }
 
+// Picks 1 card from `list`, weighted by weightsByName[card.n] (falls back to
+// a weight of 1 -- i.e. plain uniform odds -- for any name not present in
+// weightsByName, so an admin-set-only-some-cards config still lets every
+// other rare come out normally). This is how the admin's "Probabilidades"
+// panel (setRareOdds, functions/index.js) actually changes what comes out
+// of the rare slot -- weightsByName is null/undefined whenever no admin
+// config exists yet, which must behave identically to the old plain
+// pickRandom (verified by testDrawBoosterCardsRareSlotIsUniformWithNoWeights-
+// style tests).
+function pickWeighted(list, weightsByName, rng) {
+  var weights = list.map(function (c) {
+    var w = weightsByName ? weightsByName[c.n] : undefined;
+    return (typeof w === 'number' && w >= 0) ? w : 1;
+  });
+  var total = weights.reduce(function (sum, w) { return sum + w; }, 0);
+  if (total <= 0) { return pickRandom(list, rng); } // every weight is 0 -- fall back rather than ever return undefined
+  var r = rng() * total;
+  for (var i = 0; i < list.length; i++) {
+    r -= weights[i];
+    if (r < 0) { return list[i]; }
+  }
+  return list[list.length - 1]; // floating-point rounding safety net
+}
+
 // Mirrors the pack composition of the original client-side buyBooster():
-// 1 Rare/Rare Holo + 3 Uncommon + 7 Common, drawn with replacement.
-function drawBoosterCards(pool, rng, useDarkspoonOdds) {
+// 1 Rare/Rare Holo + 3 Uncommon + 7 Common. Uncommons and Commons are each
+// drawn WITHOUT replacement (pickRandomUnique) -- a real pack can otherwise
+// hand back e.g. 3 copies of the same Common, which players reported as
+// looking like a bug ("a veces vienen hasta 3 cartas iguales"). rareWeights
+// (optional) is that set's {cardName: weight} config from setRareOdds --
+// null/undefined means every rare is equally likely, same as before this
+// feature existed.
+function drawBoosterCards(pool, rng, useDarkspoonOdds, rareWeights) {
   var rares = pool.filter(function (c) { return c.r === 'Rare' || c.r === 'Rare Holo'; });
   var uncommons = pool.filter(function (c) { return c.r === 'Uncommon'; });
   var commons = pool.filter(function (c) { return c.r === 'Common'; });
 
   var cards = [];
-  var rareCard = pickRandom(rares, rng);
+  var rareCard = pickWeighted(rares, rareWeights, rng);
   // Clone before tagging -- rareCard is a reference into the shared, in-
   // memory CARD_CATALOG, and mutating it directly would leak this one
   // draw's pulledRarity onto every future draw of the same card, for every
   // user, for the lifetime of this function instance.
   var pulledRarity = rollPulledRarity(rng, useDarkspoonOdds);
   cards.push(Object.assign({}, rareCard, { pulledRarity: pulledRarity }));
-  for (var i = 0; i < 3; i++) { cards.push(pickRandom(uncommons, rng)); }
-  for (var j = 0; j < 7; j++) { cards.push(pickRandom(commons, rng)); }
+  pickRandomUnique(uncommons, 3, rng).forEach(function (c) { cards.push(c); });
+  pickRandomUnique(commons, 7, rng).forEach(function (c) { cards.push(c); });
   return cards;
+}
+
+// Admin-curated gift-only packs (see saveCustomPack/claimNewsGift's
+// 'custompack' branch, functions/index.js) -- no rarity-tier structure like
+// drawBoosterCards above, just 11 unique cards out of whatever flat pool of
+// real catalog cards the admin picked. Each is granted at its own real
+// catalog rarity by the caller (a pool card tagged Rare Holo comes out
+// holo), not rolled the way the real-set rare slot is.
+function drawCustomPackCards(poolEntries, rng) {
+  return pickRandomUnique(poolEntries, 11, rng);
 }
 
 // Custom deck-builder rules (Phase 4): real 1999 Base Set deck-construction
@@ -163,6 +219,8 @@ module.exports = {
   RARITY_ROLL: RARITY_ROLL,
   computeMatchReward: computeMatchReward,
   drawBoosterCards: drawBoosterCards,
+  pickWeighted: pickWeighted,
+  drawCustomPackCards: drawCustomPackCards,
   DECK_SIZE: DECK_SIZE,
   MAX_COPIES_PER_CARD: MAX_COPIES_PER_CARD,
   BASIC_ENERGY_NAMES: BASIC_ENERGY_NAMES,

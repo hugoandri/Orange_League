@@ -99,6 +99,19 @@ async function main() {
     console.log('PASS: saveCustomDeck enforces real ownership, not just the printed copy limit');
   }
 
+  // Promos (basep/espromo) are collectible but not deck-legal for now (see
+  // PLAYABLE_CARD_CATALOG, functions/index.js) -- even genuinely owning 4
+  // copies of a promo-exclusive name (basep-28 = Surfing Pikachu, a name
+  // with no real Base/Jungle/Fossil print) must not make it deck-eligible.
+  await seedCollection(uid, { 'base-44': 4, 'base-99': 60, 'base-30': 2, 'basep-28': 4 });
+  try {
+    await saveCustomDeck({ slot: 'custom-3', name: 'Con promo', cards: [{ name: 'Surfing Pikachu', count: 4 }, { name: 'Grass Energy', count: 56 }] });
+    assert.fail('expected a promo-only card name to be rejected even though it is genuinely owned');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: saveCustomDeck rejects promo cards as deck-illegal even when owned');
+  }
+
   // The rejected attempts above must not have clobbered the earlier good save.
   const snapAfterRejections = await getDoc(userDocRef);
   assert.deepStrictEqual(snapAfterRejections.data().customDecks['custom-1'].cards, legalDeck, 'a rejected save never overwrites a previously legal one');

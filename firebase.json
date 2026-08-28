@@ -29,6 +29,14 @@
     ],
     "rewrites": [
       { "source": "/admin", "destination": "/admin.html" }
+    ],
+    "headers": [
+      {
+        "source": "/Sobres/Promo_Orange_2.webp",
+        "headers": [
+          { "key": "Content-Type", "value": "image/png" }
+        ]
+      }
     ]
   },
   "emulators": {

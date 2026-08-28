@@ -10,6 +10,26 @@
     if (el) { el.remove(); }
   }
 
+  // Full-screen block-everything spinner shown the instant menuScreen is
+  // revealed (login, or an already-signed-in session on page load) until
+  // initEconomyListener's first snapshot actually lands -- see its own
+  // onAuthStateChanged usage below and index.html's comment on the element.
+  var accountVerifyingTimeout = null;
+  function showAccountVerifyingOverlay() {
+    var el = document.getElementById('accountVerifyingOverlay');
+    if (el) { el.classList.remove('hidden'); }
+    clearTimeout(accountVerifyingTimeout);
+    // Same safety-net reasoning as appLoadingOverlay's own 15s fallback --
+    // don't leave the whole app permanently unclickable if Firestore never
+    // calls back (e.g. a dropped connection right after login).
+    accountVerifyingTimeout = setTimeout(hideAccountVerifyingOverlay, 15000);
+  }
+  function hideAccountVerifyingOverlay() {
+    clearTimeout(accountVerifyingTimeout);
+    var el = document.getElementById('accountVerifyingOverlay');
+    if (el) { el.classList.add('hidden'); }
+  }
+
   function showPanel(id) {
     ['authLoginForm', 'authSignupForm', 'authForgotForm'].forEach(function (pid) {
       document.getElementById(pid).classList.toggle('hidden', pid !== id);
@@ -239,16 +259,25 @@
 
     var unsubscribeEconomy = null;
     var unsubscribeNews = null;
+    var unsubscribeCustomPacks = null;
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
+      // Login screen and main menu deliberately share the same track --
+      // whichever of the two branches below applies, this is the right
+      // music either way.
+      playScreenMusic('Songs/Login_Screen_Main_Menu_2.mp3');
       if (user) {
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
+        showAccountVerifyingOverlay();
         if (unsubscribeEconomy) { unsubscribeEconomy(); }
-        unsubscribeEconomy = initEconomyListener(user.uid);
+        unsubscribeEconomy = initEconomyListener(user.uid, hideAccountVerifyingOverlay);
         if (unsubscribeNews) { unsubscribeNews(); }
         unsubscribeNews = initNewsListener();
+        if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }
+        unsubscribeCustomPacks = initCustomPacksListener();
       } else {
+        hideAccountVerifyingOverlay();
         if (unsubscribeEconomy) {
           unsubscribeEconomy();
           unsubscribeEconomy = null;
@@ -256,6 +285,10 @@
         if (unsubscribeNews) {
           unsubscribeNews();
           unsubscribeNews = null;
+        }
+        if (unsubscribeCustomPacks) {
+          unsubscribeCustomPacks();
+          unsubscribeCustomPacks = null;
         }
         document.getElementById('menuScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');

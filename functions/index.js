@@ -2,12 +2,34 @@ const admin = require('firebase-admin');
 const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const {
-  computeMatchReward, BOOSTER_COST, drawBoosterCards, PROTECTOR_COST, PROTECTOR_IDS,
+  computeMatchReward, BOOSTER_COST, drawBoosterCards, drawCustomPackCards, PROTECTOR_COST, PROTECTOR_IDS,
   CUSTOM_DECK_SLOTS, ownedCountsByName, supertypeByName, validateCustomDeck
 } = require('./lib/pureEconomy');
 const CARD_CATALOG = require('./lib/cardCatalog');
 const POKEMON_EVOLUTION = require('./lib/pokemonEvolution');
 admin.initializeApp();
+
+// Decks can only ever be built from these 3 real sets -- basep/espromo
+// (Wizards Black Star Promos + Special Promos) are gift-only and
+// collectible but NOT deck-legal for now (see saveCustomDeck below). Kept
+// separate from the full CARD_CATALOG (which openBooster/claimNewsGift
+// still use) so a promo copy in a player's collection can never count
+// toward deck ownership, even from a hand-crafted request.
+const PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
+const PLAYABLE_CARD_CATALOG = {};
+PLAYABLE_SET_KEYS.forEach((k) => { PLAYABLE_CARD_CATALOG[k] = CARD_CATALOG[k]; });
+
+// The admin's "Probabilidades" panel (setRareOdds below) -- a single doc,
+// one field per playable set, each {cardName: weight}. Read fresh on every
+// pack opened rather than cached, since the admin can change it at any
+// time and there's no reasonable staleness window for "did my odds change
+// actually take effect". Missing doc/field/name all mean "no override yet",
+// which drawBoosterCards/pickWeighted (pureEconomy.js) already treat as
+// plain uniform odds -- the exact same behavior as before this existed.
+async function fetchRareWeights(setKey) {
+  const snap = await admin.firestore().collection('config').doc('rareOdds').get();
+  return snap.exists ? (snap.data()[setKey] || null) : null;
+}
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -113,6 +135,7 @@ exports.openBooster = onCall(async (request) => {
   }
 
   const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const rareWeights = await fetchRareWeights(setKey);
 
   const cards = await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(userRef);
@@ -125,7 +148,7 @@ exports.openBooster = onCall(async (request) => {
     // checked server-side (not just at reveal time) since this is what
     // actually gets persisted.
     const useDarkspoonOdds = (data.username || '').toLowerCase() === 'darkspoon';
-    const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random, useDarkspoonOdds);
+    const drawn = drawBoosterCards(CARD_CATALOG[setKey], Math.random, useDarkspoonOdds, rareWeights);
     const newCollection = Object.assign({}, data.collection);
     const newCollectionHolo = Object.assign({}, data.collectionHolo);
     const newCollectionSecret = Object.assign({}, data.collectionSecret);
@@ -329,8 +352,8 @@ exports.saveCustomDeck = onCall(async (request) => {
       throw new HttpsError('not-found', 'Cuenta no encontrada.');
     }
     const uData = snap.data();
-    const owned = ownedCountsByName(uData.collection || {}, CARD_CATALOG);
-    const supertypes = supertypeByName(CARD_CATALOG);
+    const owned = ownedCountsByName(uData.collection || {}, PLAYABLE_CARD_CATALOG);
+    const supertypes = supertypeByName(PLAYABLE_CARD_CATALOG);
     const check = validateCustomDeck(cards, owned, supertypes, POKEMON_EVOLUTION);
     if (!check.valid) {
       throw new HttpsError('failed-precondition', check.reason);
@@ -351,11 +374,13 @@ exports.saveCustomDeck = onCall(async (request) => {
 // one-time collection grant. Gated by uid (immutable) rather than username
 // (can be renamed via updateProfile), same as that migration.
 const ADMIN_UID = '4ViFsoJm7fMsop8eCS16u89wIxQ2';
-// Matches the 3 real tag styles already defined in shell-theme.css
-// (shell-news-item-tag--balance/--shop/--notice) -- kept as a fixed set
-// rather than free text so the admin can't accidentally pick a tag with no
-// matching CSS class.
-const NEWS_TAGS = ['balance', 'shop', 'notice'];
+// Matches the 4 real tag styles already defined in shell-theme.css
+// (shell-news-item-tag--balance/--shop/--notice/--gift) -- kept as a fixed
+// set rather than free text so the admin can't accidentally pick a tag with
+// no matching CSS class. 'gift' is the editorial category (the admin can
+// tag ANY post "REGALO" even without one) -- separate from whether the post
+// actually has a claimable gift attached (see validateGiftField/gift below).
+const NEWS_TAGS = ['balance', 'shop', 'notice', 'gift'];
 
 function requireAdmin(request) {
   if (!request.auth || request.auth.uid !== ADMIN_UID) {
@@ -386,10 +411,62 @@ async function clearOtherFeatured(exceptId) {
   await batch.commit();
 }
 
+// A news item may optionally carry a one-time, once-per-player reward that
+// shows up as a "reclamar" button in the menu's Novedades panel (see
+// claimNewsGift below). Booster gifts reuse the same 3 sets sold in the
+// shop; card gifts are restricted to the promo-only catalogs (basep/
+// espromo) per the original ask -- the admin picks the exact rarity
+// (rare/holo/secret) at gift time since promos don't have one single "real"
+// rarity the way numbered Base/Jungle/Fossil cards do. custompack gifts
+// point at an admin-curated customPacks/{packId} doc (see saveCustomPack) --
+// existence is checked here (unlike booster/card, this isn't static
+// in-memory CARD_CATALOG data) so a typo'd or deleted packId is caught at
+// publish time, not silently at claim time for every future player.
+const GIFT_BOOSTER_SET_KEYS = ['base', 'jungle', 'fossil'];
+const GIFT_CARD_SET_KEYS = ['basep', 'espromo'];
+const GIFT_RARITIES = ['rare', 'holo', 'secret'];
+
+async function validateGiftField(gift) {
+  if (!gift || !gift.kind) { return null; }
+  if (gift.kind === 'booster') {
+    if (GIFT_BOOSTER_SET_KEYS.indexOf(gift.setKey) === -1) {
+      throw new HttpsError('invalid-argument', 'Set de pack inválido para el regalo.');
+    }
+    return { kind: 'booster', setKey: gift.setKey };
+  }
+  if (gift.kind === 'card') {
+    if (GIFT_CARD_SET_KEYS.indexOf(gift.setKey) === -1) {
+      throw new HttpsError('invalid-argument', 'Set de carta inválido para el regalo.');
+    }
+    const entry = (CARD_CATALOG[gift.setKey] || []).find((c) => c.num === gift.num);
+    if (!entry) {
+      throw new HttpsError('invalid-argument', 'Esa carta no existe en ese set.');
+    }
+    if (GIFT_RARITIES.indexOf(gift.rarity) === -1) {
+      throw new HttpsError('invalid-argument', 'Rareza de regalo inválida.');
+    }
+    return { kind: 'card', setKey: gift.setKey, num: gift.num, rarity: gift.rarity };
+  }
+  if (gift.kind === 'custompack') {
+    if (typeof gift.packId !== 'string' || !gift.packId) {
+      throw new HttpsError('invalid-argument', 'Falta el id del pack personalizado.');
+    }
+    const packSnap = await admin.firestore().collection('customPacks').doc(gift.packId).get();
+    if (!packSnap.exists) {
+      throw new HttpsError('invalid-argument', 'Ese pack personalizado no existe.');
+    }
+    return { kind: 'custompack', packId: gift.packId };
+  }
+  throw new HttpsError('invalid-argument', 'Tipo de regalo inválido.');
+}
+
 exports.publishNews = onCall(async (request) => {
   requireAdmin(request);
-  const fields = validateNewsFields(request.data || {});
+  const data = request.data || {};
+  const fields = validateNewsFields(data);
+  const gift = await validateGiftField(data.gift);
   const docRef = await admin.firestore().collection('news').add(Object.assign({}, fields, {
+    gift: gift,
     createdAt: FieldValue.serverTimestamp()
   }));
   if (fields.featured) { await clearOtherFeatured(docRef.id); }
@@ -402,10 +479,11 @@ exports.updateNewsItem = onCall(async (request) => {
   const id = data.id;
   if (!id) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
   const fields = validateNewsFields(data);
+  const gift = await validateGiftField(data.gift);
   const ref = admin.firestore().collection('news').doc(id);
   const snap = await ref.get();
   if (!snap.exists) { throw new HttpsError('not-found', 'Esa novedad no existe.'); }
-  await ref.set(fields, { merge: true });
+  await ref.set(Object.assign({}, fields, { gift: gift }), { merge: true });
   if (fields.featured) { await clearOtherFeatured(id); }
   return { id: id };
 });
@@ -416,6 +494,452 @@ exports.deleteNewsItem = onCall(async (request) => {
   if (!id) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
   await admin.firestore().collection('news').doc(id).delete();
   return { id: id };
+});
+
+// Any signed-in player (not just the admin) can call this -- it's how a
+// news item's optional gift actually gets granted, once per player per
+// news item. The claim itself is enforced by a doc's mere existence at
+// news/{newsId}/claims/{uid} (firestore.rules lets a player only ever READ
+// -- never write -- their own claim doc, so this transaction, running
+// under the Admin SDK, is the only path that can ever create one).
+// A 'card' gift has no randomness to defer -- it grants immediately and its
+// claim doc is created already opened:true. A 'booster'/'custompack' gift
+// instead only REGISTERS the claim here (opened:false, nothing granted
+// yet) -- the actual draw happens later, in openClaimedGift, once the
+// player opens it from the Tienda's "PACK GRATIS" slot. This is what makes
+// "Reclamar" in Novedades just flip the button to "Reclamado" (and make the
+// pack available in the shop) without spending the pack's randomness right
+// there -- see openClaimedGift below for the actual draw.
+exports.claimNewsGift = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const newsId = (request.data || {}).newsId;
+  if (!newsId) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
+
+  const db = admin.firestore();
+  const newsRef = db.collection('news').doc(newsId);
+  const newsSnap = await newsRef.get();
+  if (!newsSnap.exists) { throw new HttpsError('not-found', 'Esa novedad no existe.'); }
+  const gift = newsSnap.data().gift;
+  if (!gift) { throw new HttpsError('failed-precondition', 'Esta novedad no tiene un regalo.'); }
+
+  const uid = request.auth.uid;
+  const claimRef = newsRef.collection('claims').doc(uid);
+  const userRef = db.collection('users').doc(uid);
+
+  if (gift.kind !== 'card') {
+    await db.runTransaction(async (tx) => {
+      const claimSnap = await tx.get(claimRef);
+      if (claimSnap.exists) {
+        throw new HttpsError('already-exists', 'Ya reclamaste este regalo.');
+      }
+      tx.set(claimRef, { claimedAt: FieldValue.serverTimestamp(), opened: false });
+    });
+    return { cards: null, opened: false };
+  }
+
+  const cards = await db.runTransaction(async (tx) => {
+    const claimSnap = await tx.get(claimRef);
+    if (claimSnap.exists) {
+      throw new HttpsError('already-exists', 'Ya reclamaste este regalo.');
+    }
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const newCollection = Object.assign({}, userData.collection);
+    const newCollectionHolo = Object.assign({}, userData.collectionHolo);
+    const newCollectionSecret = Object.assign({}, userData.collectionSecret);
+
+    const entry = CARD_CATALOG[gift.setKey].find((c) => c.num === gift.num);
+    const key = gift.setKey + '-' + gift.num;
+    newCollection[key] = (newCollection[key] || 0) + 1;
+    if (gift.rarity === 'holo') { newCollectionHolo[key] = (newCollectionHolo[key] || 0) + 1; }
+    if (gift.rarity === 'secret') { newCollectionSecret[key] = (newCollectionSecret[key] || 0) + 1; }
+    const granted = [Object.assign({}, entry, { pulledRarity: gift.rarity })];
+
+    tx.set(claimRef, { claimedAt: FieldValue.serverTimestamp(), opened: true });
+    tx.set(userRef, {
+      collection: newCollection,
+      collectionHolo: newCollectionHolo,
+      collectionSecret: newCollectionSecret
+    }, { merge: true });
+    return granted;
+  });
+
+  return { cards: cards, opened: true };
+});
+
+// Draws the actual cards for a 'booster'/'custompack' gift the player
+// already claimed (see claimNewsGift above) but hasn't opened yet -- this
+// is what the Tienda's "PACK GRATIS" modal calls when the player taps
+// ABRIR on a pending pack.
+// Shared by openClaimedGift/openCodePack -- resolves what's needed to
+// actually draw a booster/custompack gift's cards (rareWeights config, or
+// the custom pack's own pool resolved into real catalog entries). Pre-
+// fetched outside whatever transaction the caller runs, same reasoning as
+// fetchRareWeights itself: a pack definition, once its existence is
+// confirmed here, is treated like any other static config for this call.
+async function resolveGiftPackDrawInputs(gift) {
+  const rareWeights = gift.kind === 'booster' ? await fetchRareWeights(gift.setKey) : null;
+  let customPackPoolEntries = null;
+  if (gift.kind === 'custompack') {
+    const packSnap = await admin.firestore().collection('customPacks').doc(gift.packId).get();
+    if (!packSnap.exists) { throw new HttpsError('not-found', 'Ese pack ya no existe.'); }
+    customPackPoolEntries = (packSnap.data().pool || []).map((key) => {
+      const sep = key.indexOf('-');
+      const setKey = key.slice(0, sep);
+      const num = key.slice(sep + 1);
+      const entry = (CARD_CATALOG[setKey] || []).find((c) => c.num === num);
+      return entry ? Object.assign({}, entry, { setKey: setKey }) : null;
+    }).filter((e) => e !== null);
+  }
+  return { rareWeights, customPackPoolEntries };
+}
+
+// Draws the cards for a booster/custompack gift and merges them into the
+// (already-cloned) newCollection/newCollectionHolo/newCollectionSecret
+// objects in place -- shared by openClaimedGift/openCodePack so both stay
+// in lockstep with drawBoosterCards/drawCustomPackCards's real behavior.
+function drawAndMergeGiftPackCards(gift, drawInputs, newCollection, newCollectionHolo, newCollectionSecret) {
+  if (gift.kind === 'booster') {
+    const granted = drawBoosterCards(CARD_CATALOG[gift.setKey], Math.random, false, drawInputs.rareWeights);
+    granted.forEach((c) => {
+      const key = gift.setKey + '-' + c.num;
+      newCollection[key] = (newCollection[key] || 0) + 1;
+      if (c.pulledRarity === 'holo') { newCollectionHolo[key] = (newCollectionHolo[key] || 0) + 1; }
+      if (c.pulledRarity === 'secret') { newCollectionSecret[key] = (newCollectionSecret[key] || 0) + 1; }
+    });
+    return granted;
+  }
+  // No rarity roll here (unlike the real-set rare slot above) -- each card
+  // is granted at exactly its own printed catalog rarity, so a Rare Holo
+  // pool card always comes out holo, never randomly plain.
+  const granted = drawCustomPackCards(drawInputs.customPackPoolEntries, Math.random);
+  granted.forEach((c) => {
+    const key = c.setKey + '-' + c.num;
+    newCollection[key] = (newCollection[key] || 0) + 1;
+    if (c.r === 'Rare Holo') { newCollectionHolo[key] = (newCollectionHolo[key] || 0) + 1; }
+  });
+  return granted;
+}
+
+exports.openClaimedGift = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const newsId = (request.data || {}).newsId;
+  if (!newsId) { throw new HttpsError('invalid-argument', 'Falta el id de la novedad.'); }
+
+  const db = admin.firestore();
+  const newsRef = db.collection('news').doc(newsId);
+  const newsSnap = await newsRef.get();
+  if (!newsSnap.exists) { throw new HttpsError('not-found', 'Esa novedad no existe.'); }
+  const gift = newsSnap.data().gift;
+  if (!gift) { throw new HttpsError('failed-precondition', 'Esta novedad no tiene un regalo.'); }
+
+  const uid = request.auth.uid;
+  const claimRef = newsRef.collection('claims').doc(uid);
+  const userRef = db.collection('users').doc(uid);
+  const drawInputs = await resolveGiftPackDrawInputs(gift);
+
+  const cards = await db.runTransaction(async (tx) => {
+    const claimSnap = await tx.get(claimRef);
+    if (!claimSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Todavía no reclamaste este regalo.');
+    }
+    if (claimSnap.data().opened) {
+      throw new HttpsError('already-exists', 'Ya abriste este regalo.');
+    }
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const newCollection = Object.assign({}, userData.collection);
+    const newCollectionHolo = Object.assign({}, userData.collectionHolo);
+    const newCollectionSecret = Object.assign({}, userData.collectionSecret);
+    const granted = drawAndMergeGiftPackCards(gift, drawInputs, newCollection, newCollectionHolo, newCollectionSecret);
+
+    tx.set(claimRef, { opened: true, openedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(userRef, {
+      collection: newCollection,
+      collectionHolo: newCollectionHolo,
+      collectionSecret: newCollectionSecret
+    }, { merge: true });
+    return granted;
+  });
+
+  return { cards: cards };
+});
+
+// ── Admin users overview (admin.html "Usuarios" tab) ───────────────────
+// firestore.rules only lets a user read their own users/{uid} doc, so the
+// admin panel can't just query the collection client-side -- this callable
+// reads it with the Admin SDK (which bypasses rules) and is itself gated by
+// requireAdmin, same pattern as the news functions above.
+exports.listUsers = onCall(async (request) => {
+  requireAdmin(request);
+  const snap = await admin.firestore().collection('users').get();
+  const users = [];
+  snap.forEach((doc) => {
+    const d = doc.data() || {};
+    users.push({
+      uid: doc.id,
+      username: d.username || '(sin nombre)',
+      coins: typeof d.coins === 'number' ? d.coins : 0
+    });
+  });
+  users.sort((a, b) => b.coins - a.coins);
+  return { users: users };
+});
+
+// ── Admin "Probabilidades" tab ──────────────────────────────────────────
+// Lets the admin re-weight which Rare/Rare Holo card comes out of a
+// booster's one rare slot, per set. Stored at config/rareOdds.{setKey} =
+// {cardName: weight} -- read by fetchRareWeights above, consumed by
+// drawBoosterCards/pickWeighted (functions/lib/pureEconomy.js). Any name
+// left out of the submitted odds, or the whole doc/field being absent,
+// falls back to plain uniform odds (weight 1) -- an admin who never touches
+// this tab changes nothing about existing behavior.
+exports.setRareOdds = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const setKey = data.setKey;
+  if (PLAYABLE_SET_KEYS.indexOf(setKey) === -1) {
+    throw new HttpsError('invalid-argument', 'Set inválido.');
+  }
+  const odds = data.odds;
+  if (!odds || typeof odds !== 'object' || Array.isArray(odds)) {
+    throw new HttpsError('invalid-argument', 'Formato de probabilidades inválido.');
+  }
+  const validNames = new Set(
+    CARD_CATALOG[setKey]
+      .filter((c) => c.r === 'Rare' || c.r === 'Rare Holo')
+      .map((c) => c.n)
+  );
+  const cleaned = {};
+  for (const name of Object.keys(odds)) {
+    if (!validNames.has(name)) {
+      throw new HttpsError('invalid-argument', 'Esa carta no es una rara real de ese set: ' + name);
+    }
+    const weight = odds[name];
+    if (typeof weight !== 'number' || !isFinite(weight) || weight < 0) {
+      throw new HttpsError('invalid-argument', 'Peso inválido para ' + name + '.');
+    }
+    cleaned[name] = weight;
+  }
+  await admin.firestore().collection('config').doc('rareOdds').set({ [setKey]: cleaned }, { merge: true });
+  return { setKey: setKey, odds: cleaned };
+});
+
+// ── Admin "Packs" tab -- custom gift-only packs ────────────────────────
+// A customPacks/{packId} doc = {name, art, pool}. pool is a flat list of
+// "setKey-num" references into the real CARD_CATALOG (any set, including
+// basep/espromo) that the admin picked as "cards that can come out of this
+// pack" -- opening one (claimNewsGift's 'custompack' branch) draws 11
+// unique cards from that pool, same count as a real booster, but with no
+// rarity-tier structure since the pool itself is a flat admin-curated list.
+const CUSTOM_PACK_ID_RE = /^[a-z0-9_-]{2,40}$/;
+
+function parseCatalogKey(key) {
+  const sep = typeof key === 'string' ? key.indexOf('-') : -1;
+  if (sep === -1) { return null; }
+  return { setKey: key.slice(0, sep), num: key.slice(sep + 1) };
+}
+
+exports.saveCustomPack = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const packId = (data.packId || '').trim();
+  if (!CUSTOM_PACK_ID_RE.test(packId)) {
+    throw new HttpsError('invalid-argument', 'El id del pack debe tener 2-40 caracteres: minúsculas, números, "-" o "_".');
+  }
+  const name = (data.name || '').trim().slice(0, 40);
+  if (!name) {
+    throw new HttpsError('invalid-argument', 'El pack necesita un nombre.');
+  }
+  const art = Array.isArray(data.art)
+    ? data.art.filter((a) => typeof a === 'string' && a.trim()).map((a) => a.trim()).slice(0, 6)
+    : [];
+  const pool = Array.isArray(data.pool) ? data.pool : null;
+  if (!pool || pool.length < 11) {
+    throw new HttpsError('invalid-argument', 'El pack necesita al menos 11 cartas para elegir (tiene ' + (pool ? pool.length : 0) + ').');
+  }
+  // Repeated entries are intentional here (not a mistake to reject like
+  // saveCustomDeck's real 4-copy rule) -- that's how the admin puts more
+  // than one copy of the same card (e.g. 2 Grass Energy) into a single
+  // pack's odds, since drawCustomPackCards/pickRandomUnique treats each
+  // array slot as its own draw-able copy regardless of repeated values.
+  for (const key of pool) {
+    const parsed = parseCatalogKey(key);
+    if (!parsed || !CARD_CATALOG[parsed.setKey] || !CARD_CATALOG[parsed.setKey].some((c) => c.num === parsed.num)) {
+      throw new HttpsError('invalid-argument', 'Esa carta no existe: ' + key);
+    }
+  }
+  await admin.firestore().collection('customPacks').doc(packId).set({
+    name: name,
+    art: art,
+    pool: pool,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { packId: packId };
+});
+
+exports.deleteCustomPack = onCall(async (request) => {
+  requireAdmin(request);
+  const packId = (request.data || {}).packId;
+  if (!packId) { throw new HttpsError('invalid-argument', 'Falta el id del pack.'); }
+  await admin.firestore().collection('customPacks').doc(packId).delete();
+  return { packId: packId };
+});
+
+// ── Admin "Códigos" tab -- one-time-per-player redeemable gift codes ──
+// giftCodes/{code} = {gift, updatedAt}. gift reuses the exact same shape
+// and validation as a news item's gift (validateGiftField) -- a code is
+// really just "a gift not tied to any specific news post", redeemable by
+// any signed-in player, once each (redemptions subcollection mirrors
+// news/{id}/claims/{uid}). Booster/custompack gifts follow the same
+// claim-then-open split as news gifts (see openClaimedGift's own comment),
+// except the "pending to open" list lives on the player's own user doc
+// (pendingCodePacks) instead of a per-news claim doc, since a code isn't
+// tied to one news item a player can re-check claim status against.
+const CODE_RE = /^[A-Z0-9_-]{3,30}$/;
+
+exports.saveGiftCode = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const code = (data.code || '').trim().toUpperCase();
+  if (!CODE_RE.test(code)) {
+    throw new HttpsError('invalid-argument', 'El código debe tener 3-30 caracteres: mayúsculas, números, "-" o "_".');
+  }
+  const gift = await validateGiftField(data.gift);
+  if (!gift) {
+    throw new HttpsError('invalid-argument', 'El código necesita un regalo.');
+  }
+  // A full overwrite (no {merge:true}) -- re-saving an existing code (e.g.
+  // switching it from a 'card' gift to a 'booster' gift) must never leave
+  // stale fields from the previous gift shape lingering in the doc.
+  await admin.firestore().collection('giftCodes').doc(code).set({
+    gift: gift,
+    updatedAt: FieldValue.serverTimestamp()
+  });
+  return { code: code };
+});
+
+exports.deleteGiftCode = onCall(async (request) => {
+  requireAdmin(request);
+  const code = (request.data || {}).code;
+  if (!code) { throw new HttpsError('invalid-argument', 'Falta el código.'); }
+  await admin.firestore().collection('giftCodes').doc(code.trim().toUpperCase()).delete();
+  return { code: code };
+});
+
+exports.redeemGiftCode = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const rawCode = (request.data || {}).code;
+  if (!rawCode) { throw new HttpsError('invalid-argument', 'Ingresá un código.'); }
+  const code = rawCode.trim().toUpperCase();
+
+  const db = admin.firestore();
+  const codeRef = db.collection('giftCodes').doc(code);
+  const codeSnap = await codeRef.get();
+  if (!codeSnap.exists) { throw new HttpsError('not-found', 'Ese código no existe.'); }
+  const gift = codeSnap.data().gift;
+
+  const uid = request.auth.uid;
+  const redemptionRef = codeRef.collection('redemptions').doc(uid);
+  const userRef = db.collection('users').doc(uid);
+
+  if (gift.kind === 'card') {
+    const cards = await db.runTransaction(async (tx) => {
+      const redemptionSnap = await tx.get(redemptionRef);
+      if (redemptionSnap.exists) {
+        throw new HttpsError('already-exists', 'Ya canjeaste este código.');
+      }
+      const userSnap = await tx.get(userRef);
+      const userData = userSnap.exists ? userSnap.data() : {};
+      const newCollection = Object.assign({}, userData.collection);
+      const newCollectionHolo = Object.assign({}, userData.collectionHolo);
+      const newCollectionSecret = Object.assign({}, userData.collectionSecret);
+
+      const entry = CARD_CATALOG[gift.setKey].find((c) => c.num === gift.num);
+      const key = gift.setKey + '-' + gift.num;
+      newCollection[key] = (newCollection[key] || 0) + 1;
+      if (gift.rarity === 'holo') { newCollectionHolo[key] = (newCollectionHolo[key] || 0) + 1; }
+      if (gift.rarity === 'secret') { newCollectionSecret[key] = (newCollectionSecret[key] || 0) + 1; }
+      const granted = [Object.assign({}, entry, { pulledRarity: gift.rarity })];
+
+      tx.set(redemptionRef, { redeemedAt: FieldValue.serverTimestamp() });
+      tx.set(userRef, {
+        collection: newCollection,
+        collectionHolo: newCollectionHolo,
+        collectionSecret: newCollectionSecret
+      }, { merge: true });
+      return granted;
+    });
+    return { kind: 'card', cards: cards, opened: true };
+  }
+
+  // booster/custompack: only registers the redemption + queues it onto the
+  // player's own pendingCodePacks -- nothing is drawn until openCodePack
+  // (Tienda's "PACK GRATIS" -> ABRIR), same split as claimNewsGift.
+  await db.runTransaction(async (tx) => {
+    const redemptionSnap = await tx.get(redemptionRef);
+    if (redemptionSnap.exists) {
+      throw new HttpsError('already-exists', 'Ya canjeaste este código.');
+    }
+    const userSnap = await tx.get(userRef);
+    const pending = (userSnap.exists && Array.isArray(userSnap.data().pendingCodePacks)) ? userSnap.data().pendingCodePacks : [];
+    tx.set(redemptionRef, { redeemedAt: FieldValue.serverTimestamp() });
+    tx.set(userRef, { pendingCodePacks: pending.concat([{ code: code, gift: gift }]) }, { merge: true });
+  });
+  return { kind: gift.kind, cards: null, opened: false };
+});
+
+// Draws the actual cards for a redeemed booster/custompack code the player
+// hasn't opened yet -- called from the Tienda's "PACK GRATIS" modal, same
+// as openClaimedGift but sourced from pendingCodePacks instead of a news
+// claim.
+exports.openCodePack = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const rawCode = (request.data || {}).code;
+  if (!rawCode) { throw new HttpsError('invalid-argument', 'Falta el código.'); }
+  const code = rawCode.trim().toUpperCase();
+
+  const uid = request.auth.uid;
+  const userRef = admin.firestore().collection('users').doc(uid);
+
+  const codeSnap = await admin.firestore().collection('giftCodes').doc(code).get();
+  if (!codeSnap.exists) { throw new HttpsError('not-found', 'Ese código ya no existe.'); }
+  const gift = codeSnap.data().gift;
+  const drawInputs = await resolveGiftPackDrawInputs(gift);
+
+  const cards = await admin.firestore().runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const pending = Array.isArray(userData.pendingCodePacks) ? userData.pendingCodePacks : [];
+    const idx = pending.findIndex((p) => p.code === code);
+    if (idx === -1) {
+      throw new HttpsError('failed-precondition', 'Todavía no canjeaste ese código, o ya lo abriste.');
+    }
+    const newCollection = Object.assign({}, userData.collection);
+    const newCollectionHolo = Object.assign({}, userData.collectionHolo);
+    const newCollectionSecret = Object.assign({}, userData.collectionSecret);
+    const granted = drawAndMergeGiftPackCards(gift, drawInputs, newCollection, newCollectionHolo, newCollectionSecret);
+
+    const newPending = pending.slice();
+    newPending.splice(idx, 1);
+    tx.set(userRef, {
+      collection: newCollection,
+      collectionHolo: newCollectionHolo,
+      collectionSecret: newCollectionSecret,
+      pendingCodePacks: newPending
+    }, { merge: true });
+    return granted;
+  });
+
+  return { cards: cards };
 });
 
 const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];

@@ -16,12 +16,16 @@
      still working out whether to show it or jump straight to the menu.
      Removed by auth-ui.js's hideAppLoadingOverlay() the first time that
      fires, with a timeout fallback in case something hangs. */
-  #appLoadingOverlay{
+  /* Shared by #appLoadingOverlay (cold load, above) and
+     #accountVerifyingOverlay (below) -- both are a full-screen, unclickable-
+     through, spinner+label block that only differs in which moment shows it
+     and what the label says. */
+  .shell-full-overlay{
     position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;gap:18px;
     align-items:center;justify-content:center;background:#141210;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   }
-  #appLoadingOverlay.hidden{display:none;}
+  .shell-full-overlay.hidden{display:none;}
   .shell-loading-spinner{
     width:48px;height:48px;border-radius:50%;
     border:5px solid rgba(141,255,98,.18);border-top-color:#8dff62;
@@ -33,7 +37,16 @@
 </head>
 <body>
 
-  <div id="appLoadingOverlay"><div class="shell-loading-spinner"></div><div class="shell-loading-text">CARGANDO…</div></div>
+  <div id="appLoadingOverlay" class="shell-full-overlay"><div class="shell-loading-spinner"></div><div class="shell-loading-text">CARGANDO…</div></div>
+
+  <!-- Shown right after login (or on a hard refresh with an already-signed-in
+       session) until the user's own account doc (initEconomyListener,
+       economy.js) actually arrives -- blocks interaction with the just-
+       revealed menuScreen so nothing (Novedades gift buttons included) can
+       be clicked while it still looks unclaimed/unloaded. Hidden by
+       auth-ui.js once that first snapshot lands, with a timeout fallback
+       (same pattern as #appLoadingOverlay above) in case it never does. -->
+  <div id="accountVerifyingOverlay" class="shell-full-overlay hidden"><div class="shell-loading-spinner"></div><div class="shell-loading-text">VERIFICANDO CUENTA…</div></div>
 
   <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
   <div id="authScreen">
@@ -145,7 +158,8 @@
           <div class="shell-left-col">
             <div class="shell-brand" id="menuLogoWrap">
               <div class="shell-logo-plate">
-                <img src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG">
+                <img src="Perfil/Logo.png" alt="Orange League" class="shell-logo-main">
+                <img src="https://images.pokemontcg.io/base1/logo.png" alt="Pokémon TCG" class="shell-logo-secondary">
               </div>
               <div class="shell-setline">
                 <div class="shell-setline-rule"></div>
@@ -187,7 +201,7 @@
                 <span class="shell-nav-item-glyph"><i class="ph-duotone ph-storefront"></i></span>
                 <span class="shell-nav-item-text">
                   <span class="shell-nav-item-title">TIENDA</span>
-                  <span class="shell-nav-item-sub">SOBRES Y CAJAS</span>
+                  <span class="shell-nav-item-sub">PACKS Y CAJAS</span>
                 </span>
                 <span class="shell-nav-item-chevron">›</span>
               </button>
@@ -661,6 +675,15 @@
                 <div class="shell-config-duel-music-row">
                   <div class="shell-config-select-wrap">
                     <select class="shell-config-select" id="configDuelMusicSelect">
+                      <optgroup label="ORANGE LEAGUE">
+                        <option value="orange_duel">Duel Music</option>
+                        <option value="orange_duel3">Duel Music 3</option>
+                        <option value="orange_duel4">Duel Music 4</option>
+                        <option value="orange_duel9">Duel Music 9</option>
+                        <option value="orange_determination">Determination Battle</option>
+                        <option value="orange_determined">Determined Duelist</option>
+                        <option value="orange_hard">Some Hard Duel</option>
+                      </optgroup>
                       <optgroup label="PKMNTCG">
                         <option value="pkmntcg_duel">Duel</option>
                         <option value="pkmntcg_club">Club Master Duel</option>
@@ -772,6 +795,16 @@
               <div class="shell-config-title-plain">REVERSO DE TUS CARTAS</div>
               <div class="shell-config-cardback-note">Solo cambia el reverso de tus propias cartas (mazo, descarte y premios) &mdash; el del rival no cambia.</div>
               <div class="shell-config-cardback-grid" id="configCardBackGrid"></div>
+            </div>
+
+            <div class="shell-config-panel-sunken">
+              <div class="shell-config-title-plain">CANJEAR CÓDIGO</div>
+              <div class="shell-config-code-row">
+                <input type="text" id="configCodeInput" class="shell-config-code-input" placeholder="Ingresá tu código" maxlength="30" autocomplete="off">
+                <button type="button" class="shell-config-account-btn" id="configRedeemCodeBtn">CANJEAR</button>
+                <button type="button" class="shell-config-account-btn" id="configCancelCodeBtn">CANCELAR</button>
+              </div>
+              <p class="shell-config-code-status" id="configCodeStatus"></p>
             </div>
 
             <div class="shell-config-panel-sunken">
@@ -978,16 +1011,28 @@
     <div class="card-modal-backdrop"></div>
     <div class="shell-booster-modal">
       <div class="shell-booster-modal-header">
-        <h3 class="shell-booster-modal-title" id="boosterModalTitle">SOBRE</h3>
+        <h3 class="shell-booster-modal-title" id="boosterModalTitle">PACK</h3>
         <span class="shell-booster-modal-price"><span class="shell-shop-coin"></span><span id="boosterModalPrice"></span></span>
         <button type="button" id="boosterModalClose" class="shell-booster-modal-close">✕</button>
       </div>
-      <p class="shell-booster-modal-subtitle">ELIGE LA ILUSTRACIÓN DEL SOBRE</p>
+      <p class="shell-booster-modal-subtitle">ELIGE LA ILUSTRACIÓN DEL PACK</p>
       <div id="boosterModalGrid" class="shell-booster-variant-grid"></div>
       <div class="shell-booster-modal-footer">
-        <span class="shell-booster-selected-info" id="boosterSelectedInfo">TOCÁ UN SOBRE PARA SELECCIONARLO</span>
-        <button type="button" id="boosterOpenBtn" class="shell-shop-card-btn" disabled>ABRIR SOBRE</button>
+        <span class="shell-booster-selected-info" id="boosterSelectedInfo">TOCA UN PACK PARA SELECCIONARLO</span>
+        <button type="button" id="boosterOpenBtn" class="shell-shop-card-btn" disabled>ABRIR PACK</button>
       </div>
+    </div>
+  </div>
+
+  <div id="giftBoosterModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-booster-modal">
+      <div class="shell-booster-modal-header">
+        <h3 class="shell-booster-modal-title">PACKS GRATIS</h3>
+        <button type="button" id="giftBoosterModalClose" class="shell-booster-modal-close">✕</button>
+      </div>
+      <p class="shell-booster-modal-subtitle">PACKS RECLAMADOS O CANJEADOS QUE TODAVÍA NO ABRISTE</p>
+      <div id="giftBoosterModalList" class="shell-gift-booster-list"></div>
     </div>
   </div>
 
@@ -1034,6 +1079,18 @@
     </div></div>
   </div>
 
+  <div id="codeRedeemModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">¡CÓDIGO CANJEADO!</p>
+      <p class="shell-modal-text" id="codeRedeemModalText"></p>
+      <div class="shell-modal-actions">
+        <button type="button" id="codeRedeemModalGotoShop" class="shell-modal-btn shell-modal-btn-primary">IR A LA TIENDA</button>
+        <button type="button" id="codeRedeemModalClose" class="shell-modal-btn">CERRAR</button>
+      </div>
+    </div>
+  </div>
+
   <div id="boosterResultModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-booster-result">
@@ -1066,7 +1123,7 @@
           <input type="text" id="editProfileUsername" class="shell-profile-modal-input">
         </div>
         <div class="shell-profile-modal-divider"></div>
-        <div class="shell-profile-modal-note">PARA CAMBIAR LA CONTRASEÑA, COMPLETÁ LOS DOS CAMPOS</div>
+        <div class="shell-profile-modal-note">PARA CAMBIAR LA CONTRASEÑA, COMPLETA LOS DOS CAMPOS</div>
         <div class="shell-profile-modal-field">
           <span class="shell-profile-modal-field-label">CONTRASEÑA ACTUAL</span>
           <input type="password" id="editProfileCurrentPassword" class="shell-profile-modal-input" autocomplete="current-password">

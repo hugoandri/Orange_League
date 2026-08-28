@@ -98,6 +98,8 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
 #editProfileModal{z-index:210;}
 #boosterSelectModal{z-index:210;}
 #boosterResultModal{z-index:210;}
+#giftBoosterModal{z-index:210;}
+#codeRedeemModal{z-index:210;}
 #pvpModal{z-index:210;}
 #activeChoiceModal{z-index:210;}
 #prizeChoiceModal{z-index:210;}

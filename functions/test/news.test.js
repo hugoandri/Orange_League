@@ -73,7 +73,7 @@ async function main() {
     assert.fail('expected an unknown tag to be rejected');
   } catch (e) {
     assert.strictEqual(e.code, 'functions/invalid-argument');
-    console.log('PASS: publishNews rejects a tag outside the 3 real styles');
+    console.log('PASS: publishNews rejects a tag outside the 4 real styles');
   }
 
   const res1 = await publishNews({ title: 'Primera novedad', body: 'Cuerpo 1', tag: 'balance', featured: false });
