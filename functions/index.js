@@ -509,6 +509,20 @@ const { DECKLISTS, PRECON_DECK_KEYS } = require('./lib/dataDecks');
 global.CARD_STATS = CARD_STATS;
 global.DECKLISTS = DECKLISTS;
 global.PRECON_DECK_KEYS = PRECON_DECK_KEYS;
+// I5 (final-review fix): ATTACK_EFFECTS/TRAINER_EFFECTS/POKEMON_POWER_EFFECTS
+// need the exact same global binding as CARD_STATS/DECKLISTS/PRECON_DECK_KEYS
+// above, and for the same reason -- attack()'s own `typeof ATTACK_EFFECTS
+// !== 'undefined'` check (rules-engine.js) resolves via the scope chain, so
+// it silently always evaluated to false under Node until this was bound
+// (harmless today only because submitMatchAction's own pre-check already
+// rejects every special attack before attack() ever runs -- but a latent
+// trap for Fase 2, when special attacks actually need this to work). Must
+// be bound before requiring ./lib/rulesEngine, same ordering requirement as
+// the other three tables.
+const { ATTACK_EFFECTS, TRAINER_EFFECTS, POKEMON_POWER_EFFECTS } = require('./lib/cardEffects');
+global.ATTACK_EFFECTS = ATTACK_EFFECTS;
+global.TRAINER_EFFECTS = TRAINER_EFFECTS;
+global.POKEMON_POWER_EFFECTS = POKEMON_POWER_EFFECTS;
 const { createGame, redactMatchState } = require('./lib/rulesEngine');
 
 // Mirrors ui.js's registerCustomDecks() (ui.js:3309) for exactly the one
@@ -584,7 +598,8 @@ exports.setReady = onCall(async (request) => {
 });
 
 const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive, canAttack, attack } = require('./lib/rulesEngine');
-const { ATTACK_EFFECTS } = require('./lib/cardEffects');
+// ATTACK_EFFECTS is already required + bound to global above (I5 fix),
+// before ./lib/rulesEngine is first required -- no need to require it again.
 
 // Loads a match's full serverOnly state and resolves which engine slot
 // ('player'/'cpu') the calling uid actually is. Every action handler below
