@@ -85,3 +85,52 @@ function updateActiveDeckCloud(deckKey) {
 function saveCustomDeckCloud(slot, name, cards, coverName) {
   return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards, coverName: coverName || null });
 }
+
+function createRoomCloud(deckId) {
+  var fn = firebase.functions().httpsCallable('createRoom');
+  return fn({ deckId: deckId }).then(function (res) { return res.data; });
+}
+
+function joinRoomCloud(roomCode, deckId) {
+  var fn = firebase.functions().httpsCallable('joinRoom');
+  return fn({ roomCode: roomCode, deckId: deckId }).then(function (res) { return res.data; });
+}
+
+function setReadyCloud(roomCode) {
+  var fn = firebase.functions().httpsCallable('setReady');
+  return fn({ roomCode: roomCode }).then(function (res) { return res.data; });
+}
+
+function submitMatchActionCloud(matchId, action) {
+  var fn = firebase.functions().httpsCallable('submitMatchAction');
+  return fn({ matchId: matchId, action: action }).then(function (res) { return res.data; });
+}
+
+// Waiting-room screen (ui.js) listens to this to know when the opponent
+// joins/readies and when the match actually starts (roomData.status
+// flips to 'started', roomData.matchId becomes non-null).
+function initPvpRoomListener(roomCode, onUpdate) {
+  return firebase.firestore().collection('rooms').doc(roomCode)
+    .onSnapshot(function (snap) {
+      if (!snap.exists) { onUpdate(null); return; }
+      onUpdate(snap.data());
+    }, function (err) { console.error('No se pudo escuchar la sala', err); });
+}
+
+// Merges the public board doc + my own private hand doc into one callback
+// -- ui.js's PVP board-render path (Task 14) never has to reason about
+// the two listeners firing independently/out of order, since either one
+// firing just re-delivers both pieces together from their last-known
+// values.
+function initPvpMatchListeners(matchId, myUid, onUpdate) {
+  var latestPublic = null;
+  var latestHand = null;
+  function fire() { if (latestPublic) { onUpdate({ public: latestPublic, myHand: latestHand || [] }); } }
+  var unsubPublic = firebase.firestore().collection('matches').doc(matchId)
+    .onSnapshot(function (snap) { latestPublic = snap.data(); fire(); },
+      function (err) { console.error('No se pudo escuchar la partida', err); });
+  var unsubPrivate = firebase.firestore().collection('matches').doc(matchId).collection('private').doc(myUid)
+    .onSnapshot(function (snap) { latestHand = snap.exists ? snap.data().hand : []; fire(); },
+      function (err) { console.error('No se pudo escuchar tu mano', err); });
+  return function unsubscribeBoth() { unsubPublic(); unsubPrivate(); };
+}
