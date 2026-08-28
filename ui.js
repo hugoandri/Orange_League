@@ -516,6 +516,18 @@ function showCardInViewer(name, instanceId) {
         var atkName = btn.getAttribute('data-attack-name');
         if (!canAttack(gameState, 'player', atkName)) { return; }
         if (atkName === 'Lure') {
+          // I8 (final-review fix): Lure has a real ATTACK_EFFECTS entry (it's
+          // the one Base Set attack needing a chosen target), so it's Fase-2
+          // territory same as every other special attack -- but unlike a
+          // normal special attack, this button never reaches the pvpMode
+          // check/submitMatchActionCloud call below at all (it arms local-only
+          // target-selection mode instead), so the server-side rejection
+          // (submitMatchAction's own ATTACK_EFFECTS check, see I5) never gets
+          // a chance to run. Guarded here explicitly instead.
+          if (pvpMode) {
+            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
+            return;
+          }
           // Needs a chosen rival Bench Pokémon -- arm target-selection
           // mode instead of firing immediately (see the Bench/Active
           // click handler in wireBoardButtons for the other half of this).
@@ -537,6 +549,12 @@ function showCardInViewer(name, instanceId) {
   var voluntaryDiscardBtn = document.getElementById('voluntaryDiscardBtn');
   if (voluntaryDiscardBtn) {
     voluntaryDiscardBtn.addEventListener('click', function () {
+      // I8 (final-review fix): voluntary discard (Clefairy Doll) is Fase 2
+      // scope in PVP -- no submitMatchAction action type exists for it.
+      if (pvpMode) {
+        alert('Esta función todavía no está disponible en PVP (próximamente).');
+        return;
+      }
       var result = discardOwnPokemonInPlay(gameState, 'player', instanceId);
       if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
       afterPlayerAction();
@@ -2166,6 +2184,14 @@ function wireBoardButtons() {
   var habilidadBtn = document.getElementById('habilidadBtn');
   if (habilidadBtn) {
     habilidadBtn.addEventListener('click', function () {
+      // I8 (final-review fix): Pokémon Powers are Fase 2 scope -- every
+      // usePokemonPower() call site (Damage Swap/Energy Trans/Rain Dance/
+      // Buzzap resolution, all reached only via startPowerFlow below) is
+      // unreachable in PVP once this single entry point is guarded.
+      if (pvpMode) {
+        alert('Los Poderes Pokémon todavía no están disponibles en PVP (próximamente).');
+        return;
+      }
       clearPendingFlows();
       var usable = usablePokemonPowers(gameState, 'player');
       if (usable.length === 0) { return; }
