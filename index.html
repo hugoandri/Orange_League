@@ -164,6 +164,15 @@
                 </span>
                 <span class="shell-nav-item-chevron">›</span>
               </button>
+              <button type="button" class="shell-nav-item" id="menuPvp">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph"><i class="ph-duotone ph-users-three"></i></span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">JUGAR PVP</span>
+                  <span class="shell-nav-item-sub">CONTRA OTRO JUGADOR</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
               <button type="button" class="shell-nav-item" id="menuDeck">
                 <span class="shell-nav-item-accent"></span>
                 <span class="shell-nav-item-glyph"><i class="ph-duotone ph-stack"></i></span>
@@ -980,6 +989,49 @@
         <button type="button" id="boosterOpenBtn" class="shell-shop-card-btn" disabled>ABRIR SOBRE</button>
       </div>
     </div>
+  </div>
+
+  <div id="pvpModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">JUGAR PVP</p>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpFindRivalBtn" disabled>BUSCAR RIVAL (PRÓXIMAMENTE)</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpCreateRoomBtn">CREAR SALA</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpJoinRoomBtn">BUSCAR SALA</button>
+      </div>
+      <button type="button" class="shell-modal-btn" id="pvpModalClose">&times;</button>
+    </div>
+  </div>
+
+  <div id="pvpCreateScreen" class="hidden">
+    <div class="shell-viewport"><div class="shell-stage">
+      <div id="pvpCreateDeckPicker">
+        <p class="shell-modal-title">ELEGÍ TU MAZO</p>
+        <div id="pvpCreateDeckList"></div>
+      </div>
+      <div id="pvpCreateWaiting" class="hidden">
+        <p class="shell-modal-title">ESPERANDO RIVAL…</p>
+        <div id="pvpRoomCodeDisplay" style="font-size:48px;letter-spacing:.2em;"></div>
+        <div class="shell-loading-spinner"></div>
+      </div>
+      <button type="button" class="shell-modal-btn" id="pvpCreateBackBtn">VOLVER</button>
+    </div></div>
+  </div>
+
+  <div id="pvpJoinScreen" class="hidden">
+    <div class="shell-viewport"><div class="shell-stage">
+      <div id="pvpJoinCodeStep">
+        <p class="shell-modal-title">INGRESÁ EL CÓDIGO</p>
+        <input type="text" id="pvpJoinCodeInput" maxlength="6" style="text-transform:uppercase;">
+        <div id="pvpJoinCodeStatus"></div>
+      </div>
+      <div id="pvpJoinDeckPicker" class="hidden">
+        <p class="shell-modal-title">ELEGÍ TU MAZO</p>
+        <div id="pvpJoinDeckList"></div>
+      </div>
+      <button type="button" class="shell-modal-btn" id="pvpJoinBackBtn">VOLVER</button>
+    </div></div>
   </div>
 
   <div id="boosterResultModal" class="card-modal hidden">
