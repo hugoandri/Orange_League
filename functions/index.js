@@ -809,8 +809,9 @@ exports.cleanupExpiredRooms = onSchedule('every 15 minutes', async () => {
   const snap = await db.collection('rooms').where('status', '==', 'waiting').get();
   const deletions = [];
   snap.forEach((doc) => {
-    const createdAt = doc.data().createdAt;
-    if (createdAt && createdAt.toMillis() < cutoff) { deletions.push(doc.ref.delete()); }
+    const room = doc.data();
+    const isStale = room.createdAt && room.createdAt.toMillis() < cutoff;
+    if (isStale && !room.guestUid) { deletions.push(doc.ref.delete()); }
   });
   await Promise.all(deletions);
   console.log('cleanupExpiredRooms: deleted ' + deletions.length + ' expired room(s)');
