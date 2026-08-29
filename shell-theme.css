@@ -347,6 +347,51 @@
 .shell-shop-card-owned{opacity:.7;}
 .shell-shop-card-owned-label{font-size:11px;letter-spacing:.1em;color:#8dff62;}
 
+/* Telegram Stars styling */
+.shell-stars-banner{
+  flex:none;height:170px;max-width:1788px;align-self:center;width:100%;position:relative;overflow:hidden;
+  display:flex;align-items:center;padding:0 34px;
+  background:linear-gradient(90deg,#201b2a,#302640 55%,#1c1724);border:1px solid #0b0907;
+  box-shadow:inset 0 1px 0 rgba(255,215,0,.22),0 6px 18px rgba(0,0,0,.5);
+}
+.shell-stars-banner-sheen{
+  position:absolute;left:0;top:0;bottom:0;width:120px;
+  background:linear-gradient(120deg,rgba(255,215,0,.2),transparent);
+  animation:sheen 3.6s ease-in-out infinite;
+}
+.shell-stars-banner-text{display:flex;flex-direction:column;gap:12px;z-index:1;font-family:'Silkscreen',monospace;}
+.shell-stars-banner-kicker{font-size:11px;letter-spacing:.24em;color:#ffd700;}
+.shell-stars-banner-title{font-family:'Pixelify Sans',sans-serif;font-size:38px;font-weight:700;letter-spacing:.02em;color:#efe9dd;}
+.shell-stars-banner-note{font-size:12px;letter-spacing:.1em;color:#c4b7d7;}
+
+.shell-stars-card{position:relative;}
+.shell-shop-card-badge{
+  position:absolute;top:10px;right:10px;z-index:2;
+  font-size:10px;letter-spacing:.1em;color:#ffd700;padding:4px 8px;
+  background:#1a1424;border:1px solid #ffd700;box-shadow:0 0 10px rgba(255,215,0,.35);
+}
+.shell-shop-card-art.stars-art{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at center,#2c223c 0%,#15131a 80%);
+}
+.shell-stars-orb-icon{
+  display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 0 16px rgba(232,196,106,.8));
+}
+.shell-stars-card-price{
+  font-family:'Pixelify Sans',sans-serif;font-size:20px;font-weight:700;color:#ffd700;
+  text-shadow:0 0 8px rgba(255,215,0,.4);display:flex;align-items:center;gap:6px;
+}
+.shell-stars-btn{
+  background:linear-gradient(180deg,#ffd700,#b8860b);
+  border:1px solid #7c5c06;color:#1a1302;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 3px 0 #543f05;
+}
+.shell-stars-btn:hover{
+  filter:brightness(1.18);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 3px 0 #543f05,0 0 14px rgba(255,215,0,.6);
+}
+
 @keyframes sheen{0%{transform:translateX(-140%) skewX(-18deg);}100%{transform:translateX(240%) skewX(-18deg);}}
 
 /* ===== Booster select modal ("elegí la ilustración del sobre") -- this

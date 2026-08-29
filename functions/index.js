@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 const { FieldValue, Timestamp } = require('firebase-admin/firestore');
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const {
   computeMatchReward, BOOSTER_COST, drawBoosterCards, drawCustomPackCards, PROTECTOR_COST, PROTECTOR_IDS,
   CUSTOM_DECK_SLOTS, ownedCountsByName, supertypeByName, validateCustomDeck
@@ -1473,3 +1473,202 @@ exports.cleanupExpiredRooms = onSchedule('every 15 minutes', async () => {
   await Promise.all(deletions);
   console.log('cleanupExpiredRooms: deleted ' + deletions.length + ' expired room(s)');
 });
+
+// ===== TELEGRAM STARS PAYMENTS =====
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8922530812:AAFJeIUrTlRPEiMIDLtSyoHCURwX5bDyyVQ';
+
+const STARS_PACKAGES = {
+  orbes_100: {
+    id: 'orbes_100',
+    title: '100 Orbes · Bolsa',
+    description: 'Bolsa con 100 Orbes para comprar sobres y protectores en la tienda.',
+    coins: 100,
+    stars: 15
+  },
+  orbes_550: {
+    id: 'orbes_550',
+    title: '550 Orbes · Saco (+50 Extra)',
+    description: 'Saco con 550 Orbes (+10% extra) para expandir tu colección de cartas.',
+    coins: 550,
+    stars: 65
+  },
+  orbes_1400: {
+    id: 'orbes_1400',
+    title: '1,400 Orbes · Cofre (+200 Extra)',
+    description: 'Cofre con 1,400 Orbes (+16% extra) para sobres y protectores exclusivos.',
+    coins: 1400,
+    stars: 140
+  },
+  orbes_3600: {
+    id: 'orbes_3600',
+    title: '3,600 Orbes · Tesoro de la Liga (+600 Extra)',
+    description: 'Tesoro de la Liga con 3,600 Orbes (+20% extra). ¡El paquete definitivo!',
+    coins: 3600,
+    stars: 320
+  }
+};
+
+exports.createStarsInvoice = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión para comprar Orbes.');
+  }
+  const data = request.data || {};
+  const packageId = data.packageId;
+  const pkg = STARS_PACKAGES[packageId];
+  if (!pkg) {
+    throw new HttpsError('invalid-argument', 'Paquete de Orbes no válido.');
+  }
+
+  const payload = JSON.stringify({
+    uid: request.auth.uid,
+    packageId: pkg.id,
+    coins: pkg.coins,
+    stars: pkg.stars,
+    createdAt: Date.now()
+  });
+
+  const body = {
+    title: pkg.title,
+    description: pkg.description,
+    payload: payload,
+    currency: 'XTR',
+    prices: [{ label: pkg.title, amount: pkg.stars }]
+  };
+
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const resData = await res.json();
+  if (!resData.ok) {
+    console.error('Telegram createInvoiceLink error:', resData);
+    throw new HttpsError('internal', resData.description || 'Error al generar la factura en Telegram.');
+  }
+
+  return {
+    invoiceLink: resData.result,
+    package: pkg
+  };
+});
+
+exports.telegramWebhook = onRequest(async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).send('Method Not Allowed');
+    return;
+  }
+
+  const update = req.body || {};
+
+  // 1. Handle pre_checkout_query (Telegram asks if the invoice is valid before charging)
+  if (update.pre_checkout_query) {
+    const query = update.pre_checkout_query;
+    try {
+      let payload = null;
+      try {
+        payload = JSON.parse(query.invoice_payload);
+      } catch (_) {}
+
+      const pkg = payload && STARS_PACKAGES[payload.packageId];
+      const valid = !!(pkg && query.currency === 'XTR' && query.total_amount === pkg.stars);
+
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pre_checkout_query_id: query.id,
+          ok: valid,
+          error_message: valid ? undefined : 'Error en la orden de compra.'
+        })
+      });
+    } catch (err) {
+      console.error('Error answering pre_checkout_query:', err);
+    }
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // 2. Handle successful_payment
+  if (update.message && update.message.successful_payment) {
+    const sp = update.message.successful_payment;
+    try {
+      let payload = null;
+      try {
+        payload = JSON.parse(sp.invoice_payload);
+      } catch (_) {}
+
+      if (payload && payload.uid && payload.coins) {
+        const db = admin.firestore();
+        const chargeId = sp.telegram_payment_charge_id;
+        const paymentRef = db.collection('stars_payments').doc(chargeId);
+
+        await db.runTransaction(async (tx) => {
+          const paymentSnap = await tx.get(paymentRef);
+          if (paymentSnap.exists) {
+            // Already processed
+            return;
+          }
+
+          const userRef = db.collection('users').doc(payload.uid);
+          const userSnap = await tx.get(userRef);
+          if (!userSnap.exists) {
+            console.error(`User ${payload.uid} not found for payment ${chargeId}`);
+            return;
+          }
+
+          tx.set(paymentRef, {
+            chargeId: chargeId,
+            providerPaymentChargeId: sp.provider_payment_charge_id || null,
+            uid: payload.uid,
+            packageId: payload.packageId,
+            coins: payload.coins,
+            stars: sp.total_amount,
+            currency: sp.currency,
+            paidAt: FieldValue.serverTimestamp(),
+            telegramUser: update.message.from || null
+          });
+
+          tx.update(userRef, {
+            coins: FieldValue.increment(payload.coins)
+          });
+        });
+
+        // Send confirmation to the buyer on Telegram
+        if (update.message.chat && update.message.chat.id) {
+          const confirmText = `🎉 ¡Pago recibido con éxito!\n\nSe han acreditado *${payload.coins} Orbes* en tu cuenta de Entrenador de Orange League.\n\n¡Gracias por tu apoyo!`;
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: update.message.chat.id,
+              text: confirmText,
+              parse_mode: 'Markdown'
+            })
+          }).catch((e) => console.error('Error sending confirmation message:', e));
+        }
+      }
+    } catch (err) {
+      console.error('Error processing successful_payment:', err);
+    }
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // Fallback for /start command
+  if (update.message && update.message.text && update.message.text.startsWith('/start')) {
+    const welcomeText = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nJuega aquí: https://pokemon-tcg-simulador.web.app\n\nÚnete a nuestra comunidad de Discord: https://discord.gg/vrsFAkvFN`;
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: update.message.chat.id,
+        text: welcomeText,
+        parse_mode: 'Markdown'
+      })
+    }).catch(() => {});
+  }
+
+  res.status(200).json({ ok: true });
+});
+

@@ -233,3 +233,9 @@ function initPvpMatchListeners(matchId, myUid, onUpdate) {
       function (err) { console.error('No se pudo escuchar tu mano', err); });
   return function unsubscribeBoth() { unsubPublic(); unsubPrivate(); };
 }
+
+function createStarsInvoiceCloud(packageId) {
+  var fn = firebase.functions().httpsCallable('createStarsInvoice');
+  return fn({ packageId: packageId }).then(function (res) { return res.data; });
+}
+

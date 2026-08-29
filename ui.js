@@ -2911,7 +2911,10 @@ function showShopTab(tab) {
   });
   document.getElementById('shopPacksPanel').classList.toggle('hidden', tab !== 'packs');
   document.getElementById('shopProtectorsPanel').classList.toggle('hidden', tab !== 'protectores');
+  var orbesPanel = document.getElementById('shopOrbesPanel');
+  if (orbesPanel) { orbesPanel.classList.toggle('hidden', tab !== 'orbes'); }
   if (tab === 'protectores') { renderProtectorsGrid(); }
+  if (tab === 'orbes') { renderOrbesShopGrid(); }
 }
 
 // Only updates the coin balance -- called on every Firestore snapshot
@@ -3105,6 +3108,113 @@ function renderProtectorsGrid() {
         });
     });
   });
+}
+
+// ===== Telegram Stars Orbes Shop =====
+var STARS_SHOP_PACKAGES = [
+  {
+    id: 'orbes_100',
+    title: '100 ORBES',
+    subtitle: 'BOLSA BÁSICA',
+    coins: 100,
+    stars: 15,
+    tag: null
+  },
+  {
+    id: 'orbes_550',
+    title: '550 ORBES',
+    subtitle: 'SACO DE ORBES',
+    coins: 550,
+    stars: 65,
+    tag: '+10% EXTRA'
+  },
+  {
+    id: 'orbes_1400',
+    title: '1,400 ORBES',
+    subtitle: 'COFRE DE ORBES',
+    coins: 1400,
+    stars: 140,
+    tag: '+16% EXTRA'
+  },
+  {
+    id: 'orbes_3600',
+    title: '3,600 ORBES',
+    subtitle: 'TESORO DE LA LIGA',
+    coins: 3600,
+    stars: 320,
+    tag: 'MEJOR VALOR · +20%'
+  }
+];
+
+function renderOrbesShopGrid() {
+  var grid = document.getElementById('shopOrbesGrid');
+  if (!grid) { return; }
+
+  grid.innerHTML = STARS_SHOP_PACKAGES.map(function (pkg) {
+    var tagHtml = pkg.tag ? '<div class="shell-shop-card-badge">' + pkg.tag + '</div>' : '';
+    return '<div class="shell-shop-card shell-stars-card" data-package-id="' + pkg.id + '">' +
+      tagHtml +
+      '<div class="shell-shop-card-art stars-art">' +
+        '<div class="shell-stars-orb-icon">' + pixelCoinHtml('oro', 6) + '</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-text">' +
+        '<div class="shell-shop-card-name">' + pkg.title + '</div>' +
+        '<div class="shell-shop-card-desc">' + pkg.subtitle + '</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-footer">' +
+        '<span class="shell-stars-card-price">⭐️ ' + pkg.stars + ' STARS</span>' +
+        '<button type="button" class="shell-shop-card-btn shell-stars-btn" data-buy-stars="' + pkg.id + '">COMPRAR</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  grid.querySelectorAll('[data-buy-stars]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-buy-stars');
+      btn.disabled = true;
+      btn.textContent = 'GENERANDO...';
+      buyOrbesWithStars(id, function () {
+        btn.disabled = false;
+        btn.textContent = 'COMPRAR';
+      });
+    });
+  });
+}
+
+function buyOrbesWithStars(packageId, onComplete) {
+  if (!firebase.auth().currentUser) {
+    alert('Debes iniciar sesión para comprar Orbes.');
+    if (onComplete) { onComplete(); }
+    return;
+  }
+
+  createStarsInvoiceCloud(packageId)
+    .then(function (res) {
+      if (onComplete) { onComplete(); }
+      if (!res || !res.invoiceLink) {
+        alert('No se pudo generar la factura en Telegram.');
+        return;
+      }
+
+      // Check if running inside Telegram Mini App (TMA)
+      if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openInvoice === 'function') {
+        window.Telegram.WebApp.openInvoice(res.invoiceLink, function (status) {
+          if (status === 'paid') {
+            alert('¡Pago completado! Tus Orbes han sido acreditados a tu cuenta.');
+          } else if (status === 'failed') {
+            alert('El pago no pudo completarse.');
+          }
+        });
+      } else {
+        // In external web browser: open Telegram invoice link
+        window.open(res.invoiceLink, '_blank');
+        alert('Se ha abierto la factura en Telegram.\n\nCompleta el pago con tus Estrellas ⭐ y tus Orbes se acreditarán automáticamente en cuanto se confirme.');
+      }
+    })
+    .catch(function (err) {
+      if (onComplete) { onComplete(); }
+      alert(err.message || 'Error al conectar con Telegram Stars.');
+    });
 }
 
 // Tracks where the collection screen was opened from, mirroring shopReturnTo.
