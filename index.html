@@ -1039,16 +1039,14 @@
 
   <div id="pvpModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="pvp-launcher" role="dialog" aria-modal="true" aria-labelledby="pvpLauncherTitle">
-      <div class="pvp-launcher-topline"><span class="pvp-status-dot"></span> RED DE DUELOS · EN LÍNEA</div>
-      <p class="pvp-launcher-kicker">ORANGE LEAGUE // PVP</p>
-      <h2 class="pvp-launcher-title" id="pvpLauncherTitle">ELEGÍ CÓMO<br>ENTRAR AL DUELO</h2>
-      <p class="pvp-launcher-copy">Cada entrenador confirma su propio mazo antes de que la partida pueda comenzar.</p>
-      <div class="pvp-launcher-actions">
-        <button type="button" class="pvp-launcher-action pvp-launcher-action-primary" id="pvpCreateRoomBtn"><span>01</span> CREAR SALA <b>→</b></button>
-        <button type="button" class="pvp-launcher-action" id="pvpJoinRoomBtn"><span>02</span> UNIRSE CON CÓDIGO <b>→</b></button>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">JUGAR PVP</p>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpFindRivalBtn" disabled>BUSCAR RIVAL (PRÓXIMAMENTE)</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpCreateRoomBtn">CREAR SALA</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpJoinRoomBtn">BUSCAR SALA</button>
       </div>
-      <button type="button" class="pvp-launcher-close" id="pvpModalClose" aria-label="Cerrar PVP">×</button>
+      <button type="button" class="shell-modal-btn" id="pvpModalClose">&times;</button>
     </div>
   </div>
 
