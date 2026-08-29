@@ -1572,6 +1572,44 @@ exports.createStarsInvoice = onCall(async (request) => {
   };
 });
 
+async function sendTelegramMessage(chatId, text, replyMarkup) {
+  const body = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'Markdown'
+  };
+  if (replyMarkup) { body.reply_markup = replyMarkup; }
+  return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).catch((err) => console.error('Error sending Telegram message:', err));
+}
+
+async function sendTelegramInvoice(chatId, title, description, payload, stars) {
+  const body = {
+    chat_id: chatId,
+    title: title,
+    description: description,
+    payload: payload,
+    currency: 'XTR',
+    prices: [{ label: title, amount: stars }]
+  };
+  return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendInvoice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).catch((err) => console.error('Error sending Telegram invoice:', err));
+}
+
+async function answerTelegramCallbackQuery(queryId, text) {
+  return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: queryId, text: text })
+  }).catch((err) => console.error('Error answering Telegram callback:', err));
+}
+
 exports.telegramWebhook = onRequest(async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).send('Method Not Allowed');
@@ -1655,18 +1693,10 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           });
         });
 
-        // Send confirmation to the buyer on Telegram
+        // Send confirmation receipt to the buyer on Telegram
         if (update.message.chat && update.message.chat.id) {
-          const confirmText = `🎉 ¡Pago recibido con éxito!\n\nSe han acreditado *${payload.coins} Orbes* en tu cuenta de Entrenador de Orange League.\n\n¡Gracias por tu apoyo!`;
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: update.message.chat.id,
-              text: confirmText,
-              parse_mode: 'Markdown'
-            })
-          }).catch((e) => console.error('Error sending confirmation message:', e));
+          const confirmText = `🎉 *¡PAGO RECIBIDO CON ÉXITO!*\n\nSe han acreditado *${payload.coins} Orbes* en tu cuenta de Entrenador de Orange League.\n\n🆔 UID: \`${payload.uid}\`\n⭐️ Estrellas pagadas: ${sp.total_amount} ⭐\n\n¡Gracias por tu compra! Ya puedes abrir sobres y protectores en el juego.`;
+          await sendTelegramMessage(update.message.chat.id, confirmText);
         }
       }
     } catch (err) {
@@ -1676,18 +1706,222 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     return;
   }
 
-  // Fallback for /start command
-  if (update.message && update.message.text && update.message.text.startsWith('/start')) {
-    const welcomeText = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nJuega aquí: https://pokemon-tcg-simulador.web.app\n\nÚnete a nuestra comunidad de Discord: https://discord.gg/vrsFAkvFN`;
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: update.message.chat.id,
-        text: welcomeText,
-        parse_mode: 'Markdown'
-      })
-    }).catch(() => {});
+  // 3. Handle callback_query (inline buttons for choosing packages)
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = cb.message && cb.message.chat && cb.message.chat.id;
+    const data = cb.data || '';
+    const db = admin.firestore();
+
+    if (data.startsWith('buy_') && chatId) {
+      const packageId = data.replace('buy_', '');
+      const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
+      if (!linkSnap.exists) {
+        await answerTelegramCallbackQuery(cb.id, '⚠️ Primero vincula tu UID.');
+        await sendTelegramMessage(chatId, '⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n`/cuenta TU_UID`');
+        res.status(200).json({ ok: true });
+        return;
+      }
+      const linkData = linkSnap.data();
+      const ecoConfig = await fetchEconomyConfig();
+      const pkg = (ecoConfig.starsPackages && ecoConfig.starsPackages[packageId]) || STARS_PACKAGES[packageId];
+      if (!pkg) {
+        await answerTelegramCallbackQuery(cb.id, 'Paquete no válido.');
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      await answerTelegramCallbackQuery(cb.id, `Generando factura...`);
+
+      const payload = JSON.stringify({
+        uid: linkData.uid,
+        packageId: pkg.id,
+        coins: pkg.coins,
+        stars: pkg.stars,
+        createdAt: Date.now()
+      });
+
+      await sendTelegramInvoice(
+        chatId,
+        pkg.title,
+        `Recibirás ${pkg.coins} Orbes en la cuenta de Entrenador (${linkData.username || 'Jugador'}).`,
+        payload,
+        pkg.stars
+      );
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (data === 'change_uid' && chatId) {
+      await answerTelegramCallbackQuery(cb.id, 'Cambiar UID');
+      await sendTelegramMessage(chatId, 'Para vincular un UID diferente, escribe:\n\n`/cuenta TU_NUEVO_UID`');
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  // 4. Handle text messages and commands
+  if (update.message && update.message.text) {
+    const text = update.message.text.trim();
+    const chatId = update.message.chat.id;
+    const fromUser = update.message.from || {};
+    const db = admin.firestore();
+
+    // 4.1 /start [payload]
+    if (text.startsWith('/start')) {
+      const parts = text.split(' ');
+      const startParam = parts[1] || '';
+
+      if (startParam.startsWith('uid_')) {
+        const uid = startParam.replace('uid_', '').trim();
+        const userSnap = await db.collection('users').doc(uid).get();
+        if (userSnap.exists) {
+          const userData = userSnap.data();
+          await db.collection('telegram_links').doc(String(chatId)).set({
+            uid: uid,
+            username: userData.username || 'Jugador',
+            telegramId: fromUser.id || chatId,
+            telegramUsername: fromUser.username || null,
+            updatedAt: FieldValue.serverTimestamp()
+          });
+          const welcomeMsg = `⚡ *¡Orange League TCG - Tienda Oficial!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo: *${userData.coins || 0} Orbes*\n\nUsa el comando /tienda para ver los paquetes de Orbes con Estrellas ⭐.`;
+          await sendTelegramMessage(chatId, welcomeMsg, {
+            keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
+            resize_keyboard: true
+          });
+          res.status(200).json({ ok: true });
+          return;
+        }
+      }
+
+      // Check if already linked
+      const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
+      if (linkSnap.exists) {
+        const linkData = linkSnap.data();
+        const msg = `¡Hola de nuevo, *${linkData.username || 'Entrenador'}*! ⚡\n\n🆔 UID vinculado: \`${linkData.uid}\`\n\n📌 *Comandos disponibles:*\n• /tienda o /comprar - Ver paquetes de Orbes ⭐\n• /cuenta <UID> - Cambiar tu UID\n• /ayuda - Información y soporte`;
+        await sendTelegramMessage(chatId, msg, {
+          keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
+          resize_keyboard: true
+        });
+      } else {
+        const msg = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nAquí puedes comprar *Orbes* directamente con *Estrellas de Telegram (⭐)* y cargarlos a tu juego.\n\n👉 Para comenzar, dinos tu UID del juego:\nEscribe: \`/cuenta TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego (https://pokemon-tcg-simulador.web.app), en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).`;
+        await sendTelegramMessage(chatId, msg);
+      }
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // 4.2 /cuenta [UID] or /vincular [UID] or button "👤 Mi Cuenta"
+    if (text.startsWith('/cuenta') || text.startsWith('/vincular') || text === '👤 Mi Cuenta') {
+      const parts = text.split(/\s+/);
+      const uidArg = parts[1] ? parts[1].trim() : null;
+
+      if (!uidArg) {
+        const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
+        if (linkSnap.exists) {
+          const linkData = linkSnap.data();
+          const userSnap = await db.collection('users').doc(linkData.uid).get();
+          const userCoins = userSnap.exists ? (userSnap.data().coins || 0) : '0';
+          const msg = `👤 *TU CUENTA VINCULADA:*\n\n• Entrenador: *${linkData.username || 'Jugador'}*\n• UID: \`${linkData.uid}\`\n• Saldo actual: *${userCoins} Orbes*\n\nPara vincular otra cuenta, escribe:\n\`/cuenta OTRO_UID\``;
+          await sendTelegramMessage(chatId, msg);
+        } else {
+          await sendTelegramMessage(chatId, `⚠️ Para vincular tu cuenta, incluye tu UID:\n\nEjemplo: \`/cuenta TU_UID\`\n\n(Tu UID aparece en la barra inferior del juego: https://pokemon-tcg-simulador.web.app)`);
+        }
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      const userSnap = await db.collection('users').doc(uidArg).get();
+      if (!userSnap.exists) {
+        await sendTelegramMessage(chatId, `❌ No se encontró ninguna cuenta con el UID: \`${uidArg}\`.\n\nVerifica haberlo copiado bien desde la barra inferior del menú principal del juego.`);
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      const userData = userSnap.data();
+      await db.collection('telegram_links').doc(String(chatId)).set({
+        uid: uidArg,
+        username: userData.username || 'Jugador',
+        telegramId: fromUser.id || chatId,
+        telegramUsername: fromUser.username || null,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+
+      const confirmMsg = `✅ *¡Cuenta vinculada con éxito!*\n\n👤 *Entrenador:* ${userData.username || 'Jugador'}\n🆔 *UID:* \`${uidArg}\`\n💰 *Saldo actual:* ${userData.coins || 0} Orbes\n\n¡Ahora puedes escribir /tienda para comprar Orbes con Estrellas ⭐!`;
+      await sendTelegramMessage(chatId, confirmMsg, {
+        keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
+        resize_keyboard: true
+      });
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // 4.3 /tienda or /comprar or button "🛒 Ver Tienda / Comprar Orbes"
+    if (text.startsWith('/tienda') || text.startsWith('/comprar') || text === '🛒 Ver Tienda / Comprar Orbes') {
+      const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
+      if (!linkSnap.exists) {
+        const notLinkedMsg = `⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n\`/cuenta TU_UID\`\n\n(Tu UID está en la barra inferior del juego en https://pokemon-tcg-simulador.web.app)`;
+        await sendTelegramMessage(chatId, notLinkedMsg);
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      const linkData = linkSnap.data();
+      const userSnap = await db.collection('users').doc(linkData.uid).get();
+      const userCoins = userSnap.exists ? (userSnap.data().coins || 0) : 0;
+      const userName = userSnap.exists ? (userSnap.data().username || linkData.username) : linkData.username;
+
+      const ecoConfig = await fetchEconomyConfig();
+      const pkgs = ecoConfig.starsPackages || STARS_PACKAGES;
+
+      const inlineKeyboard = Object.keys(pkgs).map((k) => {
+        const p = pkgs[k];
+        const tagText = p.tag ? ` (${p.tag})` : '';
+        return [{
+          text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
+          callback_data: `buy_${p.id}`
+        }];
+      });
+      inlineKeyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
+
+      const shopMsg = `🛒 *TIENDA DE ORBES · ORANGE LEAGUE*\n\n👤 *Entrenador:* ${userName}\n🆔 *UID:* \`${linkData.uid}\`\n💰 *Saldo actual:* ${userCoins} Orbes\n\nElige el paquete que deseas comprar con *Estrellas de Telegram (⭐)*:`;
+      await sendTelegramMessage(chatId, shopMsg, { inline_keyboard: inlineKeyboard });
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // 4.4 /ayuda
+    if (text.startsWith('/ayuda') || text.startsWith('/help')) {
+      const helpMsg = `❓ *AYUDA - BOT DE ORANGE LEAGUE*\n\n1. *¿Cómo compro Orbes?*\n• Primero vincula tu cuenta escribiendo: \`/cuenta TU_UID\`\n• Luego escribe /tienda y selecciona tu paquete.\n• Confirma el pago con tus Estrellas de Telegram (⭐).\n• ¡Los Orbes se cargan automáticamente a tu partida!\n\n2. *¿Dónde encuentro mi UID?*\nIngresa a https://pokemon-tcg-simulador.web.app y en la barra inferior del menú principal verás tu código de Entrenador.\n\n3. *¿Dudas o problemas?*\nÚnete a nuestra comunidad en Discord: https://discord.gg/vrsFAkvFN`;
+      await sendTelegramMessage(chatId, helpMsg);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // 4.5 Auto-detect raw UID paste (20 to 36 chars)
+    if (/^[a-zA-Z0-9_-]{20,36}$/.test(text)) {
+      const userSnap = await db.collection('users').doc(text).get();
+      if (userSnap.exists) {
+        const userData = userSnap.data();
+        await db.collection('telegram_links').doc(String(chatId)).set({
+          uid: text,
+          username: userData.username || 'Jugador',
+          telegramId: fromUser.id || chatId,
+          telegramUsername: fromUser.username || null,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        const confirmMsg = `✅ *¡UID detectado y vinculado con éxito!*\n\n👤 *Entrenador:* ${userData.username || 'Jugador'}\n🆔 *UID:* \`${text}\`\n💰 *Saldo:* ${userData.coins || 0} Orbes\n\n¡Ahora puedes escribir /tienda para ver los paquetes de Orbes con Estrellas ⭐!`;
+        await sendTelegramMessage(chatId, confirmMsg, {
+          keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
+          resize_keyboard: true
+        });
+        res.status(200).json({ ok: true });
+        return;
+      }
+    }
   }
 
   res.status(200).json({ ok: true });
