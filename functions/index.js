@@ -1587,19 +1587,54 @@ async function sendTelegramMessage(chatId, text, replyMarkup) {
 }
 
 async function sendTelegramInvoice(chatId, title, description, payload, stars) {
+  const cleanTitle = String(title || 'Orbes').slice(0, 32);
+  const cleanDesc = String(description || 'Paquete de Orbes para Orange League').slice(0, 255);
+  const cleanPrice = Math.max(1, parseInt(stars, 10) || 1);
+
   const body = {
     chat_id: chatId,
-    title: title,
-    description: description,
+    title: cleanTitle,
+    description: cleanDesc,
     payload: payload,
     currency: 'XTR',
-    prices: [{ label: title, amount: stars }]
+    provider_token: '',
+    prices: [{ label: cleanTitle, amount: cleanPrice }]
   };
-  return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendInvoice`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  }).catch((err) => console.error('Error sending Telegram invoice:', err));
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendInvoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      console.error('Error from sendInvoice Telegram API:', JSON.stringify(data));
+      // Fallback: If direct sendInvoice has any issue in client, generate invoice link and send payment button
+      const linkRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: cleanTitle,
+          description: cleanDesc,
+          payload: payload,
+          currency: 'XTR',
+          provider_token: '',
+          prices: [{ label: cleanTitle, amount: cleanPrice }]
+        })
+      });
+      const linkData = await linkRes.json();
+      if (linkData.ok && linkData.result) {
+        await sendTelegramMessage(chatId, `⭐️ *${cleanTitle}*\n${cleanDesc}\n\nPresiona el botón para pagar con Estrellas (⭐):`, {
+          inline_keyboard: [[{ text: `Pagar ${cleanPrice} ⭐`, url: linkData.result }]]
+        });
+      }
+    }
+    return data;
+  } catch (err) {
+    console.error('Error sending Telegram invoice:', err);
+    return { ok: false, error: err.message };
+  }
 }
 
 async function answerTelegramCallbackQuery(queryId, text) {
@@ -1825,29 +1860,50 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       return;
     }
 
-    // 4.2 /cuenta [UID] or /vincular [UID] or button "👤 Mi Cuenta"
-    if (text.startsWith('/cuenta') || text.startsWith('/vincular') || text === '👤 Mi Cuenta') {
+    // 4.2 Check current linked account (button "👤 Mi Cuenta" or commands)
+    const isShowAccount = (
+      text === '👤 Mi Cuenta' ||
+      text.toLowerCase() === 'mi cuenta' ||
+      text.toLowerCase() === 'cuenta' ||
+      text === '/cuenta' ||
+      text === '/vincular' ||
+      text === '/micuenta'
+    );
+
+    if (isShowAccount) {
+      const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
+      if (linkSnap.exists) {
+        const linkData = linkSnap.data();
+        const userSnap = await db.collection('users').doc(linkData.uid).get();
+        const userCoins = userSnap.exists ? (userSnap.data().coins || 0) : 0;
+        const userName = userSnap.exists ? (userSnap.data().username || linkData.username) : linkData.username;
+        const msg = `👤 *TU CUENTA VINCULADA:*\n\n• Entrenador: *${userName}*\n• UID: \`${linkData.uid}\`\n• Saldo actual: *${userCoins} Orbes*\n\nPara vincular otra cuenta, escribe:\n\`/vincular OTRO_UID\``;
+        await sendTelegramMessage(chatId, msg, {
+          keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
+          resize_keyboard: true
+        });
+      } else {
+        const msg = `⚠️ *Aún no has vinculado tu cuenta del juego.*\n\nPor favor escribe:\n\`/vincular TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego, en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).`;
+        await sendTelegramMessage(chatId, msg);
+      }
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    // 4.3 Link specific UID: /vincular <UID> or /cuenta <UID>
+    if (text.startsWith('/vincular ') || text.startsWith('/cuenta ')) {
       const parts = text.split(/\s+/);
-      const uidArg = parts[1] ? parts[1].trim() : null;
+      const uidArg = parts.slice(1).join('').trim();
 
       if (!uidArg) {
-        const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
-        if (linkSnap.exists) {
-          const linkData = linkSnap.data();
-          const userSnap = await db.collection('users').doc(linkData.uid).get();
-          const userCoins = userSnap.exists ? (userSnap.data().coins || 0) : '0';
-          const msg = `👤 *TU CUENTA VINCULADA:*\n\n• Entrenador: *${linkData.username || 'Jugador'}*\n• UID: \`${linkData.uid}\`\n• Saldo actual: *${userCoins} Orbes*\n\nPara vincular otra cuenta, escribe:\n\`/vincular OTRO_UID\``;
-          await sendTelegramMessage(chatId, msg);
-        } else {
-          await sendTelegramMessage(chatId, `⚠️ Para vincular tu cuenta, incluye tu UID:\n\nEjemplo: \`/vincular TU_UID\`\n\n(Tu UID aparece en la barra inferior del menú principal del juego)`);
-        }
+        await sendTelegramMessage(chatId, `⚠️ Para vincular tu cuenta, incluye tu UID:\n\nEjemplo: \`/vincular TU_UID\``);
         res.status(200).json({ ok: true });
         return;
       }
 
       const userSnap = await db.collection('users').doc(uidArg).get();
       if (!userSnap.exists) {
-        await sendTelegramMessage(chatId, `❌ No se encontró ninguna cuenta con el UID: \`${uidArg}\`.\n\nVerifica haberlo copiado bien desde la barra inferior del menú principal del juego.`);
+        await sendTelegramMessage(chatId, `❌ No se encontró ningún Entrenador con el UID: \`${uidArg}\`.\n\nVerifica haberlo copiado bien desde la barra inferior del menú principal del juego.`);
         res.status(200).json({ ok: true });
         return;
       }
