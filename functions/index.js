@@ -1818,7 +1818,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           resize_keyboard: true
         });
       } else {
-        const msg = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nAquí puedes comprar *Orbes* directamente con *Estrellas de Telegram (⭐)* y cargarlos a tu juego.\n\n👉 Para comenzar, dinos tu UID del juego:\nEscribe: \`/vincular TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego (https://pokemon-tcg-simulador.web.app), en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).`;
+        const msg = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nAquí puedes comprar *Orbes* directamente con *Estrellas de Telegram (⭐)* y cargarlos a tu juego.\n\n👉 Para comenzar, dinos tu UID del juego:\nEscribe: \`/vincular TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego, en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).`;
         await sendTelegramMessage(chatId, msg);
       }
       res.status(200).json({ ok: true });
@@ -1839,7 +1839,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           const msg = `👤 *TU CUENTA VINCULADA:*\n\n• Entrenador: *${linkData.username || 'Jugador'}*\n• UID: \`${linkData.uid}\`\n• Saldo actual: *${userCoins} Orbes*\n\nPara vincular otra cuenta, escribe:\n\`/vincular OTRO_UID\``;
           await sendTelegramMessage(chatId, msg);
         } else {
-          await sendTelegramMessage(chatId, `⚠️ Para vincular tu cuenta, incluye tu UID:\n\nEjemplo: \`/vincular TU_UID\`\n\n(Tu UID aparece en la barra inferior del juego: https://pokemon-tcg-simulador.web.app)`);
+          await sendTelegramMessage(chatId, `⚠️ Para vincular tu cuenta, incluye tu UID:\n\nEjemplo: \`/vincular TU_UID\`\n\n(Tu UID aparece en la barra inferior del menú principal del juego)`);
         }
         res.status(200).json({ ok: true });
         return;
@@ -1874,7 +1874,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     if (text.startsWith('/tienda') || text.startsWith('/comprar') || text === '🛒 Ver Tienda / Comprar Orbes') {
       const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
       if (!linkSnap.exists) {
-        const notLinkedMsg = `⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n\`/vincular TU_UID\`\n\n(Tu UID está en la barra inferior del juego en https://pokemon-tcg-simulador.web.app)`;
+        const notLinkedMsg = `⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n\`/vincular TU_UID\`\n\n(Tu UID está en la barra inferior del menú principal del juego)`;
         await sendTelegramMessage(chatId, notLinkedMsg);
         res.status(200).json({ ok: true });
         return;
@@ -1906,7 +1906,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
     // 4.4 /ayuda
     if (text.startsWith('/ayuda') || text.startsWith('/help')) {
-      const helpMsg = `❓ *AYUDA - BOT DE ORANGE LEAGUE*\n\n1. *¿Cómo compro Orbes?*\n• Primero vincula tu cuenta escribiendo: \`/vincular TU_UID\`\n• Luego escribe /tienda y selecciona tu paquete.\n• Confirma el pago con tus Estrellas de Telegram (⭐).\n• ¡Los Orbes se cargan automáticamente a tu partida!\n\n2. *¿Dónde encuentro mi UID?*\nIngresa a https://pokemon-tcg-simulador.web.app y en la barra inferior del menú principal verás tu código de Entrenador.\n\n3. *¿Dudas o problemas?*\nÚnete a nuestra comunidad en Discord: https://discord.gg/vrsFAkvFN`;
+      const helpMsg = `❓ *AYUDA - BOT DE ORANGE LEAGUE*\n\n1. *¿Cómo compro Orbes?*\n• Primero vincula tu cuenta escribiendo: \`/vincular TU_UID\`\n• Luego escribe /tienda y selecciona tu paquete.\n• Confirma el pago con tus Estrellas de Telegram (⭐).\n• ¡Los Orbes se cargan automáticamente a tu partida!\n\n2. *¿Dónde encuentro mi UID?*\nEn la barra inferior del menú principal del juego verás tu código de Entrenador.\n\n3. *¿Dudas o problemas?*\nÚnete a nuestra comunidad en Discord: https://discord.gg/vrsFAkvFN`;
       await sendTelegramMessage(chatId, helpMsg);
       res.status(200).json({ ok: true });
       return;
