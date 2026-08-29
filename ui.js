@@ -384,8 +384,8 @@ function preloadCardImages() {
   });
   urls['Mazos/overgrowth.png'] = true;
   urls['Mazos/blackout.png'] = true;
-  urls['Mazos/zap.jpg'] = true;
-  urls['Mazos/brushfire.jpg'] = true;
+  urls['Mazos/zap.png'] = true;
+  urls['Mazos/brushfire.png'] = true;
   Object.keys(urls).forEach(function (url) { var img = new Image(); img.src = url; });
 }
 
@@ -3884,8 +3884,8 @@ function hideMenu() {
 var PRECON_DECK_ART = {
   overgrowth: { img: 'Mazos/overgrowth.png', stripe: 'deck-overgrowth', types: 'PLANTA · AGUA' },
   blackout: { img: 'Mazos/blackout.png', stripe: 'deck-blackout', types: 'AGUA · LUCHA' },
-  zap: { img: 'Mazos/zap.jpg', stripe: 'deck-zap', types: 'RAYO · PSÍQUICO' },
-  brushfire: { img: 'Mazos/brushfire.jpg', stripe: 'deck-brushfire', types: 'FUEGO · PLANTA' }
+  zap: { img: 'Mazos/zap.png', stripe: 'deck-zap', types: 'RAYO · PSÍQUICO' },
+  brushfire: { img: 'Mazos/brushfire.png', stripe: 'deck-brushfire', types: 'FUEGO · PLANTA' }
 };
 function renderPvpDeckPicker(containerId, onPicked) {
   var el = document.getElementById(containerId);
