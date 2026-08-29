@@ -27,6 +27,7 @@ var matchWinner = null;
 // "Has Perdido" while the attack overlay was still mid-animation. This flag
 // makes tickGameClock hold off until the reveal actually finishes.
 var revealAnimationInProgress = false;
+var visualActivePokemon = null;
 
 // Menu's "Novedades" panel (see initNewsListener, economy.js, and
 // admin.html for how items actually get published). items: [{id, title,
@@ -689,15 +690,11 @@ function showCardInViewer(name, instanceId) {
               };
             });
             openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, function (chosenAtkName) {
-              attack(gameState, 'player', 'Metronome', chosenAtkName);
-              revealAnimationInProgress = true;
-              showAttackOverlayIfAny(afterPlayerAction);
+              executePlayerAttack('Metronome', chosenAtkName);
             });
             return;
           } else if (rivalAttacks.length === 1) {
-            attack(gameState, 'player', 'Metronome', rivalAttacks[0].name);
-            revealAnimationInProgress = true;
-            showAttackOverlayIfAny(afterPlayerAction);
+            executePlayerAttack('Metronome', rivalAttacks[0].name);
             return;
           }
         }
@@ -706,9 +703,7 @@ function showCardInViewer(name, instanceId) {
             .catch(function (err) { alert(err.message || 'No se pudo atacar.'); });
           return;
         }
-        attack(gameState, 'player', atkName);
-        revealAnimationInProgress = true;
-        showAttackOverlayIfAny(afterPlayerAction);
+        executePlayerAttack(atkName);
       });
     });
   }
@@ -896,6 +891,24 @@ function showAttackOverlayIfAny(onDone) {
   var result = gameState.lastAttackResult;
   gameState.lastAttackResult = null;
   if (result) { showAttackOverlay(result, onDone); } else if (onDone) { onDone(); }
+}
+
+function executePlayerAttack(atkName, targetInstanceId) {
+  var p = gameState && gameState.players && gameState.players.player;
+  var c = gameState && gameState.players && gameState.players.cpu;
+  var prePlayerActive = (p && p.active) ? JSON.parse(JSON.stringify(p.active)) : null;
+  var preCpuActive = (c && c.active) ? JSON.parse(JSON.stringify(c.active)) : null;
+  var prePlayerDiscardCount = (p && p.discard) ? p.discard.length : 0;
+  var preCpuDiscardCount = (c && c.discard) ? c.discard.length : 0;
+  attack(gameState, 'player', atkName, targetInstanceId);
+  revealAnimationInProgress = true;
+  visualActivePokemon = {
+    player: prePlayerActive,
+    cpu: preCpuActive,
+    playerDiscardCount: prePlayerDiscardCount,
+    cpuDiscardCount: preCpuDiscardCount
+  };
+  showAttackOverlayIfAny(afterPlayerAction);
 }
 
 // Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
@@ -1750,6 +1763,25 @@ function showCpuThinkingIndicator() {
   el.classList.add('cpu');
 }
 
+function hasPendingPlayerChoice() {
+  return !!(gameState && (gameState.pendingPrizeChoice || gameState.pendingActiveChoice === 'player'));
+}
+
+function maybeResumeCpuTurn() {
+  if (!cpuTurnAwaitingPlayerChoice || hasPendingPlayerChoice()) { return; }
+  cpuTurnAwaitingPlayerChoice = false;
+  proceedWithCpuTurn();
+}
+
+function startPlayerTurnWithDraw() {
+  if (gameState && gameState.activePlayerId === 'player' && !getWinner(gameState) && !pvpMode) {
+    if (gameState.turnCounter > 1) {
+      drawForTurnStart(gameState, 'player');
+    }
+    renderBoard();
+  }
+}
+
 // Runs the CPU's turn after a "thinking" delay whose length depends on the
 // chosen difficulty (see CPU_THINK_DELAY_MS/cpuThinkDelayMs) -- Easy
 // resolves instantly (0ms), matching its behavior from before difficulty
@@ -1794,29 +1826,6 @@ function runCpuTurn() {
   proceedWithCpuTurn();
 }
 
-function hasPendingPlayerChoice() {
-  return !!gameState.pendingPrizeChoice || gameState.pendingActiveChoice === 'player';
-}
-
-// Called after the prize-choice and active-choice modals resolve -- a
-// no-op unless runCpuTurn is specifically waiting on one of them (see its
-// own comment), and even then only once every such choice is cleared (a
-// single checkup can leave both a prize AND a new Active pending at once).
-function maybeResumeCpuTurn() {
-  if (!cpuTurnAwaitingPlayerChoice || hasPendingPlayerChoice()) { return; }
-  cpuTurnAwaitingPlayerChoice = false;
-  proceedWithCpuTurn();
-}
-
-function startPlayerTurnWithDraw() {
-  if (gameState && gameState.activePlayerId === 'player' && !getWinner(gameState) && !pvpMode) {
-    if (gameState.turnCounter > 1) {
-      drawForTurnStart(gameState, 'player');
-    }
-    renderBoard();
-  }
-}
-
 function proceedWithCpuTurn() {
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
@@ -1824,10 +1833,12 @@ function proceedWithCpuTurn() {
   if (endTurnBtn) { endTurnBtn.disabled = true; }
   showTurnFlash('TURNO DEL RIVAL', 'rival');
   if (delay > 0) { showCpuThinkingIndicator(); }
-  // From here on the CPU's own clock should be the one draining (including
-  // through the "thinking" delay itself -- see currentClockOwner's comment)
-  // instead of the player's, which is what tickGameClock's interval was
-  // charging up until now click.
+  var p = gameState && gameState.players && gameState.players.player;
+  var c = gameState && gameState.players && gameState.players.cpu;
+  var preTurnPlayerActive = (p && p.active) ? JSON.parse(JSON.stringify(p.active)) : null;
+  var preTurnCpuActive = (c && c.active) ? JSON.parse(JSON.stringify(c.active)) : null;
+  var preTurnPlayerDiscardCount = (p && p.discard) ? p.discard.length : 0;
+  var preTurnCpuDiscardCount = (c && c.discard) ? c.discard.length : 0;
   cpuTurnInProgress = true;
   setTimeout(function () {
     cpuTakeTurn(gameState, difficulty);
@@ -1843,6 +1854,12 @@ function proceedWithCpuTurn() {
     // attack overlay) so tickGameClock's independent poll can't jump ahead
     // of it -- see revealAnimationInProgress's own comment.
     revealAnimationInProgress = true;
+    visualActivePokemon = {
+      player: preTurnPlayerActive,
+      cpu: preTurnCpuActive,
+      playerDiscardCount: preTurnPlayerDiscardCount,
+      cpuDiscardCount: preTurnCpuDiscardCount
+    };
     renderBoard();
     showTrainerPlaysSequence(queuedTrainerPlays, function () {
       // A short "CPU PENSANDO..." beat before the reveal, even when no
@@ -1884,9 +1901,8 @@ function proceedWithCpuTurn() {
 // review the result of their own action (damage dealt, effects applied,
 // etc. in the log) before the board changes again.
 function afterPlayerAction() {
-  // The reveal (if any) that led here has now actually finished -- let
-  // tickGameClock resume checking for a win/loss on its own again.
   revealAnimationInProgress = false;
+  visualActivePokemon = null;
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
   // opening Basic Pokémon — no UI-side workaround needed here anymore.
@@ -2465,9 +2481,7 @@ function wireBoardButtons() {
           return;
         }
         pendingAttackNeedingTarget = null;
-        attack(gameState, 'player', 'Lure', instanceId);
-        revealAnimationInProgress = true;
-        showAttackOverlayIfAny(afterPlayerAction);
+        executePlayerAttack('Lure', instanceId);
         return;
       }
       if (pendingPowerActivation) {
