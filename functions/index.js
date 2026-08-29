@@ -1591,57 +1591,72 @@ async function sendTelegramInvoice(chatId, title, description, payload, stars) {
   const cleanDesc = String(description || 'Paquete de Orbes para Orange League').slice(0, 255);
   const cleanPrice = Math.max(1, parseInt(stars, 10) || 1);
 
-  const body = {
-    chat_id: chatId,
-    title: cleanTitle,
-    description: cleanDesc,
-    payload: payload,
-    currency: 'XTR',
-    provider_token: '',
-    prices: [{ label: cleanTitle, amount: cleanPrice }]
-  };
-
+  let invoiceUrl = null;
   try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendInvoice`, {
+    const linkRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        title: cleanTitle,
+        description: cleanDesc,
+        payload: payload,
+        currency: 'XTR',
+        prices: [{ label: cleanTitle, amount: cleanPrice }]
+      })
     });
-    const data = await res.json();
-    if (!data.ok) {
-      console.error('Error from sendInvoice Telegram API:', JSON.stringify(data));
-      // Fallback: If direct sendInvoice has any issue in client, generate invoice link and send payment button
-      const linkRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: cleanTitle,
-          description: cleanDesc,
-          payload: payload,
-          currency: 'XTR',
-          provider_token: '',
-          prices: [{ label: cleanTitle, amount: cleanPrice }]
-        })
-      });
-      const linkData = await linkRes.json();
-      if (linkData.ok && linkData.result) {
-        await sendTelegramMessage(chatId, `⭐️ *${cleanTitle}*\n${cleanDesc}\n\nPresiona el botón para pagar con Estrellas (⭐):`, {
-          inline_keyboard: [[{ text: `Pagar ${cleanPrice} ⭐`, url: linkData.result }]]
-        });
-      }
+    const linkData = await linkRes.json();
+    if (linkData.ok && linkData.result) {
+      invoiceUrl = linkData.result;
+    } else {
+      console.error('Error from createInvoiceLink:', JSON.stringify(linkData));
     }
-    return data;
   } catch (err) {
-    console.error('Error sending Telegram invoice:', err);
-    return { ok: false, error: err.message };
+    console.error('Error calling createInvoiceLink:', err);
   }
+
+  // Also send native invoice card to the chat
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendInvoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        title: cleanTitle,
+        description: cleanDesc,
+        payload: payload,
+        currency: 'XTR',
+        prices: [{ label: cleanTitle, amount: cleanPrice }]
+      })
+    });
+  } catch (err) {
+    console.error('Error sending native invoice:', err);
+  }
+
+  // Always send the interactive payment button
+  if (invoiceUrl) {
+    await sendTelegramMessage(
+      chatId,
+      `⭐️ *${cleanTitle}*\n${cleanDesc}\n\n👉 *Presiona el botón de abajo para pagar con Estrellas (⭐):*`,
+      {
+        inline_keyboard: [
+          [{ text: `⭐️ Pagar ${cleanPrice} ⭐ ahora`, url: invoiceUrl }]
+        ]
+      }
+    );
+  }
+
+  return { ok: true, invoiceUrl: invoiceUrl };
 }
 
-async function answerTelegramCallbackQuery(queryId, text) {
+async function answerTelegramCallbackQuery(queryId, text, showAlert = false) {
   return fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ callback_query_id: queryId, text: text })
+    body: JSON.stringify({
+      callback_query_id: queryId,
+      text: text,
+      show_alert: !!showAlert
+    })
   }).catch((err) => console.error('Error answering Telegram callback:', err));
 }
 
@@ -1653,27 +1668,16 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
   const update = req.body || {};
 
-  // 1. Handle pre_checkout_query (Telegram asks if the invoice is valid before charging)
+  // 1. Handle pre_checkout_query (must answer within 10s to approve Stars payment)
   if (update.pre_checkout_query) {
-    const query = update.pre_checkout_query;
+    const pcq = update.pre_checkout_query;
     try {
-      let payload = null;
-      try {
-        payload = JSON.parse(query.invoice_payload);
-      } catch (_) {}
-
-      const ecoConfig = await fetchEconomyConfig();
-      const pkg = (payload && ecoConfig.starsPackages && ecoConfig.starsPackages[payload.packageId]) ||
-                  (payload && STARS_PACKAGES[payload.packageId]);
-      const valid = !!(pkg && query.currency === 'XTR' && query.total_amount === pkg.stars);
-
       await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pre_checkout_query_id: query.id,
-          ok: valid,
-          error_message: valid ? undefined : 'Error en la orden de compra.'
+          pre_checkout_query_id: pcq.id,
+          ok: true
         })
       });
     } catch (err) {
@@ -1683,30 +1687,26 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     return;
   }
 
-  // 2. Handle successful_payment
+  // 2. Handle successful_payment (credited after Stars purchase completes)
   if (update.message && update.message.successful_payment) {
     const sp = update.message.successful_payment;
     try {
-      let payload = null;
-      try {
-        payload = JSON.parse(sp.invoice_payload);
-      } catch (_) {}
-
+      const payload = JSON.parse(sp.invoice_payload);
       if (payload && payload.uid && payload.coins) {
         const db = admin.firestore();
+        const userRef = db.collection('users').doc(payload.uid);
         const chargeId = sp.telegram_payment_charge_id;
-        const paymentRef = db.collection('stars_payments').doc(chargeId);
+        const paymentRef = db.collection('payments').doc(chargeId);
 
         await db.runTransaction(async (tx) => {
-          const paymentSnap = await tx.get(paymentRef);
-          if (paymentSnap.exists) {
-            // Already processed
+          const pDoc = await tx.get(paymentRef);
+          if (pDoc.exists) {
+            console.log(`Payment ${chargeId} already processed.`);
             return;
           }
 
-          const userRef = db.collection('users').doc(payload.uid);
-          const userSnap = await tx.get(userRef);
-          if (!userSnap.exists) {
+          const userDoc = await tx.get(userRef);
+          if (!userDoc.exists) {
             console.error(`User ${payload.uid} not found for payment ${chargeId}`);
             return;
           }
@@ -1744,7 +1744,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
   // 3. Handle callback_query (inline buttons for choosing packages)
   if (update.callback_query) {
     const cb = update.callback_query;
-    const chatId = cb.message && cb.message.chat && cb.message.chat.id;
+    const chatId = (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id);
     const data = cb.data || '';
     const db = admin.firestore();
 
@@ -1752,8 +1752,8 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       const packageId = data.replace('buy_', '');
       const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
       if (!linkSnap.exists) {
-        await answerTelegramCallbackQuery(cb.id, '⚠️ Primero vincula tu UID.');
-        await sendTelegramMessage(chatId, '⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n`/cuenta TU_UID`');
+        await answerTelegramCallbackQuery(cb.id, '⚠️ Primero vincula tu UID con /vincular TU_UID', true);
+        await sendTelegramMessage(chatId, '⚠️ *Aún no has vinculado tu UID del juego.*\n\nPor favor escribe:\n`/vincular TU_UID`');
         res.status(200).json({ ok: true });
         return;
       }
@@ -1761,12 +1761,12 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       const ecoConfig = await fetchEconomyConfig();
       const pkg = (ecoConfig.starsPackages && ecoConfig.starsPackages[packageId]) || STARS_PACKAGES[packageId];
       if (!pkg) {
-        await answerTelegramCallbackQuery(cb.id, 'Paquete no válido.');
+        await answerTelegramCallbackQuery(cb.id, 'Paquete no válido.', true);
         res.status(200).json({ ok: true });
         return;
       }
 
-      await answerTelegramCallbackQuery(cb.id, `Generando factura...`);
+      await answerTelegramCallbackQuery(cb.id, `Generando orden de ${pkg.coins} Orbes...`);
 
       const payload = JSON.stringify({
         uid: linkData.uid,
@@ -1789,7 +1789,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
     if (data === 'change_uid' && chatId) {
       await answerTelegramCallbackQuery(cb.id, 'Cambiar UID');
-      await sendTelegramMessage(chatId, 'Para vincular un UID diferente, escribe:\n\n`/cuenta TU_NUEVO_UID`');
+      await sendTelegramMessage(chatId, 'Para vincular un UID diferente, escribe:\n\n`/vincular TU_NUEVO_UID`');
       res.status(200).json({ ok: true });
       return;
     }
