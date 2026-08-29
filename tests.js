@@ -592,7 +592,8 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   // the same reasoning documented in testDeckOutLoss above.
   state.activePlayerId = 'cpu';
   state.turnCounter = 3;
-  endTurn(state); // player successfully draws their last card, deck now empty
+  endTurn(state);
+  drawForTurnStart(state, 'player'); // player successfully draws their last card, deck now empty
   check('successfully drawing the last card does not cause a loss', getWinner(state), null);
 })();
 

@@ -1180,17 +1180,6 @@ function endTurn(state) {
   state.activePlayerId = opponentOf(justFinished);
   state.players[justFinished].energyAttachedThisTurn = false;
   state.players[justFinished].retreatedThisTurn = false;
-
-  // Only draws here for the player -- their upcoming turn starts playing
-  // immediately, no click needed, so there's nothing wrong with drawing
-  // right away. The CPU's turn-start draw happens later, at the top of
-  // cpuTakeTurn() (ai.js) instead: endTurn() can flip activePlayerId to
-  // 'cpu' well before the CPU actually acts (e.g. right when the player
-  // attacks, which ends their turn internally but waits for an explicit
-  // "Terminar turno" click before the CPU moves -- see ui.js's
-  // runCpuTurn/afterPlayerAction). Drawing here for the CPU would let the
-  // player see its hand count go up before it's actually taken its turn.
-  if (state.turnCounter > 1 && state.activePlayerId === 'player') { drawForTurnStart(state, 'player'); }
 }
 
 function getWinner(state) {

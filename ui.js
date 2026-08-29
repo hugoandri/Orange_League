@@ -933,9 +933,9 @@ function positionTurnFlash(el) {
   el.style.height = rect.height + 'px';
 }
 
-function showTurnFlash(text, colorClass) {
+function showTurnFlash(text, colorClass, onDone) {
   var el = document.getElementById('turnFlashOverlay');
-  if (!el) { return; }
+  if (!el) { if (onDone) { onDone(); } return; }
   clearTimeout(turnFlashHoldTimeout);
   clearTimeout(turnFlashFadeTimeout);
   el.textContent = text;
@@ -946,6 +946,7 @@ function showTurnFlash(text, colorClass) {
     turnFlashFadeTimeout = setTimeout(function () {
       el.classList.add('hidden');
       el.classList.remove('fading');
+      if (onDone) { onDone(); }
     }, 250);
   }, 1000);
 }
@@ -1287,8 +1288,13 @@ function renderActiveChoiceModal() {
       // Wind sniping a Bench Pokémon into a fight it loses, say) never set
       // one, so this is a no-op there.
       if (pendingTurnFlash) {
-        showTurnFlash(pendingTurnFlash.text, pendingTurnFlash.colorClass);
+        var flash = pendingTurnFlash;
         pendingTurnFlash = null;
+        showTurnFlash(flash.text, flash.colorClass, function () {
+          if (flash.text === 'TU TURNO') {
+            startPlayerTurnWithDraw();
+          }
+        });
       }
       // If a checkup at "Terminar turno" is what triggered this (the
       // player's own poisoned/burned Active dying), let the CPU's turn
@@ -1815,6 +1821,15 @@ function proceedWithCpuTurn() {
       // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
       showCpuThinkingIndicator();
       setTimeout(function () {
+function startPlayerTurnWithDraw() {
+  if (gameState && gameState.activePlayerId === 'player' && !getWinner(gameState) && !pvpMode) {
+    if (gameState.turnCounter > 1) {
+      drawForTurnStart(gameState, 'player');
+    }
+    renderBoard();
+  }
+}
+
         function reveal() {
           afterPlayerAction();
           // Skip the flash if that turn just won/lost the match -- there's
@@ -1827,7 +1842,9 @@ function proceedWithCpuTurn() {
           if (hasPendingPlayerChoice()) {
             pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
           } else {
-            showTurnFlash('TU TURNO', 'mine');
+            showTurnFlash('TU TURNO', 'mine', function () {
+              startPlayerTurnWithDraw();
+            });
           }
         }
         // If the CPU attacked this turn, show the attack overlay (~1s)
