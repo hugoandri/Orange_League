@@ -206,6 +206,8 @@ function renderProfile() {
   if (menuNameEl) { menuNameEl.textContent = name; }
   var menuPhotoEl = document.getElementById('menuProfilePhoto');
   if (menuPhotoEl) { menuPhotoEl.src = photo; }
+  var menuUidEl = document.getElementById('menuUserUid');
+  if (menuUidEl) { menuUidEl.textContent = (profileState && profileState.uid) || '--'; }
 
   document.querySelectorAll('.collection-profile-name').forEach(function (el) { el.textContent = name; });
   document.querySelectorAll('.collection-profile-photo').forEach(function (el) { el.src = photo; });

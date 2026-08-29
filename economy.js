@@ -20,7 +20,7 @@ function initEconomyListener(uid, onFirstLoad) {
       var data = snap.data();
       if (!data) { return; }
       econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {}, pendingCodePacks: data.pendingCodePacks || [] };
-      profileState = { username: data.username || '', photo: data.photo || null };
+      profileState = { uid: uid, username: data.username || '', photo: data.photo || null };
       renderCoinCount();
       renderProfile();
       updateShopBalance();

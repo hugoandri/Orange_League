@@ -266,7 +266,9 @@
     var unsubscribeCustomPacks = null;
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
+      var menuUidEl = document.getElementById('menuUserUid');
       if (user) {
+        if (menuUidEl) { menuUidEl.textContent = user.uid; }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
@@ -278,6 +280,7 @@
         if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }
         unsubscribeCustomPacks = initCustomPacksListener();
       } else {
+        if (menuUidEl) { menuUidEl.textContent = '--'; }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         hideAccountVerifyingOverlay();
         if (unsubscribeEconomy) {
