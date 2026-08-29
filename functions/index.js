@@ -1787,11 +1787,22 @@ exports.telegramWebhook = onRequest(async (req, res) => {
             telegramUsername: fromUser.username || null,
             updatedAt: FieldValue.serverTimestamp()
           });
-          const welcomeMsg = `⚡ *¡Orange League TCG - Tienda Oficial!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo: *${userData.coins || 0} Orbes*\n\nUsa el comando /tienda para ver los paquetes de Orbes con Estrellas ⭐.`;
-          await sendTelegramMessage(chatId, welcomeMsg, {
-            keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
-            resize_keyboard: true
+
+          const ecoConfig = await fetchEconomyConfig();
+          const pkgs = ecoConfig.starsPackages || STARS_PACKAGES;
+
+          const inlineKeyboard = Object.keys(pkgs).map((k) => {
+            const p = pkgs[k];
+            const tagText = p.tag ? ` (${p.tag})` : '';
+            return [{
+              text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
+              callback_data: `buy_${p.id}`
+            }];
           });
+          inlineKeyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
+
+          const welcomeMsg = `⚡ *¡ORANGE LEAGUE TCG - TIENDA OFICIAL!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo actual: *${userData.coins || 0} Orbes*\n\n🛒 *Elige el paquete que deseas comprar con Estrellas (⭐):*`;
+          await sendTelegramMessage(chatId, welcomeMsg, { inline_keyboard: inlineKeyboard });
           res.status(200).json({ ok: true });
           return;
         }

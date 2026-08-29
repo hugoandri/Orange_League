@@ -268,8 +268,10 @@
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
       var menuUidEl = document.getElementById('menuUserUid');
+      var menuTelegramBtn = document.getElementById('menuTelegramBtn');
       if (user) {
         if (menuUidEl) { menuUidEl.textContent = user.uid; }
+        if (menuTelegramBtn) { menuTelegramBtn.href = 'https://t.me/OrangeLeagueTCGBot?start=uid_' + encodeURIComponent(user.uid); }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
@@ -284,6 +286,7 @@
         unsubscribeEconomyConfig = initEconomyConfigListener();
       } else {
         if (menuUidEl) { menuUidEl.textContent = '--'; }
+        if (menuTelegramBtn) { menuTelegramBtn.href = 'https://t.me/OrangeLeagueTCGBot'; }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         hideAccountVerifyingOverlay();
         if (unsubscribeEconomy) {

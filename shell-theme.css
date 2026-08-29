@@ -225,6 +225,29 @@
 }
 .shell-type-badge:hover{transform:translateY(-5px);}
 .shell-type-badge img{width:100%;height:100%;display:block;border-radius:50%;}
+.shell-telegram-btn{
+  position:absolute;right:40px;bottom:158px;display:inline-flex;align-items:center;gap:10px;
+  font-size:12px;letter-spacing:.14em;color:#24A1DE;padding:11px 18px;cursor:pointer;text-decoration:none;
+  border:1px solid #0b0907;font-family:'Silkscreen',monospace;
+  background:linear-gradient(180deg,#162634,#0f1b25);
+  box-shadow:inset 0 1px 0 rgba(36,161,222,.32),0 3px 0 #100e0b,0 6px 16px rgba(0,0,0,.5);
+  transition:all .15s ease;
+  z-index:5;
+}
+.shell-telegram-btn:hover{
+  color:#ffffff;
+  background:linear-gradient(180deg,#24A1DE,#187ea8);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 0 #125779,0 0 18px rgba(36,161,222,.6);
+  filter:brightness(1.15);
+  transform:translateY(-2px);
+}
+.shell-telegram-btn:focus-visible{
+  box-shadow:inset 0 0 0 2px #24A1DE;
+}
+.shell-telegram-icon{
+  flex:none;
+  display:block;
+}
 .shell-discord-btn{
   position:absolute;right:40px;bottom:108px;display:inline-flex;align-items:center;gap:10px;
   font-size:12px;letter-spacing:.14em;color:#5865F2;padding:11px 18px;cursor:pointer;text-decoration:none;
