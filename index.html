@@ -1039,63 +1039,105 @@
 
   <div id="pvpModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
-    <div class="shell-modal-card">
-      <p class="shell-modal-title">JUGAR PVP</p>
-      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
-        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpFindRivalBtn" disabled>BUSCAR RIVAL (PRÓXIMAMENTE)</button>
-        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpCreateRoomBtn">CREAR SALA</button>
-        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpJoinRoomBtn">BUSCAR SALA</button>
+    <div class="pvp-launcher" role="dialog" aria-modal="true" aria-labelledby="pvpLauncherTitle">
+      <div class="pvp-launcher-topline"><span class="pvp-status-dot"></span> RED DE DUELOS · EN LÍNEA</div>
+      <p class="pvp-launcher-kicker">ORANGE LEAGUE // PVP</p>
+      <h2 class="pvp-launcher-title" id="pvpLauncherTitle">ELEGÍ CÓMO<br>ENTRAR AL DUELO</h2>
+      <p class="pvp-launcher-copy">Cada entrenador confirma su propio mazo antes de que la partida pueda comenzar.</p>
+      <div class="pvp-launcher-actions">
+        <button type="button" class="pvp-launcher-action pvp-launcher-action-primary" id="pvpCreateRoomBtn"><span>01</span> CREAR SALA <b>→</b></button>
+        <button type="button" class="pvp-launcher-action" id="pvpJoinRoomBtn"><span>02</span> UNIRSE CON CÓDIGO <b>→</b></button>
       </div>
-      <button type="button" class="shell-modal-btn" id="pvpModalClose">&times;</button>
+      <button type="button" class="pvp-launcher-close" id="pvpModalClose" aria-label="Cerrar PVP">×</button>
     </div>
   </div>
 
   <div id="pvpCreateScreen" class="hidden">
-    <div class="shell-viewport"><div class="shell-stage">
-      <div id="pvpCreateDeckPicker">
-        <p class="shell-modal-title">ELEGÍ TU MAZO</p>
-        <div id="pvpCreateDeckList"></div>
-      </div>
-      <div id="pvpCreateWaiting" class="hidden shell-pvp-waiting">
-        <p class="shell-modal-title">ESPERANDO A UN RIVAL…</p>
-        <div class="shell-pvp-vs-row">
-          <div class="hidden shell-pvp-vs-deck" id="pvpWaitingMyDeckWrap">
-            <img id="pvpWaitingMyDeckArt" src="" alt="">
-          </div>
-          <div class="shell-pvp-vs-player">
-            <div class="shell-pvp-vs-avatar"><img id="pvpWaitingMyPhoto" src="" alt=""></div>
-            <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
-          </div>
-          <div class="shell-pvp-vs-badge">VS</div>
-          <div class="shell-pvp-vs-player">
-            <div class="shell-pvp-vs-avatar shell-pvp-vs-avatar-opponent">
-              <div class="shell-loading-spinner" id="pvpWaitingOpponentSpinner"></div>
-              <img id="pvpWaitingOpponentPhoto" src="" alt="" class="hidden">
+    <div class="shell-viewport pvp-command-viewport"><div class="shell-stage">
+      <div class="pvp-command-shell">
+        <aside class="pvp-command-rail">
+          <div class="pvp-command-mark"><span class="pvp-mark-square">OL</span><span>DUEL<br>COMMAND</span></div>
+          <p class="pvp-command-version">SALA PRIVADA · V1.0</p>
+          <div class="pvp-command-rail-rule"></div>
+          <div class="pvp-command-rail-label">OPERACIÓN</div>
+          <div class="pvp-command-rail-active"><span>01</span> CREAR SALA</div>
+          <div class="pvp-command-rail-item"><span>02</span> MAZOS LISTOS</div>
+          <div class="pvp-command-rail-item"><span>03</span> INICIAR DUELO</div>
+          <div class="pvp-command-rail-footer"><span class="pvp-status-dot"></span> CONEXIÓN SEGURA</div>
+          <button type="button" class="pvp-command-back" id="pvpCreateBackBtn">← VOLVER AL MENÚ</button>
+        </aside>
+        <main class="pvp-command-main">
+          <header class="pvp-command-header"><span>ORANGE LEAGUE / SALA PVP</span><span class="pvp-command-header-online"><i></i> CANAL PRIVADO</span></header>
+          <section id="pvpCreateDeckPicker" class="pvp-command-content">
+            <p class="pvp-command-eyebrow">PASO 01 / TU CARGAMENTO</p>
+            <h1>SELECCIONÁ<br>TU MAZO</h1>
+            <p class="pvp-command-lede">Tu rival hará lo mismo antes de iniciar. Elegí el mazo con el que vas a disputar las seis cartas de premio.</p>
+            <div class="pvp-command-rule"><span></span></div>
+            <div id="pvpCreateDeckList"></div>
+          </section>
+          <section id="pvpCreateWaiting" class="hidden pvp-command-content pvp-room-ready">
+            <p class="pvp-command-eyebrow">SALA CREADA / ESPERANDO CONFIRMACIÓN</p>
+            <h1>AMBOS MAZOS<br>DEBEN ESTAR LISTOS</h1>
+            <p class="pvp-command-lede">Compartí el código de la sala. El duelo se abrirá cuando el otro entrenador elija y confirme su mazo.</p>
+            <div class="pvp-ready-board">
+              <div class="pvp-ready-player pvp-ready-player-me">
+                <div class="pvp-ready-player-head"><span>JUGADOR 01</span><i>MAZO CONFIRMADO</i></div>
+                <div class="shell-pvp-vs-avatar"><img id="pvpWaitingMyPhoto" src="" alt=""></div>
+                <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
+                <div class="hidden shell-pvp-vs-deck" id="pvpWaitingMyDeckWrap"><img id="pvpWaitingMyDeckArt" src="" alt="Mazo elegido"></div>
+              </div>
+              <div class="shell-pvp-vs-badge">VS</div>
+              <div class="pvp-ready-player pvp-ready-player-opponent">
+                <div class="pvp-ready-player-head"><span>JUGADOR 02</span><i id="pvpWaitingOpponentStatus">ESPERANDO</i></div>
+                <div class="shell-pvp-vs-avatar shell-pvp-vs-avatar-opponent">
+                  <div class="shell-loading-spinner" id="pvpWaitingOpponentSpinner"></div>
+                  <img id="pvpWaitingOpponentPhoto" src="" alt="" class="hidden">
+                </div>
+                <p class="shell-pvp-waiting-name" id="pvpWaitingOpponentName">ESPERANDO…</p>
+                <div class="hidden shell-pvp-vs-deck" id="pvpWaitingOpponentDeckWrap"><img id="pvpWaitingOpponentDeckArt" src="" alt="Mazo del rival"></div>
+              </div>
             </div>
-            <p class="shell-pvp-waiting-name" id="pvpWaitingOpponentName">ESPERANDO…</p>
-          </div>
-          <div class="hidden shell-pvp-vs-deck" id="pvpWaitingOpponentDeckWrap">
-            <img id="pvpWaitingOpponentDeckArt" src="" alt="">
-          </div>
-        </div>
-        <div class="shell-pvp-room-code" id="pvpRoomCodeDisplay"></div>
+            <div class="pvp-room-code-panel"><span>CÓDIGO DE SALA</span><strong id="pvpRoomCodeDisplay"></strong><small>COMPARTILO CON TU RIVAL</small></div>
+          </section>
+        </main>
       </div>
-      <button type="button" class="shell-modal-btn" id="pvpCreateBackBtn">VOLVER</button>
     </div></div>
   </div>
 
   <div id="pvpJoinScreen" class="hidden">
-    <div class="shell-viewport"><div class="shell-stage">
-      <div id="pvpJoinCodeStep">
-        <p class="shell-modal-title">INGRESÁ EL CÓDIGO</p>
-        <input type="text" id="pvpJoinCodeInput" maxlength="6" style="text-transform:uppercase;">
-        <div id="pvpJoinCodeStatus"></div>
+    <div class="shell-viewport pvp-command-viewport"><div class="shell-stage">
+      <div class="pvp-command-shell">
+        <aside class="pvp-command-rail">
+          <div class="pvp-command-mark"><span class="pvp-mark-square">OL</span><span>DUEL<br>COMMAND</span></div>
+          <p class="pvp-command-version">SALA PRIVADA · V1.0</p>
+          <div class="pvp-command-rail-rule"></div>
+          <div class="pvp-command-rail-label">OPERACIÓN</div>
+          <div class="pvp-command-rail-item"><span>01</span> CÓDIGO DE SALA</div>
+          <div class="pvp-command-rail-active"><span>02</span> ELEGIR MAZO</div>
+          <div class="pvp-command-rail-item"><span>03</span> INICIAR DUELO</div>
+          <div class="pvp-command-rail-footer"><span class="pvp-status-dot"></span> CONEXIÓN SEGURA</div>
+          <button type="button" class="pvp-command-back" id="pvpJoinBackBtn">← VOLVER AL MENÚ</button>
+        </aside>
+        <main class="pvp-command-main">
+          <header class="pvp-command-header"><span>ORANGE LEAGUE / SALA PVP</span><span class="pvp-command-header-online"><i></i> CANAL PRIVADO</span></header>
+          <section id="pvpJoinCodeStep" class="pvp-command-content pvp-join-code">
+            <p class="pvp-command-eyebrow">PASO 01 / LOCALIZAR SALA</p>
+            <h1>INGRESÁ EL<br>CÓDIGO DE SALA</h1>
+            <p class="pvp-command-lede">Pedile al anfitrión el código de seis caracteres. Luego vas a poder elegir el mazo para este duelo.</p>
+            <div class="pvp-command-rule"><span></span></div>
+            <label class="pvp-code-label" for="pvpJoinCodeInput">CÓDIGO DE ACCESO</label>
+            <input type="text" id="pvpJoinCodeInput" maxlength="6" autocomplete="off" spellcheck="false" placeholder="______">
+            <div id="pvpJoinCodeStatus" role="status"></div>
+          </section>
+          <section id="pvpJoinDeckPicker" class="hidden pvp-command-content">
+            <p class="pvp-command-eyebrow">PASO 02 / TU CARGAMENTO</p>
+            <h1>CONFIRMÁ<br>TU MAZO</h1>
+            <p class="pvp-command-lede">Elegí con cuidado. Cuando ambos entrenadores confirmen su mazo, empieza el duelo.</p>
+            <div class="pvp-command-rule"><span></span></div>
+            <div id="pvpJoinDeckList"></div>
+          </section>
+        </main>
       </div>
-      <div id="pvpJoinDeckPicker" class="hidden">
-        <p class="shell-modal-title">ELEGÍ TU MAZO</p>
-        <div id="pvpJoinDeckList"></div>
-      </div>
-      <button type="button" class="shell-modal-btn" id="pvpJoinBackBtn">VOLVER</button>
     </div></div>
   </div>
 

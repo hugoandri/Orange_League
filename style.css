@@ -64,11 +64,8 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #boardScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
-/* PVP room screens (crear/unirse) -- same full-screen-overlay pattern as
-   every other screen above. These shipped with ZERO CSS (final-review fix
-   C1): class="hidden" alone does nothing without this pair, so both were
-   visible from page load, unstyled, layered below #menuScreen/#boardScreen
-   (no z-index at all). */
+/* PVP room screens use the same full-screen surface as the rest of the app,
+   but their content is a deliberately denser command-center layout. */
 #pvpCreateScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #pvpCreateScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
@@ -83,32 +80,55 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #pvpRpsScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
-/* Sub-panels inside those two screens (deck picker / waiting-for-rival /
-   code-entry step) -- same plain display:none idiom already used for other
-   screens' own inner sub-panels (see .shell-trainer-played.hidden,
-   .shell-attack-overlay.hidden in shell-theme.css), not the animated
-   opacity/visibility pair above (only the full-screen surface needs that). */
 #pvpCreateDeckPicker.hidden,#pvpCreateWaiting.hidden,
 #pvpJoinCodeStep.hidden,#pvpJoinDeckPicker.hidden,
 #pvpRpsChoices.hidden,#pvpRpsWaiting.hidden,
 #pvpWaitingMyDeckWrap.hidden,#pvpWaitingOpponentDeckWrap.hidden,
 #pvpWaitingOpponentPhoto.hidden,#pvpWaitingOpponentSpinner.hidden{display:none;}
 
-/* .shell-stage is a fixed 1920x1080 absolutely-positioned canvas with no
-   centering of its own (every other screen that uses it lays out its own
-   content with absolute positions or a .shell-page wrapper) -- these 3
-   screens are simple enough to just flex-center directly, scoped to only
-   these ids so no other screen's .shell-stage usage is affected. */
-#pvpCreateScreen .shell-stage,#pvpJoinScreen .shell-stage,#pvpRpsScreen .shell-stage{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
-}
-#pvpCreateDeckList,#pvpJoinDeckList{display:flex;flex-direction:column;gap:14px;width:640px;max-height:640px;overflow-y:auto;}
-/* Reused for the PVP deck picker instead of the "Mi Mazo" screen's own
-   grid, so a real <button> here (native keyboard activation, unlike the
-   real Decks screen's div[role=button] cards) doesn't pick up default
-   browser button chrome -- .shell-deck-card already sets its own
-   background/border/display:flex, this just neutralizes the rest. */
-button.shell-deck-card{margin:0;width:100%;font:inherit;color:inherit;text-align:left;appearance:none;-webkit-appearance:none;}
+/* The PVP experience follows the supplied command-center reference: a
+   tactical grid, green system signals, hard edges and a compact left rail.
+   It intentionally stands apart from the warmer single-player shell. */
+#pvpCreateScreen .pvp-command-viewport,#pvpJoinScreen .pvp-command-viewport{background-color:#080b07;background-image:
+  linear-gradient(rgba(141,255,98,.045) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(141,255,98,.045) 1px,transparent 1px),
+  radial-gradient(circle at 75% 8%,rgba(91,255,59,.08),transparent 30%);
+  background-size:38px 38px,38px 38px,auto;}
+.pvp-command-shell{position:absolute;inset:0;display:flex;background:#080b07;}
+.pvp-command-rail{width:370px;flex:none;padding:58px 38px 36px;border-right:1px solid rgba(168,196,144,.28);display:flex;flex-direction:column;background:rgba(7,10,6,.9);}
+.pvp-command-mark{display:flex;align-items:center;gap:18px;color:#e7efe0;font-family:'Pixelify Sans',sans-serif;font-size:31px;font-weight:700;line-height:.88;letter-spacing:.04em;}
+.pvp-mark-square{display:grid;place-items:center;width:62px;height:62px;border:1px solid #506144;background:#10170e;color:#8dff62;font-family:'Silkscreen',monospace;font-size:14px;box-shadow:inset 0 0 0 5px #080b07;}
+.pvp-command-version{margin:17px 0 0 80px;color:#56e737;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.16em;}
+.pvp-command-rail-rule{height:1px;background:rgba(168,196,144,.26);margin:66px 0 28px;}
+.pvp-command-rail-label{color:#829075;font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:.16em;margin:0 0 14px 14px;}
+.pvp-command-rail-active,.pvp-command-rail-item{padding:18px 16px;font-family:'Silkscreen',monospace;font-size:13px;letter-spacing:.08em;color:#9cae90;border-left:4px solid transparent;}
+.pvp-command-rail-active{color:#7dff59;background:rgba(211,236,195,.11);border-left-color:#4cff28;box-shadow:inset 0 0 34px rgba(107,255,64,.035);}
+.pvp-command-rail-active span,.pvp-command-rail-item span{display:inline-block;width:38px;color:#5d6d55;}
+.pvp-command-rail-active span{color:#7dff59;}
+.pvp-command-rail-footer{margin-top:auto;color:#97ab8b;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.12em;display:flex;align-items:center;gap:10px;}
+.pvp-status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4cff28;box-shadow:0 0 14px rgba(76,255,40,.9);}
+.pvp-command-back{margin-top:25px;padding:16px;border:1px solid #4d5a44;background:rgba(11,15,9,.82);color:#d7e4ce;font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:.1em;text-align:left;cursor:pointer;}
+.pvp-command-back:hover,.pvp-command-back:focus-visible{border-color:#72ff50;color:#84ff63;outline:none;}
+.pvp-command-main{flex:1;min-width:0;padding:0 86px 66px;overflow:auto;}
+.pvp-command-header{height:116px;border-bottom:1px solid rgba(168,196,144,.28);display:flex;align-items:center;justify-content:space-between;color:#a9b99e;font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:.15em;}
+.pvp-command-header-online{display:flex;align-items:center;gap:10px;color:#c6d5bd;}.pvp-command-header-online i{width:7px;height:7px;border-radius:50%;background:#7dff59;box-shadow:0 0 11px #4cff28;}
+.pvp-command-content{width:min(1220px,100%);padding:74px 0 0;}
+.pvp-command-eyebrow{margin:0 0 18px;color:#7dff59;font-family:'Silkscreen',monospace;font-size:11px;letter-spacing:.15em;}
+.pvp-command-content h1{margin:0;color:#ecf1e8;font-family:'Pixelify Sans',sans-serif;font-size:64px;font-weight:700;line-height:.9;letter-spacing:-.02em;}
+.pvp-command-lede{max-width:790px;margin:27px 0 0;color:#b1beaa;font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.02em;line-height:1.8;}
+.pvp-command-rule{height:1px;margin:39px 0 30px;background:#485641;position:relative;}.pvp-command-rule span{position:absolute;width:92px;height:3px;left:0;top:-1px;background:#65f142;box-shadow:0 0 13px rgba(76,255,40,.55);}
+#pvpCreateDeckList,#pvpJoinDeckList{width:100%;max-width:1180px;}
+.pvp-deck-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-height:420px;overflow-y:auto;padding-right:8px;}
+button.shell-deck-card.pvp-deck-option{position:relative;min-height:142px;margin:0;width:100%;font:inherit;color:inherit;text-align:left;appearance:none;-webkit-appearance:none;border:1px solid #526148;border-radius:0;background:rgba(10,15,9,.9);box-shadow:none;cursor:pointer;overflow:hidden;}
+.pvp-deck-option:hover,.pvp-deck-option:focus-visible{border-color:#8dff62;filter:none;outline:none;background:#10180e;}
+.pvp-deck-option.selected{border-color:#7dff59;background:#111c0e;box-shadow:inset 0 0 0 1px rgba(125,255,89,.35),0 0 23px rgba(76,255,40,.1);}
+.pvp-deck-option .shell-deck-card-art{width:112px;height:140px;}.pvp-deck-option .shell-deck-card-body{padding:24px 68px 16px 20px;gap:12px;justify-content:center;}.pvp-deck-option .shell-deck-card-name{font-size:25px;color:#edf4e9;}.pvp-deck-option .shell-deck-card-types{color:#92a687;}.pvp-deck-option-state{position:absolute;right:17px;bottom:18px;color:#8da283;font-family:'Silkscreen',monospace;font-size:9px;letter-spacing:.1em;}.pvp-deck-option.selected .pvp-deck-option-state{color:#7dff59;}.pvp-deck-option.selected .pvp-deck-option-state::after{content:' ✓';}
+.pvp-deck-confirm-bar{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:22px;padding:18px 0 0;border-top:1px solid rgba(168,196,144,.24);color:#9cae90;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.1em;}
+.pvp-deck-confirm-bar button{min-width:290px;padding:17px 20px;border:1px solid #74ff51;background:#52e930;color:#071004;font-family:'Silkscreen',monospace;font-size:11px;font-weight:700;letter-spacing:.12em;cursor:pointer;box-shadow:0 0 20px rgba(76,255,40,.18);}.pvp-deck-confirm-bar button b{font-size:17px;margin-left:16px;}.pvp-deck-confirm-bar button:hover{filter:brightness(1.12);}.pvp-deck-confirm-bar button:disabled{background:#182116;border-color:#3b4a36;color:#75836d;box-shadow:none;cursor:not-allowed;}
+.pvp-room-ready{padding-top:62px;}.pvp-ready-board{display:grid;grid-template-columns:1fr 88px 1fr;align-items:center;gap:34px;margin-top:40px;padding:28px;border:1px solid #4a5843;background:rgba(8,13,7,.84);}.pvp-ready-player{min-height:285px;display:grid;grid-template-columns:142px 1fr;grid-template-rows:auto 1fr auto;column-gap:22px;align-items:center;position:relative;}.pvp-ready-player-head{grid-column:1/-1;display:flex;justify-content:space-between;border-bottom:1px solid rgba(168,196,144,.19);padding-bottom:13px;color:#b7c6ae;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.1em;}.pvp-ready-player-head i{color:#7dff59;font-style:normal;font-size:9px;}.pvp-ready-player-opponent .pvp-ready-player-head i{color:#8e9a87;}.pvp-ready-player .shell-pvp-vs-avatar{width:122px;height:122px;border:1px solid #7dff59;border-radius:0;background:#0b1009;box-shadow:none;}.pvp-ready-player .shell-pvp-vs-avatar-opponent{border-color:#5f6c57;}.pvp-ready-player .shell-pvp-waiting-name{align-self:end;color:#edf4e9;font-size:13px;}.pvp-ready-player .shell-pvp-vs-deck{grid-column:2;grid-row:2/4;width:155px;height:214px;border-radius:0;border-color:#526148;box-shadow:none;justify-self:end;}.shell-pvp-vs-badge{align-self:center;color:#7dff59;font-family:'Pixelify Sans',sans-serif;font-size:39px;text-align:center;text-shadow:0 0 19px rgba(76,255,40,.36);}.pvp-room-code-panel{display:flex;align-items:center;gap:25px;margin-top:21px;padding:19px 24px;border:1px solid #4a5843;background:rgba(5,9,4,.88);font-family:'Silkscreen',monospace;}.pvp-room-code-panel span,.pvp-room-code-panel small{font-size:10px;letter-spacing:.12em;color:#92a287;}.pvp-room-code-panel strong{font-family:'Pixelify Sans',sans-serif;font-size:37px;letter-spacing:.22em;color:#7dff59;text-shadow:0 0 16px rgba(76,255,40,.38);}.pvp-room-code-panel small{margin-left:auto;}
+.pvp-join-code{max-width:930px;}.pvp-code-label{display:block;margin-bottom:13px;color:#8fa185;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.12em;}.pvp-join-code input{width:580px;padding:22px 25px;border:1px solid #718168;background:rgba(6,10,5,.92);color:#86ff67;font-family:'Pixelify Sans',sans-serif;font-size:44px;letter-spacing:.34em;text-transform:uppercase;outline:none;}.pvp-join-code input:focus{border-color:#7dff59;box-shadow:0 0 0 3px rgba(76,255,40,.1);}.pvp-join-code input::placeholder{color:#41503c;}.pvp-join-code #pvpJoinCodeStatus{min-height:27px;margin-top:15px;color:#ff9b86;font-family:'Silkscreen',monospace;font-size:10px;letter-spacing:.07em;}
+.pvp-launcher{width:720px;position:relative;padding:42px 48px 46px;border:1px solid #506144;background-color:#090d08;background-image:linear-gradient(rgba(141,255,98,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(141,255,98,.04) 1px,transparent 1px);background-size:28px 28px;box-shadow:0 22px 70px rgba(0,0,0,.75),0 0 70px rgba(76,255,40,.08);font-family:'Silkscreen',monospace;}.pvp-launcher-topline{font-size:10px;letter-spacing:.12em;color:#9daf94;display:flex;align-items:center;gap:10px;}.pvp-launcher-kicker{margin:47px 0 15px;color:#79f35b;font-size:11px;letter-spacing:.16em;}.pvp-launcher-title{margin:0;color:#eef5ea;font-family:'Pixelify Sans',sans-serif;font-size:55px;line-height:.9;letter-spacing:-.02em;}.pvp-launcher-copy{max-width:550px;margin:25px 0 34px;color:#b0bda8;font-size:12px;line-height:1.8;}.pvp-launcher-actions{display:flex;flex-direction:column;gap:12px;}.pvp-launcher-action{display:flex;align-items:center;gap:17px;padding:19px;border:1px solid #4f6048;background:#0c120a;color:#c4d0bd;font-family:'Silkscreen',monospace;font-size:12px;letter-spacing:.1em;cursor:pointer;text-align:left;}.pvp-launcher-action span{color:#6d7d64;}.pvp-launcher-action b{margin-left:auto;font-size:19px;font-weight:400;}.pvp-launcher-action:hover{border-color:#7dff59;color:#e7f3e1;}.pvp-launcher-action-primary{border-color:#69ef49;background:#57e934;color:#061002;box-shadow:0 0 22px rgba(76,255,40,.2);}.pvp-launcher-action-primary span{color:#173d10;}.pvp-launcher-close{position:absolute;top:22px;right:24px;border:0;background:transparent;color:#9daf94;font-family:'Pixelify Sans',sans-serif;font-size:30px;cursor:pointer;}.pvp-launcher-close:hover{color:#7dff59;}
+@media (max-width:900px){.pvp-command-main{padding-right:50px;padding-left:50px;}.pvp-command-rail{width:300px;padding-left:26px;padding-right:26px;}.pvp-command-content h1{font-size:52px;}.pvp-ready-board{gap:18px;}.pvp-ready-player{grid-template-columns:110px 1fr;column-gap:12px;}.pvp-ready-player .shell-pvp-vs-deck{width:125px;height:174px;}.pvp-launcher{width:620px;}}
 
 .shell-pvp-waiting{display:flex;flex-direction:column;align-items:center;gap:16px;}
 .shell-pvp-waiting-name{font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.08em;color:#8dff62;margin:0;}

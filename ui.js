@@ -3890,7 +3890,6 @@ var PRECON_DECK_ART = {
 function renderPvpDeckPicker(containerId, onPicked) {
   var el = document.getElementById(containerId);
   if (!el) { return; }
-  el.className = 'shell-decks-list shell-pvp-deck-list';
   var options = PRECON_DECK_KEYS.map(function (key) {
     var art = PRECON_DECK_ART[key] || {};
     return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
@@ -3905,21 +3904,48 @@ function renderPvpDeckPicker(containerId, onPicked) {
       });
     }
   });
-  el.innerHTML = options.map(function (o) {
+  el.innerHTML = '<div class="pvp-deck-grid">' + options.map(function (o) {
     var artHtml = o.img
       ? '<div class="shell-deck-card-art"><img src="' + escapeHtml(o.img) + '" alt="" loading="lazy"></div>'
       : '<div class="shell-deck-card-art shell-deck-card-art-placeholder">' + escapeHtml((o.label || '?').charAt(0).toUpperCase()) + '</div>';
-    return '<button type="button" class="shell-deck-card" data-pvp-deck-id="' + escapeHtml(o.id) + '">' +
+    return '<button type="button" class="shell-deck-card pvp-deck-option" data-pvp-deck-id="' + escapeHtml(o.id) + '" aria-pressed="false">' +
       (o.stripe ? '<div class="shell-deck-card-stripe ' + o.stripe + '"></div>' : '') +
       artHtml +
       '<div class="shell-deck-card-body">' +
         '<div class="shell-deck-card-name">' + escapeHtml((o.label || '').toUpperCase()) + '</div>' +
         '<div class="shell-deck-card-types">' + escapeHtml(o.types) + '</div>' +
       '</div>' +
+      '<span class="pvp-deck-option-state">ELEGIR</span>' +
       '</button>';
-  }).join('');
+  }).join('') + '</div>' +
+    '<div class="pvp-deck-confirm-bar"><span data-pvp-selection>SELECCIONÁ UN MAZO PARA CONTINUAR</span>' +
+    '<button type="button" data-pvp-confirm disabled>CONFIRMAR MAZO <b>→</b></button></div>';
+  var selectedDeckId = null;
+  var selection = el.querySelector('[data-pvp-selection]');
+  var confirm = el.querySelector('[data-pvp-confirm]');
   el.querySelectorAll('[data-pvp-deck-id]').forEach(function (btn) {
-    btn.addEventListener('click', function () { onPicked(btn.getAttribute('data-pvp-deck-id')); });
+    btn.addEventListener('click', function () {
+      selectedDeckId = btn.getAttribute('data-pvp-deck-id');
+      el.querySelectorAll('[data-pvp-deck-id]').forEach(function (option) {
+        var selected = option === btn;
+        option.classList.toggle('selected', selected);
+        option.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      });
+      selection.textContent = 'MAZO SELECCIONADO: ' + btn.querySelector('.shell-deck-card-name').textContent;
+      confirm.disabled = false;
+    });
+  });
+  confirm.addEventListener('click', function () {
+    if (!selectedDeckId) { return; }
+    confirm.disabled = true;
+    confirm.textContent = 'CONFIRMANDO…';
+    var result = onPicked(selectedDeckId);
+    if (result && typeof result.catch === 'function') {
+      result.catch(function () {
+        confirm.disabled = false;
+        confirm.innerHTML = 'CONFIRMAR MAZO <b>→</b>';
+      });
+    }
   });
 }
 
@@ -3969,6 +3995,7 @@ function renderPvpWaitingMine(deckId) {
   document.getElementById('pvpWaitingOpponentSpinner').classList.remove('hidden');
   document.getElementById('pvpWaitingOpponentPhoto').classList.add('hidden');
   document.getElementById('pvpWaitingOpponentName').textContent = 'ESPERANDO…';
+  document.getElementById('pvpWaitingOpponentStatus').textContent = 'ESPERANDO';
   document.getElementById('pvpWaitingOpponentDeckWrap').classList.add('hidden');
 }
 
@@ -3991,6 +4018,7 @@ function renderPvpWaitingOpponentFromRoom(room) {
   oppImg.src = oppPhoto;
   oppImg.classList.remove('hidden');
   document.getElementById('pvpWaitingOpponentName').textContent = oppName || 'Rival';
+  document.getElementById('pvpWaitingOpponentStatus').textContent = oppDeckId ? 'MAZO CONFIRMADO' : 'CONECTADO';
   setPvpWaitingDeckSlot('pvpWaitingOpponentDeckWrap', 'pvpWaitingOpponentDeckArt', oppDeckId);
 }
 
@@ -4514,7 +4542,7 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('pvpCreateDeckPicker').classList.remove('hidden');
       document.getElementById('pvpCreateWaiting').classList.add('hidden');
       renderPvpDeckPicker('pvpCreateDeckList', function (deckId) {
-        createRoomCloud(deckId).then(function (res) {
+        return createRoomCloud(deckId).then(function (res) {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
           renderPvpWaitingMine(deckId);
@@ -4576,7 +4604,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pvpJoinCodeStep').classList.add('hidden');
         document.getElementById('pvpJoinDeckPicker').classList.remove('hidden');
         renderPvpDeckPicker('pvpJoinDeckList', function (deckId) {
-          joinRoomCloud(code, deckId).then(function () {
+          return joinRoomCloud(code, deckId).then(function () {
             startPvpRoomWait(code, deckId);
             document.getElementById('pvpJoinScreen').classList.add('hidden');
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
