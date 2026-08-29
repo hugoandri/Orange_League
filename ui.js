@@ -1479,10 +1479,10 @@ function sideHeaderHtml(ownerId) {
 // Deck (always face-down, just a count) and Discard pile -- only the count
 // matters at a glance; the discard's actual cards are one click away (see
 // openDiscardPileModal). Both use the real card back, per user request.
-function deckDiscardRowHtml(state, ownerId) {
+function deckDiscardRowHtml(state, ownerId, overrideDiscardCount) {
   var p = state.players[ownerId];
   var mine = ownerId === 'player';
-  var discardCount = p.discard.length;
+  var discardCount = (typeof overrideDiscardCount === 'number') ? overrideDiscardCount : p.discard.length;
   var backUrl = cardBackUrlFor(ownerId);
   var deckArt = '<div class="shell-board-deckbox-art"><img src="' + backUrl + '" alt="Mazo boca abajo"></div>';
   var discardArt = discardCount > 0
@@ -1644,6 +1644,25 @@ function renderBoard() {
   // open and pointing at a card that may no longer even be in hand.
   hideHandCardMenu();
 
+  var pActive = p.active;
+  var cActive = c.active;
+  var pDiscardCount = p.discard.length;
+  var cDiscardCount = c.discard.length;
+
+  // While revealAnimationInProgress is true (e.g. during CPU trainer reveals or attack overlay),
+  // if a Pokemon was KO'd during the turn resolution, keep it visually displayed in the active slot
+  // until the attack overlay finishes and revealAnimationInProgress becomes false.
+  if (revealAnimationInProgress) {
+    if (!pActive && s.pendingActiveChoice === 'player' && p.discard && p.discard.length > 0) {
+      pActive = p.discard[p.discard.length - 1];
+      pDiscardCount = Math.max(0, p.discard.length - 1);
+    }
+    if (!cActive && s.pendingActiveChoice === 'cpu' && c.discard && c.discard.length > 0) {
+      cActive = c.discard[c.discard.length - 1];
+      cDiscardCount = Math.max(0, c.discard.length - 1);
+    }
+  }
+
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
   // like facing across a real table, instead of both sides reading the
@@ -1652,8 +1671,8 @@ function renderBoard() {
     '<div class="shell-board-zone">' +
     '<div class="shell-board-centerline"></div><div class="shell-board-centerline-diamond"></div>' +
     benchRowHtml(c.bench, false, true) +
-    activeColHtml(c.active, false, true) +
-    activeColHtml(p.active, true, false) +
+    activeColHtml(cActive, false, true) +
+    activeColHtml(pActive, true, false) +
     benchRowHtml(p.bench, true, false) +
     '</div>';
 
@@ -1684,9 +1703,9 @@ function renderBoard() {
   // (mirrored) on the bottom, sharing one flexible spacer -- this is what
   // keeps both sides' prizes/actives level and comparable at a glance.
   document.getElementById('boardSide').innerHTML =
-    sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu') + prizeGridHtml(s, 'cpu') +
+    sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu', cDiscardCount) + prizeGridHtml(s, 'cpu') +
     '<div class="shell-board-side-spacer"></div>' +
-    prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player') + sideHeaderHtml('player');
+    prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player', pDiscardCount) + sideHeaderHtml('player');
 
   renderBoardActions();
   document.getElementById('log').innerHTML = logHtml(s);
