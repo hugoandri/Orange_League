@@ -1801,7 +1801,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           });
           inlineKeyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
 
-          const welcomeMsg = `⚡ *¡ORANGE LEAGUE TCG - TIENDA OFICIAL!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo actual: *${userData.coins || 0} Orbes*\n\n🛒 *Elige el paquete que deseas comprar con Estrellas (⭐):*`;
+          const welcomeMsg = `⚡ *¡ORANGE LEAGUE TCG - TIENDA OFICIAL!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo actual: *${userData.coins || 0} Orbes*\n\n🛒 *Elige el paquete que deseas comprar con Estrellas (⭐):*\n\nSi necesitas ayuda utiliza el comando /ayuda.`;
           await sendTelegramMessage(chatId, welcomeMsg, { inline_keyboard: inlineKeyboard });
           res.status(200).json({ ok: true });
           return;
@@ -1812,13 +1812,13 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       const linkSnap = await db.collection('telegram_links').doc(String(chatId)).get();
       if (linkSnap.exists) {
         const linkData = linkSnap.data();
-        const msg = `¡Hola de nuevo, *${linkData.username || 'Entrenador'}*! ⚡\n\n🆔 UID vinculado: \`${linkData.uid}\`\n\n📌 *Comandos disponibles:*\n• /tienda o /comprar - Ver paquetes de Orbes ⭐\n• /vincular <UID> - Cambiar tu UID\n• /ayuda - Información y soporte`;
+        const msg = `¡Hola de nuevo, *${linkData.username || 'Entrenador'}*! ⚡\n\n🆔 UID vinculado: \`${linkData.uid}\`\n\n📌 *Comandos disponibles:*\n• /tienda o /comprar - Ver paquetes de Orbes ⭐\n• /vincular <UID> - Cambiar tu UID\n• /ayuda - Información y soporte\n\nSi necesitas ayuda utiliza el comando /ayuda.`;
         await sendTelegramMessage(chatId, msg, {
           keyboard: [[{ text: '🛒 Ver Tienda / Comprar Orbes' }, { text: '👤 Mi Cuenta' }]],
           resize_keyboard: true
         });
       } else {
-        const msg = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nAquí puedes comprar *Orbes* directamente con *Estrellas de Telegram (⭐)* y cargarlos a tu juego.\n\n👉 Para comenzar, dinos tu UID del juego:\nEscribe: \`/vincular TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego, en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).`;
+        const msg = `¡Bienvenido a *Orange League - Pokémon TCG Simulator*! ⚡\n\nAquí puedes comprar *Orbes* directamente con *Estrellas de Telegram (⭐)* y cargarlos a tu juego.\n\n👉 Para comenzar, dinos tu UID del juego:\nEscribe: \`/vincular TU_UID\`\n\n💡 *¿Dónde encuentro mi UID?*\nEn el juego, en la barra inferior del menú principal verás tu código (ej: \`UID: 4ViFsoJm...\`).\n\nSi necesitas ayuda utiliza el comando /ayuda.`;
         await sendTelegramMessage(chatId, msg);
       }
       res.status(200).json({ ok: true });
