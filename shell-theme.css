@@ -773,7 +773,7 @@
   width:82px;height:114px;flex:none;overflow:hidden;background:#0a0806;border:1px solid #0a0806;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.5);
 }
-.shell-deck-card-art img{width:100%;height:100%;object-fit:cover;display:block;}
+.shell-deck-card-art img{width:100%;height:100%;object-fit:contain;display:block;}
 .shell-deck-card-art-placeholder{
   display:grid;place-items:center;font-size:14px;color:#5c5348;text-align:center;line-height:1.6;
   background:repeating-linear-gradient(135deg,#1c1915 0 6px,#141210 6px 12px);
