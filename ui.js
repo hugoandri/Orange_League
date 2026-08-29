@@ -828,7 +828,11 @@ function showTrainerPlayedOverlay(play, onDone) {
 function showTrainerPlaysSequence(queue, onAllDone) {
   if (!queue.length) { if (onAllDone) { onAllDone(); } return; }
   var play = queue.shift();
-  showTrainerPlayedOverlay(play, function () { showTrainerPlaysSequence(queue, onAllDone); });
+  renderBoard();
+  showTrainerPlayedOverlay(play, function () {
+    renderBoard();
+    showTrainerPlaysSequence(queue, onAllDone);
+  });
 }
 function drainTrainerPlaysQueue(onAllDone) {
   if (!gameState || !gameState.trainerPlaysQueue || !gameState.trainerPlaysQueue.length) {
@@ -1805,14 +1809,7 @@ function proceedWithCpuTurn() {
     // attack overlay) so tickGameClock's independent poll can't jump ahead
     // of it -- see revealAnimationInProgress's own comment.
     revealAnimationInProgress = true;
-    // Reveal what the CPU actually did in chronological order: any
-    // Trainer(s) it played (showTrainerPlaysSequence, ~1.5s each) come
-    // first, and only once that finishes does the real board render --
-    // this used to run the other way around (afterPlayerAction's render,
-    // which can already show a KO'd board and pop the "choose your new
-    // Active" modal, fired immediately, with the Gust of Wind/Trainer
-    // flash only appearing on top of -- or after -- a result the player
-    // couldn't yet explain).
+    renderBoard();
     showTrainerPlaysSequence(queuedTrainerPlays, function () {
       // A short "CPU PENSANDO..." beat before the reveal, even when no
       // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
