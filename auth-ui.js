@@ -265,15 +265,30 @@
     var unsubscribeNews = null;
     var unsubscribeCustomPacks = null;
     var unsubscribeEconomyConfig = null;
+    function getTelegramBotUrl(uid) {
+      var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      var startParam = uid ? ('uid_' + encodeURIComponent(uid)) : '';
+
+      if (isMobile) {
+        return 'https://t.me/OrangeLeagueTCGBot' + (startParam ? ('?start=' + startParam) : '');
+      }
+
+      // On desktop: open Telegram Web directly with resolved bot and start parameter
+      var tgAddr = 'tg://resolve?domain=OrangeLeagueTCGBot' + (startParam ? ('&start=' + startParam) : '');
+      return 'https://web.telegram.org/k/#?tgaddr=' + encodeURIComponent(tgAddr);
+    }
+
     var menuTelegramBtn = document.getElementById('menuTelegramBtn');
     if (menuTelegramBtn) {
       menuTelegramBtn.addEventListener('click', function (e) {
         var user = firebase.auth().currentUser;
-        var uidParam = user ? ('?start=uid_' + encodeURIComponent(user.uid)) : '';
-        var botUrl = 'https://t.me/OrangeLeagueTCGBot' + uidParam;
+        var botUrl = getTelegramBotUrl(user ? user.uid : null);
         if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function') {
           e.preventDefault();
-          window.Telegram.WebApp.openTelegramLink(botUrl);
+          var tmeUrl = 'https://t.me/OrangeLeagueTCGBot' + (user ? ('?start=uid_' + encodeURIComponent(user.uid)) : '');
+          window.Telegram.WebApp.openTelegramLink(tmeUrl);
+        } else {
+          menuTelegramBtn.href = botUrl;
         }
       });
     }
@@ -283,7 +298,7 @@
       var menuUidEl = document.getElementById('menuUserUid');
       if (user) {
         if (menuUidEl) { menuUidEl.textContent = user.uid; }
-        if (menuTelegramBtn) { menuTelegramBtn.href = 'https://t.me/OrangeLeagueTCGBot?start=uid_' + encodeURIComponent(user.uid); }
+        if (menuTelegramBtn) { menuTelegramBtn.href = getTelegramBotUrl(user.uid); }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
@@ -298,7 +313,7 @@
         unsubscribeEconomyConfig = initEconomyConfigListener();
       } else {
         if (menuUidEl) { menuUidEl.textContent = '--'; }
-        if (menuTelegramBtn) { menuTelegramBtn.href = 'https://t.me/OrangeLeagueTCGBot'; }
+        if (menuTelegramBtn) { menuTelegramBtn.href = getTelegramBotUrl(null); }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         hideAccountVerifyingOverlay();
         if (unsubscribeEconomy) {
