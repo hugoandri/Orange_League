@@ -173,7 +173,7 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
    (.shell-modal-*, .shell-card-zoom, .shell-profile-modal, .shell-booster-*,
    .shell-active-choice-*) -- this class only keeps the shared fixed-overlay/
    backdrop mechanics. */
-.card-modal{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;}
+.card-modal{position:fixed;inset:0;z-index:210;display:flex;align-items:center;justify-content:center;}
 .card-modal.hidden{display:none;}
 /* All of these sit above #boardScreen's z-index:200 (or #menuScreen's, for
    editProfileModal/boosterSelectModal reached from the menu) -- the plain
@@ -191,11 +191,20 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
 #energyDiscardModal{z-index:210;}
 #handDiscardModal{z-index:210;}
 #energyRetrievalModal{z-index:210;}
+#choicePickerModal{z-index:210;}
+#pokedexModal{z-index:210;}
 #matchEndModal{z-index:210;}
 #discardPileModal{z-index:210;}
 #collectionVersionsModal{z-index:210;}
+#deckBuilderVersionModal{z-index:210;}
 #targetHintModal{z-index:210;}
 #deckSearchModal{z-index:210;}
+#choicePickerGrid button{
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:6px;
+  padding:10px 16px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;min-width:140px;transition:all .15s ease;
+}
+#choicePickerGrid button:hover{background:rgba(255,255,255,0.2);border-color:#e8c46a;}
 /* #cardModal is a "zoom on top of whatever's already open" utility -- it
    gets triggered from several other modals that stay open behind it
    (booster result, discard pile, etc.), not just bare screens. At the same
