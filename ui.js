@@ -4546,7 +4546,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
           renderPvpWaitingMine(deckId);
-          document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
+          document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(res.roomCode, 'plata', 3);
           startPvpRoomWait(res.roomCode, deckId);
         }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
       });
@@ -4611,7 +4611,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
             document.getElementById('pvpCreateWaiting').classList.remove('hidden');
             renderPvpWaitingMine(deckId);
-            document.getElementById('pvpRoomCodeDisplay').textContent = code;
+            document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(code, 'plata', 3);
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
             document.getElementById('pvpJoinCodeStep').classList.remove('hidden');
