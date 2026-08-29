@@ -2021,6 +2021,11 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   // genuinely unmapped character instead.
   check('buildPixelDigitCells rejects an unmapped character', buildPixelDigitCells('~', 'oro').length, 0);
 
+  // All 32 characters in the PVP room code alphabet are valid pixel glyphs
+  'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'.split('').forEach(function (ch) {
+    check('PVP room code char ' + ch + ' has 88 cells', buildPixelDigitCells(ch, 'plata').length, 88);
+  });
+
   // pixelDigitsHtml wraps one grid per character, all at the requested block
   // size, with a gap proportional to it.
   var html = pixelDigitsHtml('10', 'oro', 2);
