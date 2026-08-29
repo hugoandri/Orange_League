@@ -2019,7 +2019,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   // Unknown glyph renders nothing, not a crash. 'X'/'x'/'×'/'-'/'+' are real
   // glyphs now (attack-damage modifiers like "30×"/"50-"), so this uses a
   // genuinely unmapped character instead.
-  check('buildPixelDigitCells rejects an unmapped character', buildPixelDigitCells('Q', 'oro').length, 0);
+  check('buildPixelDigitCells rejects an unmapped character', buildPixelDigitCells('~', 'oro').length, 0);
 
   // pixelDigitsHtml wraps one grid per character, all at the requested block
   // size, with a gap proportional to it.

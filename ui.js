@@ -1841,7 +1841,11 @@ function proceedWithCpuTurn() {
   var preTurnCpuDiscardCount = (c && c.discard) ? c.discard.length : 0;
   cpuTurnInProgress = true;
   setTimeout(function () {
-    cpuTakeTurn(gameState, difficulty);
+    try {
+      cpuTakeTurn(gameState, difficulty);
+    } catch (e) {
+      console.error('Error during CPU turn:', e);
+    }
     cpuTurnInProgress = false;
     // Captured now (cleared either way) so a later render/attack can't
     // accidentally replay a stale one -- see showAttackOverlayIfAny's own
@@ -1861,35 +1865,49 @@ function proceedWithCpuTurn() {
       cpuDiscardCount: preTurnCpuDiscardCount
     };
     renderBoard();
-    showTrainerPlaysSequence(queuedTrainerPlays, function () {
-      // A short "CPU PENSANDO..." beat before the reveal, even when no
-      // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
-      showCpuThinkingIndicator();
-      setTimeout(function () {
-        function reveal() {
-          afterPlayerAction();
-          // Skip the flash if that turn just won/lost the match -- there's
-          // no "tu turno" coming next (afterPlayerAction already showed the
-          // win/loss modal instead of a normal board render above).
-          if (getWinner(gameState)) { return; }
-          // A KO during the CPU's turn can leave the player forced to pick a
-          // new Active (see renderActiveChoiceModal) -- hold the flash for
-          // that choice to resolve instead of flashing over their decision.
-          if (hasPendingPlayerChoice()) {
-            pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
-          } else {
-            showTurnFlash('TU TURNO', 'mine', function () {
-              startPlayerTurnWithDraw();
-            });
+    try {
+      showTrainerPlaysSequence(queuedTrainerPlays, function () {
+        // A short "CPU PENSANDO..." beat before the reveal, even when no
+        // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
+        showCpuThinkingIndicator();
+        setTimeout(function () {
+          function reveal() {
+            try {
+              afterPlayerAction();
+              // Skip the flash if that turn just won/lost the match -- there's
+              // no "tu turno" coming next (afterPlayerAction already showed the
+              // win/loss modal instead of a normal board render above).
+              if (getWinner(gameState)) { return; }
+              // A KO during the CPU's turn can leave the player forced to pick a
+              // new Active (see renderActiveChoiceModal) -- hold the flash for
+              // that choice to resolve instead of flashing over their decision.
+              if (hasPendingPlayerChoice()) {
+                pendingTurnFlash = { text: 'TU TURNO', colorClass: 'mine' };
+              } else {
+                showTurnFlash('TU TURNO', 'mine', function () {
+                  startPlayerTurnWithDraw();
+                });
+              }
+            } catch (err) {
+              console.error('Error during reveal:', err);
+              revealAnimationInProgress = false;
+              visualActivePokemon = null;
+              renderBoard();
+            }
           }
-        }
-        // If the CPU attacked this turn, show the attack overlay (~1s)
-        // before revealing the real board -- same reveal-order reasoning
-        // as the Trainer-plays sequence above: the player should see the
-        // "why" before the resulting board state.
-        if (cpuAttackResult) { showAttackOverlay(cpuAttackResult, reveal); } else { reveal(); }
-      }, CPU_POST_ACTION_PAUSE_MS);
-    });
+          // If the CPU attacked this turn, show the attack overlay (~1s)
+          // before revealing the real board -- same reveal-order reasoning
+          // as the Trainer-plays sequence above: the player should see the
+          // "why" before the resulting board state.
+          if (cpuAttackResult) { showAttackOverlay(cpuAttackResult, reveal); } else { reveal(); }
+        }, CPU_POST_ACTION_PAUSE_MS);
+      });
+    } catch (err) {
+      console.error('Error during trainer sequence:', err);
+      revealAnimationInProgress = false;
+      visualActivePokemon = null;
+      renderBoard();
+    }
   }, delay);
 }
 

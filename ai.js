@@ -25,18 +25,26 @@ function estimateDamage(attackerName, baseDamage, defenderName, plusPower) {
   return dmg;
 }
 
-function payableAttacks(instance) {
+function payableAttacks(instance, state, playerId) {
   var stats = CARD_STATS[instance.name];
-  return (stats.attacks || []).filter(function (a) {
-    return instance.lockedAttacks.indexOf(a.name) === -1 && canPayCost(instance, a.cost);
+  if (!stats || !stats.attacks) { return []; }
+  var p = state && state.players && state.players[playerId];
+  var isActive = !!(p && p.active && p.active.id === instance.id);
+  return stats.attacks.filter(function (a) {
+    if (state && playerId && isActive) {
+      return canAttack(state, playerId, a.name);
+    }
+    return (instance.lockedAttacks || []).indexOf(a.name) === -1 &&
+      (!instance.tempLockedAttack || instance.tempLockedAttack.name !== a.name) &&
+      canPayCost(instance, a.cost);
   });
 }
 
 // Normal/Hard: picks by real damage against the actual defender (weakness/
 // resistance-aware) instead of Easy's raw printed-number sort.
-function aiBestAttackAgainst(instance, defender) {
+function aiBestAttackAgainst(instance, defender, state, playerId) {
   if (!defender) { return null; }
-  var payable = payableAttacks(instance);
+  var payable = payableAttacks(instance, state, playerId);
   if (payable.length === 0) { return null; }
   payable.sort(function (a, b) {
     var dmgA = estimateDamage(instance.name, parseInt(a.damage, 10) || 0, defender.name, instance.plusPowerAttached);
@@ -226,13 +234,17 @@ function aiShouldRetreatInsteadOfAttack(state, playerId) {
 // aiShouldRetreatInsteadOfAttack's own comment).
 function aiProactiveRetreat(state, playerId, difficulty) {
   if (difficulty === 'easy') { return null; }
-  if (difficulty === 'hard') { return aiShouldRetreatInsteadOfAttack(state, playerId); }
   var p = state.players[playerId];
   var op = state.players[opponentOf(playerId)];
-  if (!p.active) { return null; }
+  if (!p.active || !op.active) { return null; }
+  var myBest = aiBestAttackAgainst(p.active, op.active, state, playerId);
+  var myBestDmg = myBest ? estimateDamage(p.active.name, parseInt(myBest.damage, 10) || 0, op.active.name, p.active.plusPowerAttached) : 0;
+  var opRemainingHp = CARD_STATS[op.active.name].hp - op.active.damage;
+  if (myBest && myBestDmg >= opRemainingHp) { return null; } // securing a KO always comes first
+  if (difficulty === 'hard') { return aiShouldRetreatInsteadOfAttack(state, playerId); }
   var remainingHp = CARD_STATS[p.active.name].hp - p.active.damage;
   if (remainingHp > 30) { return null; }
-  return p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active) !== null && canRetreat(state, playerId, b.id); }) || null;
+  return p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active, state, playerId) !== null && canRetreat(state, playerId, b.id); }) || null;
 }
 
 // difficulty: 'easy' (default, unchanged from before tiers existed), 'normal',
@@ -279,7 +291,7 @@ function cpuTakeTurn(state, difficulty) {
     if (proactive) { retreat(state, playerId, proactive.id); }
   }
   if (p.active) {
-    var best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active);
+    var best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active, state, playerId);
     // Real reported bug: if the current Active can't attack, this looks
     // for a Bench Pokémon that CAN and retreats into it specifically for
     // that reason -- but used to stop right there, never actually
@@ -294,10 +306,10 @@ function cpuTakeTurn(state, difficulty) {
       if (firstBenched && canRetreat(state, playerId, firstBenched.id)) {
         var betterBench = difficulty === 'easy'
           ? p.bench.find(function (b) { return b && aiBestAffordableAttack(b) !== null; })
-          : p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active) !== null; });
+          : p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active, state, playerId) !== null; });
         if (betterBench) {
           retreat(state, playerId, betterBench.id);
-          best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active);
+          best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active, state, playerId);
         }
       }
     }
