@@ -1142,9 +1142,30 @@ ATTACK_EFFECTS['Clefairy'] = {
   'Sing': function (state, attacker, defender) {
     if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
   },
-  'Metronome': function (state, attacker, defender) {
-    var best = highestDamageAttack(defender.name);
-    if (best && best.dmg > 0) { dealDamage(state, attacker, defender, best.dmg); }
+  'Metronome': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var chosenAttackName = targetInstanceId;
+    var defStats = CARD_STATS[defender.name];
+    if (!defStats || !defStats.attacks || !defStats.attacks.length) { return; }
+    var chosenAtk = null;
+    if (chosenAttackName) {
+      chosenAtk = defStats.attacks.find(function (a) { return a.name === chosenAttackName; });
+    }
+    if (!chosenAtk) {
+      var best = highestDamageAttack(defender.name);
+      chosenAtk = best ? best.atk : defStats.attacks[0];
+    }
+    if (!chosenAtk) { return; }
+    if (typeof logEvent === 'function') {
+      var atkLabel = (typeof translateAttackName === 'function') ? translateAttackName(chosenAtk.name) : chosenAtk.name;
+      logEvent(state, attacker.name + ' copia ' + atkLabel, playerId);
+    }
+    var copiedEffect = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[defender.name]) ? ATTACK_EFFECTS[defender.name][chosenAtk.name] : null;
+    if (copiedEffect && chosenAtk.name !== 'Submission' && chosenAtk.name !== 'Metronome') {
+      copiedEffect(state, attacker, defender, chosenAtk, playerId);
+    } else {
+      var dmg = parseInt(chosenAtk.damage, 10) || 0;
+      if (dmg > 0) { dealDamage(state, attacker, defender, dmg); }
+    }
   }
 };
 

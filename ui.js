@@ -670,6 +670,37 @@ function showCardInViewer(name, instanceId) {
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
           return;
         }
+        if (atkName === 'Metronome') {
+          if (pvpMode) {
+            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
+            return;
+          }
+          var op = gameState.players[opponentOf('player')];
+          var defender = op && op.active;
+          var defStats = defender && CARD_STATS[defender.name];
+          var rivalAttacks = (defStats && defStats.attacks) || [];
+          if (rivalAttacks.length > 1) {
+            var options = rivalAttacks.map(function (atk) {
+              var dmgText = (atk.damage && atk.damage !== '0') ? ' (' + atk.damage + ' daño)' : '';
+              var nameEs = (typeof translateAttackName === 'function') ? translateAttackName(atk.name) : atk.name;
+              return {
+                id: atk.name,
+                label: nameEs.toUpperCase() + dmgText
+              };
+            });
+            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, function (chosenAtkName) {
+              attack(gameState, 'player', 'Metronome', chosenAtkName);
+              revealAnimationInProgress = true;
+              showAttackOverlayIfAny(afterPlayerAction);
+            });
+            return;
+          } else if (rivalAttacks.length === 1) {
+            attack(gameState, 'player', 'Metronome', rivalAttacks[0].name);
+            revealAnimationInProgress = true;
+            showAttackOverlayIfAny(afterPlayerAction);
+            return;
+          }
+        }
         if (pvpMode) {
           submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName })
             .catch(function (err) { alert(err.message || 'No se pudo atacar.'); });
