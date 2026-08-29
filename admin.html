@@ -148,6 +148,26 @@
   }
   .preview-modal-close:hover{color:#efe9dd;filter:brightness(1.25);}
   .preview-modal-tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+
+  /* Economy & Pricing panel styles */
+  .price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:10px;}
+  .price-item{background:#141210;border:1px solid #3a342c;border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:12px;}
+  .price-item-art{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;background:#1a1714;border-radius:4px;overflow:hidden;}
+  .price-item-art img{max-width:100%;max-height:100%;object-fit:contain;}
+  .price-item-info{flex:1;min-width:0;}
+  .price-item-name{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .price-item-desc{font-size:11px;color:#8a7e6f;}
+  .price-item-input-wrap{display:flex;align-items:center;gap:6px;flex:none;}
+  .price-item-input-wrap input{width:70px;text-align:right;padding:6px 8px;font-size:13px;}
+  .price-item-unit{font-size:11px;color:#8dff62;font-weight:600;}
+
+  .stars-pkg-card{background:#141210;border:1px solid #3a342c;border-radius:6px;padding:14px;margin-bottom:14px;}
+  .stars-pkg-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .stars-pkg-title{font-size:14px;font-weight:700;color:#ffd700;}
+  .stars-pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .stars-pkg-field{display:flex;flex-direction:column;gap:4px;}
+  .stars-pkg-field label{font-size:11px;color:#8a7e6f;margin:0;}
+  .stars-pkg-field input{padding:6px 8px;font-size:13px;}
 </style>
 </head>
 <body>
@@ -159,6 +179,7 @@
       <button type="button" class="side-link" data-panel="odds">Probabilidades</button>
       <button type="button" class="side-link" data-panel="packs">Packs</button>
       <button type="button" class="side-link" data-panel="codes">Códigos</button>
+      <button type="button" class="side-link" data-panel="economy">Precios / Tienda</button>
     </nav>
     <main class="content">
       <div id="stateBox" class="state-box">Cargando…</div>
@@ -345,6 +366,34 @@
             <div id="codeRows"><div class="empty-note">Cargando…</div></div>
           </div>
         </section>
+
+        <section id="panel-economy" class="panel">
+          <h1>Precios y Tienda</h1>
+          <p class="sub">Configura el precio en Orbes de los sobres y protectores, y los paquetes de Orbes a cambio de Estrellas de Telegram (⭐).</p>
+
+          <div class="card">
+            <h2>Precios de Sobres (Packs)</h2>
+            <p class="sub" style="margin-bottom:14px;">Define cuántos Orbes cuesta cada sobre en la tienda.</p>
+            <div class="price-grid" id="boosterPriceGrid"><div class="empty-note">Cargando…</div></div>
+          </div>
+
+          <div class="card">
+            <h2>Precios de Protectores de Cartas</h2>
+            <p class="sub" style="margin-bottom:14px;">Define cuántos Orbes cuesta cada diseño de protector en la tienda.</p>
+            <div class="price-grid" id="protectorPriceGrid"><div class="empty-note">Cargando…</div></div>
+          </div>
+
+          <div class="card">
+            <h2>Paquetes de Orbes por Estrellas de Telegram (⭐)</h2>
+            <p class="sub" style="margin-bottom:14px;">Configura cuántos Orbes entrega cada paquete y su precio en Estrellas ⭐ en Telegram.</p>
+            <div id="starsPackagesList"><div class="empty-note">Cargando…</div></div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn-primary" id="saveEconomyBtn">Guardar Precios</button>
+          </div>
+          <p class="status-msg" id="economyStatus"></p>
+        </section>
       </div>
     </main>
   </div>
@@ -410,6 +459,7 @@
     var oddsLoadedOnce = false;
     var packsLoadedOnce = false;
     var codesLoadedOnce = false;
+    var economyLoadedOnce = false;
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, function (c) {
@@ -427,6 +477,7 @@
         if (target === 'odds' && !oddsLoadedOnce) { loadRareOdds(); }
         if (target === 'packs' && !packsLoadedOnce) { loadCustomPacks(); }
         if (target === 'codes' && !codesLoadedOnce) { loadGiftCodes(); }
+        if (target === 'economy' && !economyLoadedOnce) { loadEconomyConfig(); }
       });
     });
 
@@ -1204,6 +1255,186 @@
       }, function (err) {
         codeRowsEl.innerHTML = '<div class="empty-note">No se pudieron cargar los códigos.</div>';
         console.error(err);
+      });
+    }
+
+    // ── Precios y Economía ───────────────────────────────────────────────
+    var ADMIN_BOOSTER_SETS = [
+      { id: 'base', name: 'Base Set', img: 'Sobres/Base_Set_Charizard.png', defaultCost: 100 },
+      { id: 'jungle', name: 'Jungle', img: 'Sobres/Jungle_Scyther.png', defaultCost: 100 },
+      { id: 'fossil', name: 'Fossil', img: 'Sobres/Fossil_Aerodactyl.png', defaultCost: 100 }
+    ];
+
+    var ADMIN_CARD_BACK_OPTIONS = [
+      { id: 'protector_koffing', name: 'Koffing', img: 'Cartas/Protector_Koffing.png?v=2', defaultCost: 75 },
+      { id: 'protector_pikachu', name: 'Pikachu', img: 'Cartas/Protector_Pikachu.png?v=2', defaultCost: 75 },
+      { id: 'protector_team_rocket', name: 'Team Rocket', img: 'Cartas/Protector_TeamRocket.png?v=2', defaultCost: 75 },
+      { id: 'protector_pokebola_morada', name: 'Poké Ball Morada', img: 'Cartas/Protector_PokebolaMorada.png?v=4', defaultCost: 75 },
+      { id: 'protector_squirtle', name: 'Squirtle', img: 'Cartas/Protector_Squirtle.png?v=3', defaultCost: 75 },
+      { id: 'protector_charmander', name: 'Charmander', img: 'Cartas/Protector_Charmander.png?v=3', defaultCost: 75 },
+      { id: 'protector_bulbasaur', name: 'Bulbasaur', img: 'Cartas/Protector_Bulbasaur.png?v=3', defaultCost: 75 },
+      { id: 'protector_pikachu_sorprendido', name: 'Pikachu Sorprendido', img: 'Cartas/Protector_PikachuSorprendido.png?v=3', defaultCost: 75 },
+      { id: 'protector_fantasma', name: 'Fantasma', img: 'Cartas/Protector_Fantasma.png?v=2', defaultCost: 75 },
+      { id: 'protector_perona', name: 'Perona', img: 'Cartas/Protector_Perona.png?v=2', defaultCost: 75 },
+      { id: 'protector_messi', name: 'Messi', img: 'Cartas/Protector_Messi.png?v=2', defaultCost: 75 },
+      { id: 'protector_ronaldo', name: 'Ronaldo', img: 'Cartas/Protector_Ronaldo.png?v=2', defaultCost: 75 },
+      { id: 'protector_sasuke', name: 'Sasuke', img: 'Cartas/Protector_Sasuke.png?v=4', defaultCost: 75 },
+      { id: 'protector_six_seven', name: 'Six Seven', img: 'Cartas/Protector_SixSeven.png?v=2', defaultCost: 75 },
+      { id: 'protector_trollface', name: 'Trollface', img: 'Cartas/Protector_TrollFace.png?v=2', defaultCost: 75 },
+      { id: 'protector_fuuuu', name: 'Fuuuu', img: 'Cartas/Protector_Fuuuu.png?v=2', defaultCost: 75 },
+      { id: 'protector_remielle', name: 'Remielle', img: 'Cartas/Protector_Remielle.png', defaultCost: 75 }
+    ];
+
+    var DEFAULT_STARS_PACKAGES = {
+      orbes_100: { id: 'orbes_100', title: '100 Orbes · Bolsa', subtitle: 'BOLSA BÁSICA', description: 'Bolsa con 100 Orbes para comprar sobres y protectores en la tienda.', coins: 100, stars: 15, tag: '' },
+      orbes_550: { id: 'orbes_550', title: '550 Orbes · Saco (+50 Extra)', subtitle: 'SACO DE ORBES', description: 'Saco con 550 Orbes (+10% extra) para expandir tu colección de cartas.', coins: 550, stars: 65, tag: '+10% EXTRA' },
+      orbes_1400: { id: 'orbes_1400', title: '1,400 Orbes · Cofre (+200 Extra)', subtitle: 'COFRE DE ORBES', description: 'Cofre con 1,400 Orbes (+16% extra) para sobres y protectores exclusivos.', coins: 1400, stars: 140, tag: '+16% EXTRA' },
+      orbes_3600: { id: 'orbes_3600', title: '3,600 Orbes · Tesoro (+600 Extra)', subtitle: 'TESORO DE LA LIGA', description: 'Tesoro de la Liga con 3,600 Orbes (+20% extra). ¡El paquete definitivo!', coins: 3600, stars: 320, tag: 'MEJOR VALOR · +20%' }
+    };
+
+    function loadEconomyConfig() {
+      economyLoadedOnce = true;
+      var statusEl = document.getElementById('economyStatus');
+      statusEl.textContent = '';
+      firebase.firestore().collection('config').doc('economy').get().then(function (snap) {
+        var data = snap.exists ? snap.data() : {};
+        renderEconomyPanel(data);
+      }).catch(function (err) {
+        console.error('Error cargando config economía:', err);
+        renderEconomyPanel({});
+      });
+    }
+
+    function renderEconomyPanel(stored) {
+      var boosterCosts = stored.boosterCosts || {};
+      var protectorCosts = stored.protectorCosts || {};
+      var starsPackages = stored.starsPackages || DEFAULT_STARS_PACKAGES;
+
+      // 1. Boosters
+      var boosterGrid = document.getElementById('boosterPriceGrid');
+      boosterGrid.innerHTML = ADMIN_BOOSTER_SETS.map(function (s) {
+        var cost = typeof boosterCosts[s.id] === 'number' ? boosterCosts[s.id] : s.defaultCost;
+        return '<div class="price-item" data-booster-set="' + s.id + '">' +
+          '<div class="price-item-art"><img src="' + s.img + '" alt=""></div>' +
+          '<div class="price-item-info">' +
+            '<div class="price-item-name">' + escapeHtml(s.name) + '</div>' +
+            '<div class="price-item-desc">Pack estándar</div>' +
+          '</div>' +
+          '<div class="price-item-input-wrap">' +
+            '<input type="number" min="0" step="5" class="booster-cost-input" value="' + cost + '">' +
+            '<span class="price-item-unit">Orbes</span>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      // 2. Protectors
+      var protectorGrid = document.getElementById('protectorPriceGrid');
+      protectorGrid.innerHTML = ADMIN_CARD_BACK_OPTIONS.map(function (p) {
+        var cost = typeof protectorCosts[p.id] === 'number' ? protectorCosts[p.id] : p.defaultCost;
+        return '<div class="price-item" data-protector-id="' + p.id + '">' +
+          '<div class="price-item-art"><img src="' + p.img + '" alt=""></div>' +
+          '<div class="price-item-info">' +
+            '<div class="price-item-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="price-item-desc">Protector</div>' +
+          '</div>' +
+          '<div class="price-item-input-wrap">' +
+            '<input type="number" min="0" step="5" class="protector-cost-input" value="' + cost + '">' +
+            '<span class="price-item-unit">Orbes</span>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      // 3. Stars Packages
+      var starsList = document.getElementById('starsPackagesList');
+      var pkgKeys = ['orbes_100', 'orbes_550', 'orbes_1400', 'orbes_3600'];
+      starsList.innerHTML = pkgKeys.map(function (k) {
+        var def = DEFAULT_STARS_PACKAGES[k] || {};
+        var p = starsPackages[k] || def;
+        return '<div class="stars-pkg-card" data-pkg-key="' + k + '">' +
+          '<div class="stars-pkg-header">' +
+            '<span class="stars-pkg-title">⭐ ' + escapeHtml(p.title || def.title) + '</span>' +
+          '</div>' +
+          '<div class="stars-pkg-grid">' +
+            '<div class="stars-pkg-field">' +
+              '<label>Título visible</label>' +
+              '<input type="text" class="pkg-title" value="' + escapeHtml(p.title || def.title) + '">' +
+            '</div>' +
+            '<div class="stars-pkg-field">' +
+              '<label>Orbes entregados</label>' +
+              '<input type="number" min="1" step="10" class="pkg-coins" value="' + (p.coins || def.coins) + '">' +
+            '</div>' +
+            '<div class="stars-pkg-field">' +
+              '<label>Precio (Estrellas ⭐)</label>' +
+              '<input type="number" min="1" step="1" class="pkg-stars" value="' + (p.stars || def.stars) + '">' +
+            '</div>' +
+            '<div class="stars-pkg-field">' +
+              '<label>Etiqueta / Bonus (opcional)</label>' +
+              '<input type="text" class="pkg-tag" value="' + escapeHtml(p.tag || '') + '" placeholder="Ej: +10% EXTRA">' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    var saveEconomyBtn = document.getElementById('saveEconomyBtn');
+    if (saveEconomyBtn) {
+      saveEconomyBtn.addEventListener('click', function () {
+        var statusEl = document.getElementById('economyStatus');
+        saveEconomyBtn.disabled = true;
+        saveEconomyBtn.textContent = 'Guardando…';
+        statusEl.className = 'status-msg';
+        statusEl.textContent = '';
+
+        var boosterCosts = {};
+        document.querySelectorAll('#boosterPriceGrid [data-booster-set]').forEach(function (el) {
+          var id = el.getAttribute('data-booster-set');
+          var val = parseInt(el.querySelector('.booster-cost-input').value, 10);
+          boosterCosts[id] = isNaN(val) || val < 0 ? 100 : val;
+        });
+
+        var protectorCosts = {};
+        document.querySelectorAll('#protectorPriceGrid [data-protector-id]').forEach(function (el) {
+          var id = el.getAttribute('data-protector-id');
+          var val = parseInt(el.querySelector('.protector-cost-input').value, 10);
+          protectorCosts[id] = isNaN(val) || val < 0 ? 75 : val;
+        });
+
+        var starsPackages = {};
+        document.querySelectorAll('#starsPackagesList [data-pkg-key]').forEach(function (el) {
+          var k = el.getAttribute('data-pkg-key');
+          var def = DEFAULT_STARS_PACKAGES[k] || {};
+          var title = (el.querySelector('.pkg-title').value || def.title).trim();
+          var coins = parseInt(el.querySelector('.pkg-coins').value, 10) || def.coins;
+          var stars = parseInt(el.querySelector('.pkg-stars').value, 10) || def.stars;
+          var tag = (el.querySelector('.pkg-tag').value || '').trim() || null;
+          starsPackages[k] = {
+            id: k,
+            title: title,
+            subtitle: def.subtitle || '',
+            description: def.description || title,
+            coins: coins,
+            stars: stars,
+            tag: tag
+          };
+        });
+
+        var setEconomyConfigFn = firebase.functions().httpsCallable('setEconomyConfig');
+        setEconomyConfigFn({
+          boosterCosts: boosterCosts,
+          protectorCosts: protectorCosts,
+          starsPackages: starsPackages
+        }).then(function () {
+          saveEconomyBtn.disabled = false;
+          saveEconomyBtn.textContent = 'Guardar Precios';
+          statusEl.className = 'status-msg ok';
+          statusEl.textContent = '✓ Precios y paquetes guardados correctamente.';
+          setTimeout(function () { statusEl.textContent = ''; }, 4000);
+        }).catch(function (err) {
+          saveEconomyBtn.disabled = false;
+          saveEconomyBtn.textContent = 'Guardar Precios';
+          statusEl.className = 'status-msg error';
+          statusEl.textContent = 'Error: ' + (err.message || 'No se pudo guardar la configuración.');
+        });
       });
     }
 

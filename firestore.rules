@@ -29,6 +29,13 @@ service cloud.firestore {
       }
     }
 
+    // Shop prices and Telegram Stars economy config -- readable by any signed-in player
+    // so the live shop reflects prices set by admin; writes are server-side only.
+    match /config/economy {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Admin-only game-balance config (currently just rareOdds -- the
     // "Probabilidades" tab's per-card weights, see setRareOdds/
     // fetchRareWeights, functions/index.js). Only the admin panel ever

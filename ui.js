@@ -2926,6 +2926,29 @@ function updateShopBalance() {
   if (balanceEl && econState) { balanceEl.innerHTML = pixelDigitsHtml(econState.coins, 'oro', 3); }
 }
 
+function getBoosterCost(setKey) {
+  if (globalEconomyConfig && globalEconomyConfig.boosterCosts && typeof globalEconomyConfig.boosterCosts[setKey] === 'number') {
+    return globalEconomyConfig.boosterCosts[setKey];
+  }
+  return 100;
+}
+
+function getProtectorCost(id) {
+  if (globalEconomyConfig && globalEconomyConfig.protectorCosts && typeof globalEconomyConfig.protectorCosts[id] === 'number') {
+    return globalEconomyConfig.protectorCosts[id];
+  }
+  var opt = CARD_BACK_OPTIONS.filter(function (o) { return o.id === id; })[0];
+  return (opt && opt.cost) ? opt.cost : 75;
+}
+
+function getStarsShopPackages() {
+  if (globalEconomyConfig && globalEconomyConfig.starsPackages) {
+    var pkgs = globalEconomyConfig.starsPackages;
+    return Object.keys(pkgs).map(function (k) { return pkgs[k]; });
+  }
+  return STARS_SHOP_PACKAGES;
+}
+
 // Builds the card grid -- called once per screen-open (showShopScreen), not
 // on every economy update (see updateShopBalance above).
 function renderShopScreen() {
@@ -2938,6 +2961,7 @@ function renderShopScreen() {
   ['base', 'jungle', 'fossil'].forEach(function (setKey) {
     var packs = BOOSTER_PACKS[setKey];
     var randomPack = packs[Math.floor(Math.random() * packs.length)];
+    var packPrice = getBoosterCost(setKey);
     html +=
       '<div class="shell-shop-card" data-set="' + setKey + '">' +
         '<div class="shell-shop-card-art"><img src="' + randomPack + '" alt="' + BOOSTER_NAMES[setKey] + '"></div>' +
@@ -2946,7 +2970,7 @@ function renderShopScreen() {
           '<div class="shell-shop-card-desc">11 CARTAS + 1 ENERGÍA</div>' +
         '</div>' +
         '<div class="shell-shop-card-footer">' +
-          '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(100, 'oro', 3) + '</span>' +
+          '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(packPrice, 'oro', 3) + '</span>' +
           '<button type="button" class="shell-shop-card-btn">ABRIR</button>' +
         '</div>' +
       '</div>';
@@ -3077,9 +3101,10 @@ function renderProtectorsGrid() {
   var protectors = CARD_BACK_OPTIONS.filter(function (o) { return o.cost; });
   grid.innerHTML = protectors.map(function (o) {
     var owned = ownsCardBack(o.id);
+    var cost = getProtectorCost(o.id);
     var footer = owned
       ? '<span class="shell-shop-card-owned-label">EN TU COLECCIÓN</span>'
-      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(o.cost, 'oro', 3) + '</span>' +
+      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(cost, 'oro', 3) + '</span>' +
         '<button type="button" class="shell-shop-card-btn" data-buy-back="' + o.id + '">COMPRAR</button>';
     return '<div class="shell-shop-card' + (owned ? ' shell-shop-card-owned' : '') + '">' +
       '<div class="shell-shop-card-art protector"><img src="' + o.img + '" alt="' + escapeHtml(o.name) + '"' + (o.outline ? ' class="outlined"' : '') + '></div>' +
@@ -3150,16 +3175,17 @@ function renderOrbesShopGrid() {
   var grid = document.getElementById('shopOrbesGrid');
   if (!grid) { return; }
 
-  grid.innerHTML = STARS_SHOP_PACKAGES.map(function (pkg) {
-    var tagHtml = pkg.tag ? '<div class="shell-shop-card-badge">' + pkg.tag + '</div>' : '';
+  var packages = getStarsShopPackages();
+  grid.innerHTML = packages.map(function (pkg) {
+    var tagHtml = pkg.tag ? '<div class="shell-shop-card-badge">' + escapeHtml(pkg.tag) + '</div>' : '';
     return '<div class="shell-shop-card shell-stars-card" data-package-id="' + pkg.id + '">' +
       tagHtml +
       '<div class="shell-shop-card-art stars-art">' +
         '<div class="shell-stars-orb-icon">' + pixelCoinHtml('oro', 6) + '</div>' +
       '</div>' +
       '<div class="shell-shop-card-text">' +
-        '<div class="shell-shop-card-name">' + pkg.title + '</div>' +
-        '<div class="shell-shop-card-desc">' + pkg.subtitle + '</div>' +
+        '<div class="shell-shop-card-name">' + escapeHtml(pkg.title) + '</div>' +
+        '<div class="shell-shop-card-desc">' + escapeHtml(pkg.subtitle || pkg.description || '') + '</div>' +
       '</div>' +
       '<div class="shell-shop-card-footer">' +
         '<span class="shell-stars-card-price">⭐️ ' + pkg.stars + ' STARS</span>' +

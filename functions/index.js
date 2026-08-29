@@ -125,6 +125,16 @@ exports.awardMatchResult = onCall(async (request) => {
   return { coins: newCoins };
 });
 
+async function fetchEconomyConfig() {
+  const snap = await admin.firestore().collection('config').doc('economy').get();
+  const data = snap.exists ? snap.data() : {};
+  return {
+    boosterCosts: Object.assign({ base: 100, jungle: 100, fossil: 100 }, data.boosterCosts || {}),
+    protectorCosts: Object.assign({}, data.protectorCosts || {}),
+    starsPackages: Object.assign({}, STARS_PACKAGES, data.starsPackages || {})
+  };
+}
+
 exports.openBooster = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
@@ -136,11 +146,15 @@ exports.openBooster = onCall(async (request) => {
 
   const userRef = admin.firestore().collection('users').doc(request.auth.uid);
   const rareWeights = await fetchRareWeights(setKey);
+  const ecoConfig = await fetchEconomyConfig();
+  const cost = (ecoConfig.boosterCosts && typeof ecoConfig.boosterCosts[setKey] === 'number')
+    ? ecoConfig.boosterCosts[setKey]
+    : BOOSTER_COST;
 
   const cards = await admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(userRef);
     const data = snap.exists ? snap.data() : null;
-    if (!data || data.coins < BOOSTER_COST) {
+    if (!data || data.coins < cost) {
       throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
     }
     // Darkspoon's own account rolls the pulled Rare's rarity on much better
@@ -159,7 +173,7 @@ exports.openBooster = onCall(async (request) => {
       if (c.pulledRarity === 'secret') { newCollectionSecret[key] = (newCollectionSecret[key] || 0) + 1; }
     });
     tx.update(userRef, {
-      coins: data.coins - BOOSTER_COST,
+      coins: data.coins - cost,
       collection: newCollection,
       collectionHolo: newCollectionHolo,
       collectionSecret: newCollectionSecret
@@ -184,6 +198,10 @@ exports.buyCardBack = onCall(async (request) => {
   }
 
   const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const ecoConfig = await fetchEconomyConfig();
+  const cost = (ecoConfig.protectorCosts && typeof ecoConfig.protectorCosts[id] === 'number')
+    ? ecoConfig.protectorCosts[id]
+    : PROTECTOR_COST;
 
   return admin.firestore().runTransaction(async (tx) => {
     const snap = await tx.get(userRef);
@@ -195,11 +213,11 @@ exports.buyCardBack = onCall(async (request) => {
     if (owned.indexOf(id) !== -1) {
       return { cardBacks: owned };
     }
-    if (data.coins < PROTECTOR_COST) {
+    if (data.coins < cost) {
       throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
     }
     const newCardBacks = owned.concat([id]);
-    tx.update(userRef, { coins: data.coins - PROTECTOR_COST, cardBacks: newCardBacks });
+    tx.update(userRef, { coins: data.coins - cost, cardBacks: newCardBacks });
     return { cardBacks: newCardBacks };
   });
 });
@@ -1514,7 +1532,8 @@ exports.createStarsInvoice = onCall(async (request) => {
   }
   const data = request.data || {};
   const packageId = data.packageId;
-  const pkg = STARS_PACKAGES[packageId];
+  const ecoConfig = await fetchEconomyConfig();
+  const pkg = (ecoConfig.starsPackages && ecoConfig.starsPackages[packageId]) || STARS_PACKAGES[packageId];
   if (!pkg) {
     throw new HttpsError('invalid-argument', 'Paquete de Orbes no válido.');
   }
@@ -1529,7 +1548,7 @@ exports.createStarsInvoice = onCall(async (request) => {
 
   const body = {
     title: pkg.title,
-    description: pkg.description,
+    description: pkg.description || pkg.title,
     payload: payload,
     currency: 'XTR',
     prices: [{ label: pkg.title, amount: pkg.stars }]
@@ -1570,7 +1589,9 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         payload = JSON.parse(query.invoice_payload);
       } catch (_) {}
 
-      const pkg = payload && STARS_PACKAGES[payload.packageId];
+      const ecoConfig = await fetchEconomyConfig();
+      const pkg = (payload && ecoConfig.starsPackages && ecoConfig.starsPackages[payload.packageId]) ||
+                  (payload && STARS_PACKAGES[payload.packageId]);
       const valid = !!(pkg && query.currency === 'XTR' && query.total_amount === pkg.stars);
 
       await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
@@ -1671,4 +1692,63 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
   res.status(200).json({ ok: true });
 });
+
+// ── Admin Economy / Shop Prices Config ──────────────────────────────────
+exports.getEconomyConfig = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  return fetchEconomyConfig();
+});
+
+exports.setEconomyConfig = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const boosterCosts = data.boosterCosts || {};
+  const protectorCosts = data.protectorCosts || {};
+  const starsPackages = data.starsPackages || {};
+
+  const cleanBoosterCosts = {};
+  ['base', 'jungle', 'fossil'].forEach((k) => {
+    const v = parseInt(boosterCosts[k], 10);
+    cleanBoosterCosts[k] = isNaN(v) || v < 0 ? 100 : v;
+  });
+
+  const cleanProtectorCosts = {};
+  PROTECTOR_IDS.forEach((id) => {
+    const v = parseInt(protectorCosts[id], 10);
+    cleanProtectorCosts[id] = isNaN(v) || v < 0 ? 75 : v;
+  });
+
+  const cleanStarsPackages = {};
+  Object.keys(starsPackages).forEach((key) => {
+    const p = starsPackages[key];
+    if (p && typeof p === 'object') {
+      const coins = parseInt(p.coins, 10);
+      const stars = parseInt(p.stars, 10);
+      if (!isNaN(coins) && coins > 0 && !isNaN(stars) && stars > 0) {
+        cleanStarsPackages[key] = {
+          id: String(p.id || key).slice(0, 30),
+          title: String(p.title || '').slice(0, 80),
+          subtitle: String(p.subtitle || '').slice(0, 80),
+          description: String(p.description || '').slice(0, 200),
+          coins: coins,
+          stars: stars,
+          tag: p.tag ? String(p.tag).slice(0, 40) : null
+        };
+      }
+    }
+  });
+
+  const payload = {
+    boosterCosts: cleanBoosterCosts,
+    protectorCosts: cleanProtectorCosts,
+    starsPackages: Object.keys(cleanStarsPackages).length > 0 ? cleanStarsPackages : STARS_PACKAGES,
+    updatedAt: FieldValue.serverTimestamp()
+  };
+
+  await admin.firestore().collection('config').doc('economy').set(payload, { merge: true });
+  return { ok: true, config: payload };
+});
+
 

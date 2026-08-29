@@ -239,3 +239,32 @@ function createStarsInvoiceCloud(packageId) {
   return fn({ packageId: packageId }).then(function (res) { return res.data; });
 }
 
+var globalEconomyConfig = null;
+
+function initEconomyConfigListener() {
+  return firebase.firestore().collection('config').doc('economy')
+    .onSnapshot(function (snap) {
+      var data = snap.exists ? snap.data() : null;
+      globalEconomyConfig = data ? {
+        boosterCosts: Object.assign({ base: 100, jungle: 100, fossil: 100 }, data.boosterCosts || {}),
+        protectorCosts: Object.assign({}, data.protectorCosts || {}),
+        starsPackages: data.starsPackages || null
+      } : null;
+      if (typeof renderShopScreen === 'function') { renderShopScreen(); }
+      if (typeof renderProtectorsGrid === 'function') { renderProtectorsGrid(); }
+      if (typeof renderOrbesShopGrid === 'function') { renderOrbesShopGrid(); }
+    }, function (err) {
+      console.warn('No se pudo cargar la configuración de precios', err);
+    });
+}
+
+function setEconomyConfigCloud(config) {
+  var fn = firebase.functions().httpsCallable('setEconomyConfig');
+  return fn(config).then(function (res) { return res.data; });
+}
+
+function getEconomyConfigCloud() {
+  var fn = firebase.functions().httpsCallable('getEconomyConfig');
+  return fn().then(function (res) { return res.data; });
+}
+

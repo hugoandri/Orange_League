@@ -264,6 +264,7 @@
     var unsubscribeEconomy = null;
     var unsubscribeNews = null;
     var unsubscribeCustomPacks = null;
+    var unsubscribeEconomyConfig = null;
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
       var menuUidEl = document.getElementById('menuUserUid');
@@ -279,6 +280,8 @@
         unsubscribeNews = initNewsListener();
         if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }
         unsubscribeCustomPacks = initCustomPacksListener();
+        if (unsubscribeEconomyConfig) { unsubscribeEconomyConfig(); }
+        unsubscribeEconomyConfig = initEconomyConfigListener();
       } else {
         if (menuUidEl) { menuUidEl.textContent = '--'; }
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
@@ -294,6 +297,10 @@
         if (unsubscribeCustomPacks) {
           unsubscribeCustomPacks();
           unsubscribeCustomPacks = null;
+        }
+        if (unsubscribeEconomyConfig) {
+          unsubscribeEconomyConfig();
+          unsubscribeEconomyConfig = null;
         }
         document.getElementById('menuScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');
