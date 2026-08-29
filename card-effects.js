@@ -1173,7 +1173,14 @@ ATTACK_EFFECTS['Clefairy'] = {
     }
     var copiedEffect = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[defender.name]) ? ATTACK_EFFECTS[defender.name][chosenAtk.name] : null;
     if (copiedEffect && chosenAtk.name !== 'Submission' && chosenAtk.name !== 'Metronome') {
-      copiedEffect(state, attacker, defender, chosenAtk, playerId);
+      var origEnergy = (attacker.attachedEnergy || []).slice();
+      // Provide dummy energy of all types so energy discard/presence checks pass, without touching real energy
+      attacker.attachedEnergy = ['Fire', 'Fire', 'Fire', 'Fire', 'Water', 'Water', 'Water', 'Water', 'Psychic', 'Psychic', 'Psychic', 'Grass', 'Grass', 'Grass', 'Lightning', 'Lightning', 'Fighting', 'Fighting', 'Colorless', 'Colorless', 'Colorless', 'Colorless'];
+      try {
+        copiedEffect(state, attacker, defender, chosenAtk, playerId);
+      } finally {
+        attacker.attachedEnergy = origEnergy;
+      }
     } else {
       var dmg = parseInt(chosenAtk.damage, 10) || 0;
       if (dmg > 0) { dealDamage(state, attacker, defender, dmg); }

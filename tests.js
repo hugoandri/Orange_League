@@ -2289,16 +2289,26 @@ function mkPokemon(id, name, overrides) {
   var p = state.players.player;
   var cpu = state.players.cpu;
   p.active = mkPokemon('cl1', 'Clefairy', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
-  // Machoke's attacks: Karate Chop (calculated, base 50) and Submission
-  // (flat 60) -- Metronome should pick Submission's raw 60 and deal ONLY
-  // that flat number, without also inflicting Submission's own 20
-  // self-damage recoil (per the documented simplification).
   cpu.active = mkPokemon('mc1', 'Machoke', {});
 
   attack(state, 'player', 'Metronome');
 
   check('Metronome deals the copied attack\'s flat damage', cpu.active.damage, 60);
   check('Metronome does not also copy the recoil self-damage', p.active.damage, 0);
+})();
+
+(function testMetronomeCopiesChosenAttackWithEnergyDiscard() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('cl1', 'Clefairy', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
+  cpu.active = mkPokemon('ch1', 'Charmeleon', {});
+
+  attack(state, 'player', 'Metronome', 'Flamethrower');
+
+  check('Metronome deals Flamethrower damage without requiring Fire energy', cpu.active.damage, 50);
+  check('Metronome preserves Clefairy\'s original attached energy', p.active.attachedEnergy.length, 3);
 })();
 
 (function testMirrorMoveReplaysLastTurnsDamageOnly() {
