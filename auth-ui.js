@@ -265,10 +265,22 @@
     var unsubscribeNews = null;
     var unsubscribeCustomPacks = null;
     var unsubscribeEconomyConfig = null;
+    var menuTelegramBtn = document.getElementById('menuTelegramBtn');
+    if (menuTelegramBtn) {
+      menuTelegramBtn.addEventListener('click', function (e) {
+        var user = firebase.auth().currentUser;
+        var uidParam = user ? ('?start=uid_' + encodeURIComponent(user.uid)) : '';
+        var botUrl = 'https://t.me/OrangeLeagueTCGBot' + uidParam;
+        if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function') {
+          e.preventDefault();
+          window.Telegram.WebApp.openTelegramLink(botUrl);
+        }
+      });
+    }
+
     firebase.auth().onAuthStateChanged(function (user) {
       hideAppLoadingOverlay();
       var menuUidEl = document.getElementById('menuUserUid');
-      var menuTelegramBtn = document.getElementById('menuTelegramBtn');
       if (user) {
         if (menuUidEl) { menuUidEl.textContent = user.uid; }
         if (menuTelegramBtn) { menuTelegramBtn.href = 'https://t.me/OrangeLeagueTCGBot?start=uid_' + encodeURIComponent(user.uid); }
