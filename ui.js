@@ -3918,7 +3918,7 @@ function renderPvpDeckPicker(containerId, onPicked) {
       '<span class="pvp-deck-option-state">ELEGIR</span>' +
       '</button>';
   }).join('') + '</div>' +
-    '<div class="pvp-deck-confirm-bar"><span data-pvp-selection>SELECCIONÁ UN MAZO PARA CONTINUAR</span>' +
+    '<div class="pvp-deck-confirm-bar"><span data-pvp-selection>SELECCIONA UN MAZO PARA CONTINUAR</span>' +
     '<button type="button" data-pvp-confirm disabled>CONFIRMAR MAZO <b>→</b></button></div>';
   var selectedDeckId = null;
   var selection = el.querySelector('[data-pvp-selection]');
