@@ -207,7 +207,10 @@ function renderProfile() {
   var menuPhotoEl = document.getElementById('menuProfilePhoto');
   if (menuPhotoEl) { menuPhotoEl.src = photo; }
   var menuUidEl = document.getElementById('menuUserUid');
-  if (menuUidEl) { menuUidEl.textContent = (profileState && profileState.uid) || '--'; }
+  if (menuUidEl) {
+    var uidVal = (profileState && profileState.uid) || (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
+    if (uidVal) { menuUidEl.textContent = uidVal; }
+  }
 
   document.querySelectorAll('.collection-profile-name').forEach(function (el) { el.textContent = name; });
   document.querySelectorAll('.collection-profile-photo').forEach(function (el) { el.src = photo; });
