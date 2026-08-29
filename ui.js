@@ -2580,10 +2580,27 @@ function wireBoardButtons() {
           document.getElementById('log').innerHTML = logHtml(gameState);
           return; // still pending -- wait for a valid rival target
         }
+        if (!cpuTarget.attachedEnergy || cpuTarget.attachedEnergy.length === 0) {
+          logEvent(gameState, 'Ese Pokémon rival no tiene energías adjuntas', 'player');
+          document.getElementById('log').innerHTML = logHtml(gameState);
+          return;
+        }
         var pendingRemoval = pendingSuperEnergyRemoval;
         pendingSuperEnergyRemoval = null;
-        var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex);
-        if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
+        selectedHandId = null;
+
+        var countToDiscard = Math.min(2, cpuTarget.attachedEnergy.length);
+        if (cpuTarget.attachedEnergy.length >= 2) {
+          openEnergyDiscardModal(cpuTarget.attachedEnergy.slice(), countToDiscard, function (indices) {
+            var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices);
+            if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
+            renderBoard();
+          });
+          return;
+        } else {
+          var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, [0]);
+          if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
+        }
       } else if (TRAINER_EFFECTS[handCard.name]) {
         var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
         if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }

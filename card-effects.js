@@ -223,7 +223,7 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
 // wireBoardButtons, same openEnergyDiscardModal used by Super Potion)
 // since a Pokémon can have more than one energy type attached. Defaults to
 // index 0 for callers that don't care (ai.js's CPU usage).
-TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId, ownEnergyIndex) {
+TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, ownInstanceId, opponentInstanceId, ownEnergyIndex, opponentEnergyIndices) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   var own = findInstance(p, ownInstanceId);
@@ -231,7 +231,7 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   var opId = opponentOf(playerId);
   var op = state.players[opId];
   var target = findInstance(op, opponentInstanceId);
-  if (!target) { return { legal: false, reason: 'sin objetivo rival válido' }; }
+  if (!target || target.attachedEnergy.length === 0) { return { legal: false, reason: 'sin objetivo rival con energía válido' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
@@ -239,7 +239,19 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   var ownIdx = (typeof ownEnergyIndex === 'number' && ownEnergyIndex >= 0 && ownEnergyIndex < own.attachedEnergy.length) ? ownEnergyIndex : 0;
   var ownRemoved = own.attachedEnergy.splice(ownIdx, 1);
   ownRemoved.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
-  var oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
+
+  var oppRemoved = [];
+  if (Array.isArray(opponentEnergyIndices) && opponentEnergyIndices.length > 0) {
+    var sortedIndices = opponentEnergyIndices.slice().sort(function (a, b) { return b - a; });
+    sortedIndices.forEach(function (oppIdx) {
+      if (typeof oppIdx === 'number' && oppIdx >= 0 && oppIdx < target.attachedEnergy.length) {
+        var rem = target.attachedEnergy.splice(oppIdx, 1);
+        if (rem.length) { oppRemoved.push(rem[0]); }
+      }
+    });
+  } else {
+    oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
+  }
   oppRemoved.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };
