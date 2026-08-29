@@ -1403,6 +1403,7 @@ function cardStatusOverlayHtml(activeInstance) {
 // per user request, so the whole rival side reads consistently as "facing
 // across the table" instead of just the Active looking that way.
 function benchCardHtml(instance, mine, flipped) {
+  if (!instance || !CARD_STATS[instance.name]) { return benchEmptyHtml(mine, 0); }
   var stats = CARD_STATS[instance.name];
   var hp = stats.hp - instance.damage;
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
@@ -1445,7 +1446,7 @@ function benchRowHtml(bench, mine, flipped) {
 // flips (see .shell-board-active-card.flipped). Attached energy shows as
 // the same top-left icon overlay bench cards use, not a separate row.
 function activeColHtml(activeInstance, mine, flipped) {
-  if (!activeInstance) {
+  if (!activeInstance || !CARD_STATS[activeInstance.name]) {
     // Only the player's own empty Active spot is a real drop target (for the
     // very first Basic, or after a knockout with no Bench left) -- the
     // CPU's side renders the exact same "SIN ACTIVO" placeholder inertly.
@@ -1657,24 +1658,18 @@ function renderBoard() {
   // open and pointing at a card that may no longer even be in hand.
   hideHandCardMenu();
 
-  var pActive = p.active;
-  var cActive = c.active;
-  var pDiscardCount = p.discard.length;
-  var cDiscardCount = c.discard.length;
-
-  // While revealAnimationInProgress is true (e.g. during CPU trainer reveals or attack overlay),
-  // if a Pokemon was KO'd during the turn resolution, keep it visually displayed in the active slot
-  // until the attack overlay finishes and revealAnimationInProgress becomes false.
-  if (revealAnimationInProgress) {
-    if (!pActive && s.pendingActiveChoice === 'player' && p.discard && p.discard.length > 0) {
-      pActive = p.discard[p.discard.length - 1];
-      pDiscardCount = Math.max(0, p.discard.length - 1);
-    }
-    if (!cActive && s.pendingActiveChoice === 'cpu' && c.discard && c.discard.length > 0) {
-      cActive = c.discard[c.discard.length - 1];
-      cDiscardCount = Math.max(0, c.discard.length - 1);
-    }
-  }
+  var pActive = (revealAnimationInProgress && visualActivePokemon && visualActivePokemon.player)
+    ? visualActivePokemon.player
+    : p.active;
+  var cActive = (revealAnimationInProgress && visualActivePokemon && visualActivePokemon.cpu)
+    ? visualActivePokemon.cpu
+    : c.active;
+  var pDiscardCount = (revealAnimationInProgress && visualActivePokemon && typeof visualActivePokemon.playerDiscardCount === 'number')
+    ? visualActivePokemon.playerDiscardCount
+    : p.discard.length;
+  var cDiscardCount = (revealAnimationInProgress && visualActivePokemon && typeof visualActivePokemon.cpuDiscardCount === 'number')
+    ? visualActivePokemon.cpuDiscardCount
+    : c.discard.length;
 
   // The CPU's side runs Bench-then-Active (top to bottom) while the
   // player's runs Active-then-Bench, so the two Actives meet in the middle
