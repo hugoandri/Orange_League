@@ -1657,8 +1657,8 @@ function renderBoard() {
     benchRowHtml(p.bench, true, false) +
     '</div>';
 
-  var pendingPlayerPrize = s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
-  var pendingActive = s.pendingActiveChoice === 'player';
+  var pendingPlayerPrize = !revealAnimationInProgress && s.pendingPrizeChoice && s.pendingPrizeChoice.playerId === 'player';
+  var pendingActive = !revealAnimationInProgress && s.pendingActiveChoice === 'player';
   // The hand stays visible during a pending prize choice -- only the
   // Active-choice modal (a full board takeover after being wiped out) hides
   // it, per real rules the hand is never touched by taking a prize.
@@ -1789,6 +1789,15 @@ function maybeResumeCpuTurn() {
   proceedWithCpuTurn();
 }
 
+function startPlayerTurnWithDraw() {
+  if (gameState && gameState.activePlayerId === 'player' && !getWinner(gameState) && !pvpMode) {
+    if (gameState.turnCounter > 1) {
+      drawForTurnStart(gameState, 'player');
+    }
+    renderBoard();
+  }
+}
+
 function proceedWithCpuTurn() {
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
@@ -1821,15 +1830,6 @@ function proceedWithCpuTurn() {
       // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
       showCpuThinkingIndicator();
       setTimeout(function () {
-function startPlayerTurnWithDraw() {
-  if (gameState && gameState.activePlayerId === 'player' && !getWinner(gameState) && !pvpMode) {
-    if (gameState.turnCounter > 1) {
-      drawForTurnStart(gameState, 'player');
-    }
-    renderBoard();
-  }
-}
-
         function reveal() {
           afterPlayerAction();
           // Skip the flash if that turn just won/lost the match -- there's
