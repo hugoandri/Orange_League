@@ -100,7 +100,7 @@ async function main() {
   }
 
   // Promos (basep/espromo) are collectible but not deck-legal for now (see
-  // PLAYABLE_CARD_CATALOG, functions/index.js) -- even genuinely owning 4
+  // DECK_LEGAL_CARD_CATALOG, functions/index.js) -- even genuinely owning 4
   // copies of a promo-exclusive name (basep-28 = Surfing Pikachu, a name
   // with no real Base/Jungle/Fossil print) must not make it deck-eligible.
   await seedCollection(uid, { 'base-44': 4, 'base-99': 60, 'base-30': 2, 'basep-28': 4 });
@@ -110,6 +110,23 @@ async function main() {
   } catch (e) {
     assert.strictEqual(e.code, 'functions/failed-precondition');
     console.log('PASS: saveCustomDeck rejects promo cards as deck-illegal even when owned');
+  }
+
+  // Real reported bug: Jungle and Fossil are real, purchasable, collectible
+  // sets (unlike basep/espromo above) but CARD_STATS (data-cards.js) never
+  // implemented either one -- only Base's own 102 cards. Pikachu happens to
+  // exist as a genuinely different real card in both Base (base-58) and
+  // Jungle (jungle-60), so owning ONLY the Jungle print used to still make
+  // "Pikachu" deck-eligible (using Base's own Gnaw/Thunder Jolt stats for a
+  // card this game never actually implemented for Jungle). DECK_LEGAL_SET_
+  // KEYS/DECK_LEGAL_CARD_CATALOG scope deck ownership to Base only now.
+  await seedCollection(uid, { 'jungle-60': 4, 'base-99': 60 });
+  try {
+    await saveCustomDeck({ slot: 'custom-4', name: 'Con jungla', cards: [{ name: 'Pikachu', count: 4 }, { name: 'Grass Energy', count: 56 }] });
+    assert.fail('expected a Jungle-only print to be rejected as deck-illegal even though the name is genuinely owned');
+  } catch (e) {
+    assert.strictEqual(e.code, 'functions/failed-precondition');
+    console.log('PASS: saveCustomDeck rejects a name owned only via a Jungle/Fossil print, not Base');
   }
 
   // The rejected attempts above must not have clobbered the earlier good save.

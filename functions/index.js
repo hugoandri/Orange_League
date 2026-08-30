@@ -9,15 +9,28 @@ const CARD_CATALOG = require('./lib/cardCatalog');
 const POKEMON_EVOLUTION = require('./lib/pokemonEvolution');
 admin.initializeApp();
 
-// Decks can only ever be built from these 3 real sets -- basep/espromo
-// (Wizards Black Star Promos + Special Promos) are gift-only and
-// collectible but NOT deck-legal for now (see saveCustomDeck below). Kept
-// separate from the full CARD_CATALOG (which openBooster/claimNewsGift
-// still use) so a promo copy in a player's collection can never count
-// toward deck ownership, even from a hand-crafted request.
+// The 3 real (non-promo) sets: basep/espromo (Wizards Black Star Promos +
+// Special Promos) are gift-only, collectible but never sold as boosters --
+// used below wherever an admin/booster action needs to validate against
+// "a real, purchasable set" (setRareOdds, setEconomyConfig's boosterCosts).
 const PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
-const PLAYABLE_CARD_CATALOG = {};
-PLAYABLE_SET_KEYS.forEach((k) => { PLAYABLE_CARD_CATALOG[k] = CARD_CATALOG[k]; });
+
+// Deck-building eligibility, separately: CARD_STATS (data-cards.js) only
+// ever implemented the Base Set's own 102 cards -- Jungle and Fossil are
+// fully collectible (real boosters, real catalog entries) but were never
+// given a real playable implementation. That distinction matters because a
+// handful of names collide across sets without being the same real card
+// (Pikachu is a genuinely different Jungle print, not a Base reprint) --
+// counting a Jungle-sourced copy toward "do I own this card" used to let a
+// player deck-build with a card this game has no actual rules for. Real
+// reported bug, fixed by scoping deck ownership to Base only. Kept separate
+// from the full CARD_CATALOG (which openBooster/claimNewsGift still use
+// for all 3 sets, since those ARE real purchasable/collectible packs) so
+// neither a promo nor a Jungle/Fossil copy can ever count toward deck
+// ownership, even from a hand-crafted request.
+const DECK_LEGAL_SET_KEYS = ['base'];
+const DECK_LEGAL_CARD_CATALOG = {};
+DECK_LEGAL_SET_KEYS.forEach((k) => { DECK_LEGAL_CARD_CATALOG[k] = CARD_CATALOG[k]; });
 
 // The admin's "Probabilidades" panel (setRareOdds below) -- a single doc,
 // one field per playable set, each {cardName: weight}. Read fresh on every
@@ -370,8 +383,8 @@ exports.saveCustomDeck = onCall(async (request) => {
       throw new HttpsError('not-found', 'Cuenta no encontrada.');
     }
     const uData = snap.data();
-    const owned = ownedCountsByName(uData.collection || {}, PLAYABLE_CARD_CATALOG);
-    const supertypes = supertypeByName(PLAYABLE_CARD_CATALOG);
+    const owned = ownedCountsByName(uData.collection || {}, DECK_LEGAL_CARD_CATALOG);
+    const supertypes = supertypeByName(DECK_LEGAL_CARD_CATALOG);
     const check = validateCustomDeck(cards, owned, supertypes, POKEMON_EVOLUTION);
     if (!check.valid) {
       throw new HttpsError('failed-precondition', check.reason);

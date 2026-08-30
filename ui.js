@@ -3888,17 +3888,28 @@ var DECK_BUILDER_SIZE = 60;
 var DECK_BUILDER_MAX_COPIES = 4;
 var DECK_BUILDER_BASIC_ENERGY = ['Grass Energy', 'Fire Energy', 'Water Energy', 'Lightning Energy', 'Psychic Energy', 'Fighting Energy'];
 
-// {cardName: totalOwnedCount}, aggregated across every set/tier -- deck-
-// building rules are name-based, not print-based (see ownedCountsByName,
-// functions/lib/pureEconomy.js, the server-side equivalent of this).
-// Deliberately real sets only -- promos (basep/espromo) are collectible
-// but not deck-legal for now, so they must never inflate this pool (the
-// server enforces the same real-sets-only restriction independently, see
-// PLAYABLE_CARD_CATALOG in functions/index.js's saveCustomDeck).
+// Deck-building eligibility is Base Set only -- CARD_STATS (data-cards.js)
+// only ever implemented Base's own 102 cards, never Jungle or Fossil (real,
+// collectible, purchasable sets, just with no actual playable rules behind
+// them here). Real reported bug: this used to include jungle/fossil too,
+// so owning ONLY a Jungle-print copy of a name that happens to also exist
+// in Base (Pikachu is a genuinely different real card in each, not a
+// reprint) still made that name deck-buildable, using Base's own gameplay
+// stats for a card this game never actually implemented. Matches
+// DECK_LEGAL_SET_KEYS/DECK_LEGAL_CARD_CATALOG, functions/index.js's
+// server-side equivalent (saveCustomDeck) -- kept as a literal list here
+// too rather than a shared constant, same as every other CARD_SET_KEYS-
+// adjacent literal in this file (see CARD_SET_KEYS's own comment).
+var DECK_LEGAL_SET_KEYS = ['base'];
+
+// {cardName: totalOwnedCount}, aggregated across every deck-legal set/tier
+// -- deck-building rules are name-based, not print-based (see
+// ownedCountsByName, functions/lib/pureEconomy.js, the server-side
+// equivalent of this).
 function ownedCountsByNameClient() {
   var owned = {};
   if (!econState) { return owned; }
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+  DECK_LEGAL_SET_KEYS.forEach(function (setKey) {
     CARD_CATALOG[setKey].forEach(function (c) {
       var count = econState.collection[setKey + '-' + c.num] || 0;
       if (count > 0) { owned[c.n] = (owned[c.n] || 0) + count; }
@@ -3909,21 +3920,20 @@ function ownedCountsByNameClient() {
 
 // {cardName: {total: N, tiers: [{count, holo, secret, img}]}} -- per-name
 // tier breakdown so the deck builder pool can show foil indicators and the
-// version modal can offer tier-specific adds. Real sets only, same reason
-// as ownedCountsByNameClient above -- promos aren't deck-legal yet.
+// version modal can offer tier-specific adds. Deck-legal sets only, same
+// reason as ownedCountsByNameClient above.
 // Each tier carries its own real print's img -- real reported bug: a name
-// shared across more than one set (e.g. Pikachu is a genuinely different
-// real card in Base vs Jungle, unlike this game's own gameplay stats, which
-// only track one CARD_STATS entry per name) used to have every tier here
-// collapse to plain {count, holo, secret} with no idea which print it came
-// from, so openDeckBuilderVersionModal fell back to a single by-name image
-// lookup for the whole modal -- CARD_IMAGE_BY_NAME's own first-wins order
-// ('base' first) meant a Jungle print always displayed with Base's art
-// instead of its own.
+// shared across more than one set used to have every tier here collapse to
+// plain {count, holo, secret} with no idea which print it came from, so
+// openDeckBuilderVersionModal fell back to a single by-name image lookup
+// for the whole modal -- CARD_IMAGE_BY_NAME's own first-wins order ('base'
+// first) meant a Jungle print always displayed with Base's art instead of
+// its own. Now moot for deck-legal sets (there's only one), but kept for
+// any future deck-legal set that shares a name with a non-legal one.
 function ownedTiersByNameClient() {
   var result = {};
   if (!econState) { return result; }
-  ['base', 'jungle', 'fossil'].forEach(function (setKey) {
+  DECK_LEGAL_SET_KEYS.forEach(function (setKey) {
     CARD_CATALOG[setKey].forEach(function (c) {
       var key = setKey + '-' + c.num;
       var total = econState.collection[key] || 0;
@@ -3947,6 +3957,12 @@ function ownedTiersByNameClient() {
 // only ever converted to the real [{name,count}] array shape right before
 // calling saveCustomDeckCloud. tiers is {cardName: {holo, secret}} tracking
 // which tier variant the user chose for each card name in the deck.
+// supertypeFilter: null (no filter) or 'Pokémon'/'Trainer'/'Energy' --
+// single-select, same toggle-off-on-repeat-click UX as Mi Colección's own
+// rarity filter (renderCollectionScreen). typeFilters: [] (no filter) or a
+// list of CARD_STATS types[] values (e.g. ['Fire','Water']) -- multi-select
+// (a Pokémon pool card matches if its type is in this list), since the
+// user asked to filter by "tipo o tipos" (one or several types at once).
 var deckBuilderState = null;
 
 // initialCards: [{name, count}] (a precon's DECKLISTS entry, an existing
@@ -3958,7 +3974,7 @@ var deckBuilderState = null;
 function showDeckBuilderScreen(initialCards, slot, initialName, initialCoverName) {
   var cards = {};
   (initialCards || []).forEach(function (c) { cards[c.name] = c.count; });
-  deckBuilderState = { slot: slot, cards: cards, tiers: {}, search: '', coverName: initialCoverName || null };
+  deckBuilderState = { slot: slot, cards: cards, tiers: {}, search: '', coverName: initialCoverName || null, supertypeFilter: null, typeFilters: [] };
   document.getElementById('deckBuilderName').value = initialName || '';
   document.getElementById('deckBuilderSearch').value = '';
   hideDecksScreen();
@@ -4060,6 +4076,69 @@ function deckBuilderHasBasicPokemon() {
   });
 }
 
+var DECK_BUILDER_SUPERTYPES = [
+  { key: 'Pokémon', label: 'POKÉMON' },
+  { key: 'Trainer', label: 'ENTRENADOR' },
+  { key: 'Energy', label: 'ENERGÍA' }
+];
+
+// Single-select supertype filter (Pokémon / Entrenador / Energía) for the
+// deck builder pool -- same toggle-off-on-repeat-click UX as Mi Colección's
+// own rarity filter (renderCollectionScreen). ownedNames: the pool's full
+// owned+deck-legal name list, unfiltered by search/typeFilters -- counts
+// here are static per category, same convention as the rarity filter's own
+// counts (against the full collection, not the currently-typed search).
+function renderDeckBuilderSupertypeFilter(ownedNames) {
+  var s = deckBuilderState;
+  var html = DECK_BUILDER_SUPERTYPES.map(function (st) {
+    var count = ownedNames.filter(function (name) { return CARD_STATS[name].supertype === st.key; }).length;
+    var active = s.supertypeFilter === st.key;
+    return '<button type="button" class="shell-collection-rarity-row' + (active ? ' active' : '') + '" data-supertype="' + st.key + '">' +
+      '<span class="shell-collection-rarity-name">' + st.label + '</span>' +
+      '<span class="shell-collection-rarity-count">' + count + '</span>' +
+      '</button>';
+  }).join('');
+  var list = document.getElementById('deckBuilderSupertypeList');
+  list.innerHTML = html;
+  list.querySelectorAll('.shell-collection-rarity-row').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-supertype');
+      s.supertypeFilter = s.supertypeFilter === key ? null : key;
+      renderDeckBuilderScreen();
+    });
+  });
+}
+
+// Multi-select Pokémon-type filter for the deck builder pool -- unlike the
+// supertype filter above, more than one type can be active at once (a pool
+// card matches if it has ANY of the selected types), per the user's
+// explicit ask to filter by "tipo o tipos" (one or several types at once).
+// Reuses ENERGY_CARD_TYPE_ICON/BUZZAP_TYPE_NAME_ES rather than a new
+// lookup -- same 7 real types, same icons, already defined for the
+// Buzzap/energy-badge UI elsewhere in this file.
+function renderDeckBuilderTypeFilter(ownedNames) {
+  var s = deckBuilderState;
+  var html = Object.keys(ENERGY_CARD_TYPE_ICON).map(function (type) {
+    var count = ownedNames.filter(function (name) { return (CARD_STATS[name].types || []).indexOf(type) !== -1; }).length;
+    var active = s.typeFilters.indexOf(type) !== -1;
+    var label = BUZZAP_TYPE_NAME_ES[type];
+    return '<button type="button" class="shell-deck-builder-type-badge' + (active ? ' active' : '') + '" data-type="' + type + '" title="' + label + '">' +
+      '<img src="Tipos/' + ENERGY_CARD_TYPE_ICON[type] + '.png" alt="' + label + '">' +
+      '<span class="shell-deck-builder-type-badge-count">' + count + '</span>' +
+      '</button>';
+  }).join('');
+  var list = document.getElementById('deckBuilderTypeList');
+  list.innerHTML = html;
+  list.querySelectorAll('.shell-deck-builder-type-badge').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var type = btn.getAttribute('data-type');
+      var idx = s.typeFilters.indexOf(type);
+      if (idx === -1) { s.typeFilters.push(type); } else { s.typeFilters.splice(idx, 1); }
+      renderDeckBuilderScreen();
+    });
+  });
+}
+
 function renderDeckBuilderScreen() {
   var s = deckBuilderState;
   var total = deckBuilderTotal();
@@ -4067,10 +4146,18 @@ function renderDeckBuilderScreen() {
   renderDeckBuilderCover();
 
   var tierData = ownedTiersByNameClient();
+  var ownedNames = Object.keys(tierData).filter(function (name) { return !!CARD_STATS[name]; });
+  renderDeckBuilderSupertypeFilter(ownedNames);
+  renderDeckBuilderTypeFilter(ownedNames);
+
   var search = s.search.toLowerCase();
-  var poolNames = Object.keys(tierData).filter(function (name) {
-    if (!CARD_STATS[name]) { return false; }
+  var poolNames = ownedNames.filter(function (name) {
     if (search && translateCardName(name).toLowerCase().indexOf(search) === -1) { return false; }
+    if (s.supertypeFilter && CARD_STATS[name].supertype !== s.supertypeFilter) { return false; }
+    if (s.typeFilters.length) {
+      var types = CARD_STATS[name].types || [];
+      if (!types.some(function (t) { return s.typeFilters.indexOf(t) !== -1; })) { return false; }
+    }
     return true;
   }).sort(function (a, b) { return translateCardName(a).localeCompare(translateCardName(b)); });
 
