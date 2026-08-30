@@ -702,13 +702,17 @@ TRAINER_EFFECTS['Revive'] = function (state, playerId, handId, discardCardId) {
 // a single slot would silently drop every play but the last. Card names in
 // TRAINER_EFFECTS are never called with a `this` of their own, so
 // forwarding through .apply(null, ...) is safe.
+// This same queue also carries the CPU's non-Trainer actions now (evolve/
+// energy attach/basic play/retreat -- see ai.js's queueCpuAction) so
+// ui.js's reveal narrates a CPU turn move-by-move in the order it actually
+// happened, not just its Trainer plays; `kind` is what tells the two apart.
 Object.keys(TRAINER_EFFECTS).forEach(function (name) {
   var original = TRAINER_EFFECTS[name];
   TRAINER_EFFECTS[name] = function (state, playerId) {
     var result = original.apply(null, arguments);
     if (result && result.legal) {
       state.trainerPlaysQueue = state.trainerPlaysQueue || [];
-      state.trainerPlaysQueue.push({ name: name, playerId: playerId, targetName: result.targetName });
+      state.trainerPlaysQueue.push({ kind: 'trainer', name: name, playerId: playerId, targetName: result.targetName });
     }
     return result;
   };

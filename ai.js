@@ -60,7 +60,12 @@ function aiTryEvolveBench(state, playerId) {
   for (var i = 0; i < all.length; i++) {
     var target = all[i];
     var handCard = p.hand.find(function (c) { return canEvolve(state, playerId, c.id, target.id); });
-    if (handCard) { evolve(state, playerId, handCard.id, target.id); return true; }
+    if (handCard) {
+      var fromName = target.name;
+      evolve(state, playerId, handCard.id, target.id);
+      queueCpuAction(state, 'evolve', handCard.name, playerId, { fromName: fromName });
+      return true;
+    }
   }
   return false;
 }
@@ -68,7 +73,11 @@ function aiTryEvolveBench(state, playerId) {
 function aiTryPlayBasic(state, playerId) {
   var p = state.players[playerId];
   var handCard = p.hand.find(function (c) { return canPlayBasic(state, playerId, c.id); });
-  if (handCard) { playBasic(state, playerId, handCard.id); return true; }
+  if (handCard) {
+    playBasic(state, playerId, handCard.id);
+    queueCpuAction(state, 'basic', handCard.name, playerId);
+    return true;
+  }
   return false;
 }
 
@@ -115,7 +124,9 @@ function aiTryAttachEnergy(state, playerId, difficulty) {
     if (benchMatch) { target = benchMatch; }
   }
   if (!canAttachEnergy(state, playerId, handCard.id, target.id)) { return false; }
+  var targetName = target.name;
   attachEnergy(state, playerId, handCard.id, target.id);
+  queueCpuAction(state, 'energy', handCard.name, playerId, { targetName: targetName });
   return true;
 }
 
@@ -247,6 +258,26 @@ function aiProactiveRetreat(state, playerId, difficulty) {
   return p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active, state, playerId) !== null && canRetreat(state, playerId, b.id); }) || null;
 }
 
+// Queues one non-Trainer CPU action (evolve/energy/basic/retreat) onto the
+// exact same reveal queue TRAINER_EFFECTS' wrapper (card-effects.js) already
+// pushes Trainer plays onto -- so ui.js's showTrainerPlaysSequence narrates
+// EVERY action the CPU took this turn, one at a time in the real order it
+// happened, not just its Trainer plays. Real reported complaint: only
+// Trainer plays ever got a toast, so a turn with an evolve + an energy
+// attach + a couple of Trainer plays looked like everything but the
+// Trainer(s) landed on the board in one silent instant, making the CPU's
+// turn hard to follow.
+// Gated on state.phase === 'playing' since aiTryPlayBasic/aiTryEvolveBench
+// are also called during the pre-match 'setup' phase (aiSetupBoard, ui.js)
+// to place the CPU's opening Bench -- those aren't a "turn" a reveal
+// sequence should ever narrate, and would otherwise sit queued until the
+// CPU's actual first turn and play back as a confusing, out-of-place toast.
+function queueCpuAction(state, kind, name, playerId, extra) {
+  if (state.phase !== 'playing') { return; }
+  state.trainerPlaysQueue = state.trainerPlaysQueue || [];
+  state.trainerPlaysQueue.push(Object.assign({ kind: kind, name: name, playerId: playerId }, extra || {}));
+}
+
 // difficulty: 'easy' (default, unchanged from before tiers existed), 'normal',
 // or 'hard'. Callers (ui.js) pick how long to visually "think" before
 // invoking this based on the same value -- this function itself stays fully
@@ -288,7 +319,11 @@ function cpuTakeTurn(state, difficulty) {
   // turn it came in.
   if (p.active) {
     var proactive = aiProactiveRetreat(state, playerId, difficulty);
-    if (proactive) { retreat(state, playerId, proactive.id); }
+    if (proactive) {
+      var outgoingName = p.active.name;
+      retreat(state, playerId, proactive.id);
+      queueCpuAction(state, 'retreat', proactive.name, playerId, { outName: outgoingName });
+    }
   }
   if (p.active) {
     var best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active, state, playerId);
@@ -308,7 +343,9 @@ function cpuTakeTurn(state, difficulty) {
           ? p.bench.find(function (b) { return b && aiBestAffordableAttack(b) !== null; })
           : p.bench.find(function (b) { return b && aiBestAttackAgainst(b, op.active, state, playerId) !== null; });
         if (betterBench) {
+          var strandedOutgoingName = p.active.name;
           retreat(state, playerId, betterBench.id);
+          queueCpuAction(state, 'retreat', betterBench.name, playerId, { outName: strandedOutgoingName });
           best = difficulty === 'easy' ? aiBestAffordableAttack(p.active) : aiBestAttackAgainst(p.active, op.active, state, playerId);
         }
       }

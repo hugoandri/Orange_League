@@ -1941,7 +1941,7 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('no queue exists before any Trainer is played', state.trainerPlaysQueue, undefined);
   var result = TRAINER_EFFECTS['Bill'](state, 'player', 'bill1');
   checkTrue('Bill plays legally', result.legal);
-  check('a successful Trainer play is queued with its name and player', state.trainerPlaysQueue, [{ name: 'Bill', playerId: 'player' }]);
+  check('a successful Trainer play is queued with its kind, name and player', state.trainerPlaysQueue, [{ kind: 'trainer', name: 'Bill', playerId: 'player' }]);
 
   // An illegal play (wrong active player) must not queue anything.
   state.activePlayerId = 'cpu';

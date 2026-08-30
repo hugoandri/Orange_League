@@ -782,11 +782,38 @@ function closeCardModal() {
   }
 }
 
-// Flashes a just-played Trainer card big in the middle of the screen for
-// about a second, then calls onDone -- added because Trainer plays (both
-// the player's own and the CPU's) were easy to miss entirely, buried in the
-// text log. Non-blocking (pointer-events:none) since it's a notice, not a
-// modal the player has to dismiss.
+// Builds the toast label for one queued CPU-turn action (see ai.js's
+// queueCpuAction and card-effects.js's TRAINER_EFFECTS wrapper, both of
+// which push onto the same gameState.trainerPlaysQueue) -- kind tells apart
+// what's otherwise the same {name, playerId} shape. Defaults to the
+// original Trainer-play phrasing when kind is missing/'trainer'.
+function cpuActionLabel(play) {
+  var mine = play.playerId === 'player';
+  switch (play.kind) {
+    case 'evolve':
+      return (mine ? 'Evolucionas a ' : 'El rival evoluciona a ') + translateCardName(play.fromName) + ' → ' + translateCardName(play.name);
+    case 'energy':
+      return (mine ? 'Pones ' : 'El rival pone ') + translateCardName(play.name) + ' en ' + translateCardName(play.targetName);
+    case 'basic':
+      return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) + ' de básico';
+    case 'retreat':
+      return (mine ? 'Retiras a ' : 'El rival retira a ') + translateCardName(play.outName) + ' → sale ' + translateCardName(play.name);
+    default:
+      return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) +
+        (play.targetName ? (' → sale ' + translateCardName(play.targetName)) : '');
+  }
+}
+
+// Flashes a just-taken CPU-turn action (Trainer play, evolve, energy
+// attach, basic play, or retreat -- see cpuActionLabel) big in the middle
+// of the screen for about a second, then calls onDone -- added because
+// Trainer plays (both the player's own and the CPU's) were easy to miss
+// entirely, buried in the text log; broadened to every action kind after
+// the same reported complaint applied even harder to the ones that used to
+// get no callout at all (evolve/energy/basic/retreat previously landed on
+// the board completely silently, mid-turn, with nothing to read). Non-
+// blocking (pointer-events:none) since it's a notice, not a modal the
+// player has to dismiss.
 var trainerPlayedHoldTimeout = null;
 var trainerPlayedFadeTimeout = null;
 function showTrainerPlayedOverlay(play, onDone) {
@@ -799,8 +826,7 @@ function showTrainerPlayedOverlay(play, onDone) {
   clearTimeout(trainerPlayedFadeTimeout);
   img.src = url;
   img.alt = play.name;
-  label.textContent = (play.playerId === 'player' ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) +
-    (play.targetName ? (' → sale ' + translateCardName(play.targetName)) : '');
+  label.textContent = cpuActionLabel(play);
   el.classList.remove('hidden', 'fading');
   trainerPlayedHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
@@ -813,14 +839,16 @@ function showTrainerPlayedOverlay(play, onDone) {
 }
 
 // Drains gameState.trainerPlaysQueue (see card-effects.js's TRAINER_EFFECTS
-// wrapper), showing each queued play in sequence rather than all at once --
-// a single CPU turn can play more than one Trainer before this ever gets a
-// chance to run.
-// onAllDone (optional): called once every queued play has finished
+// wrapper and ai.js's queueCpuAction), showing each queued action in
+// sequence rather than all at once -- a single CPU turn can evolve, attach
+// energy, play a Basic, retreat, and play more than one Trainer before this
+// ever gets a chance to run, and used to reveal all of it in one silent
+// instant except whichever Trainer(s) it played.
+// onAllDone (optional): called once every queued action has finished
 // showing (immediately, synchronously, if the queue was already empty) --
-// runCpuTurn uses this to hold "TU TURNO" until any Trainer(s) the CPU just
-// played are done flashing, instead of both appearing over each other in
-// the same spot.
+// runCpuTurn uses this to hold "TU TURNO" until everything the CPU just did
+// is done flashing, instead of it all appearing over each other in the
+// same spot.
 function showTrainerPlaysSequence(queue, onAllDone) {
   if (!queue.length) { if (onAllDone) { onAllDone(); } return; }
   var play = queue.shift();
@@ -909,6 +937,21 @@ function executePlayerAttack(atkName, targetInstanceId) {
     playerDiscardCount: prePlayerDiscardCount,
     cpuDiscardCount: preCpuDiscardCount
   };
+  // Real reported bug: attack() above already flips activePlayerId to 'cpu'
+  // internally (attacking is your last action) well before this reveal
+  // finishes, and endTurnBtn's own handler had no guard against that -- a
+  // click here during the ~2s attack overlay read activePlayerId==='cpu'
+  // and immediately called runCpuTurn() a second time, racing the reveal
+  // that's still in flight (double-applying the end-of-turn checkup, and
+  // firing a second "TURNO DEL RIVAL"/CPU turn on top of the first) and
+  // collapsing the whole animation-flash-CPU-turn-flash sequence into one
+  // instant mess. Nothing re-renders the board (so nothing recreates this
+  // exact button) until afterPlayerAction runs at the end of this reveal
+  // (see its own comment), so disabling it here holds for the whole window;
+  // endTurnBtn's handler also checks revealAnimationInProgress itself as a
+  // second line of defense (see its own comment).
+  var endTurnBtnDuringReveal = document.getElementById('endTurnBtn');
+  if (endTurnBtnDuringReveal) { endTurnBtnDuringReveal.disabled = true; }
   showAttackOverlayIfAny(afterPlayerAction);
 }
 
@@ -2371,6 +2414,15 @@ function wireBoardButtons() {
   var endTurnBtn = document.getElementById('endTurnBtn');
   if (endTurnBtn) {
     endTurnBtn.addEventListener('click', function () {
+      // Real reported bug: clicking this during the player's own attack
+      // overlay (revealAnimationInProgress) or while the CPU's turn is
+      // already resolving (cpuTurnInProgress) read the already-flipped
+      // activePlayerId and fired a second, overlapping runCpuTurn() call --
+      // see executePlayerAttack's own comment for the exact mess that
+      // caused. executePlayerAttack already disables this button for the
+      // duration too; this is the second line of defense (e.g. a click that
+      // landed the same instant the button was disabled).
+      if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       if (pvpMode) {
         submitMatchActionCloud(pvpActiveMatchId, { type: 'endTurn' }).catch(function (err) { alert(err.message || 'No puedes terminar tu turno ahora.'); });
         return;
