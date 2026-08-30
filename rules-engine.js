@@ -472,6 +472,11 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   discardedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
   var idx = p.bench.findIndex(function (b) { return b && b.id === benchInstanceId; });
   var incoming = p.bench[idx];
+  // Real reported bug: the log line used to build its message AFTER
+  // p.active was already reassigned below, so it always named the INCOMING
+  // Pokémon as the one "retiring" -- captured here, before the swap, so the
+  // log can correctly name who actually left.
+  var outgoingName = p.active.name;
   // Special Conditions (and shield/miss-chance debuffs, which are also
   // active-only mechanics) are removed the instant a Pokémon leaves Active
   // (1998-99 rules) -- only the Active Pokémon can ever carry them.
@@ -485,7 +490,8 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   p.bench[idx] = p.active;
   p.active = incoming;
   p.retreatedThisTurn = true;
-  logEvent(state, translatePlayer(playerId) + ' se retira a ' + p.active.name, playerId);
+  logEvent(state, translatePlayer(playerId) + ' ha retirado a ' + outgoingName, playerId);
+  logEvent(state, 'En su lugar ' + p.active.name + ' pasa al frente', playerId);
 }
 
 function hasStatus(instance, status) { return instance.statusConditions.indexOf(status) !== -1; }

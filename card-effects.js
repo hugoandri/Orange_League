@@ -140,6 +140,7 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   var incoming = p.bench[benchIdx];
+  var outgoingName = p.active ? p.active.name : null;
   // Swap in place -- the outgoing Active (if there is one) takes over the
   // exact slot the incoming one is leaving, same as a real retreat
   // (rules-engine.js); with no Active yet, the slot just empties out.
@@ -152,7 +153,9 @@ TRAINER_EFFECTS['Switch'] = function (state, playerId, handId, benchInstanceId) 
     p.bench[benchIdx] = p.active;
   }
   p.active = incoming;
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Switch'), playerId);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Switch') +
+    (outgoingName ? (' y ha retirado a ' + outgoingName) : ''), playerId);
+  logEvent(state, 'En su lugar ' + p.active.name + ' pasa al frente', playerId);
   return { legal: true };
 };
 

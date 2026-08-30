@@ -2345,6 +2345,37 @@ function mkPokemon(id, name, overrides) {
   check('Thunder Jolt\'s own tails recoil shows up as selfDamage too', thunderJoltState.lastAttackResult.selfDamage, 10);
 })();
 
+// Real reported bug: retreat()'s own log line built its message AFTER
+// p.active was already reassigned to the incoming Pokémon, so it always
+// named the INCOMING one as "retiring" instead of the one that actually
+// left the field.
+(function testRetreatAndSwitchLogNameTheRightPokemon() {
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  p.active = mkPokemon('a1', 'Bulbasaur', {});
+  p.bench = [mkPokemon('b1', 'Beedrill', {}), null, null, null, null];
+  retreat(state, 'player', 'b1');
+  var retreatLines = state.log.slice(-2);
+  check('retreat names the Pokémon that actually left (Bulbasaur), not the incoming one', retreatLines[0].msg, 'Jugador ha retirado a Bulbasaur');
+  check('a second line names the new Active (Beedrill)', retreatLines[1].msg, 'En su lugar Beedrill pasa al frente');
+  check('Beedrill really is the new Active', p.active.name, 'Beedrill');
+  check('Bulbasaur really landed on the Bench', p.bench[0].name, 'Bulbasaur');
+
+  // Switch (Trainer): same swap-in-place shape as a real retreat, and used
+  // to name no Pokémon at all in its log line.
+  var switchState = createGame(function () { return 0.42; });
+  switchState.activePlayerId = 'player';
+  var sp = switchState.players.player;
+  sp.active = mkPokemon('a2', 'Bulbasaur', {});
+  sp.bench = [mkPokemon('b2', 'Beedrill', {}), null, null, null, null];
+  sp.hand = [{ id: 'sw1', name: 'Switch' }];
+  TRAINER_EFFECTS['Switch'](switchState, 'player', 'sw1', 'b2');
+  var switchLines = switchState.log.slice(-2);
+  check('Switch\'s log names the Pokémon that actually left', switchLines[0].msg, 'Jugador usa Cambio y ha retirado a Bulbasaur');
+  check('a second line names the new Active', switchLines[1].msg, 'En su lugar Beedrill pasa al frente');
+})();
+
 (function testSeverePoisonToxicDealsTwentyPerCheckup() {
   var state = createGame(function () { return 0.99; });
   state.activePlayerId = 'player';
