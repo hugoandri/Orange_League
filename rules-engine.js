@@ -958,6 +958,15 @@ function attack(state, playerId, attackName, targetInstanceId) {
   var attacker = p.active;
   var stats = CARD_STATS[attacker.name];
   var atkDef = stats.attacks.find(function (a) { return a.name === attackName; });
+  // Captured once, up front, so both the Confused early-return below and
+  // the normal tail can report how much of the attacker's OWN damage this
+  // attack caused -- real reported request: attacks that hurt the user
+  // (Confusion's self-hit, or a normal attack's own recoil like Thunder
+  // Jolt/Take Down/Selfdestruct) used to show nothing about that self-
+  // damage in the attack overlay (see showAttackOverlay, ui.js) -- either
+  // no overlay at all (Confusion) or an overlay that only ever showed what
+  // happened to the Defending Pokémon, silently omitting the recoil.
+  var beforeAttackerDamage = attacker.damage;
 
   // endTurn() itself no longer runs the Pokémon Checkup (see its own
   // comment) -- the CPU's own turn genuinely, immediately ends the instant
@@ -980,6 +989,18 @@ function attack(state, playerId, attackName, targetInstanceId) {
     attacker.missChanceUntilTurn = null;
     if (coinFlip(state) === 'T') {
       logEvent(state, attacker.name + ' falla el ataque (efecto de ' + translateAttackName('Sand-attack') + ')', playerId);
+      // Real reported bug: this used to return with no lastAttackResult at
+      // all, so the attack overlay (ui.js's showAttackOverlay) never showed
+      // -- the player just saw the turn end with no visual explanation.
+      // Still shows the overlay (both cards up front, same as a real hit)
+      // but with `missed: true` so ui.js renders "MISS" instead of a
+      // damage number.
+      if (op.active) {
+        state.lastAttackResult = {
+          attackerName: attacker.name, defenderName: op.active.name, damage: 0,
+          newStatuses: [], severePoison: false, missed: true, selfDamage: 0
+        };
+      }
       endThisTurn();
       return;
     }
@@ -995,6 +1016,17 @@ function attack(state, playerId, attackName, targetInstanceId) {
       // does NOT clear on this flip (unlike Sleep/Paralysis).
       attacker.damage += 30;
       logEvent(state, attacker.name + ' se hace daño por Confusión', playerId);
+      // Real reported bug: this used to return with no lastAttackResult at
+      // all (same class of silence as Sand-attack's own miss, above) --
+      // still shows the overlay, with damage:0 (the Defending Pokémon was
+      // never touched) and selfDamage:30 so ui.js can show that self-hit on
+      // the attacker's own card instead of nothing.
+      if (op.active) {
+        state.lastAttackResult = {
+          attackerName: attacker.name, defenderName: op.active.name, damage: 0,
+          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage
+        };
+      }
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
       endThisTurn();
       return;
@@ -1005,6 +1037,15 @@ function attack(state, playerId, attackName, targetInstanceId) {
   if (!defender) { endThisTurn(); return; }
   var beforeDamage = defender.damage;
   var beforeStatus = defender.statusConditions.slice();
+  // Reset before the effect runs -- an ATTACK_EFFECTS entry whose whole
+  // effect is riding on a single coin flip (Horn Hazard/Leek Slap: "if
+  // tails, this attack does nothing"; Twineedle/Doubleslap/Slam/Fury
+  // Attack/Double Kick: 2 coins, damage per heads, all-tails means the same
+  // "did nothing" outcome) sets this to true instead of just silently
+  // skipping dealDamage, so the generic handling below can still surface a
+  // "MISS" overlay (see ui.js's showAttackOverlay) instead of no overlay at
+  // all -- a stale true from a PREVIOUS attack() call must never leak in.
+  state.attackMissed = false;
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
@@ -1017,7 +1058,15 @@ function attack(state, playerId, attackName, targetInstanceId) {
   if (damageDealt > 0) { logEvent(state, defender.name + ' recibe ' + damageDealt + ' de daño', opId); }
   var newStatuses = defender.statusConditions.filter(function (s) { return beforeStatus.indexOf(s) === -1; });
   newStatuses.forEach(function (s) { logEvent(state, defender.name + ' ahora está ' + translateStatus(s), opId); });
-  if (damageDealt > 0 || newStatuses.length > 0) {
+  if (state.attackMissed) { logEvent(state, attacker.name + ' falla el ataque', playerId); }
+  // Real reported request: an attack with real recoil (Thunder Jolt's tails
+  // self-damage, Take Down, Thrash's tails self-damage, Selfdestruct,
+  // Double-edge, Machoke's Submission, ...) already showed the overlay
+  // (it also deals real damage to the Defending Pokémon), but the overlay
+  // itself only ever displayed that defender damage -- the attacker's own
+  // recoil was invisible there, only readable in the text log.
+  var selfDamageDealt = attacker.damage - beforeAttackerDamage;
+  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0) {
     // Drives the ~1s "both cards in the foreground, damage number (and any
     // new Special Condition) on the defender" animation (see
     // showAttackOverlay, ui.js) -- damageDealt is already the real final
@@ -1025,13 +1074,17 @@ function attack(state, playerId, attackName, targetInstanceId) {
     // shields internally before this delta was taken), so PlusPower's +10
     // and Defender's -20 both show up correctly here with no extra math
     // needed. Triggered by a new status alone too (Sing/Hypnosis are 0-
-    // damage, status-only attacks) -- not just damage. A single
-    // overwritable field, not a queue: exactly one attack() call ever
-    // happens between the UI reading and clearing this, since attacking
-    // always ends the turn.
+    // damage, status-only attacks) -- not just damage, by a coin-flip miss
+    // alone (state.attackMissed) so THAT gets an overlay too, just showing
+    // "MISS" instead of a number, and now also by self-damage alone
+    // (selfDamageDealt) so a recoil-only outcome isn't silent either. A
+    // single overwritable field, not a queue: exactly one attack() call
+    // ever happens between the UI reading and clearing this, since
+    // attacking always ends the turn.
     state.lastAttackResult = {
       attackerName: attacker.name, defenderName: defender.name, damage: damageDealt,
-      newStatuses: newStatuses, severePoison: !!defender.severePoison
+      newStatuses: newStatuses, severePoison: !!defender.severePoison, missed: !!state.attackMissed,
+      selfDamage: selfDamageDealt
     };
   }
 

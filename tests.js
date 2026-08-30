@@ -2191,7 +2191,7 @@ function mkPokemon(id, name, overrides) {
   plainState.players.player.active = mkPokemon('m1', 'Machop', {});
   plainState.players.cpu.active = mkPokemon('c1', 'Machop', {});
   attack(plainState, 'player', 'Low Kick');
-  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false });
+  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false, missed: false, selfDamage: 0 });
 
   var plusPowerState = createGame(function () { return 0.99; });
   plusPowerState.activePlayerId = 'player';
@@ -2242,6 +2242,107 @@ function mkPokemon(id, name, overrides) {
   check('Toxic\'s real damage lands in lastAttackResult', bothState.lastAttackResult.damage, 20);
   check('Toxic\'s Poisoned status lands in lastAttackResult.newStatuses', bothState.lastAttackResult.newStatuses, ['Poisoned']);
   checkTrue('lastAttackResult.severePoison is set so the overlay can show the distinct SeverePoison badge', bothState.lastAttackResult.severePoison);
+})();
+
+// Real reported bug: an attack that failed outright (Sand-attack's deferred
+// coin flip, or an all-or-nothing attack's own coin flip landing empty)
+// used to leave lastAttackResult unset entirely -- no animation at all, so
+// the player saw the turn just end with no explanation. These all now set
+// lastAttackResult with missed:true instead (see rules-engine.js's attack()
+// and state.attackMissed), which ui.js's showAttackOverlay renders as
+// "MISS" in place of a damage number.
+(function testMissedAttacksStillSetLastAttackResult() {
+  // Sand-attack's deferred effect: attacker.missChanceUntilTurn set to the
+  // current turn (as Sandshrew's own Sand-attack would have done to it last
+  // turn -- see ATTACK_EFFECTS['Sandshrew']), tails on the coin flip.
+  var sandState = createGame(function () { return 0.99; }); // always tails
+  sandState.activePlayerId = 'player';
+  sandState.players.player.active = mkPokemon('m1', 'Machop', { attachedEnergy: ['Fighting'], missChanceUntilTurn: sandState.turnCounter });
+  sandState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(sandState, 'player', 'Low Kick');
+  checkTrue('Sand-attack\'s forced miss still sets lastAttackResult', !!sandState.lastAttackResult);
+  checkTrue('lastAttackResult.missed is true', sandState.lastAttackResult.missed);
+  check('no damage actually landed', sandState.lastAttackResult.damage, 0);
+  check('the Defending Pokémon took no real damage either', sandState.players.cpu.active.damage, 0);
+
+  // Horn Hazard (Nidoran ♂): "if tails, this attack does nothing" -- a
+  // single coin flip gates the attack's entire effect.
+  var hornTailsState = createGame(function () { return 0.99; }); // tails
+  hornTailsState.activePlayerId = 'player';
+  hornTailsState.players.player.active = mkPokemon('n1', 'Nidoran ♂', { attachedEnergy: ['Grass'] });
+  hornTailsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(hornTailsState, 'player', 'Horn Hazard');
+  checkTrue('Horn Hazard on tails still sets lastAttackResult', !!hornTailsState.lastAttackResult);
+  checkTrue('lastAttackResult.missed is true', hornTailsState.lastAttackResult.missed);
+  check('no damage actually landed', hornTailsState.players.cpu.active.damage, 0);
+
+  var hornHeadsState = createGame(function () { return 0.01; }); // heads
+  hornHeadsState.activePlayerId = 'player';
+  hornHeadsState.players.player.active = mkPokemon('n1', 'Nidoran ♂', { attachedEnergy: ['Grass'] });
+  hornHeadsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(hornHeadsState, 'player', 'Horn Hazard');
+  check('Horn Hazard on heads is NOT flagged as missed', hornHeadsState.lastAttackResult.missed, false);
+  check('Horn Hazard on heads deals its real 30 damage', hornHeadsState.lastAttackResult.damage, 30);
+
+  // Twineedle (Beedrill): 2 coins, 30 damage per heads -- both tails is the
+  // same "did nothing" outcome as Horn Hazard's single coin.
+  var twineedleBothTailsState = createGame(function () { return 0.99; }); // tails both times
+  twineedleBothTailsState.activePlayerId = 'player';
+  twineedleBothTailsState.players.player.active = mkPokemon('b1', 'Beedrill', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
+  twineedleBothTailsState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(twineedleBothTailsState, 'player', 'Twineedle');
+  checkTrue('Twineedle with 0 heads still sets lastAttackResult', !!twineedleBothTailsState.lastAttackResult);
+  checkTrue('lastAttackResult.missed is true', twineedleBothTailsState.lastAttackResult.missed);
+
+  var twineedleOneHeadState = createGame(function () { return 0.01; }); // heads both times
+  twineedleOneHeadState.activePlayerId = 'player';
+  twineedleOneHeadState.players.player.active = mkPokemon('b1', 'Beedrill', { attachedEnergy: ['Colorless', 'Colorless', 'Colorless'] });
+  twineedleOneHeadState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(twineedleOneHeadState, 'player', 'Twineedle');
+  check('Twineedle with real heads is NOT flagged as missed', twineedleOneHeadState.lastAttackResult.missed, false);
+  check('Twineedle with 2 heads deals 60 damage', twineedleOneHeadState.lastAttackResult.damage, 60);
+})();
+
+// Real reported request: an attack that hurts the ATTACKER (Confusion's
+// self-hit, or a normal attack's own recoil like Thunder Jolt) used to
+// leave that self-damage invisible in the attack overlay -- either no
+// overlay at all (Confusion, which used to return with no lastAttackResult
+// whatsoever) or an overlay that only ever reported the Defending
+// Pokémon's damage. Both now surface it via lastAttackResult.selfDamage
+// (see rules-engine.js's attack()), which ui.js's showAttackOverlay shows
+// as its own badge on the attacker's own card.
+(function testSelfDamageShowsInLastAttackResult() {
+  var confusedState = createGame(function () { return 0.99; }); // tails
+  confusedState.activePlayerId = 'player';
+  confusedState.players.player.active = mkPokemon('m1', 'Machop', { attachedEnergy: ['Fighting'], statusConditions: ['Confused'] });
+  confusedState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(confusedState, 'player', 'Low Kick');
+  checkTrue('a Confused self-hit still sets lastAttackResult', !!confusedState.lastAttackResult);
+  check('the Defending Pokémon takes no damage from a Confused self-hit', confusedState.lastAttackResult.damage, 0);
+  check('lastAttackResult.selfDamage records the 30 self-hit', confusedState.lastAttackResult.selfDamage, 30);
+  check('a Confused self-hit is not flagged as missed (something did happen -- just not to the defender)', confusedState.lastAttackResult.missed, false);
+  check('the Confused attacker really took the 30 damage', confusedState.players.player.active.damage, 30);
+
+  // Heads: Confusion doesn't trigger, the attack resolves completely
+  // normally -- no self-damage to report.
+  var notConfusedState = createGame(function () { return 0.01; }); // heads
+  notConfusedState.activePlayerId = 'player';
+  notConfusedState.players.player.active = mkPokemon('m1', 'Machop', { attachedEnergy: ['Fighting'], statusConditions: ['Confused'] });
+  notConfusedState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(notConfusedState, 'player', 'Low Kick');
+  check('Confusion\'s heads roll deals the normal Low Kick damage instead', notConfusedState.lastAttackResult.damage, 20);
+  check('no self-damage on a normal (non-Confused-triggered) attack', notConfusedState.lastAttackResult.selfDamage, 0);
+
+  // Thunder Jolt (Pikachu): real recoil built into the attack itself (not
+  // Confusion) -- both the Defending Pokémon's damage AND the attacker's
+  // own recoil should show.
+  var thunderJoltState = createGame(function () { return 0.99; }); // tails -> self-damage triggers
+  thunderJoltState.activePlayerId = 'player';
+  thunderJoltState.players.player.active = mkPokemon('p1', 'Pikachu', { attachedEnergy: ['Lightning', 'Colorless'] });
+  thunderJoltState.players.cpu.active = mkPokemon('c1', 'Machop', {});
+  attack(thunderJoltState, 'player', 'Thunder Jolt');
+  check('Thunder Jolt still deals its real 30 damage to the defender', thunderJoltState.lastAttackResult.damage, 30);
+  check('Thunder Jolt\'s own tails recoil shows up as selfDamage too', thunderJoltState.lastAttackResult.selfDamage, 10);
 })();
 
 (function testSeverePoisonToxicDealsTwentyPerCheckup() {

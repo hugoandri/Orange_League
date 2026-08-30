@@ -757,6 +757,10 @@ ATTACK_EFFECTS['Beedrill'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: 0 damage, same "did nothing" outcome as Horn Hazard's own
+    // single-coin miss -- flagged the same way so it still gets a MISS
+    // overlay instead of none at all.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 30 * heads);
   },
   'Poison Sting': function (state, attacker, defender) {
@@ -883,6 +887,8 @@ ATTACK_EFFECTS['Jynx'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: same "did nothing" MISS treatment as Twineedle's own.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 10 * heads);
   },
   'Meditate': function (state, attacker, defender) {
@@ -1028,8 +1034,11 @@ ATTACK_EFFECTS['Charmeleon'] = {
 
 ATTACK_EFFECTS['Nidoran ♂'] = {
   'Horn Hazard': function (state, attacker, defender) {
-    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); }
-    // Tails: "this attack does nothing" -- no damage, no other effect.
+    // Tails: "this attack does nothing" -- no damage, no other effect, and
+    // (real reported bug) the attack overlay used to just never show at
+    // all -- attack()'s own generic handling now surfaces a "MISS" overlay
+    // off this flag instead.
+    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); } else { state.attackMissed = true; }
   }
 };
 
@@ -1287,6 +1296,8 @@ ATTACK_EFFECTS['Dragonair'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: same "did nothing" MISS treatment as Twineedle's own.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 30 * heads);
   },
   'Hyper Beam': function (state, attacker, defender, atkDef, playerId) {
@@ -1372,6 +1383,8 @@ ATTACK_EFFECTS['Nidorino'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: same "did nothing" MISS treatment as Twineedle's own.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 30 * heads);
   }
   // Horn Drill (plain 50 damage) needs no entry.
@@ -1389,6 +1402,8 @@ ATTACK_EFFECTS['Poliwhirl'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: same "did nothing" MISS treatment as Twineedle's own.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 30 * heads);
   }
 };
@@ -1431,6 +1446,8 @@ ATTACK_EFFECTS['Doduo'] = {
     var heads = 0;
     if (coinFlip(state) === 'H') { heads++; }
     if (coinFlip(state) === 'H') { heads++; }
+    // Both tails: same "did nothing" MISS treatment as Twineedle's own.
+    if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 10 * heads);
   }
 };
@@ -1471,7 +1488,9 @@ ATTACK_EFFECTS['Poliwag'] = {
 ATTACK_EFFECTS["Farfetch'd"] = {
   'Leek Slap': function (state, attacker, defender) {
     attacker.lockedAttacks.push('Leek Slap');
-    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); }
+    // Tails: "this attack does nothing" -- see Horn Hazard's own comment
+    // for why this flags a MISS overlay instead of showing nothing.
+    if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); } else { state.attackMissed = true; }
   },
   'Pot Smash': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); }
 };

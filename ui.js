@@ -872,11 +872,18 @@ function drainTrainerPlaysQueue(onAllDone) {
 // the right with the real final damage number (Weakness/Resistance/
 // PlusPower/Defender already applied server-side, see attack()'s own
 // comment) and any new Special Condition popping in on top of it. result:
-// {attackerName, defenderName, damage, newStatuses, severePoison}
-// (gameState.lastAttackResult, rules-engine.js) -- only ever set when real
-// damage landed AND/OR a new status was actually inflicted (Sing/Hypnosis
-// are 0-damage, status-only attacks), so callers don't need to check that
-// themselves. onDone runs once the overlay has fully faded back out.
+// {attackerName, defenderName, damage, newStatuses, severePoison, missed,
+// selfDamage} (gameState.lastAttackResult, rules-engine.js) -- only ever
+// set when real damage landed, a new status was actually inflicted
+// (Sing/Hypnosis are 0-damage, status-only attacks), the attack missed
+// outright (Sand-attack's deferred coin flip, or an all-or-nothing attack's
+// own coin flip coming up empty -- Horn Hazard/Leek Slap/Twineedle-style),
+// or the attacker hurt itself (Confusion's self-hit, or a normal attack's
+// own recoil like Thunder Jolt/Take Down/Selfdestruct), so callers don't
+// need to check that themselves; `missed` shows "MISS" in place of the
+// damage number for that case, and `selfDamage` shows its own badge on the
+// attacker's own card. onDone runs once the overlay has fully faded back
+// out.
 var attackOverlayHoldTimeout = null;
 var attackOverlayFadeTimeout = null;
 function showAttackOverlay(result, onDone) {
@@ -884,19 +891,29 @@ function showAttackOverlay(result, onDone) {
   var attackerImg = document.getElementById('attackOverlayAttackerImg');
   var defenderImg = document.getElementById('attackOverlayDefenderImg');
   var dmgEl = document.getElementById('attackOverlayDamage');
+  var selfDmgEl = document.getElementById('attackOverlaySelfDamage');
   var statusEl = document.getElementById('attackOverlayStatus');
   var attackerUrl = result && CARD_IMAGE_BY_NAME[result.attackerName];
   var defenderUrl = result && CARD_IMAGE_BY_NAME[result.defenderName];
-  if (!el || !attackerImg || !defenderImg || !dmgEl || !statusEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
+  if (!el || !attackerImg || !defenderImg || !dmgEl || !selfDmgEl || !statusEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
   clearTimeout(attackOverlayHoldTimeout);
   clearTimeout(attackOverlayFadeTimeout);
   attackerImg.src = attackerUrl;
   attackerImg.alt = result.attackerName;
   defenderImg.src = defenderUrl;
   defenderImg.alt = result.defenderName;
-  // No damage number for a 0-damage, status-only attack (Sing/Hypnosis) --
-  // "-0" would just be noise when nothing was actually knocked off.
-  dmgEl.textContent = result.damage > 0 ? '-' + result.damage : '';
+  // "MISS" for an attack whose own coin flip whiffed entirely (see
+  // rules-engine.js's attack()/state.attackMissed); otherwise no damage
+  // number for a 0-damage, status-only attack (Sing/Hypnosis) -- "-0" would
+  // just be noise when nothing was actually knocked off.
+  dmgEl.textContent = result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : '');
+  dmgEl.classList.toggle('shell-attack-overlay-miss', !!result.missed);
+  // Recoil the attack dealt to itself (Confusion's self-hit, or a normal
+  // attack's own recoil like Thunder Jolt/Take Down/Selfdestruct) -- shown
+  // on the attacker's own card so it isn't silently missing from the
+  // overlay just because it never touched the Defending Pokémon (see
+  // rules-engine.js's attack()/selfDamage).
+  selfDmgEl.textContent = result.selfDamage > 0 ? '-' + result.selfDamage : '';
   statusEl.innerHTML = (result.newStatuses || []).map(function (s) {
     var badgeKey = (s === 'Poisoned' && result.severePoison) ? 'SeverePoison' : s;
     return pixelStatusBadgeHtml(badgeKey, 3);

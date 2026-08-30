@@ -450,10 +450,16 @@
   <!-- Attack animation (see showAttackOverlay, ui.js): both cards front and
        center for ~2s, with the real final damage number (Weakness/
        Resistance/PlusPower/Defender already applied) and any new Special
-       Condition on the defender. -->
+       Condition on the defender, plus a "MISS" in that same spot if the
+       attack's own coin flip whiffed entirely, and a self-damage badge on
+       the attacker's own card for any recoil (Confusion's self-hit, or a
+       normal attack's own recoil like Thunder Jolt/Take Down/Selfdestruct). -->
   <div id="attackOverlay" class="shell-attack-overlay hidden">
     <div class="shell-attack-overlay-pair">
-      <div class="shell-attack-overlay-card attacker"><img id="attackOverlayAttackerImg" src="" alt=""></div>
+      <div class="shell-attack-overlay-card attacker">
+        <img id="attackOverlayAttackerImg" src="" alt="">
+        <div class="shell-attack-overlay-damage shell-attack-overlay-selfdamage" id="attackOverlaySelfDamage"></div>
+      </div>
       <div class="shell-attack-overlay-card defender">
         <img id="attackOverlayDefenderImg" src="" alt="">
         <div class="shell-attack-overlay-damage" id="attackOverlayDamage"></div>
