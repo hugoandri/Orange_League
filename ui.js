@@ -3907,10 +3907,19 @@ function ownedCountsByNameClient() {
   return owned;
 }
 
-// {cardName: {total: N, tiers: [{count, holo, secret}]}} -- per-name tier
-// breakdown so the deck builder pool can show foil indicators and the
+// {cardName: {total: N, tiers: [{count, holo, secret, img}]}} -- per-name
+// tier breakdown so the deck builder pool can show foil indicators and the
 // version modal can offer tier-specific adds. Real sets only, same reason
 // as ownedCountsByNameClient above -- promos aren't deck-legal yet.
+// Each tier carries its own real print's img -- real reported bug: a name
+// shared across more than one set (e.g. Pikachu is a genuinely different
+// real card in Base vs Jungle, unlike this game's own gameplay stats, which
+// only track one CARD_STATS entry per name) used to have every tier here
+// collapse to plain {count, holo, secret} with no idea which print it came
+// from, so openDeckBuilderVersionModal fell back to a single by-name image
+// lookup for the whole modal -- CARD_IMAGE_BY_NAME's own first-wins order
+// ('base' first) meant a Jungle print always displayed with Base's art
+// instead of its own.
 function ownedTiersByNameClient() {
   var result = {};
   if (!econState) { return result; }
@@ -3924,9 +3933,9 @@ function ownedTiersByNameClient() {
       var plainCount = total - secretCount - holoCount;
       if (!result[c.n]) { result[c.n] = { total: 0, tiers: [] }; }
       result[c.n].total += total;
-      if (plainCount > 0) { result[c.n].tiers.push({ count: plainCount, holo: false, secret: false }); }
-      if (holoCount > 0) { result[c.n].tiers.push({ count: holoCount, holo: true, secret: false }); }
-      if (secretCount > 0) { result[c.n].tiers.push({ count: secretCount, holo: false, secret: true }); }
+      if (plainCount > 0) { result[c.n].tiers.push({ count: plainCount, holo: false, secret: false, img: c.img }); }
+      if (holoCount > 0) { result[c.n].tiers.push({ count: holoCount, holo: true, secret: false, img: c.img }); }
+      if (secretCount > 0) { result[c.n].tiers.push({ count: secretCount, holo: false, secret: true, img: c.img }); }
     });
   });
   return result;
@@ -3999,7 +4008,6 @@ function openDeckBuilderCoverPicker() {
 // chosen (tracked in deckBuilderState.tiers[name] for display purposes).
 function openDeckBuilderVersionModal(cardName, tiers) {
   document.getElementById('deckBuilderVersionTitle').textContent = translateCardName(cardName);
-  var img = CARD_IMAGE_BY_NAME[cardName] || '';
   var grid = document.getElementById('deckBuilderVersionGrid');
   grid.innerHTML = tiers.map(function (t) {
     var isSecret = t.secret;
@@ -4007,6 +4015,13 @@ function openDeckBuilderVersionModal(cardName, tiers) {
     var tierClass = isSecret ? ' secret' : (isHolo ? ' holo' : '');
     var tierLabel = isSecret ? 'SECRETA' : (isHolo ? 'HOLOGRÁFICA' : 'RARA');
     var tierCls = isSecret ? ' secret' : (isHolo ? ' holo' : '');
+    // Real reported bug: this used to show one shared CARD_IMAGE_BY_NAME
+    // lookup for every tier tile, which for a name owned across more than
+    // one real set (e.g. Pikachu: a genuinely different card in Base vs
+    // Jungle) always rendered Base's art on every tile, even a Jungle-print
+    // copy -- see ownedTiersByNameClient's own comment. t.img is that
+    // specific tier's own real print now.
+    var img = t.img || '';
     return '<div class="shell-collection-cell' + tierClass + '" data-tier-holo="' + (isHolo ? '1' : '0') + '" data-tier-secret="' + (isSecret ? '1' : '0') + '">' +
       '<div class="shell-collection-cell-art">' +
         (img ? '<img src="' + img + '" alt="' + escapeHtml(cardName) + '" loading="lazy">' : '') +
