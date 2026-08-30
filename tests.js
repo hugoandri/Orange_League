@@ -1232,17 +1232,46 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   cpu.bench = [mk('cb1', 'Weedle', { damage: 30 }), null, null, null, null];
   cpu.prizes = [{ id: 'pz6', name: 'Bill' }];
 
-  ATTACK_EFFECTS['Magnemite']['Selfdestruct'](state, p.active, cpu.active, null, 'player');
+  // Real printed attack: atkDef.damage (40) is what the effect deals to the
+  // Defending Pokémon via dealDamage -- rules-engine.js's attack() always
+  // passes the real atkDef object from CARD_STATS, never null.
+  ATTACK_EFFECTS['Magnemite']['Selfdestruct'](state, p.active, cpu.active, { damage: '40' }, 'player');
 
   check('Selfdestruct splashes 10 onto the player\'s own bench too', p.bench[0].damage, 10);
   check('Selfdestruct splashes 10 onto the opponent\'s bench', cpu.bench[0], null); // Weedle (40 HP) had 30+10=40 -> knocked out, slot cleared
-  check('Selfdestruct does not touch the opponent\'s Active at all', cpu.active.damage, 0);
+  // Real reported bug: this used to never call dealDamage against the
+  // opponent's Active at all, so the printed 40 damage silently did nothing
+  // beyond the Bench splash and the guaranteed self-KO.
+  check('Selfdestruct also hits the opponent\'s Active for its printed 40 damage', cpu.active.damage, 40);
   check('Magnemite (the attacker) takes exactly 40 self-damage and is knocked out', p.active, null);
   // The opponent's bench Weedle going down is a KO in the PLAYER's favor
   // (whose own prizes are specific face-down cards -- see
   // knockOutIfNeeded's own comment), so it sets a pending choice rather
   // than moving a card straight to hand.
   checkTrue('the player gets a prize choice for the opponent\'s bench Weedle going down', !!state.pendingPrizeChoice && state.pendingPrizeChoice.playerId === 'player');
+})();
+
+(function testMagnetonSelfdestruct() {
+  var state = createGame(function () { return 0.5; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  var mk = function (id, name, extra) {
+    return Object.assign({ id: id, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false, destinyBond: null }, extra || {});
+  };
+  p.active = mk('mgt1', 'Magneton');
+  p.bench = [mk('pb1', 'Bulbasaur'), null, null, null, null];
+  cpu.active = mk('opp1', 'Chansey'); // 120 HP (no Lightning weakness) so the 80 damage doesn't KO it, keeping this test focused on the damage number itself
+  cpu.bench = [mk('cb1', 'Weedle'), null, null, null, null];
+
+  ATTACK_EFFECTS['Magneton']['Selfdestruct'](state, p.active, cpu.active, { damage: '80' }, 'player');
+
+  // Real reported bug: this copy-pasted Magnemite's Bench splash (10)
+  // instead of Magneton's own printed 20.
+  check('Selfdestruct splashes Magneton\'s own printed 20 onto the player\'s own bench', p.bench[0].damage, 20);
+  check('Selfdestruct splashes 20 onto the opponent\'s bench', cpu.bench[0].damage, 20);
+  check('Selfdestruct also hits the opponent\'s Active for its printed 80 damage', cpu.active.damage, 80);
+  check('Magneton (the attacker) takes exactly 80 self-damage and is knocked out', p.active, null);
 })();
 
 (function testComputerSearch() {

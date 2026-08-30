@@ -190,8 +190,8 @@ TRAINER_EFFECTS['Gust of Wind'] = function (state, playerId, handId, opponentBen
     op.bench[idx] = op.active;
   }
   op.active = incoming;
-  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Gust of Wind'), playerId);
-  return { legal: true };
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Gust of Wind') + ' y trae a ' + incoming.name + ' como Pokémon Activo', playerId);
+  return { legal: true, targetName: incoming.name };
 };
 
 // energyIndex (optional): which of the target's attachedEnergy indices the
@@ -708,7 +708,7 @@ Object.keys(TRAINER_EFFECTS).forEach(function (name) {
     var result = original.apply(null, arguments);
     if (result && result.legal) {
       state.trainerPlaysQueue = state.trainerPlaysQueue || [];
-      state.trainerPlaysQueue.push({ name: name, playerId: playerId });
+      state.trainerPlaysQueue.push({ name: name, playerId: playerId, targetName: result.targetName });
     }
     return result;
   };
@@ -938,9 +938,13 @@ ATTACK_EFFECTS['Magnemite'] = {
     dealDamage(state, attacker, defender, 10);
     if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
   },
-  // Splashes both players' whole Bench (bypassing dealDamage -- the real
-  // card explicitly says Weakness/Resistance don't apply to the Bench
-  // here) before the attacker's own guaranteed-lethal 40 self-damage.
+  // The printed 40 damage still hits the Defending Pokémon like any normal
+  // attack (attack()'s own generic post-processing in rules-engine.js
+  // handles logging/lastAttackResult/knockOutIfNeeded for it once dealDamage
+  // runs) -- the card text only calls out the *extra* effects on top of
+  // that: 10 to each Bench Pokémon on both sides (bypassing dealDamage,
+  // since the real card explicitly says Weakness/Resistance don't apply to
+  // the Bench here) and the attacker's own guaranteed-lethal 40 self-damage.
   // knockOutIfNeeded already handles a Bench instance being knocked out
   // directly (see its own comment), and also handles the attacker itself
   // dying here -- unlike Machoke's Submission, this attack's self-damage
@@ -954,6 +958,7 @@ ATTACK_EFFECTS['Magnemite'] = {
         knockOutIfNeeded(state, ownerId, b);
       });
     });
+    if (defender) { dealDamage(state, attacker, defender, parseInt(atkDef.damage, 10) || 0); }
     attacker.damage += 40;
     knockOutIfNeeded(state, playerId, attacker);
   }
@@ -1193,17 +1198,21 @@ ATTACK_EFFECTS['Magneton'] = {
     dealDamage(state, attacker, defender, 30);
     if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
   },
-  // Same Bench-splash-then-guaranteed-self-KO shape as Magnemite's
-  // Selfdestruct above, just Magneton's own printed numbers (80 self dmg
-  // instead of 40).
+  // Same shape as Magnemite's Selfdestruct above (the printed 80 still hits
+  // the Defending Pokémon via dealDamage, on top of the Bench splash and the
+  // guaranteed self-KO) -- just Magneton's own printed numbers: 20 per
+  // Bench Pokémon (real reported bug: this used to copy-paste Magnemite's
+  // 10 instead of Magneton's own printed 20) and 80 self-damage instead of
+  // Magnemite's 40.
   'Selfdestruct': function (state, attacker, defender, atkDef, playerId) {
     ['player', 'cpu'].forEach(function (ownerId) {
       state.players[ownerId].bench.forEach(function (b) {
         if (!b) { return; }
-        b.damage += 10;
+        b.damage += 20;
         knockOutIfNeeded(state, ownerId, b);
       });
     });
+    if (defender) { dealDamage(state, attacker, defender, parseInt(atkDef.damage, 10) || 0); }
     attacker.damage += 80;
     knockOutIfNeeded(state, playerId, attacker);
   }

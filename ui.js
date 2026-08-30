@@ -799,7 +799,8 @@ function showTrainerPlayedOverlay(play, onDone) {
   clearTimeout(trainerPlayedFadeTimeout);
   img.src = url;
   img.alt = play.name;
-  label.textContent = (play.playerId === 'player' ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name);
+  label.textContent = (play.playerId === 'player' ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) +
+    (play.targetName ? (' → sale ' + translateCardName(play.targetName)) : '');
   el.classList.remove('hidden', 'fading');
   trainerPlayedHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
@@ -1297,18 +1298,12 @@ function renderActiveChoiceModal() {
       afterPlayerAction();
       // Now that the choice is made and the modal is closing, show whatever
       // turn flash runCpuTurn held back for this exact moment (see its own
-      // comment) -- if any; a Trainer-triggered active choice (Gust of
-      // Wind sniping a Bench Pokémon into a fight it loses, say) never set
-      // one, so this is a no-op there.
-      if (pendingTurnFlash) {
-        var flash = pendingTurnFlash;
-        pendingTurnFlash = null;
-        showTurnFlash(flash.text, flash.colorClass, function () {
-          if (flash.text === 'TU TURNO') {
-            startPlayerTurnWithDraw();
-          }
-        });
-      }
+      // comment) -- if any, and only once every OTHER pending choice from
+      // this same checkup (e.g. a prize choice still open) is also resolved
+      // (see maybeShowPendingTurnFlash's own comment); a Trainer-triggered
+      // active choice (Gust of Wind sniping a Bench Pokémon into a fight it
+      // loses, say) never set one, so this is a no-op there.
+      maybeShowPendingTurnFlash();
       // If a checkup at "Terminar turno" is what triggered this (the
       // player's own poisoned/burned Active dying), let the CPU's turn
       // actually start now that the player has picked their replacement --
@@ -1355,11 +1350,19 @@ function renderPrizeChoiceModal() {
       // turn actually start once the player closes the card-zoom below --
       // not the instant they pick the prize, while they're still looking
       // at what they won (see closeCardModal/maybeResumeCpuTurn).
+      // Also resume whatever "TU TURNO" flash/draw a checkup during the
+      // CPU's own turn held back for this exact prize (see
+      // maybeShowPendingTurnFlash's own comment) -- taking the prize used to
+      // never check this at all, leaving the player's turn (and its draw)
+      // stuck forever whenever the CPU's own poisoned/burned Active dying
+      // was the only pending choice (no Active choice of the player's own to
+      // route through renderActiveChoiceModal's equivalent call).
       if (wonCardName) {
         var prizeFoil = getPlayerCardFoilTier(wonCardName) || (isHoloInMatch('player', wonCardName) ? 'holo' : null);
         openCardModal(wonCardName, null, prizeFoil);
-        onCardModalClose = maybeResumeCpuTurn;
+        onCardModalClose = function () { maybeShowPendingTurnFlash(); maybeResumeCpuTurn(); };
       } else {
+        maybeShowPendingTurnFlash();
         maybeResumeCpuTurn();
       }
     });
@@ -1766,6 +1769,26 @@ function maybeResumeCpuTurn() {
   if (!cpuTurnAwaitingPlayerChoice || hasPendingPlayerChoice()) { return; }
   cpuTurnAwaitingPlayerChoice = false;
   proceedWithCpuTurn();
+}
+
+// Consumes the "TU TURNO" flash the CPU-turn reveal held back (pendingTurnFlash)
+// once EVERY pending player choice from that checkup has actually been
+// resolved -- a single checkup can leave both a prize choice (the CPU's own
+// poisoned/burned Active finishing itself off) and an active choice (the
+// player's own Active dying the same checkup) open at once, and either one's
+// modal used to fire this on its own the instant IT closed, regardless of
+// the other still being open. That let the player draw for the turn
+// (startPlayerTurnWithDraw) while still mid-choice, or -- the reported bug --
+// never at all: the prize modal's own handler never checked pendingTurnFlash
+// to begin with, so a prize-only checkup (no active choice needed) left
+// "TU TURNO" and the turn's draw stuck forever.
+function maybeShowPendingTurnFlash() {
+  if (!pendingTurnFlash || hasPendingPlayerChoice()) { return; }
+  var flash = pendingTurnFlash;
+  pendingTurnFlash = null;
+  showTurnFlash(flash.text, flash.colorClass, function () {
+    if (flash.text === 'TU TURNO') { startPlayerTurnWithDraw(); }
+  });
 }
 
 function startPlayerTurnWithDraw() {

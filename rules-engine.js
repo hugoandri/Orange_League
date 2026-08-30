@@ -597,6 +597,10 @@ var ATTACK_TEXT_ES = {
   'Thunder Jolt': 'Lanza una moneda. Si es cruz, este Pokémon se hace 10 de daño a sí mismo.',
   'Thunder Wave': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
   'Selfdestruct': 'Hace 10 de daño a cada Pokémon de la Banca de ambos jugadores (no se aplica Debilidad ni Resistencia a la Banca). Este Pokémon se hace 40 de daño a sí mismo.',
+  // Magneton's own printed numbers (20 per Bench Pokémon, 80 self-damage) --
+  // without this override it fell back to the generic 'Selfdestruct' key
+  // above, which is Magnemite's numbers (10/40).
+  'Magneton|Selfdestruct': 'Hace 20 de daño a cada Pokémon de la Banca de ambos jugadores (no se aplica Debilidad ni Resistencia a la Banca). Este Pokémon se hace 80 de daño a sí mismo.',
   'Lure': 'Si tu rival tiene algún Pokémon en la Banca, elige 1 e intercámbialo con el Pokémon Defensor.',
   'Fire Blast': 'Descarta 1 carta de Energía Fuego adjunta a Ninetales para usar este ataque.',
   'Flamethrower': 'Descarta 1 carta de Energía Fuego adjunta a este Pokémon para usar este ataque.',
