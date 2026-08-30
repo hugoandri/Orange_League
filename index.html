@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Pokémon TCG Simulador · Overgrowth vs Blackout</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=20260829v">
-<link rel="stylesheet" href="shell-theme.css?v=20260829v">
+<link rel="stylesheet" href="style.css?v=20260829w">
+<link rel="stylesheet" href="shell-theme.css?v=20260829w">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -1152,24 +1152,82 @@
     </div></div>
   </div>
 
-  <!-- Rock-paper-scissors: decides who goes first, BEFORE either side places
-       their opening board -- shown whenever a PVP match's phase is 'rps'
-       (see rules-engine.js's createGame/submitRpsChoice). -->
+  <!-- Rock-paper-scissors: decides who goes first in PVP matches -->
   <div id="pvpRpsScreen" class="hidden">
-    <div class="shell-viewport"><div class="shell-stage">
-      <p class="shell-modal-title">PIEDRA, PAPEL O TIJERA</p>
-      <p class="shell-pvp-rps-subtitle">Quien gana empieza la partida</p>
-      <p class="shell-pvp-rps-matchup" id="pvpRpsMatchup"></p>
-      <div id="pvpRpsChoices" class="shell-pvp-rps-choices">
-        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="rock"><span>✊</span>PIEDRA</button>
-        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="paper"><span>✋</span>PAPEL</button>
-        <button type="button" class="shell-pvp-rps-btn" data-rps-choice="scissors"><span>✌️</span>TIJERA</button>
+    <div class="shell-viewport">
+      <div class="shell-stage rps-stage-layout">
+        <div class="rps-backdrop-grid"></div>
+        <div class="rps-backdrop-glow"></div>
+
+        <div class="rps-arena-box">
+          <div class="rps-badge-kicker">⚔️ FASE DE INICIATIVA · DUELO PVP ⚔️</div>
+          <h1 class="rps-main-title">PIEDRA, PAPEL O TIJERA</h1>
+
+          <div class="rps-matchup-header">
+            <div class="rps-player-tag host-tag">
+              <span class="rps-tag-indicator"></span>
+              <span class="rps-player-label" id="pvpRpsHostName">Jugador 1</span>
+            </div>
+            <div class="rps-vs-pill">VS</div>
+            <div class="rps-player-tag guest-tag">
+              <span class="rps-tag-indicator"></span>
+              <span class="rps-player-label" id="pvpRpsGuestName">Jugador 2</span>
+            </div>
+          </div>
+          <p class="rps-subtitle" id="pvpRpsMatchup">Quien gane la ronda tomará el primer turno del duelo.</p>
+
+          <!-- Choices Cards Grid -->
+          <div id="pvpRpsChoices" class="rps-cards-grid">
+            <button type="button" class="rps-battle-card rps-card-rock" data-rps-choice="rock">
+              <div class="rps-card-glow"></div>
+              <div class="rps-card-icon-container">
+                <span class="rps-card-emoji">✊</span>
+              </div>
+              <div class="rps-card-title">PIEDRA</div>
+              <div class="rps-card-advantage">⚡ Vence a Tijera</div>
+              <div class="rps-card-select-btn">ELEGIR</div>
+            </button>
+
+            <button type="button" class="rps-battle-card rps-card-paper" data-rps-choice="paper">
+              <div class="rps-card-glow"></div>
+              <div class="rps-card-icon-container">
+                <span class="rps-card-emoji">✋</span>
+              </div>
+              <div class="rps-card-title">PAPEL</div>
+              <div class="rps-card-advantage">⚡ Vence a Piedra</div>
+              <div class="rps-card-select-btn">ELEGIR</div>
+            </button>
+
+            <button type="button" class="rps-battle-card rps-card-scissors" data-rps-choice="scissors">
+              <div class="rps-card-glow"></div>
+              <div class="rps-card-icon-container">
+                <span class="rps-card-emoji">✌️</span>
+              </div>
+              <div class="rps-card-title">TIJERA</div>
+              <div class="rps-card-advantage">⚡ Vence a Papel</div>
+              <div class="rps-card-select-btn">ELEGIR</div>
+            </button>
+          </div>
+
+          <!-- Waiting State (when choice has been submitted) -->
+          <div id="pvpRpsWaiting" class="hidden rps-waiting-box">
+            <div class="rps-radar-scanner">
+              <div class="rps-scanner-ring ring-outer"></div>
+              <div class="rps-scanner-ring ring-inner"></div>
+              <div class="rps-scanner-core">
+                <span class="rps-scanner-icon">⏳</span>
+              </div>
+            </div>
+            <div class="rps-waiting-heading">¡JUGADA ENVIADA!</div>
+            <p class="rps-waiting-subtext">Esperando la elección de tu rival en secreto…</p>
+            <div class="rps-waiting-bar-track">
+              <div class="rps-waiting-bar-progress"></div>
+            </div>
+            <div class="rps-waiting-footer-tip">💡 En caso de empate, ambos volverán a elegir automáticamente.</div>
+          </div>
+        </div>
       </div>
-      <div id="pvpRpsWaiting" class="hidden shell-pvp-waiting">
-        <p class="shell-modal-title">ESPERANDO A TU RIVAL…</p>
-        <div class="shell-loading-spinner"></div>
-      </div>
-    </div></div>
+    </div>
   </div>
 
   <div id="codeRedeemModal" class="card-modal hidden">
@@ -1238,16 +1296,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-<script src="firebase-init.js?v=20260829v"></script>
-<script src="data-sets.js?v=20260829v"></script>
-<script src="data-decks.js?v=20260829v"></script>
-<script src="data-cards.js?v=20260829v"></script>
-<script src="rules-engine.js?v=20260829v"></script>
-<script src="card-effects.js?v=20260829v"></script>
-<script src="ai.js?v=20260829v"></script>
-<script src="economy.js?v=20260829v"></script>
-<script src="shell-layout.js?v=20260829v"></script>
-<script src="ui.js?v=20260829v"></script>
-<script src="auth-ui.js?v=20260829v"></script>
+<script src="firebase-init.js?v=20260829w"></script>
+<script src="data-sets.js?v=20260829w"></script>
+<script src="data-decks.js?v=20260829w"></script>
+<script src="data-cards.js?v=20260829w"></script>
+<script src="rules-engine.js?v=20260829w"></script>
+<script src="card-effects.js?v=20260829w"></script>
+<script src="ai.js?v=20260829w"></script>
+<script src="economy.js?v=20260829w"></script>
+<script src="shell-layout.js?v=20260829w"></script>
+<script src="ui.js?v=20260829w"></script>
+<script src="auth-ui.js?v=20260829w"></script>
 </body>
 </html>

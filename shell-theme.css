@@ -1707,3 +1707,455 @@ button.shell-discard-pile-card-item:hover{filter:brightness(1.25);}
   display:grid;place-items:center;width:100%;height:100%;font-size:11px;line-height:1.5;
   letter-spacing:.06em;color:#5c5348;text-align:center;font-family:'Silkscreen',monospace;
 }
+
+/* ==========================================================================
+   ROCK-PAPER-SCISSORS (RPS) PVP STAGE - CENTERED RETRO ARCADE ARENA
+   ========================================================================== */
+#pvpRpsScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: #080c14;
+  overflow: hidden;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+
+#pvpRpsScreen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.rps-stage-layout {
+  position: absolute;
+  inset: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: radial-gradient(circle at 50% 30%, rgba(234, 179, 8, 0.12) 0%, transparent 60%),
+              radial-gradient(circle at 15% 85%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 85% 85%, rgba(239, 68, 68, 0.1) 0%, transparent 50%),
+              #070b12;
+  overflow: hidden;
+}
+
+.rps-backdrop-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.rps-backdrop-glow {
+  position: absolute;
+  width: 800px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.14) 0%, rgba(14, 165, 233, 0.06) 50%, transparent 75%);
+  filter: blur(40px);
+  pointer-events: none;
+  animation: rpsGlowPulse 6s ease-in-out infinite alternate;
+}
+
+@keyframes rpsGlowPulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+.rps-arena-box {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 980px;
+  width: 90%;
+  padding: 38px 44px;
+  background: linear-gradient(180deg, rgba(20, 26, 38, 0.95) 0%, rgba(10, 14, 23, 0.98) 100%);
+  border: 2px solid rgba(234, 179, 8, 0.45);
+  border-radius: 28px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2),
+              0 0 45px rgba(234, 179, 8, 0.15);
+  backdrop-filter: blur(20px);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.rps-badge-kicker {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: #fbbf24;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+}
+
+.rps-main-title {
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 44px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 16px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.9), 0 0 26px rgba(251, 191, 36, 0.45);
+}
+
+.rps-matchup-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.rps-player-tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 14px;
+  color: #f1f5f9;
+  letter-spacing: 0.06em;
+}
+
+.rps-tag-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.host-tag .rps-tag-indicator {
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8;
+}
+
+.guest-tag .rps-tag-indicator {
+  background: #f43f5e;
+  box-shadow: 0 0 10px #f43f5e;
+}
+
+.rps-vs-pill {
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 19px;
+  font-weight: 900;
+  color: #fbbf24;
+  padding: 4px 12px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 10px;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+}
+
+.rps-subtitle {
+  font-family: 'Silkscreen', monospace;
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0 0 28px;
+  max-width: 650px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+}
+
+/* Choice Cards Grid */
+.rps-cards-grid {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 860px;
+}
+
+.rps-battle-card {
+  flex: 1;
+  max-width: 260px;
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 18px;
+  border-radius: 22px;
+  cursor: pointer;
+  border: 2px solid;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease, filter 0.22s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.rps-battle-card:hover {
+  transform: translateY(-8px) scale(1.05);
+}
+
+.rps-battle-card:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+.rps-card-glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+}
+
+.rps-battle-card:hover .rps-card-glow {
+  opacity: 0.55;
+}
+
+/* Card 1: Piedra */
+.rps-card-rock {
+  background: linear-gradient(180deg, #2b170c 0%, #170c06 100%);
+  border-color: #f97316;
+  box-shadow: 0 12px 30px rgba(249, 115, 22, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.rps-card-rock:hover {
+  border-color: #fb923c;
+  box-shadow: 0 18px 45px rgba(249, 115, 22, 0.45), 0 0 25px rgba(249, 115, 22, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.rps-card-rock .rps-card-glow {
+  background: radial-gradient(circle at 50% 30%, rgba(249, 115, 22, 0.5) 0%, transparent 70%);
+}
+.rps-card-rock .rps-card-select-btn {
+  background: linear-gradient(180deg, #ea580c, #9a3412);
+  border: 1px solid #ff7828;
+}
+
+/* Card 2: Papel */
+.rps-card-paper {
+  background: linear-gradient(180deg, #0e2a1b 0%, #07170e 100%);
+  border-color: #10b981;
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.rps-card-paper:hover {
+  border-color: #34d399;
+  box-shadow: 0 18px 45px rgba(16, 185, 129, 0.45), 0 0 25px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.rps-card-paper .rps-card-glow {
+  background: radial-gradient(circle at 50% 30%, rgba(16, 185, 129, 0.5) 0%, transparent 70%);
+}
+.rps-card-paper .rps-card-select-btn {
+  background: linear-gradient(180deg, #059669, #065f46);
+  border: 1px solid #10b981;
+}
+
+/* Card 3: Tijera */
+.rps-card-scissors {
+  background: linear-gradient(180deg, #0f243c 0%, #071424 100%);
+  border-color: #38bdf8;
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.rps-card-scissors:hover {
+  border-color: #7dd3fc;
+  box-shadow: 0 18px 45px rgba(56, 189, 248, 0.45), 0 0 25px rgba(56, 189, 248, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.rps-card-scissors .rps-card-glow {
+  background: radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.5) 0%, transparent 70%);
+}
+.rps-card-scissors .rps-card-select-btn {
+  background: linear-gradient(180deg, #0284c7, #0369a1);
+  border: 1px solid #38bdf8;
+}
+
+.rps-card-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.7);
+  margin-top: 4px;
+}
+
+.rps-card-emoji {
+  font-size: 52px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.7));
+  transform: translateZ(0);
+}
+
+.rps-card-title {
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+  margin: 12px 0 4px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.rps-card-advantage {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rps-card-select-btn {
+  width: 100%;
+  padding: 10px 0;
+  border-radius: 12px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: filter 0.15s ease;
+}
+
+.rps-battle-card:hover .rps-card-select-btn {
+  filter: brightness(1.2);
+}
+
+/* Waiting State */
+.rps-waiting-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px 20px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.rps-radar-scanner {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.rps-scanner-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.ring-outer {
+  inset: 0;
+  border-top-color: #fbbf24;
+  border-right-color: rgba(251, 191, 36, 0.3);
+  animation: rpsSpin 2s linear infinite;
+}
+
+.ring-inner {
+  inset: 12px;
+  border-bottom-color: #38bdf8;
+  border-left-color: rgba(56, 189, 248, 0.3);
+  animation: rpsSpinReverse 1.5s linear infinite;
+}
+
+@keyframes rpsSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes rpsSpinReverse {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+.rps-scanner-core {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.3);
+}
+
+.rps-scanner-icon {
+  font-size: 24px;
+  animation: rpsPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes rpsPulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+.rps-waiting-heading {
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+}
+
+.rps-waiting-subtext {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: #cbd5e1;
+  letter-spacing: 0.04em;
+  margin: 0 0 20px;
+}
+
+.rps-waiting-bar-track {
+  width: 100%;
+  max-width: 380px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.rps-waiting-bar-progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, #fbbf24, #38bdf8);
+  border-radius: 999px;
+  box-shadow: 0 0 12px #fbbf24;
+  animation: rpsBarSlide 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes rpsBarSlide {
+  0% { left: 0%; }
+  100% { left: 60%; }
+}
+
+.rps-waiting-footer-tip {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}

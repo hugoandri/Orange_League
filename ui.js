@@ -4407,16 +4407,23 @@ function enterPvpMatch(matchId) {
 // 'rps' (see createGame/submitRpsChoice, rules-engine.js) -- deliberately
 // reads the raw public doc directly rather than going through
 // buildPvpGameState, since this isn't board state at all. rpsSubmitted is
-// the only thing ever exposed about an in-progress round (never the actual
-// committed choice -- see redactMatchState's own comment on why).
 function renderRpsScreen(pub) {
   document.getElementById('pvpRpsScreen').classList.remove('hidden');
   var mySubmitted = pub.rpsSubmitted[pvpMySide];
   document.getElementById('pvpRpsChoices').classList.toggle('hidden', mySubmitted);
   document.getElementById('pvpRpsWaiting').classList.toggle('hidden', !mySubmitted);
-  var hostName = pub.hostUsername || 'Jugador';
-  var guestName = pub.guestUsername || 'Rival';
-  document.getElementById('pvpRpsMatchup').textContent = hostName + ' vs ' + guestName;
+  var hostName = pub.hostUsername || 'Jugador 1';
+  var guestName = pub.guestUsername || 'Jugador 2';
+  var hostEl = document.getElementById('pvpRpsHostName');
+  if (hostEl) { hostEl.textContent = hostName; }
+  var guestEl = document.getElementById('pvpRpsGuestName');
+  if (guestEl) { guestEl.textContent = guestName; }
+  var matchupEl = document.getElementById('pvpRpsMatchup');
+  if (matchupEl) {
+    matchupEl.textContent = mySubmitted
+      ? 'Tu jugada ha sido enviada. Esperando a tu rival…'
+      : 'Elige tu jugada. Quien gane la ronda tomará el primer turno.';
+  }
 }
 function hideRpsScreen() {
   var el = document.getElementById('pvpRpsScreen');
@@ -4881,6 +4888,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.querySelectorAll('#pvpRpsChoices [data-rps-choice]').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      playUiSound('button_click');
       submitMatchActionCloud(pvpActiveMatchId, { type: 'submitRpsChoice', choice: btn.getAttribute('data-rps-choice') })
         .catch(function (err) { alert(err.message || 'No se pudo enviar tu elección.'); });
     });
