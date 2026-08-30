@@ -1660,6 +1660,52 @@ async function answerTelegramCallbackQuery(queryId, text, showAlert = false) {
   }).catch((err) => console.error('Error answering Telegram callback:', err));
 }
 
+async function buildShopKeyboard(uid, username, pkgs) {
+  const keyboard = await Promise.all(Object.keys(pkgs).map(async (k) => {
+    const p = pkgs[k];
+    const tagText = p.tag ? ` (${p.tag})` : '';
+    const payload = JSON.stringify({
+      uid: uid,
+      packageId: p.id,
+      coins: p.coins,
+      stars: p.stars,
+      createdAt: Date.now()
+    });
+
+    const invoiceTitle = (p.title || `${p.coins} Orbes`).slice(0, 32);
+    const invoiceDesc = `Recibirás ${p.coins} Orbes en la cuenta de Entrenador (${username || 'Jugador'}).`.slice(0, 255);
+
+    try {
+      const linkRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: invoiceTitle,
+          description: invoiceDesc,
+          payload: payload,
+          currency: 'XTR',
+          prices: [{ label: invoiceTitle, amount: p.stars }]
+        })
+      });
+      const linkData = await linkRes.json();
+      if (linkData.ok && linkData.result) {
+        return [{
+          text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
+          url: linkData.result
+        }];
+      }
+    } catch (_) {}
+
+    return [{
+      text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
+      callback_data: `buy_${p.id}`
+    }];
+  }));
+
+  keyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
+  return keyboard;
+}
+
 exports.telegramWebhook = onRequest(async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).send('Method Not Allowed');
@@ -1825,16 +1871,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
           const ecoConfig = await fetchEconomyConfig();
           const pkgs = ecoConfig.starsPackages || STARS_PACKAGES;
-
-          const inlineKeyboard = Object.keys(pkgs).map((k) => {
-            const p = pkgs[k];
-            const tagText = p.tag ? ` (${p.tag})` : '';
-            return [{
-              text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
-              callback_data: `buy_${p.id}`
-            }];
-          });
-          inlineKeyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
+          const inlineKeyboard = await buildShopKeyboard(uid, userData.username, pkgs);
 
           const welcomeMsg = `⚡ *¡ORANGE LEAGUE TCG - TIENDA OFICIAL!*\n\n✅ *Cuenta vinculada con éxito:*\n👤 Entrenador: *${userData.username || 'Jugador'}*\n🆔 UID: \`${uid}\`\n💰 Saldo actual: *${userData.coins || 0} Orbes*\n\n🛒 *Elige el paquete que deseas comprar con Estrellas (⭐):*\n\nSi necesitas ayuda utiliza el comando /ayuda.`;
           await sendTelegramMessage(chatId, welcomeMsg, { inline_keyboard: inlineKeyboard });
@@ -1943,16 +1980,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
       const ecoConfig = await fetchEconomyConfig();
       const pkgs = ecoConfig.starsPackages || STARS_PACKAGES;
-
-      const inlineKeyboard = Object.keys(pkgs).map((k) => {
-        const p = pkgs[k];
-        const tagText = p.tag ? ` (${p.tag})` : '';
-        return [{
-          text: `⭐️ ${p.coins} Orbes — ${p.stars} ⭐${tagText}`,
-          callback_data: `buy_${p.id}`
-        }];
-      });
-      inlineKeyboard.push([{ text: '🔄 Cambiar cuenta vinculada', callback_data: 'change_uid' }]);
+      const inlineKeyboard = await buildShopKeyboard(linkData.uid, userName, pkgs);
 
       const shopMsg = `🛒 *TIENDA DE ORBES · ORANGE LEAGUE*\n\n👤 *Entrenador:* ${userName}\n🆔 *UID:* \`${linkData.uid}\`\n💰 *Saldo actual:* ${userCoins} Orbes\n\nElige el paquete que deseas comprar con *Estrellas de Telegram (⭐)*:`;
       await sendTelegramMessage(chatId, shopMsg, { inline_keyboard: inlineKeyboard });
