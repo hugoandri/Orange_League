@@ -3548,7 +3548,13 @@ function openBoosterSelectModal(setKey) {
       '</button>';
   });
   document.getElementById('boosterModalTitle').textContent = 'PACK ' + BOOSTER_NAMES[setKey].toUpperCase();
-  document.getElementById('boosterModalPrice').innerHTML = pixelDigitsHtml(100, 'oro', 2);
+  // Real reported bug: this used to hardcode 100 regardless of the real
+  // configured cost (getBoosterCost, same function the Tienda grid itself
+  // already uses) -- an admin-set discount/price change on a pack showed
+  // correctly on the shop card but reverted to a stale "100" the instant
+  // this modal opened, right before the real (server-authoritative, see
+  // economy.js's openBoosterCloud) charge went through.
+  document.getElementById('boosterModalPrice').innerHTML = pixelDigitsHtml(getBoosterCost(setKey), 'oro', 2);
   document.getElementById('boosterModalGrid').innerHTML = html;
   document.getElementById('boosterOpenBtn').disabled = true;
   document.getElementById('boosterSelectedInfo').textContent = 'TOCA UN PACK PARA SELECCIONARLO';
