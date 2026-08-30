@@ -60,7 +60,7 @@
 /* News panel -- replaces the old key-art image slot. Real content (a
    feed), not decorative art; see ui.js renderNewsPanel() for the data. */
 .shell-news-panel{
-  position:absolute;right:336px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
+  position:absolute;right:386px;top:132px;width:830px;height:800px;display:flex;flex-direction:column;
   background:
     repeating-linear-gradient(90deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
     linear-gradient(180deg,#3a342c,#221e19);
@@ -134,7 +134,7 @@
 .shell-news-footer span:first-child{font-size:11px;letter-spacing:.16em;}
 .shell-news-footer span:last-child{font-size:14px;color:#e8c46a;}
 
-.shell-left-col{position:absolute;left:104px;top:96px;width:600px;display:flex;flex-direction:column;gap:34px;}
+.shell-left-col{position:absolute;left:104px;top:56px;width:600px;display:flex;flex-direction:column;gap:34px;}
 .shell-brand{display:flex;flex-direction:column;gap:14px;}
 
 .shell-logo-plate{
@@ -149,10 +149,6 @@
 }
 .shell-logo-plate .shell-logo-main{height:100%;width:auto;max-width:68%;object-fit:contain;display:block;}
 .shell-logo-plate .shell-logo-secondary{height:60%;width:auto;object-fit:contain;display:block;}
-
-.shell-setline{display:flex;align-items:center;gap:12px;}
-.shell-setline-rule{width:34px;height:2px;background:#e8c46a;}
-.shell-setline-text{font-size:15px;letter-spacing:.28em;color:#e8c46a;}
 
 .shell-tagline{font-family:'Pixelify Sans',sans-serif;font-size:20px;line-height:1.5;color:#a49785;max-width:440px;}
 
