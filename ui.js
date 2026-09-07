@@ -29,6 +29,17 @@ var matchWinner = null;
 var revealAnimationInProgress = false;
 var visualActivePokemon = null;
 
+// True from the moment the CPU's OWN turn starts revealing what it did
+// (proceedWithCpuTurn, right after cpuTakeTurn() itself finishes) until
+// afterPlayerAction() runs -- unlike revealAnimationInProgress (which is
+// ALSO true during the PLAYER's own attack reveal), this is only ever true
+// for the CPU's side, so renderBoard's header can tell the two apart:
+// "TURNO CPU" while this is true, "TU TURNO" the rest of the time
+// (including during the player's own attack reveal, and the narrow window
+// right after the player's own attack silently ended their turn but before
+// they've clicked "Terminar Turno" -- see that branch's own comment).
+var cpuTurnRevealInProgress = false;
+
 // Menu's "Novedades" panel (see initNewsListener, economy.js, and
 // admin.html for how items actually get published). items: [{id, title,
 // body, tag, featured, createdAt}], newest first. The most recently
@@ -1421,7 +1432,12 @@ function renderPrizeChoiceModal() {
       // (pendingPrizeChoice fully cleared, not just this one slot of a
       // multi-prize KO), my own turn is the one that just ended, and I'm
       // not ALSO stuck on my own "choose new Active" from a simultaneous KO.
-      var showEndTurnConfirmAfter = localAttackEndedMyTurn && localMyPrizeChoiceSeen &&
+      // Real reported bug: taking the LAST prize of the match (the win
+      // condition) used to show this right on top of afterPlayerAction's
+      // own "Has Ganado" modal above -- !getWinner(gameState) excludes
+      // exactly that: the duel is already over, there's no "turn" left to
+      // ask about ending.
+      var showEndTurnConfirmAfter = !getWinner(gameState) && localAttackEndedMyTurn && localMyPrizeChoiceSeen &&
         !gameState.pendingPrizeChoice && gameState.activePlayerId !== 'player' &&
         gameState.pendingActiveChoice !== 'player';
       if (showEndTurnConfirmAfter) {
@@ -1820,6 +1836,25 @@ function renderBoard() {
   if (s.phase === 'setup') {
     turnValueEl.textContent = 'PREPARANDO';
     turnValueEl.classList.remove('cpu');
+  } else if (cpuTurnInProgress) {
+    // Real reported bug: this used to only ever get set by the explicit
+    // showCpuThinkingIndicator() calls (proceedWithCpuTurn) -- any OTHER
+    // render landing in between (there usually isn't one during this exact
+    // window, but a resize/rerender could still sneak one in) fell through
+    // to the plain 'TU TURNO' branch below instead, misreporting the CPU's
+    // own turn as the player's.
+    turnValueEl.innerHTML = 'CPU PENSANDO<span class="shell-cpu-thinking-dots"><span></span><span></span><span></span></span>';
+    turnValueEl.classList.add('cpu');
+  } else if (cpuTurnRevealInProgress) {
+    // Real reported bug: the CPU decided its move already (cpuTurnInProgress
+    // just went false) and is now revealing it -- Trainer-plays toasts, the
+    // attack overlay -- which used to fall through to the same 'TU TURNO'
+    // default below every single one of the renderBoard() calls in between,
+    // for the WHOLE rest of the CPU's turn (every render after the delay
+    // ended and before afterPlayerAction() finally runs). Genuinely never
+    // the player's turn during this window, so it says so instead.
+    turnValueEl.textContent = 'TURNO CPU';
+    turnValueEl.classList.add('cpu');
   } else {
     // cpuTakeTurn() (ai.js) always finishes by calling endTurn() itself
     // before returning, so by the time any render happens after it
@@ -1831,9 +1866,9 @@ function renderBoard() {
     // The board hasn't changed and the CPU hasn't moved yet in that
     // window, so the header stays "TU TURNO" instead of flipping the
     // instant an attack lands, before the player did anything to end it
-    // themselves. (.shell-board-turn-value.cpu's red styling is unused as
-    // a result -- left in place in case a future async CPU-turn animation
-    // gives it a real moment to show.)
+    // themselves. Also covers the player's own attack overlay/reveal
+    // (revealAnimationInProgress without cpuTurnRevealInProgress) -- that's
+    // still very much the player's own action playing out, not the CPU's.
     turnValueEl.textContent = 'TU TURNO';
     turnValueEl.classList.remove('cpu');
   }
@@ -1963,6 +1998,10 @@ function proceedWithCpuTurn() {
     // attack overlay) so tickGameClock's independent poll can't jump ahead
     // of it -- see revealAnimationInProgress's own comment.
     revealAnimationInProgress = true;
+    // See cpuTurnRevealInProgress's own comment -- from here through
+    // afterPlayerAction(), the header shows "TURNO CPU" instead of
+    // renderBoard's default "TU TURNO".
+    cpuTurnRevealInProgress = true;
     // Real reported bug: this used to snapshot both Actives from BEFORE
     // cpuTakeTurn() ran at all, then hold the board on that single frozen
     // snapshot through the ENTIRE reveal below -- Trainer-plays sequence
@@ -2005,6 +2044,7 @@ function proceedWithCpuTurn() {
             } catch (err) {
               console.error('Error during reveal:', err);
               revealAnimationInProgress = false;
+              cpuTurnRevealInProgress = false;
               visualActivePokemon = null;
               renderBoard();
             }
@@ -2019,6 +2059,7 @@ function proceedWithCpuTurn() {
     } catch (err) {
       console.error('Error during trainer sequence:', err);
       revealAnimationInProgress = false;
+      cpuTurnRevealInProgress = false;
       visualActivePokemon = null;
       renderBoard();
     }
@@ -2034,6 +2075,7 @@ function proceedWithCpuTurn() {
 // etc. in the log) before the board changes again.
 function afterPlayerAction() {
   revealAnimationInProgress = false;
+  cpuTurnRevealInProgress = false;
   visualActivePokemon = null;
   // getWinner() itself now tracks hasHadActive per player (rules-engine.js),
   // so it correctly returns null before either side has placed their
@@ -4804,7 +4846,10 @@ function enterPvpMatch(matchId) {
     // of my OWN still-open "choose new Active" modal -- a simultaneous KO
     // (my own Active also fell, e.g. to a checkup) leaves that one blocking
     // first; this waits for it to clear like everything else does.
-    if (pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !pub.pendingPrizeChoice &&
+    // !pub.winner guards against stacking this on top of the win/loss modal
+    // processPvpMatchSnapshot just showed -- taking the LAST prize of the
+    // match ends the duel, not just the turn.
+    if (!pub.winner && pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !pub.pendingPrizeChoice &&
         pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
       pvpAttackEndedMyTurn = false;
       pvpMyPrizeChoiceSeen = false;
