@@ -946,6 +946,12 @@ function showAttackOverlayIfAny(onDone) {
 }
 
 function executePlayerAttack(atkName, targetInstanceId) {
+  // See localAttackEndedMyTurn's own comment -- this function is ONLY ever
+  // called for the local player's own attack (the CPU's attacks go through
+  // attack(gameState, 'cpu', ...) directly, in ai.js), and only while it's
+  // genuinely the player's turn (the attack buttons this is wired to are
+  // gated on that already) -- safe to arm unconditionally, every call.
+  localAttackEndedMyTurn = true;
   var p = gameState && gameState.players && gameState.players.player;
   var c = gameState && gameState.players && gameState.players.cpu;
   var prePlayerActive = (p && p.active) ? JSON.parse(JSON.stringify(p.active)) : null;
@@ -1386,6 +1392,10 @@ function renderActiveChoiceModal() {
 // player picks a specific slot instead of it being auto-resolved. The hand
 // stays visible behind this modal (see renderBoard).
 function renderPrizeChoiceModal() {
+  // Only ever called while gameState.pendingPrizeChoice.playerId === 'player'
+  // (see renderBoard's own pendingPlayerPrize gate) -- see
+  // localAttackEndedMyTurn's own comment for why this is tracked.
+  localMyPrizeChoiceSeen = true;
   var p = gameState.players.player;
   var backUrl = cardBackUrlFor('player');
   var grid = document.getElementById('prizeChoiceGrid');
@@ -1406,6 +1416,18 @@ function renderPrizeChoiceModal() {
       var wonCardName = wonCard && wonCard.name;
       takePrize(gameState, 'player', index);
       afterPlayerAction();
+      // See localAttackEndedMyTurn's own comment -- true only once every
+      // prize owed from MY OWN attack this turn has actually been taken
+      // (pendingPrizeChoice fully cleared, not just this one slot of a
+      // multi-prize KO), my own turn is the one that just ended, and I'm
+      // not ALSO stuck on my own "choose new Active" from a simultaneous KO.
+      var showEndTurnConfirmAfter = localAttackEndedMyTurn && localMyPrizeChoiceSeen &&
+        !gameState.pendingPrizeChoice && gameState.activePlayerId !== 'player' &&
+        gameState.pendingActiveChoice !== 'player';
+      if (showEndTurnConfirmAfter) {
+        localAttackEndedMyTurn = false;
+        localMyPrizeChoiceSeen = false;
+      }
       // Zoom the card just taken so it's clear which prize was won -- reuses
       // the same enlarge modal as the hand's 🔍 buttons. Prizes are always
       // the player's own, so isHoloInMatch('player', ...) is enough to show
@@ -1426,10 +1448,15 @@ function renderPrizeChoiceModal() {
       if (wonCardName) {
         var prizeFoil = getPlayerCardFoilTier(wonCardName) || (isHoloInMatch('player', wonCardName) ? 'holo' : null);
         openCardModal(wonCardName, null, prizeFoil);
-        onCardModalClose = function () { maybeShowPendingTurnFlash(); maybeResumeCpuTurn(); };
+        onCardModalClose = function () {
+          maybeShowPendingTurnFlash();
+          maybeResumeCpuTurn();
+          if (showEndTurnConfirmAfter) { renderEndTurnConfirm(); }
+        };
       } else {
         maybeShowPendingTurnFlash();
         maybeResumeCpuTurn();
+        if (showEndTurnConfirmAfter) { renderEndTurnConfirm(); }
       }
     });
   });
@@ -4575,19 +4602,26 @@ var pvpRpsRevealedRound = 0;
 var pvpRpsRevealTimer = null;
 var pvpRpsLatestMatchData = null;
 
-// End-of-turn confirm (renderPvpEndTurnConfirm, below) -- attack()
-// always ends the turn server-side the instant it's submitted (see
-// functions/index.js's own comment on this), so a KO'd Pokémon's prize gets
-// taken AFTER the turn has already silently passed to the rival. Without
-// this, the board would go straight from "you just KO'd something" to
-// "rival's turn" with no acknowledgment. pvpAttackEndedMyTurn is armed the
-// moment a PVP attack is submitted while it's genuinely my turn;
-// pvpMyPrizeChoiceSeen tracks whether THIS attack actually opened a prize
-// choice for me (as opposed to a plain non-KO attack, which should show no
-// modal at all). Both are consumed (reset) the instant the modal is shown,
-// so it only ever fires once per KO.
+// End-of-turn confirm (renderEndTurnConfirm, below) -- attack() always ends
+// the turn the instant it's submitted (server-side in PVP; see functions/
+// index.js's own comment on this -- the exact same rule applies locally,
+// rules-engine.js's attack() itself always calls endTurn()), so a KO'd
+// Pokémon's prize gets taken AFTER the turn has already silently passed to
+// the CPU/rival. Without this, the board would go straight from "you just
+// KO'd something" to "their turn" with no acknowledgment.
+//
+// PVP and local-vs-CPU each get their own pair of these flags (pub.* vs
+// gameState.* have different shapes, so it's simplest to track them
+// independently) but drive the exact same renderEndTurnConfirm/modal:
+// *AttackEndedMyTurn is armed the moment I submit a real attack while it's
+// genuinely my turn; *MyPrizeChoiceSeen tracks whether THIS attack actually
+// opened a prize choice for me (as opposed to a plain non-KO attack, which
+// should show no modal at all). Both are consumed (reset) the instant the
+// modal is shown, so it only ever fires once per KO.
 var pvpAttackEndedMyTurn = false;
 var pvpMyPrizeChoiceSeen = false;
+var localAttackEndedMyTurn = false;
+var localMyPrizeChoiceSeen = false;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
 // match listener callback below) and never back to false anywhere -- not on
@@ -4609,7 +4643,12 @@ function resetPvpMatchState() {
   pvpRpsLatestMatchData = null;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
-  var endTurnModal = document.getElementById('pvpEndTurnModal');
+  // Also called at the start of a fresh LOCAL match (startNewMatch) -- reset
+  // the local end-turn-confirm flags here too so a match ending mid-KO
+  // never leaves either armed for the next one.
+  localAttackEndedMyTurn = false;
+  localMyPrizeChoiceSeen = false;
+  var endTurnModal = document.getElementById('endTurnConfirmModal');
   if (endTurnModal) { endTurnModal.classList.add('hidden'); }
   hideRpsScreen();
 }
@@ -4742,7 +4781,7 @@ function enterPvpMatch(matchId) {
         pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
       pvpAttackEndedMyTurn = false;
       pvpMyPrizeChoiceSeen = false;
-      renderPvpEndTurnConfirm();
+      renderEndTurnConfirm();
     }
   });
   showBoardScreen();
@@ -4774,8 +4813,8 @@ function processPvpMatchSnapshot(data) {
 // anything about the match itself. It just stops the board from silently
 // handing over to the rival's turn, with nothing marking the moment, right
 // as the player is still looking at what they just knocked out.
-function renderPvpEndTurnConfirm() {
-  var modal = document.getElementById('pvpEndTurnModal');
+function renderEndTurnConfirm() {
+  var modal = document.getElementById('endTurnConfirmModal');
   if (modal) { modal.classList.remove('hidden'); }
 }
 
@@ -5343,19 +5382,32 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Both buttons close the same way -- see renderPvpEndTurnConfirm's own
-  // comment: the turn already ended server-side by the time this modal can
-  // even show, so there's nothing left for "No" to actually hold back. It
-  // just lets the player linger on the board they already see behind it.
-  ['pvpEndTurnConfirmYes', 'pvpEndTurnConfirmNo'].forEach(function (id) {
-    var btn = document.getElementById(id);
-    if (btn) {
-      btn.addEventListener('click', function () {
-        playUiSound('button_click');
-        document.getElementById('pvpEndTurnModal').classList.add('hidden');
-      });
-    }
-  });
+  // In PVP the turn already ended server-side by the time this modal can
+  // even show (see renderEndTurnConfirm's own comment) -- both buttons just
+  // close it there. Locally, though, the CPU genuinely hasn't moved yet
+  // (same as it wouldn't have if the player just left "Terminar Turno"
+  // unclicked) -- "SÍ" reuses that exact same button/logic (endTurnBtn's own
+  // handler already no-ops the redundant endTurn(gameState) call, since
+  // gameState.activePlayerId is already 'cpu' by the time this shows) so the
+  // CPU's turn actually starts now; "NO" just closes this and changes
+  // nothing, leaving "Terminar Turno" there for whenever the player's ready.
+  var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
+  if (endTurnConfirmYesBtn) {
+    endTurnConfirmYesBtn.addEventListener('click', function () {
+      playUiSound('button_click');
+      document.getElementById('endTurnConfirmModal').classList.add('hidden');
+      if (pvpMode) { return; }
+      var realEndTurnBtn = document.getElementById('endTurnBtn');
+      if (realEndTurnBtn) { realEndTurnBtn.click(); }
+    });
+  }
+  var endTurnConfirmNoBtn = document.getElementById('endTurnConfirmNo');
+  if (endTurnConfirmNoBtn) {
+    endTurnConfirmNoBtn.addEventListener('click', function () {
+      playUiSound('button_click');
+      document.getElementById('endTurnConfirmModal').classList.add('hidden');
+    });
+  }
 
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();
