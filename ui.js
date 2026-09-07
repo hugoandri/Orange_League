@@ -4406,24 +4406,36 @@ function renderPvpDeckPicker(containerId, onPicked) {
 // there is no server-side plumbing (unlike hostPhoto/guestPhoto below) to
 // see the OPPONENT's custom deck art, so that case falls back to null and
 // the caller just leaves that deck slot hidden.
-function pvpDeckArtFor(deckId) {
+// coverNameOverride: for a CUSTOM deck that isn't the local player's own
+// (the PVP opponent's), econState.customDecks has no entry for it at all --
+// that object only ever holds MY OWN saved decks. The caller passes the
+// cover card's name straight from the room doc instead (hostDeckCoverName/
+// guestDeckCoverName, captured server-side at createRoom/joinRoom) so it
+// can still be resolved through the same CARD_IMAGE_BY_NAME lookup. Omit it
+// (or pass a falsy value) for MY OWN deck, where the local lookup already
+// works.
+function pvpDeckArtFor(deckId, coverNameOverride) {
   if (!deckId) { return null; }
   var art = PRECON_DECK_ART[deckId];
   if (art) { return { img: art.img }; }
   if (deckId.indexOf('custom:') === 0) {
-    var slot = deckId.slice('custom:'.length);
-    var saved = (econState && econState.customDecks) || {};
-    var deck = saved[slot];
-    if (deck && deck.coverName && CARD_IMAGE_BY_NAME[deck.coverName]) {
-      return { img: CARD_IMAGE_BY_NAME[deck.coverName] };
+    var coverName = coverNameOverride;
+    if (!coverName) {
+      var slot = deckId.slice('custom:'.length);
+      var saved = (econState && econState.customDecks) || {};
+      var deck = saved[slot];
+      coverName = deck && deck.coverName;
+    }
+    if (coverName && CARD_IMAGE_BY_NAME[coverName]) {
+      return { img: CARD_IMAGE_BY_NAME[coverName] };
     }
   }
   return null;
 }
 
-function setPvpWaitingDeckSlot(wrapId, imgId, deckId) {
+function setPvpWaitingDeckSlot(wrapId, imgId, deckId, coverNameOverride) {
   var wrap = document.getElementById(wrapId);
-  var art = pvpDeckArtFor(deckId);
+  var art = pvpDeckArtFor(deckId, coverNameOverride);
   if (art) {
     document.getElementById(imgId).src = art.img;
     wrap.classList.remove('hidden');
@@ -4505,16 +4517,25 @@ function renderPvpWaitingReadyState(room) {
 // waiting screen is up -- fills in the opponent's real photo/name/deck the
 // moment they've joined (room.guestUid or, for the guest's own brief look
 // at this same screen, room.hostUid is already present from the very first
-// snapshot). hostPhoto/guestPhoto fall back to the generic rival avatar
-// when that side never set one (same fallback local CPU play already uses).
+// snapshot). hostPhoto/guestPhoto fall back to the same default trainer
+// avatar any player without a custom photo gets (PROFILE_PHOTO_URL.player)
+// -- the opponent here is always a real human, never the local CPU bot, so
+// falling back to PROFILE_PHOTO_URL.cpu (as this used to) showed a real
+// person as the bot avatar whenever they hadn't set a custom photo.
 function renderPvpWaitingOpponentFromRoom(room) {
   var myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
   var iAmHost = room.hostUid === myUid;
   var oppUid = iAmHost ? room.guestUid : room.hostUid;
   if (!oppUid) { return; }
   var oppName = iAmHost ? room.guestUsername : room.hostUsername;
-  var oppPhoto = (iAmHost ? room.guestPhoto : room.hostPhoto) || PROFILE_PHOTO_URL.cpu;
+  var oppPhoto = (iAmHost ? room.guestPhoto : room.hostPhoto) || PROFILE_PHOTO_URL.player;
   var oppDeckId = iAmHost ? room.guestDeckId : room.hostDeckId;
+  // Cover art for a CUSTOM deck (unlike a precon) lives in the deck owner's
+  // own econState.customDecks, which this client never has for the
+  // opponent's account -- hostDeckCoverName/guestDeckCoverName (captured
+  // server-side at createRoom/joinRoom, see functions/index.js) carry it
+  // across instead, same pattern as hostUsername/hostPhoto above.
+  var oppDeckCoverName = iAmHost ? room.guestDeckCoverName : room.hostDeckCoverName;
   document.getElementById('pvpWaitingOpponentSpinner').classList.add('hidden');
   var oppImg = document.getElementById('pvpWaitingOpponentPhoto');
   oppImg.src = oppPhoto;
@@ -4523,7 +4544,7 @@ function renderPvpWaitingOpponentFromRoom(room) {
   // Ready/not-ready status text is owned by renderPvpWaitingReadyState
   // (called right alongside this from the same room-snapshot callback) --
   // this function only ever fills in identity/deck art.
-  setPvpWaitingDeckSlot('pvpWaitingOpponentDeckWrap', 'pvpWaitingOpponentDeckArt', oppDeckId);
+  setPvpWaitingDeckSlot('pvpWaitingOpponentDeckWrap', 'pvpWaitingOpponentDeckArt', oppDeckId, oppDeckCoverName);
 }
 
 var pvpActiveMatchId = null;

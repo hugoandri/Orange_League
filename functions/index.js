@@ -1010,11 +1010,27 @@ async function fetchProfile(uid) {
   return { username: data.username || 'Jugador', photo: data.photo || null };
 }
 
+// For a 'custom:{slot}' deckId, the deck's cover card name -- needed on the
+// room doc for the exact same reason hostUsername/hostPhoto are (above):
+// pvpDeckArtFor (ui.js) resolves a custom deck's cover art through the
+// OWNER's own econState.customDecks, which the opponent's client never has.
+// null for a precon deckId (its art is already resolvable client-side, via
+// the global PRECON_DECK_ART table, for either viewer).
+async function fetchDeckCoverName(uid, deckId) {
+  const m = /^custom:(.+)$/.exec(deckId || '');
+  if (!m) { return null; }
+  const snap = await admin.firestore().collection('users').doc(uid).get();
+  const customDecks = (snap.data() || {}).customDecks || {};
+  const deck = customDecks[m[1]];
+  return (deck && deck.coverName) || null;
+}
+
 exports.createRoom = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
   const deckId = (request.data || {}).deckId;
   await validateDeckId(request.auth.uid, deckId);
   const hostProfile = await fetchProfile(request.auth.uid);
+  const hostDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
 
   const db = admin.firestore();
   let roomCode;
@@ -1030,8 +1046,8 @@ exports.createRoom = onCall(async (request) => {
     if (!roomCode) { throw new HttpsError('internal', 'No se pudo generar un código de sala.'); }
     tx.set(db.collection('rooms').doc(roomCode), {
       hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
-      hostUsername: hostProfile.username, hostPhoto: hostProfile.photo,
-      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null, guestPhoto: null,
+      hostUsername: hostProfile.username, hostPhoto: hostProfile.photo, hostDeckCoverName: hostDeckCoverName,
+      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null, guestPhoto: null, guestDeckCoverName: null,
       status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
     });
   });
@@ -1045,6 +1061,7 @@ exports.joinRoom = onCall(async (request) => {
   const deckId = data.deckId;
   await validateDeckId(request.auth.uid, deckId);
   const guestProfile = await fetchProfile(request.auth.uid);
+  const guestDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
 
   const db = admin.firestore();
   const roomRef = db.collection('rooms').doc(roomCode);
@@ -1063,7 +1080,7 @@ exports.joinRoom = onCall(async (request) => {
     }
     tx.update(roomRef, {
       guestUid: request.auth.uid, guestDeckId: deckId,
-      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo
+      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo, guestDeckCoverName: guestDeckCoverName
     });
   });
   return { roomCode: roomCode };
