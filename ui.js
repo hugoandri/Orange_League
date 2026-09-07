@@ -5336,7 +5336,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (pvpStartMatchBtn) {
     pvpStartMatchBtn.addEventListener('click', function () {
       if (!pvpCurrentRoomCode || pvpStartMatchBtn.disabled) { return; }
-      playUiSound('button_click');
       pvpStartMatchBtn.disabled = true;
       setReadyCloud(pvpCurrentRoomCode).catch(function (err) {
         pvpStartMatchBtn.disabled = false;
@@ -5404,7 +5403,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.querySelectorAll('#pvpRpsChoices [data-rps-choice]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      playUiSound('button_click');
       submitMatchActionCloud(pvpActiveMatchId, { type: 'submitRpsChoice', choice: btn.getAttribute('data-rps-choice') })
         .catch(function (err) { alert(err.message || 'No se pudo enviar tu elección.'); });
     });
@@ -5434,7 +5432,6 @@ document.addEventListener('DOMContentLoaded', function () {
   var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
   if (endTurnConfirmYesBtn) {
     endTurnConfirmYesBtn.addEventListener('click', function () {
-      playUiSound('button_click');
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
       if (pvpMode) { applyPvpEndTurnConfirmDismiss(); return; }
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
@@ -5446,7 +5443,6 @@ document.addEventListener('DOMContentLoaded', function () {
   var endTurnConfirmNoBtn = document.getElementById('endTurnConfirmNo');
   if (endTurnConfirmNoBtn) {
     endTurnConfirmNoBtn.addEventListener('click', function () {
-      playUiSound('button_click');
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
       if (pvpMode) { applyPvpEndTurnConfirmDismiss(); }
     });
