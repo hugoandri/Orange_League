@@ -351,6 +351,22 @@ function cpuTakeTurn(state, difficulty) {
       }
     }
     if (best && canAttack(state, playerId, best.name)) {
+      // Snapshot BOTH Actives right here -- after every other action this
+      // turn (energy, evolve, retreat, Trainer plays) has already happened,
+      // but before this attack's own damage/KO does. ui.js's
+      // proceedWithCpuTurn reads this to freeze the board's Active-Pokémon
+      // display at exactly this moment through its reveal sequence, so only
+      // the attack's own outcome stays hidden until its overlay reveals it
+      // -- everything earlier in the turn (an energy icon appearing, an
+      // evolution) shows immediately, same as it already does for the
+      // Bench, instead of every single Active-Pokémon change this whole
+      // turn being held back until the very end.
+      state.preAttackActiveSnapshot = {
+        player: state.players.player.active ? JSON.parse(JSON.stringify(state.players.player.active)) : null,
+        cpu: state.players.cpu.active ? JSON.parse(JSON.stringify(state.players.cpu.active)) : null,
+        playerDiscardCount: state.players.player.discard.length,
+        cpuDiscardCount: state.players.cpu.discard.length
+      };
       attack(state, playerId, best.name);
       return;
     }

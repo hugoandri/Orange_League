@@ -1944,12 +1944,6 @@ function proceedWithCpuTurn() {
   if (endTurnBtn) { endTurnBtn.disabled = true; }
   showTurnFlash('TURNO DEL RIVAL', 'rival');
   if (delay > 0) { showCpuThinkingIndicator(); }
-  var p = gameState && gameState.players && gameState.players.player;
-  var c = gameState && gameState.players && gameState.players.cpu;
-  var preTurnPlayerActive = (p && p.active) ? JSON.parse(JSON.stringify(p.active)) : null;
-  var preTurnCpuActive = (c && c.active) ? JSON.parse(JSON.stringify(c.active)) : null;
-  var preTurnPlayerDiscardCount = (p && p.discard) ? p.discard.length : 0;
-  var preTurnCpuDiscardCount = (c && c.discard) ? c.discard.length : 0;
   cpuTurnInProgress = true;
   setTimeout(function () {
     try {
@@ -1969,12 +1963,21 @@ function proceedWithCpuTurn() {
     // attack overlay) so tickGameClock's independent poll can't jump ahead
     // of it -- see revealAnimationInProgress's own comment.
     revealAnimationInProgress = true;
-    visualActivePokemon = {
-      player: preTurnPlayerActive,
-      cpu: preTurnCpuActive,
-      playerDiscardCount: preTurnPlayerDiscardCount,
-      cpuDiscardCount: preTurnCpuDiscardCount
-    };
+    // Real reported bug: this used to snapshot both Actives from BEFORE
+    // cpuTakeTurn() ran at all, then hold the board on that single frozen
+    // snapshot through the ENTIRE reveal below -- Trainer-plays sequence
+    // included. Energy attached, an evolution, a retreat: all real,
+    // already-applied changes to the Active Pokémon this same turn, but
+    // invisible until the reveal's very last step reset visualActivePokemon
+    // to null. ai.js now snapshots BOTH Actives itself, right before its
+    // own attack() call (after every other action already happened) --
+    // that's the only moment worth hiding at all (so the attack's own
+    // damage/KO doesn't show before its overlay does); null here (no attack
+    // this turn) means nothing needs hiding, so the board just shows the
+    // real, fully up-to-date state immediately.
+    var preAttackSnapshot = gameState.preAttackActiveSnapshot;
+    gameState.preAttackActiveSnapshot = null;
+    visualActivePokemon = preAttackSnapshot;
     renderBoard();
     try {
       showTrainerPlaysSequence(queuedTrainerPlays, function () {
