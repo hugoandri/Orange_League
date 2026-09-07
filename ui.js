@@ -4444,8 +4444,61 @@ function renderPvpWaitingMine(deckId) {
   document.getElementById('pvpWaitingOpponentSpinner').classList.remove('hidden');
   document.getElementById('pvpWaitingOpponentPhoto').classList.add('hidden');
   document.getElementById('pvpWaitingOpponentName').textContent = 'ESPERANDO…';
-  document.getElementById('pvpWaitingOpponentStatus').textContent = 'ESPERANDO';
   document.getElementById('pvpWaitingOpponentDeckWrap').classList.add('hidden');
+  // Ready state always starts fresh here (red ✕ + "ESPERANDO" on both sides,
+  // Iniciar hidden) -- renderPvpWaitingReadyState takes over from the very
+  // first room snapshot onward.
+  document.getElementById('pvpWaitingMyStatus').textContent = 'ESPERANDO';
+  document.getElementById('pvpWaitingOpponentStatus').textContent = 'ESPERANDO';
+  setPvpReadyBadge('pvpWaitingMyReadyBadge', false);
+  setPvpReadyBadge('pvpWaitingOpponentReadyBadge', false);
+  var startBtn = document.getElementById('pvpStartMatchBtn');
+  startBtn.classList.add('hidden');
+  startBtn.disabled = false;
+  document.getElementById('pvpStartHint').classList.add('hidden');
+}
+
+// Red ✕ / green ✓ next to a waiting-room player's status text (see the
+// .pvp-ready-badge CSS rule, shell-theme.css). Only visual state, never the
+// source of truth -- that's always the room doc's hostReady/guestReady,
+// re-applied here on every snapshot by renderPvpWaitingReadyState.
+function setPvpReadyBadge(elId, isReady) {
+  var el = document.getElementById(elId);
+  el.textContent = isReady ? '✓' : '✕';
+  el.classList.toggle('is-ready', isReady);
+}
+
+// Fired on every rooms/{roomCode} snapshot (initPvpRoomListener, alongside
+// renderPvpWaitingOpponentFromRoom) -- renders both sides' ready badges/
+// status text from room.hostReady/guestReady, and shows the local "Iniciar"
+// button only once the opponent has actually joined (oppUid present).
+// Per user request, the match no longer starts the instant the second
+// player picks a deck: each side must explicitly click Iniciar (which
+// calls setReadyCloud, wired below) -- the room only flips to 'started'
+// once BOTH sides have done so (functions/index.js's setReady).
+function renderPvpWaitingReadyState(room) {
+  var myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+  var iAmHost = room.hostUid === myUid;
+  var oppUid = iAmHost ? room.guestUid : room.hostUid;
+  var myReady = !!(iAmHost ? room.hostReady : room.guestReady);
+  var oppReady = !!(iAmHost ? room.guestReady : room.hostReady);
+
+  setPvpReadyBadge('pvpWaitingMyReadyBadge', myReady);
+  document.getElementById('pvpWaitingMyStatus').textContent = myReady ? 'LISTO' : 'ESPERANDO';
+
+  var startBtn = document.getElementById('pvpStartMatchBtn');
+  var startHint = document.getElementById('pvpStartHint');
+  if (!oppUid) {
+    startBtn.classList.add('hidden');
+    startHint.classList.add('hidden');
+    return;
+  }
+  setPvpReadyBadge('pvpWaitingOpponentReadyBadge', oppReady);
+  document.getElementById('pvpWaitingOpponentStatus').textContent = oppReady ? 'LISTO' : 'ESPERANDO';
+
+  startBtn.classList.remove('hidden');
+  startBtn.disabled = myReady;
+  startHint.classList.toggle('hidden', !myReady);
 }
 
 // Fired on every rooms/{roomCode} snapshot (initPvpRoomListener) while the
@@ -4467,7 +4520,9 @@ function renderPvpWaitingOpponentFromRoom(room) {
   oppImg.src = oppPhoto;
   oppImg.classList.remove('hidden');
   document.getElementById('pvpWaitingOpponentName').textContent = oppName || 'Rival';
-  document.getElementById('pvpWaitingOpponentStatus').textContent = oppDeckId ? 'MAZO CONFIRMADO' : 'CONECTADO';
+  // Ready/not-ready status text is owned by renderPvpWaitingReadyState
+  // (called right alongside this from the same room-snapshot callback) --
+  // this function only ever fills in identity/deck art.
   setPvpWaitingDeckSlot('pvpWaitingOpponentDeckWrap', 'pvpWaitingOpponentDeckArt', oppDeckId);
 }
 
@@ -4479,6 +4534,19 @@ var pvpMode = false;
 // already ended (e.g. on reconnect) -- guards finishMatch/awardMatchResultCloud
 // against firing more than once for the same match.
 var pvpMatchEnded = false;
+
+// Rock-paper-scissors reveal gate (see renderRpsReveal/processPvpMatchSnapshot
+// below) -- pub.rpsRound (rules-engine.js) increments every time a round
+// resolves (tie or real winner). pvpRpsRevealedRound tracks the last round
+// this client has already shown a reveal for, so a re-delivered snapshot
+// (reconnect, etc.) never replays it. pvpRpsRevealTimer is non-null exactly
+// while the reveal is on screen -- new snapshots that land during that
+// window are stashed in pvpRpsLatestMatchData instead of being acted on
+// immediately, so the reveal always gets its full time on screen even if
+// the match has already moved on server-side.
+var pvpRpsRevealedRound = 0;
+var pvpRpsRevealTimer = null;
+var pvpRpsLatestMatchData = null;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
 // match listener callback below) and never back to false anywhere -- not on
@@ -4495,6 +4563,9 @@ function resetPvpMatchState() {
   pvpMatchEnded = false;
   pvpOpponentName = null;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
+  if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
+  pvpRpsRevealedRound = 0;
+  pvpRpsLatestMatchData = null;
   hideRpsScreen();
 }
 
@@ -4581,27 +4652,58 @@ function buildPvpGameState(data, mySide) {
 function enterPvpMatch(matchId) {
   pvpActiveMatchId = matchId;
   pvpMatchEnded = false;
+  pvpRpsRevealedRound = 0;
+  if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
     pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
     pvpMode = true;
-    if (data.public.phase === 'rps') {
-      renderRpsScreen(data.public);
+    pvpRpsLatestMatchData = data;
+    var pub = data.public;
+    // A freshly-resolved RPS round (tie or real winner) always arrives in
+    // the SAME snapshot as the phase change it causes (rules-engine.js
+    // resolves both synchronously) -- intercepting it here, before the
+    // phase check below, is what lets renderRpsReveal actually get its
+    // full time on screen instead of being skipped straight past.
+    if (pub.rpsLastResult && pub.rpsRound > pvpRpsRevealedRound) {
+      pvpRpsRevealedRound = pub.rpsRound;
+      renderRpsReveal(pub);
+      if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); }
+      pvpRpsRevealTimer = setTimeout(function () {
+        pvpRpsRevealTimer = null;
+        processPvpMatchSnapshot(pvpRpsLatestMatchData);
+      }, 2400);
       return;
     }
-    hideRpsScreen();
-    gameState = buildPvpGameState(data, pvpMySide);
-    if (gameState.winner && !pvpMatchEnded) {
-      pvpMatchEnded = true;
-      finishMatch(gameState.winner);
-    } else if (!gameState.winner) {
-      renderBoard();
-    }
+    if (pvpRpsRevealTimer) { return; } // reveal still on screen -- pvpRpsLatestMatchData already updated above
+    processPvpMatchSnapshot(data);
   });
   showBoardScreen();
 }
+
+// Everything enterPvpMatch's listener used to do directly -- split out so
+// the RPS-reveal gate above can defer it until the reveal has had its time
+// on screen, rather than racing it.
+function processPvpMatchSnapshot(data) {
+  var pub = data.public;
+  if (pub.phase === 'rps') {
+    renderRpsScreen(pub);
+    return;
+  }
+  hideRpsScreen();
+  gameState = buildPvpGameState(data, pvpMySide);
+  if (gameState.winner && !pvpMatchEnded) {
+    pvpMatchEnded = true;
+    finishMatch(gameState.winner);
+  } else if (!gameState.winner) {
+    renderBoard();
+  }
+}
+
+var RPS_EMOJI = { rock: '✊', paper: '✋', scissors: '✌️' };
+var RPS_LABEL_ES = { rock: 'PIEDRA', paper: 'PAPEL', scissors: 'TIJERA' };
 
 // Rock-paper-scissors: shown instead of the normal board while phase is
 // 'rps' (see createGame/submitRpsChoice, rules-engine.js) -- deliberately
@@ -4609,6 +4711,7 @@ function enterPvpMatch(matchId) {
 // buildPvpGameState, since this isn't board state at all. rpsSubmitted is
 function renderRpsScreen(pub) {
   document.getElementById('pvpRpsScreen').classList.remove('hidden');
+  document.getElementById('pvpRpsReveal').classList.add('hidden');
   var mySubmitted = pub.rpsSubmitted[pvpMySide];
   document.getElementById('pvpRpsChoices').classList.toggle('hidden', mySubmitted);
   document.getElementById('pvpRpsWaiting').classList.toggle('hidden', !mySubmitted);
@@ -4618,6 +4721,11 @@ function renderRpsScreen(pub) {
   if (hostEl) { hostEl.textContent = hostName; }
   var guestEl = document.getElementById('pvpRpsGuestName');
   if (guestEl) { guestEl.textContent = guestName; }
+  // "LISTO" tag next to each side's own name -- host is always player1,
+  // guest always player2 (see redactMatchState, rules-engine.js), so this
+  // is a direct, non-viewer-relative mapping unlike pvpMySide below.
+  document.getElementById('pvpRpsHostReadyTag').classList.toggle('hidden', !pub.rpsSubmitted.player1);
+  document.getElementById('pvpRpsGuestReadyTag').classList.toggle('hidden', !pub.rpsSubmitted.player2);
   var matchupEl = document.getElementById('pvpRpsMatchup');
   if (matchupEl) {
     matchupEl.textContent = mySubmitted
@@ -4628,6 +4736,54 @@ function renderRpsScreen(pub) {
 function hideRpsScreen() {
   var el = document.getElementById('pvpRpsScreen');
   if (el) { el.classList.add('hidden'); }
+}
+
+// Shown for a fixed window (see enterPvpMatch's reveal gate) once both
+// sides have chosen -- a "zoom" of both picks plus the round's outcome,
+// before the client acts on whatever the server already resolved:
+// re-prompting on a tie, or handing off to the board on a real win.
+function renderRpsReveal(pub) {
+  document.getElementById('pvpRpsScreen').classList.remove('hidden');
+  document.getElementById('pvpRpsChoices').classList.add('hidden');
+  document.getElementById('pvpRpsWaiting').classList.add('hidden');
+  var result = pub.rpsLastResult;
+  var myChoice = result[pvpMySide];
+  var oppSide = pvpMySide === 'player1' ? 'player2' : 'player1';
+  var oppChoice = result[oppSide];
+
+  document.getElementById('pvpRpsRevealMyLabel').textContent = 'TÚ';
+  document.getElementById('pvpRpsRevealMyEmoji').textContent = RPS_EMOJI[myChoice] || '';
+  document.getElementById('pvpRpsRevealMyChoice').textContent = RPS_LABEL_ES[myChoice] || '';
+
+  // pvpOpponentName (buildPvpGameState) isn't set yet the first time this
+  // fires -- that only runs once the phase leaves 'rps' -- so read the
+  // opponent's name straight off the room-level fields instead, same as
+  // renderRpsScreen's hostName/guestName above.
+  var oppName = oppSide === 'player1' ? pub.hostUsername : pub.guestUsername;
+  document.getElementById('pvpRpsRevealOppLabel').textContent = (oppName || 'RIVAL').toUpperCase();
+  document.getElementById('pvpRpsRevealOppEmoji').textContent = RPS_EMOJI[oppChoice] || '';
+  document.getElementById('pvpRpsRevealOppChoice').textContent = RPS_LABEL_ES[oppChoice] || '';
+
+  var outcomeEl = document.getElementById('pvpRpsRevealOutcome');
+  if (result.winner === null) {
+    outcomeEl.textContent = '¡EMPATE! Volviendo a elegir…';
+  } else if (result.winner === pvpMySide) {
+    outcomeEl.textContent = '¡TÚ INICIAS!';
+  } else {
+    outcomeEl.textContent = 'TU RIVAL INICIA';
+  }
+
+  // Re-triggers the CSS zoom-in keyframe animation even if the previous
+  // round used the exact same choices/outcome (a repeat tie, say) --
+  // simply toggling .hidden off wouldn't restart an animation still
+  // "finished" on those same elements from last time.
+  var revealBox = document.getElementById('pvpRpsReveal');
+  revealBox.classList.remove('hidden');
+  document.querySelectorAll('#pvpRpsReveal .rps-reveal-emoji').forEach(function (el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  });
 }
 
 // ── Tablero de duelo ──────────────────────────────────────────────
@@ -5010,30 +5166,46 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var pvpRoomUnsubscribe = null;
+  var pvpCurrentRoomCode = null;
   function startPvpRoomWait(roomCode, deckId) {
     if (pvpRoomUnsubscribe) { pvpRoomUnsubscribe(); }
+    pvpCurrentRoomCode = roomCode;
     pvpRoomUnsubscribe = initPvpRoomListener(roomCode, function (room) {
       if (!room) { return; }
       renderPvpWaitingOpponentFromRoom(room);
-      // setReady is called automatically once both sides are actually
-      // present -- per the spec, picking a deck IS readying up, no
-      // separate "listo" button this phase. The host calls it once,
-      // right after creating; if this is the host's own listener firing
-      // because the guest just joined, nothing more to do here -- the
-      // GUEST's own join flow (Step 3) is the one that calls setReadyCloud
-      // for the guest side. The host already called it once at creation.
+      renderPvpWaitingReadyState(room);
       if (room.status === 'started' && room.matchId) {
         pvpRoomUnsubscribe();
         enterPvpMatch(room.matchId);
       }
     });
-    setReadyCloud(roomCode).catch(function (err) { console.error('setReady (host) failed', err); });
+    // No auto-ready call here -- per user request, picking a deck no longer
+    // readies you up by itself (that used to send both players straight
+    // into rock-paper-scissors the instant the second one picked a deck,
+    // with no real chance to back out). Each side now has to explicitly
+    // click "Iniciar" (pvpStartMatchBtn below), which calls setReadyCloud;
+    // the room only flips to 'started' once BOTH sides have done so
+    // (functions/index.js's setReady).
+  }
+
+  var pvpStartMatchBtn = document.getElementById('pvpStartMatchBtn');
+  if (pvpStartMatchBtn) {
+    pvpStartMatchBtn.addEventListener('click', function () {
+      if (!pvpCurrentRoomCode || pvpStartMatchBtn.disabled) { return; }
+      playUiSound('button_click');
+      pvpStartMatchBtn.disabled = true;
+      setReadyCloud(pvpCurrentRoomCode).catch(function (err) {
+        pvpStartMatchBtn.disabled = false;
+        alert(err.message || 'No se pudo iniciar el duelo.');
+      });
+    });
   }
 
   var pvpCreateBackBtn = document.getElementById('pvpCreateBackBtn');
   if (pvpCreateBackBtn) {
     pvpCreateBackBtn.addEventListener('click', function () {
       if (pvpRoomUnsubscribe) { pvpRoomUnsubscribe(); pvpRoomUnsubscribe = null; }
+      pvpCurrentRoomCode = null;
       document.getElementById('pvpCreateScreen').classList.add('hidden');
       showMenu();
     });

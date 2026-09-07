@@ -1098,18 +1098,18 @@
           </section>
           <section id="pvpCreateWaiting" class="hidden pvp-command-content pvp-room-ready">
             <p class="pvp-command-eyebrow">SALA CREADA / ESPERANDO CONFIRMACIÓN</p>
-            <h1>AMBOS MAZOS<br>DEBEN ESTAR LISTOS</h1>
-            <p class="pvp-command-lede">Comparte el código de la sala. El duelo se abrirá cuando el otro entrenador elija y confirme su mazo.</p>
+            <h1>AMBOS JUGADORES<br>DEBEN PULSAR INICIAR</h1>
+            <p class="pvp-command-lede">Comparte el código de la sala. El duelo comenzará solo cuando los dos entrenadores pulsen Iniciar.</p>
             <div class="pvp-ready-board">
               <div class="pvp-ready-player pvp-ready-player-me">
-                <div class="pvp-ready-player-head"><span>JUGADOR 01</span><i>MAZO CONFIRMADO</i></div>
+                <div class="pvp-ready-player-head"><span>JUGADOR 01</span><span class="pvp-ready-head-status"><i id="pvpWaitingMyStatus">ESPERANDO</i><b class="pvp-ready-badge" id="pvpWaitingMyReadyBadge">✕</b></span></div>
                 <div class="shell-pvp-vs-avatar"><img id="pvpWaitingMyPhoto" src="" alt=""></div>
                 <p class="shell-pvp-waiting-name" id="pvpCreateWaitingName"></p>
                 <div class="hidden shell-pvp-vs-deck" id="pvpWaitingMyDeckWrap"><img id="pvpWaitingMyDeckArt" src="" alt="Mazo elegido"></div>
               </div>
               <div class="shell-pvp-vs-badge">VS</div>
               <div class="pvp-ready-player pvp-ready-player-opponent">
-                <div class="pvp-ready-player-head"><span>JUGADOR 02</span><i id="pvpWaitingOpponentStatus">ESPERANDO</i></div>
+                <div class="pvp-ready-player-head"><span>JUGADOR 02</span><span class="pvp-ready-head-status"><i id="pvpWaitingOpponentStatus">ESPERANDO</i><b class="pvp-ready-badge" id="pvpWaitingOpponentReadyBadge">✕</b></span></div>
                 <div class="shell-pvp-vs-avatar shell-pvp-vs-avatar-opponent">
                   <div class="shell-loading-spinner" id="pvpWaitingOpponentSpinner"></div>
                   <img id="pvpWaitingOpponentPhoto" src="" alt="" class="hidden">
@@ -1119,6 +1119,10 @@
               </div>
             </div>
             <div class="pvp-room-code-panel"><span>CÓDIGO DE SALA</span><strong id="pvpRoomCodeDisplay"></strong><small>COMPÁRTELO CON TU RIVAL</small></div>
+            <div class="pvp-start-row">
+              <button type="button" id="pvpStartMatchBtn" class="hidden pvp-start-btn">INICIAR DUELO</button>
+              <p class="hidden pvp-start-hint" id="pvpStartHint">Esperando a que tu rival también pulse Iniciar…</p>
+            </div>
           </section>
         </main>
       </div>
@@ -1177,11 +1181,13 @@
             <div class="rps-player-tag host-tag">
               <span class="rps-tag-indicator"></span>
               <span class="rps-player-label" id="pvpRpsHostName">Jugador 1</span>
+              <span class="hidden rps-ready-tag" id="pvpRpsHostReadyTag">LISTO</span>
             </div>
             <div class="rps-vs-pill">VS</div>
             <div class="rps-player-tag guest-tag">
               <span class="rps-tag-indicator"></span>
               <span class="rps-player-label" id="pvpRpsGuestName">Jugador 2</span>
+              <span class="hidden rps-ready-tag" id="pvpRpsGuestReadyTag">LISTO</span>
             </div>
           </div>
           <p class="rps-subtitle" id="pvpRpsMatchup">Quien gane la ronda tomará el primer turno del duelo.</p>
@@ -1234,6 +1240,23 @@
               <div class="rps-waiting-bar-progress"></div>
             </div>
             <div class="rps-waiting-footer-tip">💡 En caso de empate, ambos volverán a elegir automáticamente.</div>
+          </div>
+
+          <!-- Reveal state: shown briefly once both sides have chosen, before
+               either re-prompting (tie) or handing off to the board (win) -->
+          <div id="pvpRpsReveal" class="hidden rps-reveal-box">
+            <div class="rps-reveal-side">
+              <span class="rps-reveal-label" id="pvpRpsRevealMyLabel">TÚ</span>
+              <span class="rps-reveal-emoji" id="pvpRpsRevealMyEmoji">✊</span>
+              <span class="rps-reveal-choice" id="pvpRpsRevealMyChoice">PIEDRA</span>
+            </div>
+            <div class="rps-reveal-vs">VS</div>
+            <div class="rps-reveal-side">
+              <span class="rps-reveal-label" id="pvpRpsRevealOppLabel">RIVAL</span>
+              <span class="rps-reveal-emoji" id="pvpRpsRevealOppEmoji">✋</span>
+              <span class="rps-reveal-choice" id="pvpRpsRevealOppChoice">PAPEL</span>
+            </div>
+            <p class="rps-reveal-outcome" id="pvpRpsRevealOutcome">¡Tú inicias!</p>
           </div>
         </div>
       </div>

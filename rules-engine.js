@@ -160,6 +160,17 @@ function createGame(rng, playerDeckKey, humanControlled, cpuDeckKey) {
     // redactMatchState's rpsSubmitted). Unused outside 'rps', harmless to
     // always initialize.
     rpsChoices: { player: null, cpu: null },
+    // Set once per resolved RPS round (tie or real winner) by
+    // submitRpsChoice below -- { player, cpu, winner }, winner null on a
+    // tie. Safe to expose publicly the instant it's set (both sides have
+    // already committed by then, see redactMatchState's own comment), and
+    // lets the client play a reveal animation of both choices before
+    // acting on the phase change that comes in the very same write.
+    // rpsRound increments on every resolution so the client can tell two
+    // consecutive ties (or a tie that happens to repeat the same two
+    // choices) apart and not skip a reveal it hasn't shown yet.
+    rpsLastResult: null,
+    rpsRound: 0,
     pendingPrizeChoice: null, // { playerId: 'player'|'cpu', count: N } while that side must pick prize card(s) -- either side can populate this once humanControlled makes 'cpu' a real player too
     pendingActiveChoice: null, // 'player'|'cpu' while that side must pick which Bench Pokémon becomes their new Active
     // Whether each side is a real human waiting to be asked, vs. today's
@@ -233,14 +244,17 @@ function submitRpsChoice(state, playerId, choice) {
   var mine = state.rpsChoices.player;
   var theirs = state.rpsChoices.cpu;
   if (!mine || !theirs) { return; } // still waiting on the other side
+  state.rpsRound += 1;
   if (mine === theirs) {
     logEvent(state, 'Empate en piedra, papel o tijera (ambos eligieron ' + RPS_LABEL_ES[mine] + ') -- vuelven a elegir.', null);
+    state.rpsLastResult = { player: mine, cpu: theirs, winner: null };
     state.rpsChoices.player = null;
     state.rpsChoices.cpu = null;
     return;
   }
   var winner = RPS_BEATS[mine] === theirs ? 'player' : 'cpu';
   logEvent(state, translatePlayer('player') + ' eligió ' + RPS_LABEL_ES[mine] + ', ' + translatePlayer('cpu') + ' eligió ' + RPS_LABEL_ES[theirs] + '. ' + translatePlayer(winner) + ' gana la tirada y empieza.', null, 'match-start');
+  state.rpsLastResult = { player: mine, cpu: theirs, winner: winner };
   state.activePlayerId = winner;
   state.phase = 'setup';
   state.rpsChoices.player = null;
@@ -1324,6 +1338,16 @@ function redactMatchState(state, side1Uid, side2Uid) {
     // is what reveals both choices, at the one moment it's no longer
     // sensitive -- both sides have already committed by then).
     rpsSubmitted: { player1: !!state.rpsChoices.player, player2: !!state.rpsChoices.cpu },
+    // Round counter + the last resolved round's choices/winner, both safe to
+    // expose the instant they're set (see submitRpsChoice) -- lets the
+    // client play a reveal (both choices + "empate"/"tú inicias") before
+    // reacting to the phase change that lands in this same snapshot.
+    rpsRound: state.rpsRound || 0,
+    rpsLastResult: state.rpsLastResult ? {
+      player1: state.rpsLastResult.player,
+      player2: state.rpsLastResult.cpu,
+      winner: state.rpsLastResult.winner === 'player' ? 'player1' : (state.rpsLastResult.winner === 'cpu' ? 'player2' : null)
+    } : null,
     log: state.log.slice()
   };
   var privateViews = {};
