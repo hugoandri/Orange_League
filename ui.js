@@ -4622,6 +4622,19 @@ var pvpAttackEndedMyTurn = false;
 var pvpMyPrizeChoiceSeen = false;
 var localAttackEndedMyTurn = false;
 var localMyPrizeChoiceSeen = false;
+// True while the confirm modal is up in PVP -- the board already reflects
+// the finished KO/prize by the time it shows (rendered once, right before),
+// but the RIVAL isn't waiting on this player's click at all (their own
+// client already sees it's their turn) -- so further snapshots (their real
+// moves) are buffered in pvpEndTurnLatestData instead of silently
+// overwriting the board out from under this modal, and only actually
+// applied once the player dismisses it (either button -- see the two
+// handlers, DOMContentLoaded). Without this gate, both buttons "did
+// nothing" from the player's perspective: the board had already fully
+// updated before the modal even appeared, so dismissing it changed nothing
+// visible.
+var pvpEndTurnConfirmPending = false;
+var pvpEndTurnLatestData = null;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
 // match listener callback below) and never back to false anywhere -- not on
@@ -4643,6 +4656,8 @@ function resetPvpMatchState() {
   pvpRpsLatestMatchData = null;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
+  pvpEndTurnConfirmPending = false;
+  pvpEndTurnLatestData = null;
   // Also called at the start of a fresh LOCAL match (startNewMatch) -- reset
   // the local end-turn-confirm flags here too so a match ending mid-KO
   // never leaves either armed for the next one.
@@ -4740,6 +4755,8 @@ function enterPvpMatch(matchId) {
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
+  pvpEndTurnConfirmPending = false;
+  pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
@@ -4765,6 +4782,13 @@ function enterPvpMatch(matchId) {
     }
     if (pvpRpsRevealTimer) { return; } // reveal still on screen -- pvpRpsLatestMatchData already updated above
 
+    // See pvpEndTurnConfirmPending's own comment above -- while the confirm
+    // modal is up, the rival's own moves keep arriving as real snapshots
+    // (their client never waits on this one) but must NOT overwrite the
+    // board out from under the modal -- buffer the latest one instead;
+    // endTurnConfirmYes/No (DOMContentLoaded) apply it once dismissed.
+    if (pvpEndTurnConfirmPending) { pvpEndTurnLatestData = data; return; }
+
     // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
     // prize choice of MINE is (or just was) open, so the check right below
     // can tell "my own attack just finished awarding me a prize" apart from
@@ -4781,6 +4805,7 @@ function enterPvpMatch(matchId) {
         pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
       pvpAttackEndedMyTurn = false;
       pvpMyPrizeChoiceSeen = false;
+      pvpEndTurnConfirmPending = true;
       renderEndTurnConfirm();
     }
   });
@@ -5382,23 +5407,37 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // In PVP the turn already ended server-side by the time this modal can
-  // even show (see renderEndTurnConfirm's own comment) -- both buttons just
-  // close it there. Locally, though, the CPU genuinely hasn't moved yet
-  // (same as it wouldn't have if the player just left "Terminar Turno"
-  // unclicked) -- "SÍ" reuses that exact same button/logic (endTurnBtn's own
-  // handler already no-ops the redundant endTurn(gameState) call, since
-  // gameState.activePlayerId is already 'cpu' by the time this shows) so the
-  // CPU's turn actually starts now; "NO" just closes this and changes
-  // nothing, leaving "Terminar Turno" there for whenever the player's ready.
+  // PVP: the turn already ended server-side by the time this modal can even
+  // show, and the RIVAL never waited on this player's click at all -- their
+  // real moves keep arriving as snapshots the whole time this is up
+  // (buffered in pvpEndTurnLatestData, see enterPvpMatch's own comment), so
+  // both buttons do the same thing here: catch the board up to whatever's
+  // actually true right now. There's no real "hold it back longer" option
+  // once dismissed -- the live game doesn't pause for one side looking.
+  //
+  // Local vs CPU: the CPU genuinely hasn't moved at all yet (same as if the
+  // player had simply left "Terminar Turno" unclicked) -- "SÍ" directly
+  // mirrors that button's own logic (inlined, not a synthetic .click(), so
+  // there's no dependency on that exact button still existing/being enabled
+  // in the DOM at this instant) to actually hand the turn to the CPU now;
+  // "NO" changes nothing, leaving "Terminar Turno" there for whenever the
+  // player's ready.
+  function applyPvpEndTurnConfirmDismiss() {
+    pvpEndTurnConfirmPending = false;
+    var latest = pvpEndTurnLatestData;
+    pvpEndTurnLatestData = null;
+    if (latest) { processPvpMatchSnapshot(latest); }
+  }
   var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
   if (endTurnConfirmYesBtn) {
     endTurnConfirmYesBtn.addEventListener('click', function () {
       playUiSound('button_click');
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
-      if (pvpMode) { return; }
-      var realEndTurnBtn = document.getElementById('endTurnBtn');
-      if (realEndTurnBtn) { realEndTurnBtn.click(); }
+      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); return; }
+      if (revealAnimationInProgress || cpuTurnInProgress) { return; }
+      logEvent(gameState, 'HAS TERMINADO TU TURNO', 'player', 'turn-end');
+      if (gameState.activePlayerId === 'player') { endTurn(gameState); }
+      if (gameState.activePlayerId === 'cpu') { runCpuTurn(); } else { afterPlayerAction(); }
     });
   }
   var endTurnConfirmNoBtn = document.getElementById('endTurnConfirmNo');
@@ -5406,6 +5445,7 @@ document.addEventListener('DOMContentLoaded', function () {
     endTurnConfirmNoBtn.addEventListener('click', function () {
       playUiSound('button_click');
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
+      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); }
     });
   }
 
