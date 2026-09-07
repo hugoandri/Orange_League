@@ -699,8 +699,14 @@ function showCardInViewer(name, instanceId) {
           }
         }
         if (pvpMode) {
+          // Armed BEFORE the call, not after it resolves -- attack() ends
+          // the turn server-side synchronously as part of this same action,
+          // so the very next snapshot can already carry the KO'd prize.
+          // Cleared on failure so a rejected attack never leaves it armed
+          // for some unrelated later KO.
+          pvpAttackEndedMyTurn = true;
           submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName })
-            .catch(function (err) { alert(err.message || 'No se pudo atacar.'); });
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
           return;
         }
         executePlayerAttack(atkName);
@@ -4569,6 +4575,20 @@ var pvpRpsRevealedRound = 0;
 var pvpRpsRevealTimer = null;
 var pvpRpsLatestMatchData = null;
 
+// End-of-turn confirm (renderPvpEndTurnConfirm, below) -- attack()
+// always ends the turn server-side the instant it's submitted (see
+// functions/index.js's own comment on this), so a KO'd Pokémon's prize gets
+// taken AFTER the turn has already silently passed to the rival. Without
+// this, the board would go straight from "you just KO'd something" to
+// "rival's turn" with no acknowledgment. pvpAttackEndedMyTurn is armed the
+// moment a PVP attack is submitted while it's genuinely my turn;
+// pvpMyPrizeChoiceSeen tracks whether THIS attack actually opened a prize
+// choice for me (as opposed to a plain non-KO attack, which should show no
+// modal at all). Both are consumed (reset) the instant the modal is shown,
+// so it only ever fires once per KO.
+var pvpAttackEndedMyTurn = false;
+var pvpMyPrizeChoiceSeen = false;
+
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
 // match listener callback below) and never back to false anywhere -- not on
 // match end, not on returning to the menu, not on starting a fresh local
@@ -4587,6 +4607,10 @@ function resetPvpMatchState() {
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
   pvpRpsLatestMatchData = null;
+  pvpAttackEndedMyTurn = false;
+  pvpMyPrizeChoiceSeen = false;
+  var endTurnModal = document.getElementById('pvpEndTurnModal');
+  if (endTurnModal) { endTurnModal.classList.add('hidden'); }
   hideRpsScreen();
 }
 
@@ -4675,6 +4699,8 @@ function enterPvpMatch(matchId) {
   pvpMatchEnded = false;
   pvpRpsRevealedRound = 0;
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
+  pvpAttackEndedMyTurn = false;
+  pvpMyPrizeChoiceSeen = false;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
@@ -4699,7 +4725,25 @@ function enterPvpMatch(matchId) {
       return;
     }
     if (pvpRpsRevealTimer) { return; } // reveal still on screen -- pvpRpsLatestMatchData already updated above
+
+    // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
+    // prize choice of MINE is (or just was) open, so the check right below
+    // can tell "my own attack just finished awarding me a prize" apart from
+    // a plain attack that never opened one.
+    if (pub.pendingPrizeChoice && pub.pendingPrizeChoice.side === pvpMySide) {
+      pvpMyPrizeChoiceSeen = true;
+    }
     processPvpMatchSnapshot(data);
+    // pendingActiveChoice !== pvpMySide guards against stacking this on top
+    // of my OWN still-open "choose new Active" modal -- a simultaneous KO
+    // (my own Active also fell, e.g. to a checkup) leaves that one blocking
+    // first; this waits for it to clear like everything else does.
+    if (pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !pub.pendingPrizeChoice &&
+        pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
+      pvpAttackEndedMyTurn = false;
+      pvpMyPrizeChoiceSeen = false;
+      renderPvpEndTurnConfirm();
+    }
   });
   showBoardScreen();
 }
@@ -4721,6 +4765,18 @@ function processPvpMatchSnapshot(data) {
   } else if (!gameState.winner) {
     renderBoard();
   }
+}
+
+// Purely an acknowledgment beat, shown on top of the already-updated board
+// (see enterPvpMatch's own comment) -- by the time this appears, the turn
+// has ALREADY ended server-side (attack() always ends it the instant it's
+// submitted, KO or not -- functions/index.js), so neither button changes
+// anything about the match itself. It just stops the board from silently
+// handing over to the rival's turn, with nothing marking the moment, right
+// as the player is still looking at what they just knocked out.
+function renderPvpEndTurnConfirm() {
+  var modal = document.getElementById('pvpEndTurnModal');
+  if (modal) { modal.classList.remove('hidden'); }
 }
 
 var RPS_EMOJI = { rock: '✊', paper: '✋', scissors: '✌️' };
@@ -5285,6 +5341,20 @@ document.addEventListener('DOMContentLoaded', function () {
       submitMatchActionCloud(pvpActiveMatchId, { type: 'submitRpsChoice', choice: btn.getAttribute('data-rps-choice') })
         .catch(function (err) { alert(err.message || 'No se pudo enviar tu elección.'); });
     });
+  });
+
+  // Both buttons close the same way -- see renderPvpEndTurnConfirm's own
+  // comment: the turn already ended server-side by the time this modal can
+  // even show, so there's nothing left for "No" to actually hold back. It
+  // just lets the player linger on the board they already see behind it.
+  ['pvpEndTurnConfirmYes', 'pvpEndTurnConfirmNo'].forEach(function (id) {
+    var btn = document.getElementById(id);
+    if (btn) {
+      btn.addEventListener('click', function () {
+        playUiSound('button_click');
+        document.getElementById('pvpEndTurnModal').classList.add('hidden');
+      });
+    }
   });
 
   document.getElementById('menuDeck').addEventListener('click', function () {

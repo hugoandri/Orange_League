@@ -1263,6 +1263,22 @@
     </div>
   </div>
 
+  <!-- PVP only: shown once, right after a KO'd Pokémon's prize is taken on
+       my own turn -- attack() already ended the turn server-side by this
+       point (see ui.js's renderPvpEndTurnConfirm), so both buttons close
+       this the same way; it's an acknowledgment beat, not a real gate. -->
+  <div id="pvpEndTurnModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">¡NOQUEASTE UN POKÉMON RIVAL!</p>
+      <p class="shell-modal-text">Ya tomaste tu premio y tu turno ha terminado. ¿Quieres pasarle el turno a tu rival?</p>
+      <div class="shell-modal-actions">
+        <button type="button" id="pvpEndTurnConfirmYes" class="shell-modal-btn shell-modal-btn-primary">SÍ, TERMINAR TURNO</button>
+        <button type="button" id="pvpEndTurnConfirmNo" class="shell-modal-btn">NO, MIRAR EL CAMPO</button>
+      </div>
+    </div>
+  </div>
+
   <div id="codeRedeemModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card">
