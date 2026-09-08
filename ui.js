@@ -1937,6 +1937,20 @@ function startPlayerTurnWithDraw() {
 // endTurnBtn is disabled for the duration so a second click during the
 // wait can't invoke this twice.
 function runCpuTurn() {
+  // Real reported bug: localAttackEndedMyTurn stayed armed forever after
+  // an attack that DIDN'T cause a KO (it's only ever consumed on a matching
+  // KO+prize, see its own comment) -- so on some LATER turn where the
+  // player didn't attack at all, a Pokémon Checkup KO (their own poisoned
+  // Active dying at THIS exact turn-ending moment, awarding a prize) still
+  // read as "my own attack just ended my turn" and wrongly popped the
+  // confirm. By the time this function ever runs, any prize owed from an
+  // attack THIS turn is already resolved (the prize-choice modal blocks
+  // reaching "Terminar Turno" until it's taken -- see its own click
+  // handler, where this flag actually gets consumed) -- so it's always
+  // safe to clear it here, before the checkup below can award an unrelated
+  // one of its own.
+  localAttackEndedMyTurn = false;
+  localMyPrizeChoiceSeen = false;
   // The player's turn already ended engine-side the moment they attacked
   // (attack() calls endTurn() internally) -- or, if they didn't attack,
   // right here via the click handler's own endTurn(gameState) call, just
@@ -2519,6 +2533,17 @@ function wireBoardButtons() {
       // landed the same instant the button was disabled).
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       if (pvpMode) {
+        // See runCpuTurn's own comment (the same fix, local-mode side) --
+        // reaching this action at all means MY attack didn't already end my
+        // turn (the server rejects 'endTurn' once it's not my turn anymore,
+        // see TURN_GATED_ACTIONS), so pvpAttackEndedMyTurn can only be stale
+        // here, armed by some EARLIER attack that never led to a KO+prize.
+        // Clear it before the checkup this endTurn triggers server-side can
+        // award an unrelated prize of its own (a poisoned/burned Active
+        // dying right at the turn boundary) and wrongly read as "my own
+        // attack just ended my turn".
+        pvpAttackEndedMyTurn = false;
+        pvpMyPrizeChoiceSeen = false;
         submitMatchActionCloud(pvpActiveMatchId, { type: 'endTurn' }).catch(function (err) { alert(err.message || 'No puedes terminar tu turno ahora.'); });
         return;
       }
