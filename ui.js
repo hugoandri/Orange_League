@@ -5711,10 +5711,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   document.getElementById('boardBackBtn').addEventListener('click', openPauseMenu);
-  document.getElementById('boardCloseBtn').addEventListener('click', function () {
-    stopGameClock();
-    showConfigScreen('game');
-  });
 
   document.getElementById('shopBackBtn').addEventListener('click', function () {
     hideShopScreen();
