@@ -23,7 +23,7 @@ function findBasicId(hand) {
 
 const IDENTITIES = {
   'host-token': { uid: 'host-uid', username: 'Host', photo: null, deckKey: 'overgrowth', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
-  'guest-token': { uid: 'guest-uid', username: 'Guest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} }
+  'guest-token': { uid: 'guest-uid', username: 'Guest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, cardBackId: 'protector_messi', collectionHolo: {}, collectionSecret: {} }
 };
 const stub = http.createServer((req, res) => {
   let body = '';
@@ -116,6 +116,16 @@ async function main() {
   assert.strictEqual(hostMatch1.public.phase, 'rps');
   assert.strictEqual(guestMatch1.public.phase, 'rps');
   console.log('PASS: both sides readying up starts the match in rps phase');
+
+  // Real reported bug: redactedFor forgot to carry hostCardBackId/
+  // guestCardBackId through into the match-phase payload (only the
+  // room-phase payload never needed them in the first place, since the
+  // opponent's real protector is a match-lifetime concept) -- neither
+  // side ever saw the other's real equipped protector as a result.
+  assert.strictEqual(hostMatch1.public.hostCardBackId, 'clasico');
+  assert.strictEqual(hostMatch1.public.guestCardBackId, 'protector_messi');
+  assert.strictEqual(guestMatch1.public.guestCardBackId, 'protector_messi');
+  console.log('PASS: hostCardBackId/guestCardBackId reach both sides in the match payload');
 
   // Brief-code fix: checking whether the guest's hand[0] card NAME appears
   // anywhere in the host's payload is unsound -- card names aren't unique

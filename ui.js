@@ -2263,6 +2263,24 @@ function wireBoardButtons() {
       var stats = CARD_STATS[handCard.name];
 
       if (stats.supertype === 'Trainer') {
+        // Real reported bug: this whole block runs straight against the
+        // local `gameState` (TRAINER_EFFECTS mutates it directly) with no
+        // pvpMode check at all -- in a real PVP match `gameState` is a
+        // reconstructed snapshot whose own deck array is just placeholder
+        // {} objects (its real order is never sent client-side, see
+        // buildPvpGameState), so "drawing" from it produced literal
+        // undefined cards, and since nothing here ever calls
+        // submitMatchActionCloud, the server (and the rival) never found
+        // out the card was played at all. Trainer cards were always
+        // out of scope for PVP (same as special-effect attacks, which
+        // already get an equivalent server-side rejection) -- this just
+        // stops the client from ever pretending otherwise. Real support
+        // is a separate, larger project (porting TRAINER_EFFECTS
+        // server-side to party/index.js), not a quick fix.
+        if (pvpMode) {
+          alert('Los Entrenadores todavía no están disponibles en el PVP.');
+          return;
+        }
         // Trainer cards get an explicit "USAR" + CANCELAR menu next to the
         // card instead of silently entering target-selection mode the
         // instant the card is clicked. Energy is drag-and-drop only now (see
@@ -4715,6 +4733,11 @@ var pvpMode = false;
 // already ended (e.g. on reconnect) -- guards finishMatch/awardMatchResultCloud
 // against firing more than once for the same match.
 var pvpMatchEnded = false;
+// Guards startDuelMusic() (processPvpMatchSnapshot) against restarting the
+// track from 0:00 on every single snapshot once phase is 'playing' -- it
+// must fire exactly once, the instant BOTH sides have pressed INICIAR
+// DUELO, not on every subsequent action's snapshot.
+var pvpDuelMusicStarted = false;
 
 // Rock-paper-scissors reveal gate (see renderRpsReveal/processPvpMatchSnapshot
 // below) -- pub.rpsRound (rules-engine.js) increments every time a round
@@ -4777,6 +4800,7 @@ function resetPvpMatchState() {
   pvpMySide = null;
   pvpMatchEnded = false;
   pvpOpponentName = null;
+  pvpDuelMusicStarted = false;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
@@ -4894,13 +4918,13 @@ function enterPvpMatch(matchId) {
   pvpEndTurnConfirmPending = false;
   pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
-  // Real reported bug: the PVP_MUSIC_MATCHMAKING track (started when the
-  // PVP menu opened) kept playing straight through the RPS/setup screens
-  // and into the actual duel -- per user request, entering the match
-  // screen at all should cut it and start whichever duel track is
-  // configured in Configuración, same as local-vs-CPU play already gets
-  // (startDuelMusic, shared with startMatchBtn's local branch).
-  startDuelMusic();
+  // Real reported bug (first pass): starting duel music here, the moment
+  // the match SCREEN is entered, fired it during the RPS reveal and the
+  // setup/placement screen too -- before the duel has actually started.
+  // Per user follow-up, it must wait for BOTH sides to actually press
+  // INICIAR DUELO (phase leaves 'setup') -- see processPvpMatchSnapshot's
+  // own pvpDuelMusicStarted guard below, which is where it fires now.
+  pvpDuelMusicStarted = false;
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
@@ -4974,6 +4998,15 @@ function processPvpMatchSnapshot(data) {
   // match has actually started, so there's nothing left to wait on.
   if (pub.phase !== 'setup') {
     document.getElementById('pvpWaitingConfirmModal').classList.add('hidden');
+    // Real reported bug: this used to fire the instant the match SCREEN
+    // was entered (enterPvpMatch), well before the duel itself actually
+    // started -- per user request, it now waits for the same signal the
+    // waiting modal above does: phase has left 'setup', meaning both
+    // sides already pressed INICIAR DUELO.
+    if (!pvpDuelMusicStarted) {
+      pvpDuelMusicStarted = true;
+      startDuelMusic();
+    }
   }
   gameState = buildPvpGameState(data, pvpMySide);
   if (gameState.winner && !pvpMatchEnded) {

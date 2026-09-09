@@ -258,6 +258,14 @@ export default class Server {
     attachFoilTiers(redacted.public,
       this.info.hostCollectionHolo, this.info.hostCollectionSecret,
       this.info.guestCollectionHolo, this.info.guestCollectionSecret);
+    // Real reported bug: redactMatchState (rules-engine.js) has no concept
+    // of card-back/protector choice at all -- redactedFor forgot to carry
+    // these through from `this.info` (already resolved once via
+    // resolveIdentity at connect time) the way the room-phase broadcast
+    // never needed to either, so ui.js's cardBackUrlFor always fell back
+    // to the default and neither side ever saw the other's real protector.
+    redacted.public.hostCardBackId = this.info.hostCardBackId || 'clasico';
+    redacted.public.guestCardBackId = this.info.guestCardBackId || 'clasico';
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
