@@ -1243,6 +1243,13 @@ exports.resolvePvpIdentity = onRequest(async (req, res) => {
   let customDeckCards = null;
   if (customMatch) {
     const saved = (userData.customDecks || {})[customMatch[1]];
+    // Narrow race: validateDeckId (above) did its own separate Firestore
+    // read to confirm this slot existed, but userSnap here is a second,
+    // later read -- if the slot was deleted/overwritten in between, saved
+    // is undefined. Fail clean (400) rather than let saved.cards throw,
+    // same defensive shape fetchDeckCoverName already uses for the
+    // identical case just above.
+    if (!saved) { res.status(400).json({ error: 'Ese mazo personalizado ya no existe.' }); return; }
     deckKey = 'pvp_' + uid + '_' + customMatch[1];
     customDeckCards = saved.cards;
   }
