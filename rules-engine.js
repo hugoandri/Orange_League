@@ -1361,6 +1361,20 @@ if (typeof module !== 'undefined') {
     createGame, startMatch, canPlayBasic, playBasic, canEvolve, evolve,
     canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize,
     chooseNewActive, canAttack, attack, endTurn, drawForTurnStart,
-    getWinner, redactMatchState, submitRpsChoice
+    getWinner, redactMatchState, submitRpsChoice,
+    // Not consumed directly by party/index.js's own code -- these are the
+    // internal helpers card-effects.js's TRAINER_EFFECTS entries call as
+    // bare identifiers (same pattern CARD_STATS/etc. already rely on, see
+    // that file's own top-of-file comment). Exporting them here lets
+    // party/index.js bind them onto globalThis too, alongside CARD_STATS,
+    // so TRAINER_EFFECTS functions (invoked for real for the first time by
+    // the 'playTrainer' runAction case) don't ReferenceError the moment
+    // they call e.g. drawCard/logEvent/findInstance. Found via a genuine
+    // repro: Bill's effect threw "drawCard is not defined" the first time
+    // playTrainer actually ran against the local dev server.
+    findInstance, opponentOf, translatePlayer, translateCardName,
+    logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
+    evolutionTimingAllowed, makeFreshInstance, shuffle,
+    discardedEnergyCard, discardedEvolutionCard
   };
 }

@@ -19,8 +19,34 @@ globalThis.POKEMON_POWER_EFFECTS = POKEMON_POWER_EFFECTS;
 const {
   createGame, startMatch: engineStartMatch, canPlayBasic, playBasic, canEvolve, evolve,
   canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize, chooseNewActive,
-  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice
+  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice,
+  // Real bug found while testing Task 2's playTrainer action: card-effects.js's
+  // TRAINER_EFFECTS entries call these rules-engine.js internals (findInstance,
+  // drawCard, logEvent, etc.) as bare global identifiers too -- same as
+  // CARD_STATS/etc. above -- but nothing bound them onto globalThis before now,
+  // since no code path had ever actually invoked a TRAINER_EFFECTS function
+  // inside this process until playTrainer did. Left unbound, Bill's effect (the
+  // simplest Trainer card, just a draw-2) threw "drawCard is not defined" the
+  // instant it ran against the local dev server.
+  findInstance, opponentOf, translatePlayer, translateCardName,
+  logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
+  evolutionTimingAllowed, makeFreshInstance, shuffle,
+  discardedEnergyCard, discardedEvolutionCard
 } = require('../rules-engine.js');
+globalThis.findInstance = findInstance;
+globalThis.opponentOf = opponentOf;
+globalThis.translatePlayer = translatePlayer;
+globalThis.translateCardName = translateCardName;
+globalThis.logEvent = logEvent;
+globalThis.drawCard = drawCard;
+globalThis.basicFormName = basicFormName;
+globalThis.isBasicPokemon = isBasicPokemon;
+globalThis.benchCount = benchCount;
+globalThis.evolutionTimingAllowed = evolutionTimingAllowed;
+globalThis.makeFreshInstance = makeFreshInstance;
+globalThis.shuffle = shuffle;
+globalThis.discardedEnergyCard = discardedEnergyCard;
+globalThis.discardedEvolutionCard = discardedEvolutionCard;
 
 // functions/index.js's foilTierForCard (added earlier this session)
 // iterates CARD_CATALOG[setKey] (from functions/lib/cardCatalog.js, a
@@ -226,6 +252,12 @@ export default class Server {
       if (justStarted) { this.broadcastMatch(); }
       return;
     }
+    if (data.type === 'peekOwnDeck') {
+      const side = sender.id === this.info.hostConnId ? 'player' : 'cpu';
+      const cards = this.state.players[side].deck.map((c) => ({ id: c.id, name: c.name }));
+      sender.send(JSON.stringify({ type: 'deckPeek', reqId: data.reqId, cards: cards }));
+      return;
+    }
     if (data.type === 'action') {
       const side = sender.id === this.info.hostConnId ? 'player' : 'cpu';
       try {
@@ -266,6 +298,7 @@ export default class Server {
     // to the default and neither side ever saw the other's real protector.
     redacted.public.hostCardBackId = this.info.hostCardBackId || 'clasico';
     redacted.public.guestCardBackId = this.info.guestCardBackId || 'clasico';
+    redacted.public.lastTrainerPlay = this.lastTrainerPlay || null;
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
@@ -361,6 +394,15 @@ export default class Server {
         const bench = this.state.players[side].bench;
         if (typeof action.benchIndex !== 'number' || !bench[action.benchIndex] || bench[action.benchIndex].id !== action.benchInstanceId) { throw new Error('Selección de banca inválida.'); }
         chooseNewActive(this.state, side, action.benchInstanceId);
+        break;
+      }
+      case 'playTrainer': {
+        const fn = TRAINER_EFFECTS[action.trainerName];
+        if (!fn) { throw new Error('Carta de Entrenador desconocida.'); }
+        const result = fn.apply(null, [this.state, side, action.handId].concat(action.args || []));
+        if (!result.legal) { throw new Error(result.reason); }
+        this.trainerRound = (this.trainerRound || 0) + 1;
+        this.lastTrainerPlay = { side: side === 'player' ? 'player1' : 'player2', cardName: action.trainerName, targetName: result.targetName || null, round: this.trainerRound };
         break;
       }
       default:
