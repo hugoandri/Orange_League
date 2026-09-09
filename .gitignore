@@ -1,6 +1,7 @@
 functions/node_modules/
 .firebase/
 .superpowers/
+.claude/worktrees/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
