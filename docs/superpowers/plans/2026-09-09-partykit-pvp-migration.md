@@ -948,6 +948,7 @@ const {
   canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize, chooseNewActive,
   canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice
 } = require('../rules-engine.js');
+```
 
 `functions/index.js`'s `foilTierForCard` (added earlier this session)
 iterates `CARD_CATALOG[setKey]` (from `functions/lib/cardCatalog.js`, a
