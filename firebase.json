@@ -6,8 +6,7 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "default",
-      "predeploy": ["node \"$RESOURCE_DIR\"/scripts/sync-shared-engine.js"]
+      "codebase": "default"
     }
   ],
   "hosting": {
