@@ -304,12 +304,25 @@ function setCardBackId(id) {
   if (!ownsCardBack(id)) { return; }
   try { localStorage.setItem('tcg_card_back', id); } catch (e) {}
 }
-// The rival's face-down cards never change -- only 'player' reads the
-// chosen option; any other owner falls back to the real default.
+// 'player' always reads the LIVE local choice (getCardBackId()), even in
+// PVP, so changing it in Configuración mid-match updates my own view
+// instantly instead of waiting on a round-trip. The local CPU bot never
+// has a real equipped protector, so its cards stay the fixed default --
+// but a real PVP rival does: pvpOpponentCardBackId (set by
+// buildPvpGameState from pub.hostCardBackId/guestCardBackId, captured
+// server-side at room create/join time -- functions/index.js) carries
+// their own real choice, per user request that protectors be visible to
+// the opponent instead of always forced to the default.
 function cardBackUrlFor(ownerId) {
-  if (ownerId !== 'player') { return CARD_BACK_URL; }
-  var chosen = CARD_BACK_OPTIONS.filter(function (o) { return o.id === getCardBackId(); })[0];
-  return chosen ? chosen.img : CARD_BACK_URL;
+  if (ownerId === 'player') {
+    var mine = CARD_BACK_OPTIONS.filter(function (o) { return o.id === getCardBackId(); })[0];
+    return mine ? mine.img : CARD_BACK_URL;
+  }
+  if (pvpMode && pvpOpponentCardBackId) {
+    var theirs = CARD_BACK_OPTIONS.filter(function (o) { return o.id === pvpOpponentCardBackId; })[0];
+    return theirs ? theirs.img : CARD_BACK_URL;
+  }
+  return CARD_BACK_URL;
 }
 
 function renderCardBackPicker() {
@@ -605,8 +618,12 @@ function showCardInViewer(name, instanceId) {
   var viewerOwnerId = !instanceId ? 'player'
     : findInstance(gameState.players.player, instanceId) ? 'player'
     : findInstance(gameState.players.cpu, instanceId) ? 'cpu' : null;
-  var viewerFoilTier = viewerOwnerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
-    : (viewerOwnerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null);
+  // instance.foilTier (server-set, PVP only -- see benchCardHtml's own
+  // comment) reflects the real owning account's real collection and takes
+  // priority for either side; local-vs-CPU play never sets it, so this
+  // falls through to the exact same local logic as before.
+  var viewerFoilTier = (instance && instance.foilTier) || (viewerOwnerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
+    : (viewerOwnerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null));
   var viewerIsHolo = !!viewerFoilTier;
 
   var frameHtml = '<div class="shell-board-viewer-frame">' +
@@ -1514,6 +1531,16 @@ function cardStatusOverlayHtml(activeInstance) {
 // `flipped` rotates the CPU's Bench art 180° too, same as its Active --
 // per user request, so the whole rival side reads consistently as "facing
 // across the table" instead of just the Active looking that way.
+//
+// instance.foilTier ('holo'/'secret', or absent): only ever set server-side
+// (functions/index.js's attachFoilTiers, PVP only) from whichever REAL
+// account owns that side, using their actual collectionHolo/
+// collectionSecret -- takes priority over the local-only fallbacks below
+// (getPlayerCardFoilTier/isHoloInMatch) so a real PVP rival's holo/secret
+// rare cards show their real foil to both players, not just the deck's one
+// fixed guaranteed Rare Holo. Local-vs-CPU play never sets this field, so
+// it's always undefined there and every card falls through to the exact
+// same local logic as before.
 function benchCardHtml(instance, mine, flipped) {
   if (!instance || !CARD_STATS[instance.name]) { return benchEmptyHtml(mine, 0); }
   var stats = CARD_STATS[instance.name];
@@ -1521,7 +1548,7 @@ function benchCardHtml(instance, mine, flipped) {
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
-    cardImageTag(instance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(instance.name) || isHoloInMatch('player', instance.name)) : isHoloInMatch('cpu', instance.name)) +
+    cardImageTag(instance.name, 'shell-board-card-art', instance.foilTier || (mine ? (getPlayerCardFoilTier(instance.name) || isHoloInMatch('player', instance.name)) : isHoloInMatch('cpu', instance.name))) +
     cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
@@ -1582,7 +1609,7 @@ function activeColHtml(activeInstance, mine, flipped) {
     '<div class="shell-board-active-hp"><div class="shell-board-active-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
-    cardImageTag(activeInstance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(activeInstance.name) || isHoloInMatch('player', activeInstance.name)) : isHoloInMatch('cpu', activeInstance.name)) +
+    cardImageTag(activeInstance.name, 'shell-board-card-art', activeInstance.foilTier || (mine ? (getPlayerCardFoilTier(activeInstance.name) || isHoloInMatch('player', activeInstance.name)) : isHoloInMatch('cpu', activeInstance.name))) +
     cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
     cardStatusOverlayHtml(activeInstance) +
     '</div>';
@@ -1738,7 +1765,16 @@ function renderBoardActions() {
   var html = '';
 
   if (s.phase === 'setup') {
-    html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
+    // Real PVP already decided who goes first via rock-paper-scissors
+    // BEFORE this screen (see createGame's phase:'rps' comment,
+    // rules-engine.js) -- this button only confirms both boards are ready,
+    // it never flips anything. Local-vs-CPU play has no RPS step, so this
+    // button is the actual, literal coin flip there (startMatch's own
+    // coinFlip) -- keeping that label accurate for that mode only, per
+    // user request to stop the PVP board implying a second coin flip that
+    // doesn't happen.
+    var startLabel = pvpMode ? 'INICIAR DUELO' : '🪙 LANZAR MONEDA Y COMENZAR';
+    html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>' + startLabel + '</button></div>';
   } else if (s.phase === 'playing' && !pendingPlayerPrize && !pendingActive) {
     var canRetreatAny = p.bench.some(function (b) { return b && canRetreat(s, 'player', b.id); });
     var canUsePower = usablePokemonPowers(s, 'player').length > 0;
@@ -1836,6 +1872,18 @@ function renderBoard() {
   if (s.phase === 'setup') {
     turnValueEl.textContent = 'PREPARANDO';
     turnValueEl.classList.remove('cpu');
+  } else if (pvpMode) {
+    // Real reported bug: every branch below this one is local-vs-CPU-only
+    // (cpuTurnInProgress/cpuTurnRevealInProgress never go true in PVP), so
+    // a real PVP match always fell through to the plain 'TU TURNO' default,
+    // regardless of whose turn it actually was -- per user request, this
+    // header must reflect the real rival's turn too, not just mine.
+    // s.activePlayerId is already viewer-relative here (buildPvpGameState
+    // maps it to 'player'/'cpu' meaning "me"/"my rival", exactly like the
+    // rest of gameState), so this reads the same way local play's own
+    // checks below do.
+    turnValueEl.textContent = s.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DE TU RIVAL';
+    turnValueEl.classList.toggle('cpu', s.activePlayerId !== 'player');
   } else if (cpuTurnInProgress) {
     // Real reported bug: this used to only ever get set by the explicit
     // showCpuThinkingIndicator() calls (proceedWithCpuTurn) -- any OTHER
@@ -2483,8 +2531,17 @@ function wireBoardButtons() {
   if (startMatchBtn) {
     startMatchBtn.addEventListener('click', function () {
       if (pvpMode) {
+        // Shown right away (before the server even confirms) so pressing
+        // INICIAR DUELO always gives immediate feedback -- processPvpMatchSnapshot
+        // hides it again the instant the match actually leaves 'setup'
+        // (both sides confirmed), and the catch below hides it if this
+        // side's own confirm failed outright.
+        document.getElementById('pvpWaitingConfirmModal').classList.remove('hidden');
         submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmSetup' })
-          .catch(function (err) { alert(err.message || 'No se pudo confirmar.'); });
+          .catch(function (err) {
+            document.getElementById('pvpWaitingConfirmModal').classList.add('hidden');
+            alert(err.message || 'No se pudo confirmar.');
+          });
         return;
       }
       if (gameState.phase === 'setup' && gameState.players.player.active) {
@@ -4736,6 +4793,8 @@ function resetPvpMatchState() {
   var endTurnModal = document.getElementById('endTurnConfirmModal');
   if (endTurnModal) { endTurnModal.classList.add('hidden'); }
   hideRpsScreen();
+  var waitingConfirmModal = document.getElementById('pvpWaitingConfirmModal');
+  if (waitingConfirmModal) { waitingConfirmModal.classList.add('hidden'); }
 }
 
 // Reshapes {public, myHand} (from initPvpMatchListeners) into the same
@@ -4748,10 +4807,17 @@ function resetPvpMatchState() {
 // -- set by buildPvpGameState below, the only place that has pub.hostUsername/
 // guestUsername available.
 var pvpOpponentName = null;
+// The rival's real equipped protector for this match (functions/index.js's
+// setReady copies hostCardBackId/guestCardBackId onto the match doc from
+// whichever room field matches their side) -- read by cardBackUrlFor
+// above. Falls back to the default card back if the match predates this
+// field or the id isn't a real option.
+var pvpOpponentCardBackId = null;
 function buildPvpGameState(data, mySide) {
   var pub = data.public;
   var oppSide = mySide === 'player1' ? 'player2' : 'player1';
   pvpOpponentName = (oppSide === 'player1' ? pub.hostUsername : pub.guestUsername) || 'Rival';
+  pvpOpponentCardBackId = (oppSide === 'player1' ? pub.hostCardBackId : pub.guestCardBackId) || DEFAULT_CARD_BACK_ID;
   // "Jugador"/"CPU" in log text always literally mean the host/guest engine
   // slots respectively (translatePlayer, rules-engine.js -- a fixed
   // convention, not viewer-relative), so the real-username substitution is
@@ -4828,6 +4894,13 @@ function enterPvpMatch(matchId) {
   pvpEndTurnConfirmPending = false;
   pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
+  // Real reported bug: the PVP_MUSIC_MATCHMAKING track (started when the
+  // PVP menu opened) kept playing straight through the RPS/setup screens
+  // and into the actual duel -- per user request, entering the match
+  // screen at all should cut it and start whichever duel track is
+  // configured in Configuración, same as local-vs-CPU play already gets
+  // (startDuelMusic, shared with startMatchBtn's local branch).
+  startDuelMusic();
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
@@ -4895,6 +4968,13 @@ function processPvpMatchSnapshot(data) {
     return;
   }
   hideRpsScreen();
+  // Only ever shown by startMatchBtn's own click handler above (confirmSetup)
+  // while phase is still 'setup' -- once it's anything else (always
+  // 'playing' by the time this runs), both sides have confirmed and the
+  // match has actually started, so there's nothing left to wait on.
+  if (pub.phase !== 'setup') {
+    document.getElementById('pvpWaitingConfirmModal').classList.add('hidden');
+  }
   gameState = buildPvpGameState(data, pvpMySide);
   if (gameState.winner && !pvpMatchEnded) {
     pvpMatchEnded = true;
@@ -5350,6 +5430,12 @@ document.addEventListener('DOMContentLoaded', function () {
     menuPvpBtn.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.remove('hidden');
       playScreenMusic('Songs/PVP_MUSIC_MATCHMAKING.mp3');
+      // Boots every PVP Cloud Function's container now, while the player is
+      // just looking at the create/join menu -- see warmupPvpFunctionsCloud's
+      // own comment (economy.js) for why this is what actually fixes the
+      // "disgusting delay" between pressing Iniciar and seeing the RPS
+      // screen (Cloud Functions v2 cold starts, confirmed via functions:log).
+      warmupPvpFunctionsCloud();
     });
   }
   var pvpModalClose = document.getElementById('pvpModalClose');

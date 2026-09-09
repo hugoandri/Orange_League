@@ -1268,6 +1268,19 @@
        shows, "SÍ" is really just "let the CPU/rival's turn actually start
        now" and "NO" just lets the player keep looking a bit longer (see
        ui.js's renderEndTurnConfirm and its two button handlers). -->
+  <!-- Shown after I press "INICIAR DUELO" on the PVP board (confirmSetup)
+       while my rival hasn't pressed it yet -- not dismissible (there's
+       nothing to cancel back into once I've confirmed), auto-hidden by
+       processPvpMatchSnapshot (ui.js) the instant the match actually
+       leaves 'setup' phase. -->
+  <div id="pvpWaitingConfirmModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <div class="shell-loading-spinner"></div>
+      <p class="shell-modal-title">ESPERANDO A TU RIVAL...</p>
+    </div>
+  </div>
+
   <div id="endTurnConfirmModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card">

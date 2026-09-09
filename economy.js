@@ -185,14 +185,54 @@ function saveCustomDeckCloud(slot, name, cards, coverName) {
   return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards, coverName: coverName || null });
 }
 
+// cardBackId (getCardBackId(), ui.js): the caller's own currently-equipped
+// protector -- captured here (same pattern as deckId) so the server can
+// carry it onto the room/match docs as hostCardBackId/guestCardBackId,
+// which is what actually lets a real PVP rival see it (see
+// cardBackUrlFor's own comment, ui.js) instead of always forcing the
+// default the way local-vs-CPU play already did.
 function createRoomCloud(deckId) {
   var fn = firebase.functions().httpsCallable('createRoom');
-  return fn({ deckId: deckId }).then(function (res) { return res.data; });
+  return fn({ deckId: deckId, cardBackId: getCardBackId() }).then(function (res) { return res.data; });
 }
 
 function joinRoomCloud(roomCode, deckId) {
   var fn = firebase.functions().httpsCallable('joinRoom');
-  return fn({ roomCode: roomCode, deckId: deckId }).then(function (res) { return res.data; });
+  return fn({ roomCode: roomCode, deckId: deckId, cardBackId: getCardBackId() }).then(function (res) { return res.data; });
+}
+
+// Fire-and-forget: boots each PVP Cloud Function's own Cloud Run container
+// ahead of time, before the player has actually pressed anything that needs
+// the match to move. Real reported bug: Cloud Functions v2 has no warm
+// instances by default, and createRoom/joinRoom/setReady/submitMatchAction
+// are each a SEPARATE service -- functions:log confirmed a cold TCP probe
+// alone took ~3.4s for setReady and ~1.9s for submitMatchAction, stacking
+// into several real seconds of "nothing happening" between pressing
+// Iniciar and the RPS screen showing up. Each call below uses a payload
+// guaranteed to fail fast, BEFORE any real read/write (invalid-argument on
+// a bogus deckId, not-found on a bogus room/match code) -- the container
+// still boots regardless of the thrown error, which is all this needs.
+// Called the moment the PVP menu opens (menuPvp click, ui.js) -- picking a
+// deck, creating/joining a room, and waiting for the opponent all give this
+// several idle seconds to finish in the background before Iniciar is ever
+// pressed for real.
+// NOT '__warmup__' -- Firestore treats any doc id matching /^__.*__$/ as
+// reserved and throws INVALID_ARGUMENT for it, which surfaced server-side
+// as an actual unhandled rejection (visible in functions:log) instead of
+// the clean not-found/invalid-argument this needs -- worse, the underlying
+// SDK call retries a few times before giving up, wasting exactly the
+// container time this was supposed to save. 'warmup_ping' isn't a real
+// room/match code either, so it still fails fast for the same reason, just
+// without tripping Firestore's reserved-id path.
+var WARMUP_PLACEHOLDER_ID = 'warmup_ping';
+var pvpFunctionsWarmed = false;
+function warmupPvpFunctionsCloud() {
+  if (pvpFunctionsWarmed) { return; }
+  pvpFunctionsWarmed = true;
+  firebase.functions().httpsCallable('createRoom')({ deckId: WARMUP_PLACEHOLDER_ID }).catch(function () {});
+  firebase.functions().httpsCallable('joinRoom')({ roomCode: WARMUP_PLACEHOLDER_ID, deckId: WARMUP_PLACEHOLDER_ID }).catch(function () {});
+  firebase.functions().httpsCallable('setReady')({ roomCode: WARMUP_PLACEHOLDER_ID }).catch(function () {});
+  firebase.functions().httpsCallable('submitMatchAction')({ matchId: WARMUP_PLACEHOLDER_ID, action: { type: WARMUP_PLACEHOLDER_ID } }).catch(function () {});
 }
 
 function setReadyCloud(roomCode) {

@@ -1025,12 +1025,78 @@ async function fetchDeckCoverName(uid, deckId) {
   return (deck && deck.coverName) || null;
 }
 
+// Real reported bug: the opponent's chosen card protector never reached
+// the other client at all (ui.js's cardBackUrlFor forced the default for
+// any non-'player' side, since the local CPU bot never has a real one) --
+// captured here the same way hostUsername/hostDeckCoverName already are,
+// so it can be carried onto the room/match docs. Trusts the CLIENT's own
+// choice only as far as it can prove ownership: 'clasico' (the default) and
+// the two other cost-less options are always allowed; every purchased
+// Protector is named 'protector_*' (CARD_BACK_OPTIONS, ui.js) and must
+// actually be in the caller's own users/{uid}.cardBacks array -- anything
+// else (unrecognized id, or a paid one the caller never bought) silently
+// falls back to the default rather than blocking room creation over a
+// cosmetic. Keep FREE_CARD_BACK_IDS in sync with the cost-less entries in
+// ui.js's CARD_BACK_OPTIONS if that list ever changes.
+const FREE_CARD_BACK_IDS = ['clasico', 'pocket_monsters', 'arcoiris'];
+async function resolveCardBackId(uid, cardBackId) {
+  const id = typeof cardBackId === 'string' ? cardBackId : '';
+  if (FREE_CARD_BACK_IDS.indexOf(id) !== -1) { return id; }
+  if (id.indexOf('protector_') !== 0) { return 'clasico'; }
+  const snap = await admin.firestore().collection('users').doc(uid).get();
+  const owned = (snap.data() || {}).cardBacks || [];
+  return owned.indexOf(id) !== -1 ? id : 'clasico';
+}
+
+// Mirrors ui.js's getPlayerCardFoilTier -- the highest foil tier (if any)
+// this account's real collection actually owns of cardName, scoped to the
+// 3 real deck-legal sets (a Secret Rare PROMO must never leak its foil onto
+// an unrelated plain Base Set copy of the same name, same reasoning as the
+// client-side original).
+function foilTierForCard(userData, cardName) {
+  const collectionHolo = (userData && userData.collectionHolo) || {};
+  const collectionSecret = (userData && userData.collectionSecret) || {};
+  let hasSecret = false;
+  let hasHolo = false;
+  ['base', 'jungle', 'fossil'].forEach((setKey) => {
+    (CARD_CATALOG[setKey] || []).forEach((c) => {
+      if (c.n !== cardName) { return; }
+      const key = setKey + '-' + c.num;
+      if ((collectionSecret[key] || 0) > 0) { hasSecret = true; }
+      if ((collectionHolo[key] || 0) > 0) { hasHolo = true; }
+    });
+  });
+  if (hasSecret) { return 'secret'; }
+  if (hasHolo) { return 'holo'; }
+  return null;
+}
+
+// Real reported bug: a PVP rival's holo/secret rare cards only ever showed
+// the deck's one fixed guaranteed Rare Holo (isHoloInMatch, ui.js) to the
+// OTHER player, never their real collection -- because that check has no
+// way to reach the actual owning account's real collectionHolo/
+// collectionSecret. Attaches the real tier onto every ALREADY-public board
+// card (Active/Bench, both sides) using each side's real user doc -- a
+// card still in hand stays completely hidden (identity included), so this
+// never reveals which names are actually in either deck ahead of being
+// played, only re-skins a card that's already fully visible.
+function attachFoilTiers(publicView, hostUserData, guestUserData) {
+  ['player1', 'player2'].forEach((sideKey) => {
+    const userData = sideKey === 'player1' ? hostUserData : guestUserData;
+    const board = publicView.board[sideKey];
+    [board.active].concat(board.bench).forEach((instance) => {
+      if (instance) { instance.foilTier = foilTierForCard(userData, instance.name); }
+    });
+  });
+}
+
 exports.createRoom = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
   const deckId = (request.data || {}).deckId;
   await validateDeckId(request.auth.uid, deckId);
   const hostProfile = await fetchProfile(request.auth.uid);
   const hostDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
+  const hostCardBackId = await resolveCardBackId(request.auth.uid, (request.data || {}).cardBackId);
 
   const db = admin.firestore();
   let roomCode;
@@ -1047,7 +1113,9 @@ exports.createRoom = onCall(async (request) => {
     tx.set(db.collection('rooms').doc(roomCode), {
       hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
       hostUsername: hostProfile.username, hostPhoto: hostProfile.photo, hostDeckCoverName: hostDeckCoverName,
+      hostCardBackId: hostCardBackId,
       guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null, guestPhoto: null, guestDeckCoverName: null,
+      guestCardBackId: null,
       status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
     });
   });
@@ -1062,6 +1130,7 @@ exports.joinRoom = onCall(async (request) => {
   await validateDeckId(request.auth.uid, deckId);
   const guestProfile = await fetchProfile(request.auth.uid);
   const guestDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
+  const guestCardBackId = await resolveCardBackId(request.auth.uid, data.cardBackId);
 
   const db = admin.firestore();
   const roomRef = db.collection('rooms').doc(roomCode);
@@ -1080,7 +1149,8 @@ exports.joinRoom = onCall(async (request) => {
     }
     tx.update(roomRef, {
       guestUid: request.auth.uid, guestDeckId: deckId,
-      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo, guestDeckCoverName: guestDeckCoverName
+      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo, guestDeckCoverName: guestDeckCoverName,
+      guestCardBackId: guestCardBackId
     });
   });
   return { roomCode: roomCode };
@@ -1184,7 +1254,12 @@ exports.setReady = onCall(async (request) => {
     // client substitutes these for "Jugador"/"CPU" in board labels and log
     // text (buildPvpGameState, ui.js).
     tx.set(matchRef, Object.assign({}, redacted.public, {
-      hostUsername: freshRoom.hostUsername, guestUsername: freshRoom.guestUsername
+      hostUsername: freshRoom.hostUsername, guestUsername: freshRoom.guestUsername,
+      // Same carry-through as hostUsername/guestUsername above, so the
+      // rival's real protector (captured server-side at create/join time,
+      // see resolveCardBackId) reaches the other client -- cardBackUrlFor,
+      // ui.js, is what actually renders it.
+      hostCardBackId: freshRoom.hostCardBackId || 'clasico', guestCardBackId: freshRoom.guestCardBackId || 'clasico'
     }));
     tx.set(matchRef.collection('private').doc(freshRoom.hostUid), redacted.private[freshRoom.hostUid]);
     tx.set(matchRef.collection('private').doc(freshRoom.guestUid), redacted.private[freshRoom.guestUid]);
@@ -1221,20 +1296,31 @@ const TURN_GATED_ACTIONS = ['placeActive', 'placeBench', 'evolve', 'attachEnergy
 // setup is explicitly simultaneous/concurrent (both players place Basics
 // independently, no turn order yet), so two near-simultaneous actions
 // against the same match must not be allowed to each read stale state and
-// have the later write silently clobber the earlier one's mutation. Both
-// reads this function does (the match doc, then serverOnly/state) go
-// through tx.get so Firestore enforces the transaction's read set.
+// have the later write silently clobber the earlier one's mutation. Every
+// read this function does goes through tx.get/tx.getAll so Firestore
+// enforces the transaction's read set.
+//
+// Real reported bug (general PVP action delay, not just match start): this
+// used to fire 4 separate sequential tx.get round trips (match doc,
+// serverOnly/state, then host/guest user docs for attachFoilTiers) on
+// EVERY single action -- placing a card, attaching energy, all of it.
+// tx.getAll batches multiple reads into ONE round trip each; the two
+// batches below can't collapse into a single one because which two uids to
+// fetch in the second batch isn't known until the first batch's match doc
+// comes back (Firestore requires each read's target to be known before
+// requesting it, and getAll doesn't support "fetch A, then based on what A
+// says, also fetch B" in one call) -- but 4 round trips down to 2 still
+// roughly halves what this function alone adds to every action.
 async function resolveMatchSide(tx, matchId, uid) {
   const db = admin.firestore();
   const matchRef = db.collection('matches').doc(matchId);
-  const matchSnap = await tx.get(matchRef);
+  const [matchSnap, serverOnlySnap] = await tx.getAll(matchRef, matchRef.collection('serverOnly').doc('state'));
   if (!matchSnap.exists) { throw new HttpsError('not-found', 'Esa partida no existe.'); }
   const pub = matchSnap.data();
   let side, opponentSide, opponentUid;
   if (pub.players.player1 === uid) { side = 'player'; opponentSide = 'cpu'; opponentUid = pub.players.player2; }
   else if (pub.players.player2 === uid) { side = 'cpu'; opponentSide = 'player'; opponentUid = pub.players.player1; }
   else { throw new HttpsError('permission-denied', 'No formas parte de esa partida.'); }
-  const serverOnlySnap = await tx.get(matchRef.collection('serverOnly').doc('state'));
   const state = serverOnlySnap.data().state;
   // state.rng was nulled out before being written to Firestore (see
   // setReady's comment above -- Firestore can't store a function value).
@@ -1243,7 +1329,17 @@ async function resolveMatchSide(tx, matchId, uid) {
   // startMatch(state) -> coinFlip(state) -> state.rng()) has a real
   // function to call instead of crashing on a null.
   state.rng = Math.random;
-  return { state: state, side: side, opponentSide: opponentSide, uid: uid, opponentUid: opponentUid, matchRef: matchRef, pub: pub };
+  // Fetched here (not lazily inside persistMatchState, which isn't async)
+  // so attachFoilTiers always has each side's REAL collection to compute
+  // from.
+  const [hostSnap, guestSnap] = await tx.getAll(
+    db.collection('users').doc(pub.players.player1),
+    db.collection('users').doc(pub.players.player2)
+  );
+  return {
+    state: state, side: side, opponentSide: opponentSide, uid: uid, opponentUid: opponentUid, matchRef: matchRef, pub: pub,
+    hostUserData: hostSnap.data() || {}, guestUserData: guestSnap.data() || {}
+  };
 }
 
 // Writes the redacted public/private views back after a mutation --
@@ -1252,8 +1348,13 @@ async function resolveMatchSide(tx, matchId, uid) {
 // player2='cpu' mapping. Not async: tx.set is synchronous (queues the write
 // against the same transaction resolveMatchSide's reads came from -- it
 // isn't a Promise), the transaction itself is what submitMatchAction awaits.
-function persistMatchState(tx, matchRef, state, hostUid, guestUid) {
+function persistMatchState(tx, matchRef, state, hostUid, guestUid, hostUserData, guestUserData) {
   const redacted = redactMatchState(state, hostUid, guestUid);
+  // Real reported bug: a PVP rival's holo/secret rare cards never showed
+  // their real foil to the OTHER player (see attachFoilTiers' own comment)
+  // -- computed fresh on every persist since either side's collection can
+  // change mid-match (e.g. opening a booster in another tab).
+  attachFoilTiers(redacted.public, hostUserData, guestUserData);
   // Null out state.rng again before writing -- mirrors setReady's exact
   // pattern above -- Firestore can't serialize a function value.
   tx.set(matchRef.collection('serverOnly').doc('state'), { state: Object.assign({}, state, { rng: null }) });
@@ -1281,7 +1382,7 @@ exports.submitMatchAction = onCall(async (request) => {
   // directly, so nothing needed to change about the shape of the handler
   // itself, only how its reads/writes reach Firestore.
   await db.runTransaction(async (tx) => {
-    const { state, side, matchRef, pub } = await resolveMatchSide(tx, matchId, request.auth.uid);
+    const { state, side, matchRef, pub, hostUserData, guestUserData } = await resolveMatchSide(tx, matchId, request.auth.uid);
     const hostUid = pub.players.player1;
     const guestUid = pub.players.player2;
     // Captured BEFORE the switch runs so the draw-compensation guard below
@@ -1496,7 +1597,7 @@ exports.submitMatchAction = onCall(async (request) => {
       drawForTurnStart(state, state.activePlayerId);
     }
 
-    persistMatchState(tx, matchRef, state, hostUid, guestUid);
+    persistMatchState(tx, matchRef, state, hostUid, guestUid, hostUserData, guestUserData);
   });
 
   return { ok: true };
