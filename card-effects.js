@@ -304,7 +304,7 @@ TRAINER_EFFECTS['Computer Search'] = function (state, playerId, handId, deckCard
   p.hand.push(found);
   p.deck = shuffle(p.deck, state.rng);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Computer Search') + ' y busca ' + translateCardName(found.name), playerId);
-  return { legal: true };
+  return { legal: true, targetName: found.name };
 };
 
 // Real card text: "Attach Defender to 1 of your Pokémon" -- any of the
@@ -514,7 +514,7 @@ TRAINER_EFFECTS['Pokémon Trader'] = function (state, playerId, handId, tradeHan
   p.hand.push(found);
   p.deck = shuffle(p.deck, state.rng);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Trader') + ' y busca ' + translateCardName(found.name), playerId);
-  return { legal: true };
+  return { legal: true, targetName: found.name };
 };
 
 // targetInstanceId: any of the player's own Pokémon in play (Active or
