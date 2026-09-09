@@ -1355,3 +1355,12 @@ function redactMatchState(state, side1Uid, side2Uid) {
   privateViews[side2Uid] = { hand: c.hand.map(function (card) { return { id: card.id, name: card.name }; }) };
   return { public: publicView, private: privateViews };
 }
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    createGame, startMatch, canPlayBasic, playBasic, canEvolve, evolve,
+    canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize,
+    chooseNewActive, canAttack, attack, endTurn, drawForTurnStart,
+    getWinner, redactMatchState, submitRpsChoice
+  };
+}

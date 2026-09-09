@@ -1497,3 +1497,7 @@ ATTACK_EFFECTS["Farfetch'd"] = {
   },
   'Pot Smash': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); }
 };
+
+if (typeof module !== 'undefined') {
+  module.exports = { ATTACK_EFFECTS, TRAINER_EFFECTS, POKEMON_POWER_EFFECTS };
+}
