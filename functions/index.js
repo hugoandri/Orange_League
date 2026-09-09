@@ -974,7 +974,6 @@ exports.openCodePack = onCall(async (request) => {
 });
 
 const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];
-const ROOM_EXPIRY_MS = 20 * 60 * 1000;
 
 // Throws if deckId isn't usable -- either a real precon key, or
 // 'custom:<slot>' where the caller actually has a saved deck in that slot.
