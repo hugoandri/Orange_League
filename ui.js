@@ -5430,12 +5430,6 @@ document.addEventListener('DOMContentLoaded', function () {
     menuPvpBtn.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.remove('hidden');
       playScreenMusic('Songs/PVP_MUSIC_MATCHMAKING.mp3');
-      // Boots every PVP Cloud Function's container now, while the player is
-      // just looking at the create/join menu -- see warmupPvpFunctionsCloud's
-      // own comment (economy.js) for why this is what actually fixes the
-      // "disgusting delay" between pressing Iniciar and seeing the RPS
-      // screen (Cloud Functions v2 cold starts, confirmed via functions:log).
-      warmupPvpFunctionsCloud();
     });
   }
   var pvpModalClose = document.getElementById('pvpModalClose');
