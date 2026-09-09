@@ -1201,6 +1201,61 @@ async function resolveDeckKeyForMatch(uid, deckId) {
   return syntheticKey;
 }
 
+// Server-to-server only (the PartyKit room's own `fetch()`, never a
+// browser) -- a plain onRequest endpoint, not onCall, since there's no
+// Firebase client SDK on the calling side to attach request.auth
+// automatically. Called once per socket, on connect (see
+// party/index.js's onConnect) -- never once per action, which is what
+// keeps this off PVP's hot path entirely.
+exports.resolvePvpIdentity = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { idToken, deckId, cardBackId } = req.body || {};
+
+  let uid;
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken || '');
+    uid = decoded.uid;
+  } catch (err) {
+    res.status(401).json({ error: 'Token inválido.' });
+    return;
+  }
+
+  try {
+    await validateDeckId(uid, deckId);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Mazo inválido.' });
+    return;
+  }
+
+  const profile = await fetchProfile(uid);
+  const deckCoverName = await fetchDeckCoverName(uid, deckId);
+  const resolvedCardBackId = await resolveCardBackId(uid, cardBackId);
+  const userSnap = await admin.firestore().collection('users').doc(uid).get();
+  const userData = userSnap.data() || {};
+
+  // Same synthetic-key convention resolveDeckKeyForMatch already used --
+  // duplicated here (not calling that function) because it mutates a
+  // shared DECKLISTS global that no longer exists in this file after
+  // Task 7; the PARTY registers customDeckCards into its OWN DECKLISTS
+  // right before calling createGame (see party/index.js, Task 5).
+  const customMatch = /^custom:(.+)$/.exec(deckId || '');
+  let deckKey = deckId;
+  let customDeckCards = null;
+  if (customMatch) {
+    const saved = (userData.customDecks || {})[customMatch[1]];
+    deckKey = 'pvp_' + uid + '_' + customMatch[1];
+    customDeckCards = saved.cards;
+  }
+
+  res.status(200).json({
+    uid: uid, username: profile.username, photo: profile.photo,
+    deckKey: deckKey, deckCoverName: deckCoverName, customDeckCards: customDeckCards,
+    cardBackId: resolvedCardBackId,
+    collectionHolo: userData.collectionHolo || {},
+    collectionSecret: userData.collectionSecret || {}
+  });
+});
+
 exports.setReady = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
   const roomCode = ((request.data || {}).roomCode || '').trim().toUpperCase();
