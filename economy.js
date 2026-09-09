@@ -188,7 +188,7 @@ function saveCustomDeckCloud(slot, name, cards, coverName) {
 // PartyKit host -- the same one used in production, or 127.0.0.1:1999
 // during local development (uncomment the second line and comment the
 // first, mirroring firebase-init.js's own useEmulator toggle pattern).
-var PVP_PARTY_HOST = 'tcg-simulador-pvp.<your-partykit-subdomain>.partykit.dev';
+var PVP_PARTY_HOST = 'tcg-simulador-pvp.hugoandri.partykit.dev';
 // var PVP_PARTY_HOST = '127.0.0.1:1999';
 
 var pvpSocket = null;
