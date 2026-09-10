@@ -680,34 +680,33 @@ function showCardInViewer(name, instanceId) {
         var atkName = btn.getAttribute('data-attack-name');
         if (!canAttack(gameState, 'player', atkName)) { return; }
         if (atkName === 'Lure') {
-          // I8 (final-review fix): Lure has a real ATTACK_EFFECTS entry (it's
-          // the one Base Set attack needing a chosen target), so it's Fase-2
-          // territory same as every other special attack -- but unlike a
-          // normal special attack, this button never reaches the pvpMode
-          // check/submitMatchActionCloud call below at all (it arms local-only
-          // target-selection mode instead), so the server-side rejection
-          // (submitMatchAction's own ATTACK_EFFECTS check, see I5) never gets
-          // a chance to run. Guarded here explicitly instead.
-          if (pvpMode) {
-            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
-            return;
-          }
           // Needs a chosen rival Bench Pokémon -- arm target-selection
           // mode instead of firing immediately (see the Bench/Active
           // click handler in wireBoardButtons for the other half of this).
+          // Works identically in PVP now: the Bench click below submits
+          // the real chosen target to the server instead of applying it
+          // locally.
           pendingAttackNeedingTarget = atkName;
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
           return;
         }
         if (atkName === 'Metronome') {
-          if (pvpMode) {
-            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
-            return;
-          }
           var op = gameState.players[opponentOf('player')];
           var defender = op && op.active;
           var defStats = defender && CARD_STATS[defender.name];
           var rivalAttacks = (defStats && defStats.attacks) || [];
+          // Same submit-or-apply split every other targeted attack/Trainer
+          // uses -- the modal/auto-pick logic above is identical for PVP
+          // and local play, only the final call differs.
+          function submitOrApplyMetronome(copiedAtkName) {
+            if (pvpMode) {
+              pvpAttackEndedMyTurn = true;
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Metronome', targetInstanceId: copiedAtkName })
+                .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+              return;
+            }
+            executePlayerAttack('Metronome', copiedAtkName);
+          }
           if (rivalAttacks.length > 1) {
             var options = rivalAttacks.map(function (atk) {
               var dmgText = (atk.damage && atk.damage !== '0') ? ' (' + atk.damage + ' daño)' : '';
@@ -717,12 +716,10 @@ function showCardInViewer(name, instanceId) {
                 label: nameEs.toUpperCase() + dmgText
               };
             });
-            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, function (chosenAtkName) {
-              executePlayerAttack('Metronome', chosenAtkName);
-            });
+            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, submitOrApplyMetronome);
             return;
           } else if (rivalAttacks.length === 1) {
-            executePlayerAttack('Metronome', rivalAttacks[0].name);
+            submitOrApplyMetronome(rivalAttacks[0].name);
             return;
           }
         }
@@ -2756,6 +2753,12 @@ function wireBoardButtons() {
           return;
         }
         pendingAttackNeedingTarget = null;
+        if (pvpMode) {
+          pvpAttackEndedMyTurn = true;
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Lure', targetInstanceId: instanceId })
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
         executePlayerAttack('Lure', instanceId);
         return;
       }
