@@ -1620,7 +1620,10 @@ function activeColHtml(activeInstance, mine, flipped) {
 function sideHeaderHtml(ownerId) {
   var mine = ownerId === 'player';
   var name = mine ? escapeHtml(playerDisplayName()) : (pvpMode && pvpOpponentName ? escapeHtml(pvpOpponentName) : 'CPU');
-  var avatar = mine ? playerPhotoUrl() : PROFILE_PHOTO_URL.cpu;
+  // Real reported bug: this always showed the CPU bot avatar for the
+  // opponent slot, even in PVP against a real human -- pvpOpponentPhoto
+  // mirrors pvpOpponentName's own pvpMode check right above.
+  var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : PROFILE_PHOTO_URL.cpu);
   var on = gameState.activePlayerId === ownerId;
   return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
     '<div class="shell-board-side-avatar"><img src="' + avatar + '" alt=""></div>' +
@@ -1679,9 +1682,18 @@ function prizeGridHtml(state, ownerId) {
 // the DOM) centers it in the gap between the hand-card fan and the CPU's
 // bench row, without touching the bench or hand-card markup/sizing at all.
 function cpuHandRowHtml(count) {
+  // Real reported bug: every other face-down zone (deck/discard/prizes,
+  // see deckDiscardRowHtml/prizeGridHtml above) already resolves the real
+  // opponent protector via cardBackUrlFor('cpu') in PVP -- this one spot
+  // was left hardcoded to the fixed default CARD_BACK_URL, so a PVP
+  // rival's own equipped protector never showed on their hand-card fan.
+  var backUrl = cardBackUrlFor('cpu');
+  // Real reported bug: this label always read "MANO CPU", even in PVP
+  // against a real rival.
+  var label = pvpMode ? 'MANO RIVAL' : 'MANO CPU';
   var cards = '';
-  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
-  return '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
+  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + backUrl + '" alt="Carta boca abajo"></div>'; }
+  return '<div class="shell-board-hand-cpu-label"><span>' + label + '</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
     '<div class="shell-board-hand-cpu">' +
     '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
     '</div>';
@@ -3096,7 +3108,9 @@ function startNewMatch() {
   // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
   // the clock display is reset here directly -- otherwise it would keep
   // showing whatever the previous match's clock last read.
-  renderClockDisplay(document.getElementById('boardClock'), DEFAULT_TIME_BANK_MS, false);
+  var boardClockEl = document.getElementById('boardClock');
+  boardClockEl.classList.remove('hidden'); // undo enterPvpMatch's own hide, in case the previous match was PVP
+  renderClockDisplay(boardClockEl, DEFAULT_TIME_BANK_MS, false);
   renderBoard();
 }
 
@@ -4777,6 +4791,7 @@ function resetPvpMatchState() {
   pvpMySide = null;
   pvpMatchEnded = false;
   pvpOpponentName = null;
+  pvpOpponentPhoto = null;
   pvpDuelMusicStarted = false;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
@@ -4809,6 +4824,10 @@ function resetPvpMatchState() {
 // -- set by buildPvpGameState below, the only place that has pub.hostUsername/
 // guestUsername available.
 var pvpOpponentName = null;
+// Real reported bug: sideHeaderHtml showed the CPU bot avatar for a real
+// PVP rival -- pub.hostPhoto/guestPhoto (party/index.js's redactedFor) now
+// carries it the same way pvpOpponentName above already does for the name.
+var pvpOpponentPhoto = null;
 // The rival's real equipped protector for this match (functions/index.js's
 // setReady copies hostCardBackId/guestCardBackId onto the match doc from
 // whichever room field matches their side) -- read by cardBackUrlFor
@@ -4819,6 +4838,7 @@ function buildPvpGameState(data, mySide) {
   var pub = data.public;
   var oppSide = mySide === 'player1' ? 'player2' : 'player1';
   pvpOpponentName = (oppSide === 'player1' ? pub.hostUsername : pub.guestUsername) || 'Rival';
+  pvpOpponentPhoto = (oppSide === 'player1' ? pub.hostPhoto : pub.guestPhoto) || PROFILE_PHOTO_URL.player;
   pvpOpponentCardBackId = (oppSide === 'player1' ? pub.hostCardBackId : pub.guestCardBackId) || DEFAULT_CARD_BACK_ID;
   // "Jugador"/"CPU" in log text always literally mean the host/guest engine
   // slots respectively (translatePlayer, rules-engine.js -- a fixed
@@ -4904,6 +4924,15 @@ function enterPvpMatch(matchId) {
   // INICIAR DUELO (phase leaves 'setup') -- see processPvpMatchSnapshot's
   // own pvpDuelMusicStarted guard below, which is where it fires now.
   pvpDuelMusicStarted = false;
+  // Real reported bug: the chess clock is intentionally never started/
+  // synced for PVP (timeBankMs enforcement stays out of scope, see
+  // pauseSurrender's own comment on this same rule) -- left visible, the
+  // element just sat on its raw index.html markup (plain "10:00" text, a
+  // different font than the pixel-glyph one local play's clock uses) and
+  // never ticked. A static, wrong-font display is worse than none, so hide
+  // it entirely for the duration of a PVP match; startNewMatch un-hides it
+  // for local play, where the real chess clock does run.
+  document.getElementById('boardClock').classList.add('hidden');
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
@@ -5552,13 +5581,23 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pvpJoinDeckPicker').classList.remove('hidden');
         renderPvpDeckPicker('pvpJoinDeckList', function (deckId) {
           return joinRoomCloud(code, deckId).then(function () {
-            startPvpRoomWait(code, deckId);
             document.getElementById('pvpJoinScreen').classList.add('hidden');
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
             document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
             document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+            // Real reported bug: renderPvpWaitingMine unconditionally resets
+            // the opponent slot to its unknown/spinner state -- it must run
+            // BEFORE startPvpRoomWait (same order the create-room flow above
+            // already uses), otherwise it wipes out the opponent info that
+            // initPvpRoomListener renders synchronously from the room
+            // broadcast the join call itself already received (economy.js's
+            // fire-immediately-with-last-known-value replay). With the old
+            // order, the guest's screen got stuck on "ESPERANDO" forever
+            // since no further room broadcast arrives once both sides are
+            // already connected.
             renderPvpWaitingMine(deckId);
             document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(code, 'plata', 3);
+            startPvpRoomWait(code, deckId);
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
             document.getElementById('pvpJoinCodeStep').classList.remove('hidden');
