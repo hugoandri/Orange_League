@@ -300,6 +300,17 @@ export default class Server {
     redacted.public.hostCardBackId = this.info.hostCardBackId || 'clasico';
     redacted.public.guestCardBackId = this.info.guestCardBackId || 'clasico';
     redacted.public.lastTrainerPlay = this.lastTrainerPlay || null;
+    // Real reported bug, same shape as the hostCardBackId gap above:
+    // redactMatchState has no concept of identity either, so the in-match
+    // board never learned the rival's real username/photo (only the
+    // pre-match waiting-room screen did, from the room-phase broadcast
+    // above, which is a separate payload/lifecycle) -- ui.js's board
+    // header fell back to the literal 'CPU' bot name and avatar for a real
+    // human rival.
+    redacted.public.hostUsername = this.info.hostUsername || null;
+    redacted.public.hostPhoto = this.info.hostPhoto || null;
+    redacted.public.guestUsername = this.info.guestUsername || null;
+    redacted.public.guestPhoto = this.info.guestPhoto || null;
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
