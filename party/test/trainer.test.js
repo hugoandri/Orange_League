@@ -3,7 +3,26 @@ const http = require('http');
 
 const IDENTITIES = {
   'host-token': { uid: 'host-uid', username: 'Host', photo: null, deckKey: 'overgrowth', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
-  'guest-token': { uid: 'guest-uid', username: 'Guest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} }
+  'guest-token': { uid: 'guest-uid', username: 'Guest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
+  // Pokémon Center isn't in either real precon deck (overgrowth/blackout),
+  // so it can never appear via those decks no matter how many times the
+  // Bill-style retry loop reshuffles -- confirmed by grepping data-decks.js.
+  // customDeckCards (honored by party/index.js's onConnect, which
+  // overwrites DECKLISTS[deckKey] with it before dealing) builds a small
+  // deck saturated with Pokémon Center instead: with 20/30 copies, the
+  // chance a 7-card opening hand contains none is C(10,7)/C(30,7) ≈
+  // 0.006% -- deterministic for practical purposes, same convergence
+  // reasoning as the Bill retry loop below, without needing one.
+  'center-token': {
+    uid: 'center-uid', username: 'Center', photo: null, deckKey: 'overgrowth', deckCoverName: null,
+    customDeckCards: [
+      { name: 'Bulbasaur', count: 4 },
+      { name: 'Pokémon Center', count: 20 },
+      { name: 'Grass Energy', count: 6 }
+    ],
+    cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {}
+  },
+  'center-guest-token': { uid: 'center-guest-uid', username: 'CenterGuest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} }
 };
 const stub = http.createServer((req, res) => {
   let body = '';
@@ -49,11 +68,13 @@ function sendPeek(ws) {
   return reqId;
 }
 
-async function playToTurn1(roomCode) {
-  const host = connect(roomCode, 'host-token', 'create');
+async function playToTurn1(roomCode, hostToken, guestToken) {
+  hostToken = hostToken || 'host-token';
+  guestToken = guestToken || 'guest-token';
+  const host = connect(roomCode, hostToken, 'create');
   const hostNext = makeQueue(host);
   await hostNext(); // room, waiting
-  const guest = connect(roomCode, 'guest-token', 'join');
+  const guest = connect(roomCode, guestToken, 'join');
   const guestNext = makeQueue(guest);
   await hostNext(); await guestNext(); // room, guest joined
 
@@ -158,6 +179,32 @@ async function main() {
   assert.strictEqual(otherAfter.public.lastTrainerPlay.cardName, 'Bill');
   assert.strictEqual(otherAfter.public.lastTrainerPlay.round, activeAfter.public.lastTrainerPlay.round);
   console.log('PASS: both sides receive the same lastTrainerPlay reveal data');
+
+  // Test Pokémon Center specifically (uses the allInstances() bare
+  // identifier -- the 15th missing globalThis binding the task-2 review
+  // caught). Uses the dedicated 'center-token' identity/deck (see
+  // IDENTITIES above) so the card is deterministically in the opening
+  // hand, rather than hoping for it in a real precon deck it isn't part
+  // of at all.
+  let centerHost, centerGuest, centerHostNext, centerResult, pokemonCenter;
+  for (let attempt = 0; attempt < 3 && !pokemonCenter; attempt++) {
+    if (centerHost) { centerHost.close(); centerGuest.close(); }
+    centerResult = await playToTurn1('CENTER' + attempt, 'center-token', 'center-guest-token');
+    centerHost = centerResult.host; centerGuest = centerResult.guest;
+    centerHostNext = centerResult.hostNext;
+    // Host always wins RPS in playToTurn1 (rock beats scissors) -- host is
+    // always activePlayerId 'player1', so its hand is what needs checking.
+    pokemonCenter = centerResult.hostState.myHand.find((c) => c.name === 'Pokémon Center');
+  }
+  assert.ok(pokemonCenter, 'expected Pokémon Center in the opening hand within 3 attempts (20/30 copies in the custom deck -- see IDENTITIES comment above)');
+
+  sendAction(centerHost, { type: 'playTrainer', trainerName: 'Pokémon Center', handId: pokemonCenter.id, args: [] });
+  const afterCenter = await nextOfType(centerHostNext, 'match');
+  const otherAfterCenter = await nextOfType(centerResult.guestNext, 'match');
+  assert.strictEqual(afterCenter.public.lastTrainerPlay.cardName, 'Pokémon Center');
+  assert.strictEqual(otherAfterCenter.public.lastTrainerPlay.cardName, 'Pokémon Center');
+  console.log('PASS: Pokémon Center (allInstances bare identifier) plays without ReferenceError');
+  centerHost.close(); centerGuest.close();
 
   const badReqId = ++reqCounter;
   activeWs.send(JSON.stringify({ type: 'action', reqId: badReqId, action: { type: 'playTrainer', trainerName: 'Bill', handId: 'not-a-real-id', args: [] } }));
