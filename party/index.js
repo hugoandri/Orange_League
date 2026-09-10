@@ -31,7 +31,14 @@ const {
   findInstance, opponentOf, translatePlayer, translateCardName,
   logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
   evolutionTimingAllowed, makeFreshInstance, shuffle,
-  discardedEnergyCard, discardedEvolutionCard, allInstances
+  discardedEnergyCard, discardedEvolutionCard, allInstances,
+  // Same story, one task later: card-effects.js's ATTACK_EFFECTS entries
+  // (invoked for real for the first time by removing runAction's old
+  // "(Fase 2)" guard on the 'attack' case) call these rules-engine.js
+  // internals as bare global identifiers too. Left unbound, Weedle's Poison
+  // Sting (the first special-effect attack exercised against the local dev
+  // server) threw "dealDamage is not defined" the instant it ran.
+  dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName
 } = require('../rules-engine.js');
 globalThis.findInstance = findInstance;
 globalThis.opponentOf = opponentOf;
@@ -48,6 +55,11 @@ globalThis.shuffle = shuffle;
 globalThis.discardedEnergyCard = discardedEnergyCard;
 globalThis.discardedEvolutionCard = discardedEvolutionCard;
 globalThis.allInstances = allInstances;
+globalThis.dealDamage = dealDamage;
+globalThis.coinFlip = coinFlip;
+globalThis.addStatus = addStatus;
+globalThis.knockOutIfNeeded = knockOutIfNeeded;
+globalThis.translateAttackName = translateAttackName;
 
 // functions/index.js's foilTierForCard (added earlier this session)
 // iterates CARD_CATALOG[setKey] (from functions/lib/cardCatalog.js, a
@@ -311,6 +323,7 @@ export default class Server {
     redacted.public.hostPhoto = this.info.hostPhoto || null;
     redacted.public.guestUsername = this.info.guestUsername || null;
     redacted.public.guestPhoto = this.info.guestPhoto || null;
+    redacted.public.lastAttackResult = this.lastAttackResult || null;
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
@@ -390,9 +403,12 @@ export default class Server {
       }
       case 'attack': {
         if (!canAttack(this.state, side, action.attackName)) { throw new Error('No puedes usar ese ataque ahora.'); }
-        const attackerName = this.state.players[side].active.name;
-        if (ATTACK_EFFECTS[attackerName] && ATTACK_EFFECTS[attackerName][action.attackName]) { throw new Error('Ese ataque todavía no está disponible en PVP (Fase 2).'); }
-        attack(this.state, side, action.attackName);
+        attack(this.state, side, action.attackName, action.targetInstanceId);
+        this.attackRound = (this.attackRound || 0) + 1;
+        this.lastAttackResult = this.state.lastAttackResult
+          ? Object.assign({}, this.state.lastAttackResult, { round: this.attackRound })
+          : null;
+        this.state.lastAttackResult = null; // never let a stale result leak into a later attack's own check
         break;
       }
       case 'submitRpsChoice': {

@@ -1375,6 +1375,13 @@ if (typeof module !== 'undefined') {
     findInstance, opponentOf, translatePlayer, translateCardName,
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
     evolutionTimingAllowed, makeFreshInstance, shuffle,
-    discardedEnergyCard, discardedEvolutionCard, allInstances
+    discardedEnergyCard, discardedEvolutionCard, allInstances,
+    // Same story as the block above, one task later: ATTACK_EFFECTS entries
+    // (invoked for real for the first time by removing runAction's old
+    // "(Fase 2)" guard on the 'attack' case) call these as bare identifiers
+    // too. Found the same way -- a genuine repro against the local dev
+    // server threw "dealDamage is not defined" from Weedle's Poison Sting,
+    // the very first special-effect attack this task exercised.
+    dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName
   };
 }
