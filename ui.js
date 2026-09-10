@@ -2251,6 +2251,25 @@ function wireBoardButtons() {
     closeTargetHintModal();
   }
 
+  // Every TRAINER_EFFECTS[name] function shares rules-engine.js's
+  // (state, playerId, handId, ...args) shape and already validates
+  // legality before mutating (see card-effects.js) -- in PVP that exact
+  // same call just needs to happen on the SERVER's real state instead of
+  // this client's reconstructed one, which is why this can be one
+  // generic helper instead of a bespoke branch per card. Every one of
+  // this file's ~15 Trainer-card call sites routes through this.
+  function applyOrSubmitTrainerEffect(trainerName, handId, args) {
+    if (pvpMode) {
+      submitMatchActionCloud(pvpActiveMatchId, { type: 'playTrainer', trainerName: trainerName, handId: handId, args: args || [] })
+        .catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+      return;
+    }
+    var result = TRAINER_EFFECTS[trainerName].apply(null, [gameState, 'player', handId].concat(args || []));
+    if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+    selectedHandId = null;
+    renderBoard();
+  }
+
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
@@ -2263,24 +2282,6 @@ function wireBoardButtons() {
       var stats = CARD_STATS[handCard.name];
 
       if (stats.supertype === 'Trainer') {
-        // Real reported bug: this whole block runs straight against the
-        // local `gameState` (TRAINER_EFFECTS mutates it directly) with no
-        // pvpMode check at all -- in a real PVP match `gameState` is a
-        // reconstructed snapshot whose own deck array is just placeholder
-        // {} objects (its real order is never sent client-side, see
-        // buildPvpGameState), so "drawing" from it produced literal
-        // undefined cards, and since nothing here ever calls
-        // submitMatchActionCloud, the server (and the rival) never found
-        // out the card was played at all. Trainer cards were always
-        // out of scope for PVP (same as special-effect attacks, which
-        // already get an equivalent server-side rejection) -- this just
-        // stops the client from ever pretending otherwise. Real support
-        // is a separate, larger project (porting TRAINER_EFFECTS
-        // server-side to party/index.js), not a quick fix.
-        if (pvpMode) {
-          alert('Los Entrenadores todavía no están disponibles en el PVP.');
-          return;
-        }
         // Trainer cards get an explicit "USAR" + CANCELAR menu next to the
         // card instead of silently entering target-selection mode the
         // instant the card is clicked. Energy is drag-and-drop only now (see
@@ -2289,10 +2290,7 @@ function wireBoardButtons() {
           handCard.name === 'Impostor Professor Oak' || handCard.name === 'Full Heal' || handCard.name === 'Pokémon Center';
         showHandCardMenu(btn, 'USAR', function () {
           if (isNoTargetTrainer) {
-            var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
-            if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-            selectedHandId = null;
-            renderBoard();
+            applyOrSubmitTrainerEffect(handCard.name, handId, []);
           } else if (handCard.name === 'Computer Search') {
             // Two steps, neither of which is a board-click target: first
             // discard 2 OTHER hand cards as the cost (per the real printed
@@ -2307,12 +2305,11 @@ function wireBoardButtons() {
               return;
             }
             openHandDiscardModal(otherHandCards, 2, function (discardHandIds) {
-              openDeckSearchModal(p.deck.slice(), function (deckCardId) {
-                var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId, discardHandIds);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
-              });
+              (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+                openDeckSearchModal(deckCards, function (deckCardId) {
+                  applyOrSubmitTrainerEffect('Computer Search', handId, [deckCardId, discardHandIds]);
+                });
+              }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
             });
           } else if (handCard.name === 'Energy Retrieval') {
             // Two steps: trade 1 OTHER hand card as the cost, then choose
@@ -2328,10 +2325,7 @@ function wireBoardButtons() {
             openHandDiscardModal(otherHandCardsForTrade, 1, function (tradeIds) {
               var basicEnergyInDiscard = p.discard.filter(function (c) { return ENERGY_TYPE_BY_CARD_NAME.hasOwnProperty(c.name); });
               openEnergyRetrievalModal(basicEnergyInDiscard, function (retrieveIds) {
-                var result = TRAINER_EFFECTS['Energy Retrieval'](gameState, 'player', handId, tradeIds[0], retrieveIds);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
+                applyOrSubmitTrainerEffect('Energy Retrieval', handId, [tradeIds[0], retrieveIds]);
               });
             });
           } else if (handCard.name === 'Item Finder') {
@@ -2350,10 +2344,7 @@ function wireBoardButtons() {
             openHandDiscardModal(otherHandCardsForFinder, 2, function (discardHandIds) {
               var trainersInDiscard = p.discard.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Trainer'; });
               openDeckSearchModal(trainersInDiscard, function (discardCardId) {
-                var result = TRAINER_EFFECTS['Item Finder'](gameState, 'player', handId, discardHandIds, discardCardId);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
+                applyOrSubmitTrainerEffect('Item Finder', handId, [discardHandIds, discardCardId]);
               });
             });
           } else if (handCard.name === 'Maintenance') {
@@ -2370,10 +2361,7 @@ function wireBoardButtons() {
               return;
             }
             openHandDiscardModal(otherHandCardsForMaintenance, 2, function (shuffleHandIds) {
-              var result = TRAINER_EFFECTS['Maintenance'](gameState, 'player', handId, shuffleHandIds);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Maintenance', handId, [shuffleHandIds]);
             });
           } else if (handCard.name === 'Pokémon Trader') {
             // Two steps, both card-picker modals (no board click): a
@@ -2387,13 +2375,12 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(pokemonInHandForTrader, function (tradeHandId) {
-              var pokemonInDeck = p.deck.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
-              openDeckSearchModal(pokemonInDeck, function (deckCardId) {
-                var result = TRAINER_EFFECTS['Pokémon Trader'](gameState, 'player', handId, tradeHandId, deckCardId);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
-              });
+              (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+                var pokemonInDeck = deckCards.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+                openDeckSearchModal(pokemonInDeck, function (deckCardId) {
+                  applyOrSubmitTrainerEffect('Pokémon Trader', handId, [tradeHandId, deckCardId]);
+                });
+              }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
             });
           } else if (handCard.name === 'Pokémon Breeder') {
             // Two steps: pick a Stage 2 card from hand (2 evolution hops
@@ -2425,10 +2412,7 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(opBasicsInDiscard, function (opponentDiscardCardId) {
-              var result = TRAINER_EFFECTS['Pokémon Flute'](gameState, 'player', handId, opponentDiscardCardId);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Pokémon Flute', handId, [opponentDiscardCardId]);
             });
           } else if (handCard.name === 'Revive') {
             var basicsInOwnDiscard = p.discard.filter(function (c) { return isBasicPokemon(c.name); });
@@ -2439,19 +2423,15 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(basicsInOwnDiscard, function (discardCardId) {
-              var result = TRAINER_EFFECTS['Revive'](gameState, 'player', handId, discardCardId);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Revive', handId, [discardCardId]);
             });
           } else if (handCard.name === 'Pokédex') {
-            var topOfDeck = p.deck.slice(0, Math.min(5, p.deck.length));
-            openPokedexModal(topOfDeck, function (orderedIds) {
-              var result = TRAINER_EFFECTS['Pokédex'](gameState, 'player', handId, orderedIds);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
-            });
+            (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+              var topOfDeck = deckCards.slice(0, Math.min(5, deckCards.length));
+              openPokedexModal(topOfDeck, function (orderedIds) {
+                applyOrSubmitTrainerEffect('Pokédex', handId, [orderedIds]);
+              });
+            }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
           } else {
             selectedHandId = handId;
             btn.classList.add('armed');
@@ -2810,25 +2790,23 @@ function wireBoardButtons() {
       if (pendingPokemonBreeder) {
         var pb = pendingPokemonBreeder;
         pendingPokemonBreeder = null;
-        var breederResult = TRAINER_EFFECTS['Pokémon Breeder'](gameState, 'player', pb.handId, pb.evolutionHandId, instanceId);
-        if (breederResult && !breederResult.legal) { logEvent(gameState, breederResult.reason, 'player'); }
-        selectedHandId = null;
-        renderBoard();
+        applyOrSubmitTrainerEffect('Pokémon Breeder', pb.handId, [pb.evolutionHandId, instanceId]);
         return;
       }
       if (!selectedHandId) { return; }
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
-      // C2 (final-review fix): this click-to-select-then-click-target
-      // fallback for placeBench/evolve/attachEnergy bypassed the server
-      // entirely in PVP -- only the drag-and-drop equivalent (resolveHandDrop)
-      // was guarded. Only intercept+return when one of these 3 vanilla
-      // actions actually matches -- anything else (Trainer-card effects)
-      // falls through to the existing logic below unchanged, since Trainer
-      // cards stay an accepted, unguarded Fase-2-scope gap in PVP (same as
-      // every other Trainer-effect path in this file), not something this
-      // finding asked to fix.
+      // C2 (final-review fix, historical): this click-to-select-then-
+      // click-target fallback for placeBench/evolve/attachEnergy bypassed
+      // the server entirely in PVP -- only the drag-and-drop equivalent
+      // (resolveHandDrop) was guarded. Only intercept+return when one of
+      // these 3 vanilla actions actually matches -- Trainer-card effects
+      // (Super Potion, Energy Removal, Super Energy Removal, and the
+      // generic single-target fallback below) now route through
+      // applyOrSubmitTrainerEffect themselves, each at their own call
+      // site further down, so nothing about THIS specific pvpMode check
+      // needs to also handle them.
       if (pvpMode) {
         var pvpBoardClickAction = null;
         if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
@@ -2864,9 +2842,7 @@ function wireBoardButtons() {
         var superPotionHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(superPotionTarget.attachedEnergy.slice(), 1, function (indices) {
-          var result = TRAINER_EFFECTS['Super Potion'](gameState, 'player', superPotionHandId, instanceId, indices[0]);
-          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-          renderBoard();
+          applyOrSubmitTrainerEffect('Super Potion', superPotionHandId, [instanceId, indices[0]]);
         });
         return;
       } else if (energyRemovalTarget && energyRemovalTarget.attachedEnergy.length > 0) {
@@ -2877,9 +2853,7 @@ function wireBoardButtons() {
         var energyRemovalHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(energyRemovalTarget.attachedEnergy.slice(), 1, function (indices) {
-          var result = TRAINER_EFFECTS['Energy Removal'](gameState, 'player', energyRemovalHandId, instanceId, indices[0]);
-          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-          renderBoard();
+          applyOrSubmitTrainerEffect('Energy Removal', energyRemovalHandId, [instanceId, indices[0]]);
         });
         return;
       } else if (handCard.name === 'Super Energy Removal' && !pendingSuperEnergyRemoval) {
@@ -2922,18 +2896,15 @@ function wireBoardButtons() {
         var countToDiscard = Math.min(2, cpuTarget.attachedEnergy.length);
         if (cpuTarget.attachedEnergy.length >= 2) {
           openEnergyDiscardModal(cpuTarget.attachedEnergy.slice(), countToDiscard, function (indices) {
-            var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices);
-            if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
-            renderBoard();
+            applyOrSubmitTrainerEffect('Super Energy Removal', pendingRemoval.handId, [pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices]);
           });
           return;
         } else {
-          var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, [0]);
-          if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
+          applyOrSubmitTrainerEffect('Super Energy Removal', pendingRemoval.handId, [pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, [0]]);
         }
       } else if (TRAINER_EFFECTS[handCard.name]) {
-        var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
-        if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+        applyOrSubmitTrainerEffect(handCard.name, selectedHandId, [instanceId]);
+        return;
       }
       selectedHandId = null;
       renderBoard();
@@ -4752,6 +4723,12 @@ var pvpRpsRevealedRound = 0;
 var pvpRpsRevealTimer = null;
 var pvpRpsLatestMatchData = null;
 
+// Sibling to the RPS-reveal gate above, same shape -- lastTrainerPlay.round
+// (party/index.js) increments every successful playTrainer action; this
+// tracks the last round already shown so a re-delivered snapshot (e.g. on
+// reconnect) never replays a reveal that already happened.
+var pvpTrainerRevealedRound = 0;
+
 // End-of-turn confirm (renderEndTurnConfirm, below) -- attack() always ends
 // the turn the instant it's submitted (server-side in PVP; see functions/
 // index.js's own comment on this -- the exact same rule applies locally,
@@ -4805,6 +4782,7 @@ function resetPvpMatchState() {
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
   pvpRpsLatestMatchData = null;
+  pvpTrainerRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
@@ -4913,6 +4891,7 @@ function enterPvpMatch(matchId) {
   pvpMatchEnded = false;
   pvpRpsRevealedRound = 0;
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
+  pvpTrainerRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
@@ -4948,6 +4927,20 @@ function enterPvpMatch(matchId) {
       return;
     }
     if (pvpRpsRevealTimer) { return; } // reveal still on screen -- pvpRpsLatestMatchData already updated above
+
+    if (pub.lastTrainerPlay && pub.lastTrainerPlay.round > pvpTrainerRevealedRound) {
+      pvpTrainerRevealedRound = pub.lastTrainerPlay.round;
+      var play = {
+        kind: 'trainer',
+        name: pub.lastTrainerPlay.cardName,
+        playerId: pub.lastTrainerPlay.side === pvpMySide ? 'player' : 'cpu',
+        targetName: pub.lastTrainerPlay.targetName
+      };
+      showTrainerPlayedOverlay(play, function () {
+        processPvpMatchSnapshot(pvpRpsLatestMatchData);
+      });
+      return;
+    }
 
     // See pvpEndTurnConfirmPending's own comment above -- while the confirm
     // modal is up, the rival's own moves keep arriving as real snapshots
