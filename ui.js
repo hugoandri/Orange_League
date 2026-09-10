@@ -4746,6 +4746,13 @@ var pvpRpsLatestMatchData = null;
 // reconnect) never replays a reveal that already happened.
 var pvpTrainerRevealedRound = 0;
 
+// Sibling to pvpTrainerRevealedRound above, same shape -- lastAttackResult.round
+// (party/index.js) increments every successful attack action (special-
+// effect or vanilla); this tracks the last round already shown so a
+// re-delivered snapshot (e.g. on reconnect) never replays a reveal that
+// already happened.
+var pvpAttackRevealedRound = 0;
+
 // End-of-turn confirm (renderEndTurnConfirm, below) -- attack() always ends
 // the turn the instant it's submitted (server-side in PVP; see functions/
 // index.js's own comment on this -- the exact same rule applies locally,
@@ -4801,6 +4808,7 @@ function resetPvpMatchState() {
   pvpRpsRevealedRound = 0;
   pvpRpsLatestMatchData = null;
   pvpTrainerRevealedRound = 0;
+  pvpAttackRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
@@ -4915,6 +4923,7 @@ function enterPvpMatch(matchId) {
   pvpRpsRevealedRound = 0;
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpTrainerRevealedRound = 0;
+  pvpAttackRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
@@ -4974,35 +4983,51 @@ function enterPvpMatch(matchId) {
       return;
     }
 
-    // See pvpEndTurnConfirmPending's own comment above -- while the confirm
-    // modal is up, the rival's own moves keep arriving as real snapshots
-    // (their client never waits on this one) but must NOT overwrite the
-    // board out from under the modal -- buffer the latest one instead;
-    // endTurnConfirmYes/No (DOMContentLoaded) apply it once dismissed.
+    // Real reported bug (attack-reveal gate below): an attack, unlike a
+    // Trainer play or an RPS round, can knock out a Pokémon and open the
+    // prize-choice/end-turn-confirm flow -- this used to run inline here,
+    // right after processPvpMatchSnapshot(data), which only ever happens
+    // on the DIRECT (non-reveal) path. Extracted so the attack-reveal
+    // gate's own deferred completion can call it too, on whichever
+    // snapshot is current by the time the reveal finishes.
+    function applyPvpSnapshotEffects(matchData) {
+      var mpub = matchData.public;
+      // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
+      // prize choice of MINE is (or just was) open, so the check right
+      // below can tell "my own attack just finished awarding me a prize"
+      // apart from a plain attack that never opened one.
+      if (mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide) {
+        pvpMyPrizeChoiceSeen = true;
+      }
+      processPvpMatchSnapshot(matchData);
+      // pendingActiveChoice !== pvpMySide guards against stacking this on
+      // top of my OWN still-open "choose new Active" modal -- a
+      // simultaneous KO (my own Active also fell, e.g. to a checkup)
+      // leaves that one blocking first; this waits for it to clear like
+      // everything else does. !mpub.winner guards against stacking this
+      // on top of the win/loss modal processPvpMatchSnapshot just showed
+      // -- taking the LAST prize of the match ends the duel, not just the
+      // turn.
+      if (!mpub.winner && pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !mpub.pendingPrizeChoice &&
+          mpub.activePlayerId !== pvpMySide && mpub.pendingActiveChoice !== pvpMySide) {
+        pvpAttackEndedMyTurn = false;
+        pvpMyPrizeChoiceSeen = false;
+        pvpEndTurnConfirmPending = true;
+        renderEndTurnConfirm();
+      }
+    }
+
+    if (pub.lastAttackResult && pub.lastAttackResult.round > pvpAttackRevealedRound) {
+      pvpAttackRevealedRound = pub.lastAttackResult.round;
+      showAttackOverlay(pub.lastAttackResult, function () {
+        applyPvpSnapshotEffects(pvpRpsLatestMatchData);
+      });
+      return;
+    }
+
     if (pvpEndTurnConfirmPending) { pvpEndTurnLatestData = data; return; }
 
-    // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
-    // prize choice of MINE is (or just was) open, so the check right below
-    // can tell "my own attack just finished awarding me a prize" apart from
-    // a plain attack that never opened one.
-    if (pub.pendingPrizeChoice && pub.pendingPrizeChoice.side === pvpMySide) {
-      pvpMyPrizeChoiceSeen = true;
-    }
-    processPvpMatchSnapshot(data);
-    // pendingActiveChoice !== pvpMySide guards against stacking this on top
-    // of my OWN still-open "choose new Active" modal -- a simultaneous KO
-    // (my own Active also fell, e.g. to a checkup) leaves that one blocking
-    // first; this waits for it to clear like everything else does.
-    // !pub.winner guards against stacking this on top of the win/loss modal
-    // processPvpMatchSnapshot just showed -- taking the LAST prize of the
-    // match ends the duel, not just the turn.
-    if (!pub.winner && pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !pub.pendingPrizeChoice &&
-        pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
-      pvpAttackEndedMyTurn = false;
-      pvpMyPrizeChoiceSeen = false;
-      pvpEndTurnConfirmPending = true;
-      renderEndTurnConfirm();
-    }
+    applyPvpSnapshotEffects(data);
   });
   showBoardScreen();
 }
