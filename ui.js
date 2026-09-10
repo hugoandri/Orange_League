@@ -5192,6 +5192,8 @@ var DUEL_MUSIC_TRACKS = {
   orange_duel2: { label: 'Duel Music 2', file: 'Songs/Duel_Music_2.mp3' },
   orange_duel3: { label: 'Duel Music 3', file: 'Songs/Duel_Music_3.mp3' },
   orange_duel4: { label: 'Duel Music 4', file: 'Songs/Duel_Music_4.mp3' },
+  orange_duel5: { label: 'Duel Music 5', file: 'Songs/Duel_Music_5.mp3' },
+  orange_duel6: { label: 'Duel Music 6', file: 'Songs/Duel_Music_6.mp3' },
   orange_duel9: { label: 'Duel Music 9', file: 'Songs/Duel_Music_9.mp3' },
   orange_determination: { label: 'Determination Battle', file: 'Songs/Determination Battle.mp3' },
   orange_determined: { label: 'Determined Duelist', file: 'Songs/Determined Duelist.mp3' },
