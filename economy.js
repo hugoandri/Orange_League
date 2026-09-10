@@ -231,6 +231,11 @@ function dispatchPvpMessage(data) {
     if (pendingErr) { delete pvpPendingActions[data.reqId]; pendingErr.reject(new Error(data.message)); }
     return;
   }
+  if (data.type === 'deckPeek') {
+    var pendingPeek = pvpPendingActions[data.reqId];
+    if (pendingPeek) { delete pvpPendingActions[data.reqId]; pendingPeek.resolve(data.cards); }
+    return;
+  }
 }
 
 // Opens the one shared PVP socket and resolves once the party's first
@@ -325,6 +330,14 @@ function submitMatchActionCloud(matchId, action) {
     var reqId = ++pvpReqCounter;
     pvpPendingActions[reqId] = { resolve: resolve, reject: reject };
     pvpSocket.send(JSON.stringify({ type: 'action', reqId: reqId, action: action }));
+  });
+}
+
+function peekOwnDeckCloud() {
+  return new Promise(function (resolve, reject) {
+    var reqId = ++pvpReqCounter;
+    pvpPendingActions[reqId] = { resolve: resolve, reject: reject };
+    pvpSocket.send(JSON.stringify({ type: 'peekOwnDeck', reqId: reqId }));
   });
 }
 
