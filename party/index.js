@@ -31,7 +31,7 @@ const {
   findInstance, opponentOf, translatePlayer, translateCardName,
   logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
   evolutionTimingAllowed, makeFreshInstance, shuffle,
-  discardedEnergyCard, discardedEvolutionCard
+  discardedEnergyCard, discardedEvolutionCard, allInstances
 } = require('../rules-engine.js');
 globalThis.findInstance = findInstance;
 globalThis.opponentOf = opponentOf;
@@ -47,6 +47,7 @@ globalThis.makeFreshInstance = makeFreshInstance;
 globalThis.shuffle = shuffle;
 globalThis.discardedEnergyCard = discardedEnergyCard;
 globalThis.discardedEvolutionCard = discardedEvolutionCard;
+globalThis.allInstances = allInstances;
 
 // functions/index.js's foilTierForCard (added earlier this session)
 // iterates CARD_CATALOG[setKey] (from functions/lib/cardCatalog.js, a

@@ -1375,6 +1375,6 @@ if (typeof module !== 'undefined') {
     findInstance, opponentOf, translatePlayer, translateCardName,
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
     evolutionTimingAllowed, makeFreshInstance, shuffle,
-    discardedEnergyCard, discardedEvolutionCard
+    discardedEnergyCard, discardedEvolutionCard, allInstances
   };
 }
