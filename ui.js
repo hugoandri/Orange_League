@@ -1622,9 +1622,21 @@ function sideHeaderHtml(ownerId) {
   // mirrors pvpOpponentName's own pvpMode check right above.
   var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : PROFILE_PHOTO_URL.cpu);
   var on = gameState.activePlayerId === ownerId;
+  // Real reported bug: PVP never showed a real, per-side clock at all
+  // (the single shared local-play #boardClock is hidden for the whole
+  // PVP match, see enterPvpMatch) -- per user request, both players'
+  // own timers are always visible, one per side's own header, right next
+  // to their avatar/name. Only rendered while pvpMode is on (local play
+  // keeps using its own single #boardClock, untouched); id lets
+  // tickPvpClocks (below) target each one without re-rendering the whole
+  // header every 250ms.
+  var clockHtml = pvpMode
+    ? '<div class="shell-board-side-clock" id="pvpClock-' + ownerId + '"></div>'
+    : '';
   return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
     '<div class="shell-board-side-avatar"><img src="' + avatar + '" alt=""></div>' +
     '<div class="shell-board-side-name">' + name + '</div>' +
+    clockHtml +
     '<div class="shell-board-side-led' + (on ? '' : ' off') + '"></div>' +
     '</div>';
 }
@@ -4739,6 +4751,46 @@ var pvpSetupHintShown = false;
 // spuriously flashes (nothing actually "changed" yet).
 var pvpLastActivePlayerId = null;
 
+// Real reported bug: PVP had no real, ticking clock at all (the old
+// local-play #boardClock is hidden for the whole match, see
+// enterPvpMatch). pvpClockTickInterval drives a lightweight re-render of
+// just the two #pvpClock-player/#pvpClock-cpu elements (sideHeaderHtml)
+// between real snapshots, computing the live remaining time from
+// pub.timeBank/pub.turnStartedAt (Task 1) the same way local play's own
+// tickGameClock computes it from local gameState -- corrected fresh every
+// time a real snapshot arrives (pvpLatestPub, set on every snapshot,
+// mirrors pvpRpsLatestMatchData's own "always current" role for the other
+// reveal gates).
+var pvpClockTickInterval = null;
+var pvpLatestPub = null;
+// Guards claimTimeout from being sent more than once per observed
+// timeout -- reset every time a NEW turnStartedAt is seen (a real turn
+// handoff happened), so it can fire again for a later, different timeout.
+var pvpClaimedTimeoutFor = null;
+
+function tickPvpClocks() {
+  if (!pvpLatestPub || pvpLatestPub.phase !== 'playing' || !pvpLatestPub.activePlayerId) { return; }
+  var hostMs = pvpLatestPub.timeBank.player1;
+  var guestMs = pvpLatestPub.timeBank.player2;
+  var elapsedSinceStart = Date.now() - pvpLatestPub.turnStartedAt;
+  if (pvpLatestPub.activePlayerId === 'player1') { hostMs = Math.max(0, hostMs - elapsedSinceStart); }
+  else { guestMs = Math.max(0, guestMs - elapsedSinceStart); }
+  // pvpMySide/'player'/'cpu' -- same viewer-relative mapping buildPvpGameState
+  // already uses everywhere else in this file.
+  var myMs = pvpMySide === 'player1' ? hostMs : guestMs;
+  var rivalMs = pvpMySide === 'player1' ? guestMs : hostMs;
+  var myEl = document.getElementById('pvpClock-player');
+  var rivalEl = document.getElementById('pvpClock-cpu');
+  if (myEl) { renderClockDisplay(myEl, myMs, pvpLatestPub.activePlayerId !== pvpMySide); }
+  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, pvpLatestPub.activePlayerId === pvpMySide); }
+
+  var activeMs = pvpLatestPub.activePlayerId === 'player1' ? hostMs : guestMs;
+  if (activeMs <= 0 && pvpClaimedTimeoutFor !== pvpLatestPub.turnStartedAt) {
+    pvpClaimedTimeoutFor = pvpLatestPub.turnStartedAt;
+    submitMatchActionCloud(pvpActiveMatchId, { type: 'claimTimeout' }).catch(function () {});
+  }
+}
+
 // Rock-paper-scissors reveal gate (see renderRpsReveal/processPvpMatchSnapshot
 // below) -- pub.rpsRound (rules-engine.js) increments every time a round
 // resolves (tie or real winner). pvpRpsRevealedRound tracks the last round
@@ -4827,6 +4879,9 @@ function resetPvpMatchState() {
   pvpDuelMusicStarted = false;
   pvpSetupHintShown = false;
   pvpLastActivePlayerId = null;
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
+  pvpLatestPub = null;
+  pvpClaimedTimeoutFor = null;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
@@ -4964,6 +5019,9 @@ function enterPvpMatch(matchId) {
   pvpDuelMusicStarted = false;
   pvpSetupHintShown = false;
   pvpLastActivePlayerId = null;
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
+  pvpLatestPub = null;
+  pvpClaimedTimeoutFor = null;
   // Real reported bug: the chess clock is intentionally never started/
   // synced for PVP (timeBankMs enforcement stays out of scope, see
   // pauseSurrender's own comment on this same rule) -- left visible, the
@@ -4973,6 +5031,9 @@ function enterPvpMatch(matchId) {
   // it entirely for the duration of a PVP match; startNewMatch un-hides it
   // for local play, where the real chess clock does run.
   document.getElementById('boardClock').classList.add('hidden');
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); }
+  pvpClockTickInterval = setInterval(tickPvpClocks, CLOCK_TICK_MS);
+  pvpClaimedTimeoutFor = null;
   var myUid = firebase.auth().currentUser.uid;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
@@ -5130,6 +5191,7 @@ function processPvpMatchSnapshot(data) {
     }
   }
   gameState = buildPvpGameState(data, pvpMySide);
+  pvpLatestPub = pub;
   // Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL
   // RIVAL" banner every time control changes hands, including right when
   // the very first turn of the match starts -- PVP only ever had the small
