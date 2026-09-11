@@ -4726,6 +4726,16 @@ var pvpMatchEnded = false;
 // must fire exactly once, the instant BOTH sides have pressed INICIAR
 // DUELO, not on every subsequent action's snapshot.
 var pvpDuelMusicStarted = false;
+// Real reported bug: local play shows a hint the instant the board appears
+// in 'setup' phase ("Coloca tu Pokémon Activo..."), but PVP showed nothing
+// at all -- fires once per match, the first snapshot seen in 'setup'.
+var pvpSetupHintShown = false;
+// Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL RIVAL"
+// banner every time control changes hands (showTurnFlash) -- PVP only ever
+// had the small header text (boardTurnValue), never this. null until the
+// first 'playing'-phase snapshot is seen, so the very first snapshot never
+// spuriously flashes (nothing actually "changed" yet).
+var pvpLastActivePlayerId = null;
 
 // Rock-paper-scissors reveal gate (see renderRpsReveal/processPvpMatchSnapshot
 // below) -- pub.rpsRound (rules-engine.js) increments every time a round
@@ -4803,6 +4813,8 @@ function resetPvpMatchState() {
   pvpOpponentName = null;
   pvpOpponentPhoto = null;
   pvpDuelMusicStarted = false;
+  pvpSetupHintShown = false;
+  pvpLastActivePlayerId = null;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
@@ -4936,6 +4948,8 @@ function enterPvpMatch(matchId) {
   // INICIAR DUELO (phase leaves 'setup') -- see processPvpMatchSnapshot's
   // own pvpDuelMusicStarted guard below, which is where it fires now.
   pvpDuelMusicStarted = false;
+  pvpSetupHintShown = false;
+  pvpLastActivePlayerId = null;
   // Real reported bug: the chess clock is intentionally never started/
   // synced for PVP (timeBankMs enforcement stays out of scope, see
   // pauseSurrender's own comment on this same rule) -- left visible, the
@@ -5042,6 +5056,15 @@ function processPvpMatchSnapshot(data) {
     return;
   }
   hideRpsScreen();
+  // Real reported bug: local play shows this same hint (as a log line) the
+  // instant the board appears in 'setup' -- PVP never showed anything,
+  // leaving the player to guess what to do. Reuses the generic hint modal
+  // (targetHintModal) local play's own Trainer-targeting flows already use
+  // -- same OK/backdrop dismissal, no new markup needed.
+  if (pub.phase === 'setup' && !pvpSetupHintShown) {
+    pvpSetupHintShown = true;
+    showTargetHintModal('Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
+  }
   // Only ever shown by startMatchBtn's own click handler above (confirmSetup)
   // while phase is still 'setup' -- once it's anything else (always
   // 'playing' by the time this runs), both sides have confirmed and the
@@ -5059,6 +5082,18 @@ function processPvpMatchSnapshot(data) {
     }
   }
   gameState = buildPvpGameState(data, pvpMySide);
+  // Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL
+  // RIVAL" banner every time control changes hands -- PVP only ever had
+  // the small header text. Only fires on a genuine change (not the first
+  // snapshot seen, and not on actions that don't change whose turn it is,
+  // e.g. attaching Energy) since pvpLastActivePlayerId starts null and is
+  // otherwise always the previous snapshot's real value.
+  if (pub.phase === 'playing' && gameState.activePlayerId &&
+      pvpLastActivePlayerId !== null && gameState.activePlayerId !== pvpLastActivePlayerId) {
+    showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
+      gameState.activePlayerId === 'player' ? 'mine' : 'rival');
+  }
+  pvpLastActivePlayerId = gameState.activePlayerId || pvpLastActivePlayerId;
   if (gameState.winner && !pvpMatchEnded) {
     pvpMatchEnded = true;
     finishMatch(gameState.winner);
@@ -5673,6 +5708,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var latest = pvpEndTurnLatestData;
     pvpEndTurnLatestData = null;
     if (latest) { processPvpMatchSnapshot(latest); }
+    // Real reported bug: dismissing this modal never told the server
+    // anything -- the Pokémon Checkup (poison/burn damage, etc.) had no
+    // trigger of its own in PVP at all, so a Poisoned Pokémon never
+    // actually lost HP at the end of the turn that poisoned it. Per user
+    // request, checkup should reveal only once the attacking player
+    // dismisses this exact modal (mirroring local play's own "Terminar
+    // Turno" click, which is what runs applyEndOfTurnCheckup there) --
+    // both buttons submit this, matching how they already do the same
+    // "catch up to what's real" thing above; there's no PVP equivalent of
+    // local play's "NO" (nothing to hold back once the attack already
+    // ended the turn server-side).
+    submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmEndTurn' })
+      .catch(function (err) { alert(err.message || 'No se pudo confirmar el fin de turno.'); });
   }
   var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
   if (endTurnConfirmYesBtn) {
