@@ -908,7 +908,12 @@ ATTACK_EFFECTS['Haunter'] = {
 
 ATTACK_EFFECTS['Gastly'] = {
   'Sleeping Gas': function (state, attacker, defender) {
-    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+    // Real reported bug: a 0-damage, status-only coin flip that comes up
+    // tails used to leave NOTHING visible at all -- no damage, no status,
+    // no MISS -- unlike Horn Hazard/Twineedle's own all-or-nothing coin
+    // flips (which already flag this). Same fix: attack()'s own generic
+    // handling (rules-engine.js) surfaces a MISS overlay off this flag.
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); } else { state.attackMissed = true; }
   },
   // Sets a revenge-KO flag consumed later by knockOutIfNeeded
   // (rules-engine.js), not anything resolved here -- Destiny Bond does no
@@ -1173,7 +1178,9 @@ ATTACK_EFFECTS['Charizard'] = {
 
 ATTACK_EFFECTS['Clefairy'] = {
   'Sing': function (state, attacker, defender) {
-    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+    // Same real reported bug as Gastly's Sleeping Gas above -- a 0-damage,
+    // status-only coin flip landing tails used to be completely silent.
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); } else { state.attackMissed = true; }
   },
   'Metronome': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     var chosenAttackName = targetInstanceId;
