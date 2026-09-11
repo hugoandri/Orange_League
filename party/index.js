@@ -649,11 +649,21 @@ export default class Server {
       default:
         throw new Error('Tipo de acción desconocido: ' + action.type);
     }
-    // Same turn-start-draw compensation as functions/index.js's
-    // submitMatchAction (its own comment, current lines ~1555-1596,
-    // explains the full turnCounter/activeBefore reasoning) -- ported
-    // verbatim.
-    if (this.state.turnCounter > 1 && this.state.activePlayerId !== activeBefore && this.state.activePlayerId !== 'player' && this.state.humanControlled[this.state.activePlayerId]) {
+    // Real reported bug (severe): the host stopped drawing cards at the
+    // start of their own turns partway through a match, while the guest
+    // kept drawing fine. Root cause: this compensation was "ported
+    // verbatim" from functions/index.js's now-deleted submitMatchAction,
+    // which excluded the 'player' engine slot from it -- that made sense
+    // in THAT architecture (every caller saw their OWN side as 'player',
+    // so each caller's own client handled its own draw separately) but not
+    // in this one, where redactMatchState's mapping is FIXED (the host is
+    // always engine slot 'player', the guest always 'cpu' -- see its own
+    // comment) and nothing else EVER draws for the host: ui.js's own
+    // client-side drawForTurnStart call is explicitly gated `!pvpMode`
+    // (startPlayerTurnWithDraw), and rules-engine.js's startMatch() only
+    // ever covers turn 1. The host drew turn 1 (via startMatch) and then
+    // never again from turn 3 onward -- exactly the reported symptom.
+    if (this.state.turnCounter > 1 && this.state.activePlayerId !== activeBefore && this.state.humanControlled[this.state.activePlayerId]) {
       drawForTurnStart(this.state, this.state.activePlayerId);
     }
   }
