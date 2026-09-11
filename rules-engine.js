@@ -1352,6 +1352,12 @@ function redactMatchState(state, side1Uid, side2Uid) {
     prizeSlots: { player1: p.prizes.map(function (card) { return !!card; }), player2: c.prizes.map(function (card) { return !!card; }) },
     deckCount: { player1: p.deck.length, player2: c.deck.length },
     handCount: { player1: p.hand.length, player2: c.hand.length },
+    // The *banked* (already-committed) time bank for each side, in ms --
+    // not the live-ticking value. party/index.js's redactedFor adds
+    // turnStartedAt alongside this (a Server-instance concern, not a
+    // rules-engine.js one) so the client can compute the actual live
+    // countdown for whichever side is currently active.
+    timeBank: { player1: p.timeBankMs, player2: c.timeBankMs },
     pendingPrizeChoice: state.pendingPrizeChoice
       ? { side: state.pendingPrizeChoice.playerId === 'player' ? 'player1' : 'player2', count: state.pendingPrizeChoice.count }
       : null,
@@ -1386,6 +1392,12 @@ if (typeof module !== 'undefined') {
     canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize,
     chooseNewActive, canAttack, attack, endTurn, drawForTurnStart,
     getWinner, redactMatchState, submitRpsChoice,
+    // party/index.js's Server class calls this directly at both real
+    // turn-handoff points ('endTurn' and 'confirmEndTurn') plus the
+    // top-of-runAction timeout check -- same function ui.js's own
+    // tickGameClock already calls as a bare global in the browser, just
+    // needed here too now that PVP commits real elapsed time server-side.
+    tickClock,
     // party/index.js calls this directly (not as a bare globalThis
     // identifier -- unlike the card-effects.js internals below, this one
     // has a real call site of its own): the plain 'endTurn' action runs it

@@ -20,6 +20,11 @@ const {
   createGame, startMatch: engineStartMatch, canPlayBasic, playBasic, canEvolve, evolve,
   canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize, chooseNewActive,
   canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice, applyEndOfTurnCheckup,
+  // Needed for this task's server-authoritative clock commits (the plain
+  // 'endTurn' case, the 'confirmEndTurn' case, and the top-of-runAction
+  // timeout check all call this directly) -- same function ui.js's own
+  // tickGameClock already calls as a bare global in the browser.
+  tickClock,
   // Real bug found while testing Task 2's playTrainer action: card-effects.js's
   // TRAINER_EFFECTS entries call these rules-engine.js internals (findInstance,
   // drawCard, logEvent, etc.) as bare global identifiers too -- same as
@@ -135,12 +140,27 @@ export default class Server {
   constructor(room) {
     this.room = room;
     this.info = null; // set in onStart, or lazily on first onConnect
+    // Ephemeral, like this.state.rng -- never persisted (persistState only
+    // ever writes this.state). Marks when the CURRENTLY ACTIVE side's
+    // clock last started ticking; null until the match's first turn
+    // actually begins (confirmSetup's engineStartMatch call, below).
+    this.turnStartedAt = null;
   }
 
   async onStart() {
     this.info = (await this.room.storage.get('info')) || null;
     const savedState = await this.room.storage.get('state');
-    if (savedState) { this.state = Object.assign({}, savedState, { rng: Math.random }); }
+    if (savedState) {
+      this.state = Object.assign({}, savedState, { rng: Math.random });
+      // Same reasoning as rng above -- turnStartedAt is ephemeral and was
+      // never persisted, so a Durable Object restart mid-turn would
+      // otherwise leave it null while phase is already 'playing'. Resetting
+      // it here (rather than trying to reconstruct exactly how long the
+      // active side had already used) means the sleep/restart itself never
+      // counts against either side's clock -- a deliberate, simple choice,
+      // same spirit as not trying to reconstruct rng's exact prior state.
+      if (this.state.phase === 'playing' && this.state.activePlayerId) { this.turnStartedAt = Date.now(); }
+    }
   }
 
   broadcastRoom() {
@@ -194,6 +214,7 @@ export default class Server {
         hostUsername: identity.username, hostPhoto: identity.photo,
         hostDeckId: deckId, hostDeckKey: identity.deckKey, hostDeckCoverName: identity.deckCoverName,
         hostCustomDeckCards: identity.customDeckCards,
+        hostTestTimeBankMs: identity.testTimeBankMs || null,
         hostCardBackId: identity.cardBackId, hostCollectionHolo: identity.collectionHolo, hostCollectionSecret: identity.collectionSecret,
         hostReady: false,
         guestUid: null, guestConnId: null, guestReady: false,
@@ -227,6 +248,7 @@ export default class Server {
     this.info.guestDeckKey = identity.deckKey;
     this.info.guestDeckCoverName = identity.deckCoverName;
     this.info.guestCustomDeckCards = identity.customDeckCards;
+    this.info.guestTestTimeBankMs = identity.testTimeBankMs || null;
     this.info.guestCardBackId = identity.cardBackId;
     this.info.guestCollectionHolo = identity.collectionHolo;
     this.info.guestCollectionSecret = identity.collectionSecret;
@@ -290,6 +312,14 @@ export default class Server {
     if (this.info.hostCustomDeckCards) { DECKLISTS[this.info.hostDeckKey] = this.info.hostCustomDeckCards; }
     if (this.info.guestCustomDeckCards) { DECKLISTS[this.info.guestDeckKey] = this.info.guestCustomDeckCards; }
     this.state = createGame(Math.random, this.info.hostDeckKey, { player: true, cpu: true }, this.info.guestDeckKey);
+    // Test-only override (never set by the real resolveIdentity Cloud
+    // Function): lets party/test/clock.test.js start a match with a tiny
+    // time bank instead of the real 10 minutes, the only way to test a
+    // real timeout without waiting 10 real minutes. Mirrors the existing
+    // customDeckCards override (startMatch, a few lines above this) --
+    // same mechanism, same reasoning.
+    if (this.info.hostTestTimeBankMs) { this.state.players.player.timeBankMs = this.info.hostTestTimeBankMs; }
+    if (this.info.guestTestTimeBankMs) { this.state.players.cpu.timeBankMs = this.info.guestTestTimeBankMs; }
     this.persistState();
   }
 
@@ -324,6 +354,7 @@ export default class Server {
     redacted.public.guestUsername = this.info.guestUsername || null;
     redacted.public.guestPhoto = this.info.guestPhoto || null;
     redacted.public.lastAttackResult = this.lastAttackResult || null;
+    redacted.public.turnStartedAt = this.turnStartedAt || null;
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
@@ -347,6 +378,25 @@ export default class Server {
   // instead of an HttpsError response.
   runAction(side, action) {
     const activeBefore = this.state.activePlayerId;
+    // Real-time timeout enforcement: checked before anything else, on
+    // WHATEVER real action arrives next (from either side) -- if the
+    // currently active side's banked time is already exhausted by real
+    // elapsed wall-clock time, commit that now via the same tickClock()
+    // every other turn-handoff already uses, so getWinner() (called
+    // inside redactMatchState, itself called by redactedFor) sees the
+    // real zeroed-out value. Broadcasts immediately, right here -- not
+    // left to whatever happens with the REST of this action (which might
+    // still throw for an unrelated reason further down, e.g. the
+    // turnEndPendingSide guard) -- a real timeout must never go unseen by
+    // either client just because the action that happened to trigger the
+    // check itself got rejected.
+    if (this.state.phase === 'playing' && activeBefore && this.turnStartedAt) {
+      const elapsed = Date.now() - this.turnStartedAt;
+      if (this.state.players[activeBefore].timeBankMs - elapsed <= 0) {
+        tickClock(this.state, activeBefore, elapsed);
+        this.broadcastMatch();
+      }
+    }
     // Real reported bug: an attack in PVP used to flip activePlayerId
     // immediately (deferring only the *visible* checkup reveal -- see
     // attack()'s own deferTurnEnd comment, rules-engine.js), which let the
@@ -360,7 +410,7 @@ export default class Server {
     // pending side except confirming, taking an owed prize, or choosing a
     // new Active (a self-KO, e.g. Confusion's self-hit or Selfdestruct,
     // can still need one before the player can confirm at all).
-    if (this.turnEndPendingSide === side && ['confirmEndTurn', 'takePrize', 'chooseActive'].indexOf(action.type) === -1) {
+    if (this.turnEndPendingSide === side && ['confirmEndTurn', 'takePrize', 'chooseActive', 'claimTimeout'].indexOf(action.type) === -1) {
       throw new Error('Debes confirmar el fin de tu turno primero.');
     }
     if (TURN_GATED_ACTIONS.indexOf(action.type) !== -1 && this.state.phase === 'playing' && activeBefore !== side) {
@@ -387,6 +437,7 @@ export default class Server {
         this.state.setupConfirmed[side] = true;
         if (this.state.setupConfirmed.player && this.state.setupConfirmed.cpu) {
           engineStartMatch(this.state, this.state.activePlayerId);
+          this.turnStartedAt = Date.now();
         }
         break;
       }
@@ -407,11 +458,16 @@ export default class Server {
       }
       case 'endTurn': {
         if (this.state.phase !== 'playing' || this.state.activePlayerId !== side) { throw new Error('No es tu turno.'); }
+        // Commit the real elapsed time for the side whose turn is
+        // genuinely ending, before anything else -- endTurn()/
+        // applyEndOfTurnCheckup() below don't touch timeBankMs at all.
+        tickClock(this.state, side, Date.now() - this.turnStartedAt);
         endTurn(this.state);
         // No attack was involved -- this click IS the explicit "I'm done"
         // moment (same one local play's own Terminar Turno button already
         // is), so checkup applies immediately, nothing to defer.
         applyEndOfTurnCheckup(this.state);
+        this.turnStartedAt = Date.now(); // the NEW active side's clock starts now
         break;
       }
       case 'takePrize': {
@@ -458,9 +514,25 @@ export default class Server {
         // never be treated as a real error.
         if (this.turnEndPendingSide === side) {
           this.turnEndPendingSide = null;
+          // Same commit as the plain 'endTurn' case above -- the attacking
+          // side was still "on the clock" for the whole confirmation
+          // window (real chess-clock rule: you're on the clock until your
+          // turn is genuinely, fully over).
+          tickClock(this.state, side, Date.now() - this.turnStartedAt);
           endTurn(this.state);
           applyEndOfTurnCheckup(this.state);
+          this.turnStartedAt = Date.now();
         }
+        break;
+      }
+      case 'claimTimeout': {
+        // No-op beyond the top-of-function check above, which already ran
+        // for this same action before reaching here -- this action exists
+        // purely so an idle client (both sides silent right as a clock
+        // hits 0) has a way to nudge the server into re-checking, since
+        // nothing else would trigger it on its own. Harmless whether or
+        // not time had actually run out (the check above already decided
+        // that either way).
         break;
       }
       case 'submitRpsChoice': {
