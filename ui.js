@@ -5006,10 +5006,22 @@ function enterPvpMatch(matchId) {
     // snapshot is current by the time the reveal finishes.
     function applyPvpSnapshotEffects(matchData) {
       var mpub = matchData.public;
-      // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
-      // prize choice of MINE is (or just was) open, so the check right
-      // below can tell "my own attack just finished awarding me a prize"
-      // apart from a plain attack that never opened one.
+      // Real reported bug: this modal used to only ever fire gated on
+      // pvpMyPrizeChoiceSeen having been set (i.e. only when my own attack
+      // actually knocked something out AND I'd already taken the prize) --
+      // a routine attack that didn't KO anything never set that flag, so
+      // this never fired at all, meaning confirmEndTurn never got sent and
+      // the deferred Pokémon Checkup (see rules-engine.js's attack()) never
+      // actually applied for the overwhelming majority of turns. Worse: the
+      // persistent "Terminar Turno" button can't help either once an attack
+      // already ended the turn server-side (plain 'endTurn' is turn-gated,
+      // see TURN_GATED_ACTIONS -- the server rejects it as "no es tu
+      // turno"), so there was literally no way to reach this moment for a
+      // non-KO attack. Now tracked only to pick the modal's copy (a real
+      // knockout still gets its own "¡NOQUEASTE...!" text), never to gate
+      // whether it shows at all -- it shows for every attack of mine that
+      // ended my turn, the instant any KO of mine is done being resolved
+      // (immediately if there wasn't one).
       if (mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide) {
         pvpMyPrizeChoiceSeen = true;
       }
@@ -5022,12 +5034,13 @@ function enterPvpMatch(matchId) {
       // on top of the win/loss modal processPvpMatchSnapshot just showed
       // -- taking the LAST prize of the match ends the duel, not just the
       // turn.
-      if (!mpub.winner && pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !mpub.pendingPrizeChoice &&
+      if (!mpub.winner && pvpAttackEndedMyTurn && !mpub.pendingPrizeChoice &&
           mpub.activePlayerId !== pvpMySide && mpub.pendingActiveChoice !== pvpMySide) {
+        var hadKnockout = pvpMyPrizeChoiceSeen;
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
         pvpEndTurnConfirmPending = true;
-        renderEndTurnConfirm();
+        renderEndTurnConfirm(hadKnockout);
       }
     }
 
@@ -5083,13 +5096,17 @@ function processPvpMatchSnapshot(data) {
   }
   gameState = buildPvpGameState(data, pvpMySide);
   // Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL
-  // RIVAL" banner every time control changes hands -- PVP only ever had
-  // the small header text. Only fires on a genuine change (not the first
-  // snapshot seen, and not on actions that don't change whose turn it is,
-  // e.g. attaching Energy) since pvpLastActivePlayerId starts null and is
-  // otherwise always the previous snapshot's real value.
+  // RIVAL" banner every time control changes hands, including right when
+  // the very first turn of the match starts -- PVP only ever had the small
+  // header text, and even that first fix here wrongly skipped the very
+  // first flash (pvpLastActivePlayerId starts null specifically so this
+  // comparison is already true the first time; no extra "not null" guard
+  // needed or wanted). Never fires twice for the same turn since
+  // pvpLastActivePlayerId is updated to match right after (so a re-render
+  // for an action that doesn't change whose turn it is, e.g. attaching
+  // Energy, correctly doesn't re-flash).
   if (pub.phase === 'playing' && gameState.activePlayerId &&
-      pvpLastActivePlayerId !== null && gameState.activePlayerId !== pvpLastActivePlayerId) {
+      gameState.activePlayerId !== pvpLastActivePlayerId) {
     showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
       gameState.activePlayerId === 'player' ? 'mine' : 'rival');
   }
@@ -5109,9 +5126,26 @@ function processPvpMatchSnapshot(data) {
 // anything about the match itself. It just stops the board from silently
 // handing over to the rival's turn, with nothing marking the moment, right
 // as the player is still looking at what they just knocked out.
-function renderEndTurnConfirm() {
+// hadKnockout (default true, matching local play's own 2 call sites which
+// are BOTH already KO-specific): PVP's own call site (below) passes this
+// explicitly, since -- unlike local play -- PVP shows this same modal for
+// EVERY attack that ends the player's turn, not just ones that knocked
+// something out (see applyPvpSnapshotEffects's own comment on why the
+// modal used to only ever fire for the KO case, leaving a routine attack
+// with no real "your turn ended" moment at all in PVP).
+function renderEndTurnConfirm(hadKnockout) {
   var modal = document.getElementById('endTurnConfirmModal');
-  if (modal) { modal.classList.remove('hidden'); }
+  if (!modal) { return; }
+  var titleEl = modal.querySelector('.shell-modal-title');
+  var textEl = modal.querySelector('.shell-modal-text');
+  if (hadKnockout === false) {
+    if (titleEl) { titleEl.textContent = 'TU ATAQUE TERMINÓ TU TURNO'; }
+    if (textEl) { textEl.textContent = '¿Quieres pasarle el turno a tu rival?'; }
+  } else {
+    if (titleEl) { titleEl.textContent = '¡NOQUEASTE UN POKÉMON RIVAL!'; }
+    if (textEl) { textEl.textContent = 'Ya tomaste tu premio y tu turno ha terminado. ¿Quieres pasarle el turno a tu rival?'; }
+  }
+  modal.classList.remove('hidden');
 }
 
 var RPS_EMOJI = { rock: '✊', paper: '✋', scissors: '✌️' };
