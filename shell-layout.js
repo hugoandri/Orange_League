@@ -107,13 +107,27 @@ var PIXEL_DIGIT_GLYPHS = {
   'S': ['.1111.', '11..11', '11....', '11....', '.1111.', '....11', '....11', '11..11', '.1111.'],
   'T': ['111111', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..', '..11..'],
   'U': ['11..11', '11..11', '11..11', '11..11', '11..11', '11..11', '11..11', '11..11', '.1111.'],
-  'V': ['11..11', '11..11', '11..11', '11..11', '11..11', '.1111.', '.1111.', '..11..', '..11..'],
+  // Real reported bug: V used to share U's exact top half (5 identical
+  // parallel-side rows) and only diverged in the last ~40% of the glyph,
+  // making them read as the same letter at small sizes (e.g. a room
+  // code). This one starts converging much earlier -- a real wedge shape
+  // for most of the glyph's height -- instead of mostly looking like U
+  // with a slightly pointier bottom.
+  'V': ['11..11', '11..11', '.1..1.', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '..11..'],
   // Real reported bug: the old W glyph was just H's side-bar shape with the
   // crossbar moved down and thickened -- basically the same silhouette,
   // easy to mix up at small sizes (e.g. a room code). This one drops the
   // crossbar entirely for two inner diagonal legs converging toward the
   // bottom center, an actual "W" zigzag instead of an "H" variant.
-  'W': ['1....1', '1....1', '1....1', '1....1', '1.1.1.', '.1.1.1', '.1.1.1', '..1.1.', '..1.1.'],
+  // Real reported bug: the previous zigzag redesign (this glyph's own
+  // second attempt this session) looked disjointed -- two thin diagonal
+  // strokes drifting apart without ever visually connecting into one
+  // shape. This one keeps the outer legs solid top-to-bottom and adds a
+  // thick inner peak that visibly merges with them for 3 rows in the
+  // middle (same "let strokes merge into a solid block instead of thin
+  // diagonals" technique the existing M glyph already uses), reading as
+  // one continuous W silhouette instead of two disconnected pieces.
+  'W': ['11..11', '11..11', '11..11', '1.11.1', '1.11.1', '1.11.1', '.1..1.', '.1..1.', '.1..1.'],
   'X': ['1....1', '.1..1.', '.1..1.', '..11..', '..11..', '..11..', '.1..1.', '.1..1.', '1....1'],
   'Y': ['11..11', '11..11', '11..11', '.1111.', '..11..', '..11..', '..11..', '..11..', '..11..'],
   'Z': ['111111', '....11', '...11.', '..11..', '.11...', '11....', '11....', '11....', '111111'],
