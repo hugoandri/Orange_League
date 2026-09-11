@@ -5033,9 +5033,15 @@ function enterPvpMatch(matchId) {
       // everything else does. !mpub.winner guards against stacking this
       // on top of the win/loss modal processPvpMatchSnapshot just showed
       // -- taking the LAST prize of the match ends the duel, not just the
-      // turn.
-      if (!mpub.winner && pvpAttackEndedMyTurn && !mpub.pendingPrizeChoice &&
-          mpub.activePlayerId !== pvpMySide && mpub.pendingActiveChoice !== pvpMySide) {
+      // turn. Real reported bug: this used to also require
+      // mpub.activePlayerId !== pvpMySide (the turn having ALREADY passed)
+      // -- but the server (party/index.js) no longer flips activePlayerId
+      // at all until confirmEndTurn actually runs, specifically so the
+      // rival can't act early; requiring it here was checking for
+      // something that can now never become true, so this modal would
+      // never have fired again. activePlayerId staying mine IS the
+      // expected state at this exact moment now.
+      if (!mpub.winner && pvpAttackEndedMyTurn && !mpub.pendingPrizeChoice && mpub.pendingActiveChoice !== pvpMySide) {
         var hadKnockout = pvpMyPrizeChoiceSeen;
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
@@ -5076,7 +5082,9 @@ function processPvpMatchSnapshot(data) {
   // -- same OK/backdrop dismissal, no new markup needed.
   if (pub.phase === 'setup' && !pvpSetupHintShown) {
     pvpSetupHintShown = true;
-    showTargetHintModal('Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
+    // Real reported bug: "y si quieres, tu Banca" read as optional/vague --
+    // per user request, spelled out as 3 concrete steps instead.
+    showTargetHintModal('Baja tus Pokémon Básicos: elige uno como tu Activo y el resto en la Banca (máx. 5).');
   }
   // Only ever shown by startMatchBtn's own click handler above (confirmSetup)
   // while phase is still 'setup' -- once it's anything else (always
