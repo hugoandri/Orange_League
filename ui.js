@@ -4795,8 +4795,18 @@ function tickPvpClocks() {
   var rivalMs = pvpMySide === 'player1' ? guestMs : hostMs;
   var myEl = document.getElementById('pvpClock-player');
   var rivalEl = document.getElementById('pvpClock-cpu');
-  if (myEl) { renderClockDisplay(myEl, myMs, pvpLatestPub.activePlayerId !== pvpMySide); }
-  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, pvpLatestPub.activePlayerId === pvpMySide); }
+  // Real reported bug: renderClockDisplay's isCpu param was originally
+  // meant for local play's single CPU-vs-player clock ("whose time is
+  // this" -> red for the CPU, gold for the player) -- passing it based on
+  // "is this side active right now" here meant a viewer's OWN clock turned
+  // red the instant it wasn't their turn (frozen, still plenty of time
+  // left), while their rival's turned red on the viewer's own turn --
+  // losing the real "you're running low" warning entirely. Per user
+  // request, PVP never passes isCpu at all: both clocks stay gold, turning
+  // red only via renderClockDisplay's own internal `low` threshold
+  // (<=30s), regardless of whose turn it is.
+  if (myEl) { renderClockDisplay(myEl, myMs, false); }
+  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, false); }
 
   var activeMs = pvpLatestPub.activePlayerId === 'player1' ? hostMs : guestMs;
   if (activeMs <= 0 && pvpClaimedTimeoutFor !== pvpLatestPub.turnStartedAt) {
