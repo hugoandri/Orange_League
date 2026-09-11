@@ -1433,8 +1433,15 @@ function renderPrizeChoiceModal() {
     btn.addEventListener('click', function () {
       var index = parseInt(btn.getAttribute('data-prize-index'), 10);
       if (pvpMode) {
+        // Real reported bug: taking a prize in PVP never showed the "here's
+        // the card you won" zoom local play already has (see this
+        // function's local branch below). Prizes are secret server-side
+        // until taken -- snapshot my own hand's card ids right now, before
+        // submitting; applyPvpSnapshotEffects diffs the next snapshot's
+        // myHand against this list to find the card that just arrived.
+        pvpPrizeRevealPending = gameState.players.player.hand.map(function (c) { return c.id; });
         submitMatchActionCloud(pvpActiveMatchId, { type: 'takePrize', prizeIndex: index })
-          .catch(function (err) { alert(err.message || 'No se pudo tomar el premio.'); });
+          .catch(function (err) { pvpPrizeRevealPending = null; alert(err.message || 'No se pudo tomar el premio.'); });
         return;
       }
       var wonCard = gameState.players.player.prizes[index];
@@ -4888,6 +4895,14 @@ var pvpEndTurnConfirmPending = false;
 // attack of mine is already pending confirmation) instead of its normal
 // plain 'endTurn'.
 var pvpTurnConfirmOwed = false;
+// Real reported bug: taking a prize in PVP never showed the "here's the
+// card you won" zoom modal local play already has (renderPrizeChoiceModal's
+// own local branch, openCardModal). Prizes stay secret until taken, so the
+// only way to know which card just arrived is diffing my own hand -- set
+// to my hand's card ids right before submitting 'takePrize'; the first
+// card in a later snapshot's myHand that ISN'T in this list is the one I
+// just won (see applyPvpSnapshotEffects). null the rest of the time.
+var pvpPrizeRevealPending = null;
 var pvpEndTurnLatestData = null;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
@@ -4921,6 +4936,7 @@ function resetPvpMatchState() {
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
   pvpTurnConfirmOwed = false;
+  pvpPrizeRevealPending = null;
   pvpEndTurnLatestData = null;
   // Also called at the start of a fresh LOCAL match (startNewMatch) -- reset
   // the local end-turn-confirm flags here too so a match ending mid-KO
@@ -5037,6 +5053,7 @@ function enterPvpMatch(matchId) {
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
   pvpTurnConfirmOwed = false;
+  pvpPrizeRevealPending = null;
   pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   // Real reported bug (first pass): starting duel music here, the moment
@@ -5129,6 +5146,27 @@ function enterPvpMatch(matchId) {
         pvpMyPrizeChoiceSeen = true;
       }
       processPvpMatchSnapshot(matchData);
+      // Real reported bug: taking a prize in PVP never zoomed the card just
+      // won, unlike local play (renderPrizeChoiceModal's own local branch).
+      // pvpPrizeRevealPending holds the hand's card ids from right before
+      // 'takePrize' was submitted -- the first card in THIS snapshot's
+      // myHand that wasn't in that list is the one that just arrived.
+      // Mirrors the local branch's onCardModalClose idiom: defer everything
+      // below (including the end-turn-confirm tail) until the player
+      // dismisses the zoom, then re-run this same function on the latest
+      // cached snapshot -- pvpPrizeRevealPending is null by then, so this
+      // block is skipped and the tail logic below runs normally.
+      if (pvpPrizeRevealPending) {
+        var pendingHandIds = pvpPrizeRevealPending;
+        var wonPrizeCard = matchData.myHand.filter(function (c) { return pendingHandIds.indexOf(c.id) === -1; })[0];
+        if (wonPrizeCard) {
+          pvpPrizeRevealPending = null;
+          var wonPrizeFoil = getPlayerCardFoilTier(wonPrizeCard.name) || (isHoloInMatch('player', wonPrizeCard.name) ? 'holo' : null);
+          openCardModal(wonPrizeCard.name, null, wonPrizeFoil);
+          onCardModalClose = function () { applyPvpSnapshotEffects(pvpRpsLatestMatchData); };
+          return;
+        }
+      }
       // pendingActiveChoice !== pvpMySide guards against stacking this on
       // top of my OWN still-open "choose new Active" modal -- a
       // simultaneous KO (my own Active also fell, e.g. to a checkup)
@@ -5233,7 +5271,14 @@ function processPvpMatchSnapshot(data) {
   // pvpLastActivePlayerId stays null through 'rps'/'setup' and the first
   // real turn always reads as a genuine change.
   if (pub.phase === 'playing' && gameState.activePlayerId) {
-    if (gameState.activePlayerId !== pvpLastActivePlayerId) {
+    // Real reported bug: a match-ending checkup KO (e.g. poison finishing
+    // off the last Pokémon at turn handoff) can flip activePlayerId in the
+    // SAME snapshot that also sets gameState.winner -- this flash used to
+    // fire unconditionally, overlapping its own 1.25s-long overlay
+    // ("TURNO DE TU RIVAL") on top of finishMatch's "Has Ganado" modal
+    // below. The duel is already over, so there's no real "turn" left to
+    // announce.
+    if (gameState.activePlayerId !== pvpLastActivePlayerId && !gameState.winner) {
       showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
         gameState.activePlayerId === 'player' ? 'mine' : 'rival');
     }
