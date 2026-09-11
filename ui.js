@@ -2185,6 +2185,14 @@ function finishMatch(winner) {
   gameState.pendingPrizeChoice = null;
   gameState.pendingActiveChoice = null;
   stopGameClock();
+  // PVP counterpart to stopGameClock() above -- rules-engine.js never moves
+  // phase away from 'playing' once a winner is decided, so tickPvpClocks's
+  // own phase guard can't stop it on its own; left running, it would keep
+  // re-rendering both PVP clocks (and could fire a spurious claimTimeout)
+  // against a now-frozen turnStartedAt until the player leaves via
+  // Revancha/Cancelar. Only ever non-null during a PVP match, so this is a
+  // no-op for local play, same as stopGameClock() is today.
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
   playMatchEndMusic(winner);
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
