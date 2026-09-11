@@ -19,7 +19,7 @@ globalThis.POKEMON_POWER_EFFECTS = POKEMON_POWER_EFFECTS;
 const {
   createGame, startMatch: engineStartMatch, canPlayBasic, playBasic, canEvolve, evolve,
   canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize, chooseNewActive,
-  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice,
+  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice, applyEndOfTurnCheckup,
   // Real bug found while testing Task 2's playTrainer action: card-effects.js's
   // TRAINER_EFFECTS entries call these rules-engine.js internals (findInstance,
   // drawCard, logEvent, etc.) as bare global identifiers too -- same as
@@ -392,6 +392,10 @@ export default class Server {
       case 'endTurn': {
         if (this.state.phase !== 'playing' || this.state.activePlayerId !== side) { throw new Error('No es tu turno.'); }
         endTurn(this.state);
+        // No attack was involved -- this click IS the explicit "I'm done"
+        // moment (same one local play's own Terminar Turno button already
+        // is), so checkup applies immediately, nothing to defer.
+        applyEndOfTurnCheckup(this.state);
         break;
       }
       case 'takePrize': {
@@ -403,12 +407,39 @@ export default class Server {
       }
       case 'attack': {
         if (!canAttack(this.state, side, action.attackName)) { throw new Error('No puedes usar ese ataque ahora.'); }
-        attack(this.state, side, action.attackName, action.targetInstanceId);
+        // deferCheckup=true always, regardless of side -- see attack()'s
+        // own comment (rules-engine.js) on why its playerId==='cpu'
+        // auto-checkup rule can't be trusted in PVP (that name means "the
+        // guest slot" here, not "a bot"). Checkup instead runs later, once
+        // the attacking player confirms via 'confirmEndTurn' below.
+        attack(this.state, side, action.attackName, action.targetInstanceId, true);
         this.attackRound = (this.attackRound || 0) + 1;
         this.lastAttackResult = this.state.lastAttackResult
           ? Object.assign({}, this.state.lastAttackResult, { round: this.attackRound })
           : null;
         this.state.lastAttackResult = null; // never let a stale result leak into a later attack's own check
+        // Set every time an attack ends a turn, regardless of side -- see
+        // 'confirmEndTurn' below. Not reset to false there on purpose: if a
+        // second attack (checkup-caused KO -> new Active -> somehow attacks
+        // again next turn) sets it again first, that's still a real pending
+        // checkup and confirmEndTurn should still honor it.
+        this.checkupPending = true;
+        break;
+      }
+      case 'confirmEndTurn': {
+        // Idempotency guard: applyEndOfTurnCheckup mutates state every time
+        // it runs (poison/burn damage, coin flips for waking/curing) -- it
+        // is NOT safe to call twice for the same pending turn-end (a stray
+        // double-click, a retried request). Silently a no-op when nothing
+        // is actually pending, rather than throwing -- the client's own
+        // "SÍ"/"NO" buttons both send this exact action (see ui.js's
+        // applyPvpEndTurnConfirmDismiss), and either one arriving twice, or
+        // arriving with nothing pending (e.g. a stale reconnect), should
+        // never be treated as a real error.
+        if (this.checkupPending) {
+          this.checkupPending = false;
+          applyEndOfTurnCheckup(this.state);
+        }
         break;
       }
       case 'submitRpsChoice': {

@@ -971,7 +971,7 @@ function usePokemonPower(state, playerId, ownerInstanceId, params) {
 // one real Base Set attack that (like a Trainer) needs the player to
 // choose a specific opposing Bench Pokémon -- every other attack always
 // just hits the opponent's current Active, no target needed.
-function attack(state, playerId, attackName, targetInstanceId) {
+function attack(state, playerId, attackName, targetInstanceId, deferCheckup) {
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -998,9 +998,20 @@ function attack(state, playerId, attackName, targetInstanceId) {
   // the click) -- otherwise the player would see status damage resolve on
   // either side the instant they attacked, before they'd done anything to
   // actually hand the turn over.
+  //
+  // deferCheckup (optional, 5th arg): PVP-only escape hatch from the
+  // playerId==='cpu' rule above. In PVP, 'cpu' is just the internal name
+  // for "the guest slot" (see redactMatchState/broadcastMatch) -- a real
+  // human, never a bot -- so the CPU-only auto-checkup branch would fire
+  // for whichever side happens to be the guest, purely by accident of slot
+  // naming, with no equivalent deferral for the host. party/index.js always
+  // passes true here regardless of side, and runs the checkup itself later
+  // once the attacking player explicitly confirms (see its own
+  // 'confirmEndTurn' action) -- matching this exact same "defer until an
+  // explicit click" rule symmetrically for both PVP sides.
   function endThisTurn() {
     endTurn(state);
-    if (playerId === 'cpu') { applyEndOfTurnCheckup(state); }
+    if (playerId === 'cpu' && !deferCheckup) { applyEndOfTurnCheckup(state); }
   }
 
   logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName), playerId);
@@ -1362,6 +1373,15 @@ if (typeof module !== 'undefined') {
     canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize,
     chooseNewActive, canAttack, attack, endTurn, drawForTurnStart,
     getWinner, redactMatchState, submitRpsChoice,
+    // party/index.js calls this directly (not as a bare globalThis
+    // identifier -- unlike the card-effects.js internals below, this one
+    // has a real call site of its own): the plain 'endTurn' action runs it
+    // immediately (no attack involved, nothing to defer), and the new
+    // 'confirmEndTurn' action runs it once the attacking player dismisses
+    // the end-of-turn reveal modal (see attack()'s own deferCheckup
+    // comment for why PVP can't just rely on endThisTurn()'s existing
+    // playerId==='cpu' auto-checkup).
+    applyEndOfTurnCheckup,
     // Not consumed directly by party/index.js's own code -- these are the
     // internal helpers card-effects.js's TRAINER_EFFECTS entries call as
     // bare identifiers (same pattern CARD_STATS/etc. already rely on, see

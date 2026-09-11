@@ -159,6 +159,38 @@ async function testWeedlePoisonSting() {
   assert.strictEqual(guestAfterAttack.public.lastAttackResult.attackerName, hostAfterAttack.public.lastAttackResult.attackerName);
   console.log('PASS: both sides receive the same lastAttackResult reveal data');
 
+  // Real reported bug: the Pokémon Checkup (poison/burn damage) never had
+  // any trigger of its own in PVP -- neither the plain 'endTurn' action nor
+  // attack()'s own internal auto-checkup (gated on playerId==='cpu', which
+  // in PVP just means "the guest slot", not a bot) ever ran it
+  // consistently. Fixed by deferring it (attack's new 5th arg,
+  // deferCheckup) until the attacking player explicitly sends
+  // 'confirmEndTurn' -- mirroring local play's own "checkup applies at the
+  // Terminar Turno click" rule. If the coin flip actually poisoned the
+  // defender, damage must NOT have increased yet (still exactly what the
+  // attack itself dealt) -- confirmEndTurn is what applies it.
+  const poisoned = hostAfterAttack.public.lastAttackResult.newStatuses.indexOf('Poisoned') !== -1;
+  const beforeConfirmDamage = guestAfterAttack.public.board.player2.active.damage;
+  sendAction(host, { type: 'confirmEndTurn' });
+  const afterConfirm = await nextOfType(hostNext, 'match');
+  const afterConfirmDefender = afterConfirm.public.board.player2.active;
+  if (poisoned) {
+    assert.strictEqual(afterConfirmDefender.damage - beforeConfirmDamage, afterConfirmDefender.severePoison ? 20 : 10,
+      'expected confirmEndTurn to apply the deferred Poison checkup damage');
+    console.log('PASS: confirmEndTurn applies the deferred Poison checkup damage');
+  } else {
+    assert.strictEqual(afterConfirmDefender.damage, beforeConfirmDamage, 'expected no checkup damage when the coin flip missed');
+    console.log('PASS: confirmEndTurn is a clean no-op when nothing was actually poisoned');
+  }
+
+  // Idempotency guard: a second confirmEndTurn (nothing pending anymore)
+  // must never double-apply checkup damage again.
+  sendAction(host, { type: 'confirmEndTurn' });
+  const afterSecondConfirm = await nextOfType(hostNext, 'match');
+  assert.strictEqual(afterSecondConfirm.public.board.player2.active.damage, afterConfirmDefender.damage,
+    'expected a second confirmEndTurn with nothing pending to be a safe no-op, not double-applied checkup damage');
+  console.log('PASS: a second confirmEndTurn with nothing pending is a safe no-op (no double-applied checkup damage)');
+
   host.close(); guest.close();
 }
 
@@ -234,7 +266,6 @@ async function testNinetalesLure() {
     let guestAfterBench = await nextOfType(guestNext, 'match');
     while (!guestAfterBench.public.board.player2.bench[0]) { guestAfterBench = await nextOfType(guestNext, 'match'); }
     const benchInstanceId = guestAfterBench.public.board.player2.bench[0].id;
-    const guestActiveNameBefore = guestAfterBench.public.board.player2.active.name;
 
     sendAction(guest, { type: 'endTurn' });
     let hostTurn3 = await nextOfType(hostNext, 'match');
@@ -259,7 +290,15 @@ async function testNinetalesLure() {
     // correctly stays null here. The real, meaningful assertion for Lure is
     // that the swap itself actually happened.
     assert.strictEqual(hostAfterLure.public.lastAttackResult, null);
-    assert.notStrictEqual(hostAfterLure.public.board.player2.active.name, guestActiveNameBefore);
+    // Test bug found while re-running this file repeatedly: comparing
+    // .name (not instance id) is unsound here the same way match.test.js's
+    // own comment already warns about -- lure-guest-token's deck is half
+    // Magikarp/half Rattata, so the pre-swap Active and the Bench Pokémon
+    // chosen for Lure can share the same species name by chance, making a
+    // real, successful swap look like "nothing changed" to a name-only
+    // check. benchInstanceId (the real instance that was on the Bench) is
+    // the sound way to confirm the swap actually happened.
+    assert.strictEqual(hostAfterLure.public.board.player2.active.id, benchInstanceId);
     console.log('PASS: Ninetales\' Lure with a real chosen target actually swaps in the named Bench Pokémon');
 
     host.close(); guest.close();
