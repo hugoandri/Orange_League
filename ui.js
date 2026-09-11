@@ -2597,15 +2597,17 @@ function wireBoardButtons() {
       // landed the same instant the button was disabled).
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       if (pvpMode) {
-        // See runCpuTurn's own comment (the same fix, local-mode side) --
-        // reaching this action at all means MY attack didn't already end my
-        // turn (the server rejects 'endTurn' once it's not my turn anymore,
-        // see TURN_GATED_ACTIONS), so pvpAttackEndedMyTurn can only be stale
-        // here, armed by some EARLIER attack that never led to a KO+prize.
-        // Clear it before the checkup this endTurn triggers server-side can
-        // award an unrelated prize of its own (a poisoned/burned Active
-        // dying right at the turn boundary) and wrongly read as "my own
-        // attack just ended my turn".
+        // Real reported bug: clicking "NO, MIRAR EL CAMPO" on the confirm
+        // modal used to still hand the turn to the rival -- fixed (see
+        // sendPvpConfirmEndTurn's own comment) so "NO" now genuinely leaves
+        // the turn open, tracked by pvpTurnConfirmOwed. This button is the
+        // ONLY other way to actually confirm afterward -- a plain 'endTurn'
+        // would be rejected server-side once an attack of mine is already
+        // pending confirmation (see party/index.js's runAction guard), so
+        // this sends the real confirmation instead in that case.
+        if (pvpTurnConfirmOwed) { sendPvpConfirmEndTurn(); return; }
+        // Normal case: no attack happened this turn, this really is a
+        // plain voluntary end-of-turn.
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
         submitMatchActionCloud(pvpActiveMatchId, { type: 'endTurn' }).catch(function (err) { alert(err.message || 'No puedes terminar tu turno ahora.'); });
@@ -4784,17 +4786,27 @@ var pvpMyPrizeChoiceSeen = false;
 var localAttackEndedMyTurn = false;
 var localMyPrizeChoiceSeen = false;
 // True while the confirm modal is up in PVP -- the board already reflects
-// the finished KO/prize by the time it shows (rendered once, right before),
-// but the RIVAL isn't waiting on this player's click at all (their own
-// client already sees it's their turn) -- so further snapshots (their real
-// moves) are buffered in pvpEndTurnLatestData instead of silently
-// overwriting the board out from under this modal, and only actually
-// applied once the player dismisses it (either button -- see the two
-// handlers, DOMContentLoaded). Without this gate, both buttons "did
-// nothing" from the player's perspective: the board had already fully
-// updated before the modal even appeared, so dismissing it changed nothing
-// visible.
+// the attack's own result (damage/status/KO) by the time it shows
+// (rendered once, right before). The RIVAL genuinely IS waiting on this
+// player's own confirmation now (party/index.js keeps activePlayerId
+// exactly as it was until 'confirmEndTurn' actually runs), so no real
+// moves of theirs can arrive during this window at all -- but a
+// reconnect's own resend of the current snapshot still could, so this
+// still buffers into pvpEndTurnLatestData instead of applying it out from
+// under the modal, applied once the player dismisses it either way (see
+// the two handlers, DOMContentLoaded).
 var pvpEndTurnConfirmPending = false;
+// True from the moment this modal is first shown until the player has
+// actually sent 'confirmEndTurn' to the server -- "SÍ" sends it right
+// away and clears this; "NO, MIRAR EL CAMPO" only hides the modal,
+// deliberately leaving this true (nothing was confirmed, real rules: my
+// turn hasn't ended yet). The persistent "Terminar Turno" board button
+// checks this: while true, clicking it sends 'confirmEndTurn' (the only
+// thing the server will actually accept from me right now -- see
+// party/index.js's runAction, which rejects a plain 'endTurn' once an
+// attack of mine is already pending confirmation) instead of its normal
+// plain 'endTurn'.
+var pvpTurnConfirmOwed = false;
 var pvpEndTurnLatestData = null;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
@@ -4824,6 +4836,7 @@ function resetPvpMatchState() {
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
+  pvpTurnConfirmOwed = false;
   pvpEndTurnLatestData = null;
   // Also called at the start of a fresh LOCAL match (startNewMatch) -- reset
   // the local end-turn-confirm flags here too so a match ending mid-KO
@@ -4939,6 +4952,7 @@ function enterPvpMatch(matchId) {
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
+  pvpTurnConfirmOwed = false;
   pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
   // Real reported bug (first pass): starting duel music here, the moment
@@ -5046,6 +5060,7 @@ function enterPvpMatch(matchId) {
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
         pvpEndTurnConfirmPending = true;
+        pvpTurnConfirmOwed = true;
         renderEndTurnConfirm(hadKnockout);
       }
     }
@@ -5106,19 +5121,22 @@ function processPvpMatchSnapshot(data) {
   // Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL
   // RIVAL" banner every time control changes hands, including right when
   // the very first turn of the match starts -- PVP only ever had the small
-  // header text, and even that first fix here wrongly skipped the very
-  // first flash (pvpLastActivePlayerId starts null specifically so this
-  // comparison is already true the first time; no extra "not null" guard
-  // needed or wanted). Never fires twice for the same turn since
-  // pvpLastActivePlayerId is updated to match right after (so a re-render
-  // for an action that doesn't change whose turn it is, e.g. attaching
-  // Energy, correctly doesn't re-flash).
-  if (pub.phase === 'playing' && gameState.activePlayerId &&
-      gameState.activePlayerId !== pvpLastActivePlayerId) {
-    showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
-      gameState.activePlayerId === 'player' ? 'mine' : 'rival');
+  // header text. A first fix here still missed the very first flash: RPS's
+  // own winner is already recorded as activePlayerId during 'setup' (well
+  // before 'playing' starts, see engineStartMatch/rules-engine.js), so
+  // pvpLastActivePlayerId got contaminated with that same value while
+  // still in 'setup' -- by the time 'playing' actually began, nothing
+  // looked "changed" anymore. Both the comparison AND the update below now
+  // only ever run while phase is genuinely 'playing', so
+  // pvpLastActivePlayerId stays null through 'rps'/'setup' and the first
+  // real turn always reads as a genuine change.
+  if (pub.phase === 'playing' && gameState.activePlayerId) {
+    if (gameState.activePlayerId !== pvpLastActivePlayerId) {
+      showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
+        gameState.activePlayerId === 'player' ? 'mine' : 'rival');
+    }
+    pvpLastActivePlayerId = gameState.activePlayerId;
   }
-  pvpLastActivePlayerId = gameState.activePlayerId || pvpLastActivePlayerId;
   if (gameState.winner && !pvpMatchEnded) {
     pvpMatchEnded = true;
     finishMatch(gameState.winner);
@@ -5730,45 +5748,41 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // PVP: the turn already ended server-side by the time this modal can even
-  // show, and the RIVAL never waited on this player's click at all -- their
-  // real moves keep arriving as snapshots the whole time this is up
-  // (buffered in pvpEndTurnLatestData, see enterPvpMatch's own comment), so
-  // both buttons do the same thing here: catch the board up to whatever's
-  // actually true right now. There's no real "hold it back longer" option
-  // once dismissed -- the live game doesn't pause for one side looking.
-  //
-  // Local vs CPU: the CPU genuinely hasn't moved at all yet (same as if the
-  // player had simply left "Terminar Turno" unclicked) -- "SÍ" directly
-  // mirrors that button's own logic (inlined, not a synthetic .click(), so
-  // there's no dependency on that exact button still existing/being enabled
-  // in the DOM at this instant) to actually hand the turn to the CPU now;
-  // "NO" changes nothing, leaving "Terminar Turno" there for whenever the
-  // player's ready.
-  function applyPvpEndTurnConfirmDismiss() {
+  // PVP: just hides the modal and catches the board up to whatever's
+  // arrived since (buffered in pvpEndTurnLatestData while it was up, see
+  // enterPvpMatch's own comment) -- shared by both buttons. Does NOT send
+  // anything to the server by itself: confirmEndTurn (the real "yes, my
+  // turn is over now") is a separate, explicit step -- see
+  // sendPvpConfirmEndTurn below, called only by "SÍ".
+  function dismissPvpEndTurnConfirmModal() {
     pvpEndTurnConfirmPending = false;
     var latest = pvpEndTurnLatestData;
     pvpEndTurnLatestData = null;
     if (latest) { processPvpMatchSnapshot(latest); }
-    // Real reported bug: dismissing this modal never told the server
-    // anything -- the Pokémon Checkup (poison/burn damage, etc.) had no
-    // trigger of its own in PVP at all, so a Poisoned Pokémon never
-    // actually lost HP at the end of the turn that poisoned it. Per user
-    // request, checkup should reveal only once the attacking player
-    // dismisses this exact modal (mirroring local play's own "Terminar
-    // Turno" click, which is what runs applyEndOfTurnCheckup there) --
-    // both buttons submit this, matching how they already do the same
-    // "catch up to what's real" thing above; there's no PVP equivalent of
-    // local play's "NO" (nothing to hold back once the attack already
-    // ended the turn server-side).
+  }
+  // Real reported bug: this used to fire unconditionally on EITHER button
+  // (the modal used to be purely cosmetic -- the turn had already passed
+  // server-side by the time it could even show, so there was nothing left
+  // to actually confirm). Now that the server genuinely holds the turn
+  // open until this fires (party/index.js's 'confirmEndTurn', see
+  // rules-engine.js's attack()/deferTurnEnd), sending it from "NO, MIRAR
+  // EL CAMPO" was a second real reported bug on its own: clicking "No" —
+  // meaning "don't end my turn yet, let me look" — still handed the turn
+  // to the rival. Only "SÍ, TERMINAR TURNO" calls this now; pvpTurnConfirmOwed
+  // (see its own declaration) stays true after "NO" specifically so the
+  // persistent "Terminar Turno" board button knows to send this same
+  // action (not a plain 'endTurn', which the server would now reject —
+  // see runAction's own guard) whenever the player eventually IS ready.
+  function sendPvpConfirmEndTurn() {
+    pvpTurnConfirmOwed = false;
     submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmEndTurn' })
-      .catch(function (err) { alert(err.message || 'No se pudo confirmar el fin de turno.'); });
+      .catch(function (err) { pvpTurnConfirmOwed = true; alert(err.message || 'No se pudo confirmar el fin de turno.'); });
   }
   var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
   if (endTurnConfirmYesBtn) {
     endTurnConfirmYesBtn.addEventListener('click', function () {
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
-      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); return; }
+      if (pvpMode) { dismissPvpEndTurnConfirmModal(); sendPvpConfirmEndTurn(); return; }
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       logEvent(gameState, 'HAS TERMINADO TU TURNO', 'player', 'turn-end');
       if (gameState.activePlayerId === 'player') { endTurn(gameState); }
@@ -5779,7 +5793,9 @@ document.addEventListener('DOMContentLoaded', function () {
   if (endTurnConfirmNoBtn) {
     endTurnConfirmNoBtn.addEventListener('click', function () {
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
-      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); }
+      // pvpTurnConfirmOwed deliberately stays true here -- see its own
+      // declaration and sendPvpConfirmEndTurn's comment above.
+      if (pvpMode) { dismissPvpEndTurnConfirmModal(); }
     });
   }
 
