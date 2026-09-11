@@ -446,7 +446,20 @@ export default class Server {
       }
       case 'confirmSetup': {
         if (this.state.phase !== 'setup') { throw new Error('La partida ya empezó.'); }
-        if (!this.state.players.player.active || !this.state.players.cpu.active) { throw new Error('Ambos jugadores deben colocar su Pokémon Activo antes de confirmar.'); }
+        // Real reported bug: this used to require BOTH sides' Active
+        // already placed before accepting EITHER side's own confirmation
+        // -- so the player who finishes setting up first (a very normal
+        // race, since both sides place independently) got their own
+        // confirmSetup rejected with "Ambos jugadores deben colocar..."
+        // even though THEY had already placed theirs, right as the
+        // client's own "esperando al rival" waiting indicator was already
+        // covering exactly that situation. Only this side's own Active
+        // needs to be placed to record ITS OWN confirmation -- the match
+        // still only actually starts once BOTH have confirmed (the check
+        // below), and the opponent's own later confirmSetup is gated on
+        // THEIR OWN Active the same way, so both are still guaranteed to
+        // be placed by the time the match genuinely begins.
+        if (!this.state.players[side].active) { throw new Error('Debes colocar tu Pokémon Activo antes de confirmar.'); }
         this.state.setupConfirmed = this.state.setupConfirmed || { player: false, cpu: false };
         this.state.setupConfirmed[side] = true;
         if (this.state.setupConfirmed.player && this.state.setupConfirmed.cpu) {
