@@ -6290,8 +6290,23 @@ document.addEventListener('DOMContentLoaded', function () {
     // startPvpRoomWait below once both sides are ready) already
     // re-initializes every other per-match flag the same way it does for
     // a brand new match.
+    // Real reported bug: pressing this on BOTH accounts left the game
+    // "mareado" (rapidly flipping screens) and stuck, unresponsive, on the
+    // just-finished match's board. Root cause: pvpLastRoomMessage was
+    // still caching the ORIGINAL pre-match 'room' broadcast (status
+    // 'started', this SAME room code as matchId -- the last 'room' message
+    // this client ever saw, since no further room broadcasts happen during
+    // actual gameplay). startPvpRoomWait below calls initPvpRoomListener,
+    // which replays whatever's cached IMMEDIATELY and SYNCHRONOUSLY -- so
+    // it re-entered enterPvpMatch with the OLD, already-finished match's
+    // data a split second after this handler had just torn down the board
+    // to show the waiting screen, well before the real 'rematch' round
+    // trip could ever complete. Must be cleared here too, exactly like
+    // pvpLastMatchMessage above, so the replay is a genuine no-op until
+    // the real post-rematch room broadcast arrives.
     var myRoomCode = pvpActiveMatchId;
     pvpLastMatchMessage = null;
+    pvpLastRoomMessage = null;
     rematchCloud();
     hideBoardScreen();
     document.getElementById('pvpCreateScreen').classList.remove('hidden');
