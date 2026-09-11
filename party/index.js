@@ -347,6 +347,22 @@ export default class Server {
   // instead of an HttpsError response.
   runAction(side, action) {
     const activeBefore = this.state.activePlayerId;
+    // Real reported bug: an attack in PVP used to flip activePlayerId
+    // immediately (deferring only the *visible* checkup reveal -- see
+    // attack()'s own deferTurnEnd comment, rules-engine.js), which let the
+    // rival's own turn-gated actions become legal the instant their
+    // snapshot arrived, even while the attacking player was still looking
+    // at their own end-of-turn confirm modal. Now activePlayerId itself
+    // stays the attacker's own side until 'confirmEndTurn' below actually
+    // runs -- which also means canAttack()'s own turn check can no longer
+    // catch a second attack/action from that same side in the meantime the
+    // way it naturally did before. This blocks everything else from the
+    // pending side except confirming, taking an owed prize, or choosing a
+    // new Active (a self-KO, e.g. Confusion's self-hit or Selfdestruct,
+    // can still need one before the player can confirm at all).
+    if (this.turnEndPendingSide === side && ['confirmEndTurn', 'takePrize', 'chooseActive'].indexOf(action.type) === -1) {
+      throw new Error('Debes confirmar el fin de tu turno primero.');
+    }
     if (TURN_GATED_ACTIONS.indexOf(action.type) !== -1 && this.state.phase === 'playing' && activeBefore !== side) {
       throw new Error('No puedes jugar, aún no es tu turno.');
     }
@@ -407,37 +423,42 @@ export default class Server {
       }
       case 'attack': {
         if (!canAttack(this.state, side, action.attackName)) { throw new Error('No puedes usar ese ataque ahora.'); }
-        // deferCheckup=true always, regardless of side -- see attack()'s
-        // own comment (rules-engine.js) on why its playerId==='cpu'
-        // auto-checkup rule can't be trusted in PVP (that name means "the
-        // guest slot" here, not "a bot"). Checkup instead runs later, once
-        // the attacking player confirms via 'confirmEndTurn' below.
+        // deferTurnEnd=true always, regardless of side -- see attack()'s
+        // own comment (rules-engine.js): activePlayerId stays exactly as it
+        // is (this side's) until 'confirmEndTurn' below actually runs, so
+        // the rival's client can never legally act before the attacking
+        // player has actually confirmed.
         attack(this.state, side, action.attackName, action.targetInstanceId, true);
         this.attackRound = (this.attackRound || 0) + 1;
         this.lastAttackResult = this.state.lastAttackResult
           ? Object.assign({}, this.state.lastAttackResult, { round: this.attackRound })
           : null;
         this.state.lastAttackResult = null; // never let a stale result leak into a later attack's own check
-        // Set every time an attack ends a turn, regardless of side -- see
-        // 'confirmEndTurn' below. Not reset to false there on purpose: if a
-        // second attack (checkup-caused KO -> new Active -> somehow attacks
-        // again next turn) sets it again first, that's still a real pending
-        // checkup and confirmEndTurn should still honor it.
-        this.checkupPending = true;
+        // Set every time an attack ends a turn -- see 'confirmEndTurn' and
+        // runAction's own top-of-function guard above, both of which key
+        // off this. Not reset anywhere but confirmEndTurn itself: if a
+        // second attack (impossible in practice -- the guard above already
+        // blocks this same side from attacking again first) or a checkup-
+        // caused self-KO -> new-Active flow re-enters this case, the still-
+        // pending confirmation is still real and confirmEndTurn should
+        // still honor it.
+        this.turnEndPendingSide = side;
         break;
       }
       case 'confirmEndTurn': {
-        // Idempotency guard: applyEndOfTurnCheckup mutates state every time
-        // it runs (poison/burn damage, coin flips for waking/curing) -- it
-        // is NOT safe to call twice for the same pending turn-end (a stray
-        // double-click, a retried request). Silently a no-op when nothing
-        // is actually pending, rather than throwing -- the client's own
-        // "SÍ"/"NO" buttons both send this exact action (see ui.js's
-        // applyPvpEndTurnConfirmDismiss), and either one arriving twice, or
-        // arriving with nothing pending (e.g. a stale reconnect), should
+        // Idempotency guard: endTurn()/applyEndOfTurnCheckup both mutate
+        // state every time they run (turnCounter, poison/burn damage, coin
+        // flips for waking/curing) -- NOT safe to call twice for the same
+        // pending turn-end (a stray double-click, a retried request).
+        // Silently a no-op when nothing is actually pending FOR THIS SIDE,
+        // rather than throwing -- the client's own "SÍ"/"NO" buttons both
+        // send this exact action (see ui.js's applyPvpEndTurnConfirmDismiss),
+        // and either one arriving twice, arriving with nothing pending
+        // (e.g. a stale reconnect), or arriving from the wrong side, should
         // never be treated as a real error.
-        if (this.checkupPending) {
-          this.checkupPending = false;
+        if (this.turnEndPendingSide === side) {
+          this.turnEndPendingSide = null;
+          endTurn(this.state);
           applyEndOfTurnCheckup(this.state);
         }
         break;

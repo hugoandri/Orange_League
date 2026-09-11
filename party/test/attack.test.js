@@ -159,6 +159,27 @@ async function testWeedlePoisonSting() {
   assert.strictEqual(guestAfterAttack.public.lastAttackResult.attackerName, hostAfterAttack.public.lastAttackResult.attackerName);
   console.log('PASS: both sides receive the same lastAttackResult reveal data');
 
+  // Real reported bug: activePlayerId used to flip to the guest the
+  // instant this attack landed -- letting the guest's own client already
+  // act (and see it as their turn) while the host was still looking at
+  // their own end-of-turn confirm modal, not yet having pressed anything.
+  // It must now stay the attacker's own side (host / player1) until
+  // confirmEndTurn actually runs, below.
+  assert.strictEqual(hostAfterAttack.public.activePlayerId, 'player1');
+  assert.strictEqual(guestAfterAttack.public.activePlayerId, 'player1');
+  console.log('PASS: activePlayerId stays with the attacker until they confirm -- the rival cannot act early');
+
+  const guestEarlyReqId = sendAction(guest, { type: 'endTurn' });
+  const guestEarlyErr = await nextOfType(guestNext, 'error');
+  assert.strictEqual(guestEarlyErr.reqId, guestEarlyReqId);
+  console.log('PASS: the rival still cannot act before the attacker confirms their own end of turn');
+
+  const hostEarlyReqId = sendAction(host, { type: 'endTurn' });
+  const hostEarlyErr = await nextOfType(hostNext, 'error');
+  assert.strictEqual(hostEarlyErr.reqId, hostEarlyReqId);
+  assert.strictEqual(hostEarlyErr.message, 'Debes confirmar el fin de tu turno primero.');
+  console.log('PASS: the attacker themself cannot take any other action before confirming (canAttack\'s own turn check no longer catches this alone)');
+
   // Real reported bug: the Pokémon Checkup (poison/burn damage) never had
   // any trigger of its own in PVP -- neither the plain 'endTurn' action nor
   // attack()'s own internal auto-checkup (gated on playerId==='cpu', which
@@ -174,6 +195,10 @@ async function testWeedlePoisonSting() {
   sendAction(host, { type: 'confirmEndTurn' });
   const afterConfirm = await nextOfType(hostNext, 'match');
   const afterConfirmDefender = afterConfirm.public.board.player2.active;
+  // The real turn handoff -- deferred this whole time -- finally happens
+  // here, together with the checkup.
+  assert.strictEqual(afterConfirm.public.activePlayerId, 'player2');
+  console.log('PASS: activePlayerId finally flips to the rival only once the attacker actually confirms');
   if (poisoned) {
     assert.strictEqual(afterConfirmDefender.damage - beforeConfirmDamage, afterConfirmDefender.severePoison ? 20 : 10,
       'expected confirmEndTurn to apply the deferred Poison checkup damage');
@@ -275,8 +300,12 @@ async function testNinetalesLure() {
     if (!ninetalesCard) { host.close(); guest.close(); continue; }
     sendAction(host, { type: 'evolve', handCardId: ninetalesCard.id, targetInstanceId: hostActiveId });
     await nextOfType(hostNext, 'match');
+    // Test bug found while re-running this file repeatedly: unlike
+    // ninetalesCard right above (which correctly retries with a fresh
+    // room), this lookup had no such guard -- Fire Energy is 10/30 in this
+    // deck, ~9 cards seen by turn 3, occasionally not drawn at all.
     const energy2 = hostTurn3.myHand.find((c) => c.name === 'Fire Energy');
-    assert.ok(energy2, 'expected a second Fire Energy drawn by the host\'s second turn');
+    if (!energy2) { host.close(); guest.close(); continue; }
     sendAction(host, { type: 'attachEnergy', handCardId: energy2.id, targetInstanceId: hostActiveId });
     await nextOfType(hostNext, 'match');
 

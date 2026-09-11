@@ -971,7 +971,7 @@ function usePokemonPower(state, playerId, ownerInstanceId, params) {
 // one real Base Set attack that (like a Trainer) needs the player to
 // choose a specific opposing Bench Pokémon -- every other attack always
 // just hits the opponent's current Active, no target needed.
-function attack(state, playerId, attackName, targetInstanceId, deferCheckup) {
+function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -999,19 +999,32 @@ function attack(state, playerId, attackName, targetInstanceId, deferCheckup) {
   // either side the instant they attacked, before they'd done anything to
   // actually hand the turn over.
   //
-  // deferCheckup (optional, 5th arg): PVP-only escape hatch from the
-  // playerId==='cpu' rule above. In PVP, 'cpu' is just the internal name
-  // for "the guest slot" (see redactMatchState/broadcastMatch) -- a real
-  // human, never a bot -- so the CPU-only auto-checkup branch would fire
-  // for whichever side happens to be the guest, purely by accident of slot
-  // naming, with no equivalent deferral for the host. party/index.js always
-  // passes true here regardless of side, and runs the checkup itself later
-  // once the attacking player explicitly confirms (see its own
-  // 'confirmEndTurn' action) -- matching this exact same "defer until an
-  // explicit click" rule symmetrically for both PVP sides.
+  // deferTurnEnd (optional, 5th arg): PVP-only. Local play can get away
+  // with deferring just the *visible reveal* of checkup (see the
+  // playerId==='cpu' rule above) because there's only ever one real human
+  // there -- the engine's own activePlayerId can flip immediately with
+  // nobody around to see it early. PVP has a second real client watching
+  // the same state: if activePlayerId flipped the instant this attack
+  // landed, the RIVAL's own turn-gated actions (TURN_GATED_ACTIONS,
+  // party/index.js) would already be legal the instant they received that
+  // snapshot -- even while the ATTACKING player is still looking at their
+  // own end-of-turn confirm modal, not yet having pressed anything. Real
+  // reported bug: exactly that -- "tengo el modal de terminar turno y el
+  // rival ya está jugando". So in PVP, deferTurnEnd skips endTurn() (and
+  // therefore the checkup, and the turnCounter/shield/PlusPower/Paralyzed
+  // sweep it does) ENTIRELY here -- activePlayerId stays the attacker's
+  // own side, genuinely, until party/index.js's 'confirmEndTurn' action
+  // runs both endTurn() and the checkup together, once the attacking
+  // player actually presses the confirm button. party/index.js's own
+  // runAction also blocks the attacking side from doing anything else
+  // (besides taking a prize or choosing a new Active) until that happens,
+  // since canAttack()'s own turn check can no longer catch a second
+  // attack the way it naturally did when activePlayerId flipped right
+  // away.
   function endThisTurn() {
+    if (deferTurnEnd) { return; }
     endTurn(state);
-    if (playerId === 'cpu' && !deferCheckup) { applyEndOfTurnCheckup(state); }
+    if (playerId === 'cpu') { applyEndOfTurnCheckup(state); }
   }
 
   logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName), playerId);
