@@ -5055,7 +5055,19 @@ function enterPvpMatch(matchId) {
       // something that can now never become true, so this modal would
       // never have fired again. activePlayerId staying mine IS the
       // expected state at this exact moment now.
-      if (!mpub.winner && pvpAttackEndedMyTurn && !mpub.pendingPrizeChoice && mpub.pendingActiveChoice !== pvpMySide) {
+      //
+      // Real reported bug: a Confused self-hit (or any other self-KO,
+      // e.g. Selfdestruct) awards the PRIZE to the RIVAL, not me (real
+      // rule -- knockOutIfNeeded, rules-engine.js, always credits the
+      // KO'd Pokémon's OWNER's opponent). This check used to block on
+      // !mpub.pendingPrizeChoice generically -- any pending prize, not
+      // just my own -- so it waited forever on a prize that was never
+      // mine to take, deadlocking the whole match (I'd already resolved
+      // my own pendingActiveChoice; the rival's own pendingPrizeChoice
+      // has nothing to do with whether MY turn can end). Only a prize
+      // choice that's actually MINE should hold this back.
+      var myPrizeStillPending = !!(mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide);
+      if (!mpub.winner && pvpAttackEndedMyTurn && !myPrizeStillPending && mpub.pendingActiveChoice !== pvpMySide) {
         var hadKnockout = pvpMyPrizeChoiceSeen;
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
