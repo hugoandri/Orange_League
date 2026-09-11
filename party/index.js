@@ -301,6 +301,20 @@ export default class Server {
         sender.send(JSON.stringify({ type: 'ack', reqId: data.reqId }));
         this.broadcastMatch();
       } catch (err) {
+        // Real bug found in review: runAction's top-of-function timeout
+        // check (this task) can mutate state (tickClock, zeroing a side's
+        // timeBankMs) and broadcastMatch() BEFORE later guards in the same
+        // call (turnEndPendingSide, TURN_GATED_ACTIONS) still throw for an
+        // unrelated reason -- unlike every other runAction case, which
+        // always validates before mutating, so a throw used to always mean
+        // nothing had changed. persistState() must still run here even
+        // though this action itself failed, or the timeout mutation is
+        // broadcast to both clients but never written to storage --
+        // silently undone by onStart()'s restart-reconstruction if the
+        // Durable Object evicts/restarts before any other action
+        // successfully completes (plausible once the match is logically
+        // over).
+        await this.persistState();
         sender.send(JSON.stringify({ type: 'error', reqId: data.reqId, message: err.message }));
       }
       return;
