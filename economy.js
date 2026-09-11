@@ -325,6 +325,26 @@ function setReadyCloud() {
   return Promise.resolve();
 }
 
+// Real reported bug: "VOLVER A JUGAR" after a PVP match used to disconnect
+// from PVP entirely and start a local match vs CPU instead. Sent over the
+// SAME still-open socket a finished match's own actions used (see
+// party/index.js's 'rematch' onMessage case) -- rejoins the exact same room
+// at the pre-match waiting stage, no new connection needed.
+function rematchCloud() {
+  pvpSocket.send(JSON.stringify({ type: 'rematch' }));
+  return Promise.resolve();
+}
+
+// Sent right before the socket actually closes (ui.js's matchEndCancelBtn/
+// pauseExit, PVP branch) so the other side -- if they're still looking at
+// the same finished match -- learns their room mate is gone (see
+// party/index.js's 'leaveRoom' case and roomBroadcastPayload's hostLeft/
+// guestLeft). No-op if the socket is already gone.
+function leaveRoomCloud() {
+  if (pvpSocket) { pvpSocket.send(JSON.stringify({ type: 'leaveRoom' })); }
+  return Promise.resolve();
+}
+
 function submitMatchActionCloud(matchId, action) {
   return new Promise(function (resolve, reject) {
     var reqId = ++pvpReqCounter;

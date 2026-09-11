@@ -132,7 +132,15 @@ function roomBroadcastPayload(info) {
     guestUsername: info.guestUsername || null, guestPhoto: info.guestPhoto || null,
     guestDeckId: info.guestDeckId || null, guestDeckCoverName: info.guestDeckCoverName || null,
     hostReady: info.hostReady, guestReady: info.guestReady,
-    status: info.status, matchId: info.status === 'started' ? info.roomCode : null
+    status: info.status, matchId: info.status === 'started' ? info.roomCode : null,
+    // Real reported bug: "VOLVER A JUGAR" after a match used to always
+    // disconnect from PVP and start a local match vs CPU. Rebuilding a
+    // real rematch flow (see onMessage's 'rematch'/'leaveRoom' cases)
+    // needs the guest's client to be able to tell whether the room's
+    // owner is even still around before it tries to rejoin THIS room --
+    // these two flags carry that across the same live 'room' broadcast
+    // the pre-match waiting screen already listens to.
+    hostLeft: !!info.hostLeft, guestLeft: !!info.guestLeft
   };
 }
 
@@ -191,12 +199,17 @@ export default class Server {
     // Reconnect: either side coming back mid-wait or mid-match.
     if (this.info && this.info.hostUid === identity.uid) {
       this.info.hostConnId = connection.id;
+      // A genuine reconnect proves the host never really left -- clear any
+      // stale 'leaveRoom' flag from a previous tab/socket of theirs (see
+      // roomBroadcastPayload's own comment on hostLeft/guestLeft).
+      this.info.hostLeft = false;
       await this.room.storage.put('info', this.info);
       if (this.info.status === 'started') { this.sendMatchTo(connection, 'player'); } else { this.broadcastRoom(); }
       return;
     }
     if (this.info && this.info.guestUid === identity.uid) {
       this.info.guestConnId = connection.id;
+      this.info.guestLeft = false;
       await this.room.storage.put('info', this.info);
       if (this.info.status === 'started') { this.sendMatchTo(connection, 'cpu'); } else { this.broadcastRoom(); }
       return;
@@ -285,6 +298,55 @@ export default class Server {
       // Without this, match.test.js's nextMatchMessage() hangs forever
       // right after both sides ready up.
       if (justStarted) { this.broadcastMatch(); }
+      return;
+    }
+    if (data.type === 'rematch') {
+      // Real reported bug: "VOLVER A JUGAR" after a PVP match used to
+      // disconnect the player from PVP entirely and start a LOCAL match
+      // vs CPU instead (ui.js's matchEndReplayBtn always called
+      // startNewMatch(), which itself resets all PVP state as its very
+      // first step, regardless of pvpMode). A rematch re-enters THIS SAME
+      // room (same code, same connection) back at the pre-match waiting
+      // stage -- whichever side sends this first is marked ready
+      // immediately (matching the user's "debe estar en listo"
+      // requirement, no separate "Iniciar" click needed); the status
+      // transition below only fires once, on the FIRST 'rematch' after a
+      // finished match -- it also resets BOTH readiness flags, since a
+      // stale 'hostReady'/'guestReady' from before the PREVIOUS match
+      // started must never silently carry over into this one. Once both
+      // sides have sent 'rematch', starts a fresh match exactly like both
+      // pressing "Iniciar" would (same justStarted shape as 'setReady'
+      // above).
+      if (this.info.status === 'started') {
+        this.info.status = 'waiting';
+        this.info.hostReady = false;
+        this.info.guestReady = false;
+      }
+      if (sender.id === this.info.hostConnId) { this.info.hostReady = true; this.info.hostLeft = false; }
+      else if (sender.id === this.info.guestConnId) { this.info.guestReady = true; this.info.guestLeft = false; }
+      const rematchStarted = this.info.hostReady && this.info.guestReady && this.info.status === 'waiting';
+      if (rematchStarted) { this.startMatch(); }
+      await this.room.storage.put('info', this.info);
+      this.broadcastRoom();
+      if (rematchStarted) { this.broadcastMatch(); }
+      return;
+    }
+    if (data.type === 'leaveRoom') {
+      // Sent when a player presses "SALIR" from the match-end modal,
+      // right before their own socket disconnects (see ui.js's
+      // leaveRoomCloud) -- lets the OTHER side, if they're still looking
+      // at the same finished match, learn their room mate is gone. Per
+      // the user-specified rule: if the room's OWNER is the one who left,
+      // the guest's own later "VOLVER A JUGAR" has no room left to
+      // rejoin, and becomes the owner of a brand new one instead (see
+      // ui.js's matchEndReplayBtn handler) -- this flag, carried on the
+      // 'room' broadcast (roomBroadcastPayload), is how that client
+      // learns to take that path instead of waiting forever for a
+      // rematch that will never arrive.
+      if (sender.id === this.info.hostConnId) { this.info.hostLeft = true; }
+      else if (sender.id === this.info.guestConnId) { this.info.guestLeft = true; }
+      await this.room.storage.put('info', this.info);
+      this.broadcastRoom();
       return;
     }
     if (data.type === 'peekOwnDeck') {

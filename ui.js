@@ -4756,6 +4756,12 @@ var pvpActiveMatchId = null;
 var pvpMySide = null; // 'player1' | 'player2'
 var pvpMatchUnsubscribe = null;
 var pvpMode = false;
+// Set at both deck-picker callback sites (pvpCreateRoomBtn/pvpJoinCodeInput
+// below) -- kept around (deliberately NOT cleared by resetPvpMatchState)
+// so a later "VOLVER A JUGAR" rematch, or a guest becoming the new room
+// owner after the old one left, can reuse the same deck without asking
+// again. See matchEndReplayBtn's own comment for the full rematch flow.
+var pvpCurrentDeckId = null;
 // Firestore's onSnapshot can re-deliver a snapshot after the match has
 // already ended (e.g. on reconnect) -- guards finishMatch/awardMatchResultCloud
 // against firing more than once for the same match.
@@ -5775,6 +5781,7 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('pvpCreateDeckPicker').classList.remove('hidden');
       document.getElementById('pvpCreateWaiting').classList.add('hidden');
       renderPvpDeckPicker('pvpCreateDeckList', function (deckId) {
+        pvpCurrentDeckId = deckId;
         return createRoomCloud(deckId).then(function (res) {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
@@ -5852,6 +5859,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pvpJoinCodeStep').classList.add('hidden');
         document.getElementById('pvpJoinDeckPicker').classList.remove('hidden');
         renderPvpDeckPicker('pvpJoinDeckList', function (deckId) {
+          pvpCurrentDeckId = deckId;
           return joinRoomCloud(code, deckId).then(function () {
             document.getElementById('pvpJoinScreen').classList.add('hidden');
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
@@ -6243,10 +6251,62 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('matchEndReplayBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
-    startNewMatch();
+    if (!pvpMode) { startNewMatch(); return; }
+    // Real reported bug: this used to unconditionally fall through to
+    // startNewMatch() above even in PVP -- that function's own very first
+    // step is resetPvpMatchState(), which closes the shared PVP socket,
+    // so "VOLVER A JUGAR" silently dropped the player out of PVP and into
+    // a fresh LOCAL match vs CPU instead of back into a room screen. Per
+    // the user's own specified rules: the room OWNER (host, pvpMySide ===
+    // 'player1') always rejoins THIS SAME room, marked ready right away;
+    // the guest does too, UNLESS the host has already left
+    // (pvpLastRoomMessage.hostLeft, kept live by the 'leaveRoom' broadcast
+    // matchEndCancelBtn's PVP branch sends below) -- in that case there's
+    // no room left to rejoin, so the guest becomes the owner of a brand
+    // new one instead, exactly like pressing "Crear Sala" fresh.
+    var iAmHost = pvpMySide === 'player1';
+    var hostGone = !iAmHost && pvpLastRoomMessage && pvpLastRoomMessage.hostLeft;
+    var deckId = pvpCurrentDeckId;
+    if (hostGone) {
+      resetPvpMatchState(); // safe here -- about to open a BRAND NEW socket anyway
+      hideBoardScreen();
+      document.getElementById('pvpCreateScreen').classList.remove('hidden');
+      document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+      document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+      createRoomCloud(deckId).then(function (res) {
+        renderPvpWaitingMine(deckId);
+        document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(res.roomCode, 'plata', 3);
+        startPvpRoomWait(res.roomCode, deckId);
+      }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); showMenu(); });
+      return;
+    }
+    // Same-room rematch: deliberately does NOT call resetPvpMatchState --
+    // it would close the shared pvpSocket the 'rematch' message below and
+    // the room-wait listener both still need. Clearing pvpLastMatchMessage
+    // stops initPvpMatchListeners (called once the room flips back to
+    // 'started') from replaying this now-finished match's own stale last
+    // snapshot into the freshly rematched one for a frame before the real
+    // new snapshot arrives -- enterPvpMatch itself (called by
+    // startPvpRoomWait below once both sides are ready) already
+    // re-initializes every other per-match flag the same way it does for
+    // a brand new match.
+    var myRoomCode = pvpActiveMatchId;
+    pvpLastMatchMessage = null;
+    rematchCloud();
+    hideBoardScreen();
+    document.getElementById('pvpCreateScreen').classList.remove('hidden');
+    document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+    document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+    renderPvpWaitingMine(deckId);
+    document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(myRoomCode, 'plata', 3);
+    startPvpRoomWait(myRoomCode, deckId);
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
+    // Lets a room mate still looking at their own match-end modal learn
+    // I'm gone (see leaveRoomCloud/party/index.js's 'leaveRoom' case) --
+    // sent BEFORE resetPvpMatchState below closes the socket.
+    if (pvpMode) { leaveRoomCloud(); }
     resetPvpMatchState();
     hideBoardScreen();
     showMenu();
