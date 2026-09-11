@@ -1883,6 +1883,11 @@ function renderBoard() {
     sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu', cDiscardCount) + prizeGridHtml(s, 'cpu') +
     '<div class="shell-board-side-spacer"></div>' +
     prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player', pDiscardCount) + sideHeaderHtml('player');
+  // The innerHTML write above recreates #pvpClock-player/#pvpClock-cpu empty
+  // (sideHeaderHtml's own markup), and nothing refills them until the next
+  // 250ms tickPvpClocks() tick -- refill immediately so a re-render never
+  // blanks the clocks, even momentarily.
+  if (pvpMode) { tickPvpClocks(); }
 
   renderBoardActions();
   document.getElementById('log').innerHTML = logHtml(s);
@@ -4777,7 +4782,8 @@ var pvpLatestPub = null;
 var pvpClaimedTimeoutFor = null;
 
 function tickPvpClocks() {
-  if (!pvpLatestPub || pvpLatestPub.phase !== 'playing' || !pvpLatestPub.activePlayerId) { return; }
+  if (!pvpLatestPub || pvpLatestPub.phase !== 'playing' || !pvpLatestPub.activePlayerId ||
+      !pvpLatestPub.timeBank || !pvpLatestPub.turnStartedAt) { return; }
   var hostMs = pvpLatestPub.timeBank.player1;
   var guestMs = pvpLatestPub.timeBank.player2;
   var elapsedSinceStart = Date.now() - pvpLatestPub.turnStartedAt;
@@ -5039,7 +5045,6 @@ function enterPvpMatch(matchId) {
   // it entirely for the duration of a PVP match; startNewMatch un-hides it
   // for local play, where the real chess clock does run.
   document.getElementById('boardClock').classList.add('hidden');
-  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); }
   pvpClockTickInterval = setInterval(tickPvpClocks, CLOCK_TICK_MS);
   pvpClaimedTimeoutFor = null;
   var myUid = firebase.auth().currentUser.uid;
