@@ -621,6 +621,18 @@ function findInstanceEitherSide(instanceId) {
   return findInstance(gameState.players.player, instanceId) || findInstance(gameState.players.cpu, instanceId);
 }
 
+// Shared by showCardInViewer (left-click) and the board's right-click zoom
+// (openCardModal, wireBoardButtons below) -- both need this same "what's
+// this instance's real foil tier" computation. instance.foilTier
+// (server-set, PVP only -- see benchCardHtml's own comment) reflects the
+// real owning account's real collection and takes priority for either
+// side; local-vs-CPU play never sets it, so this falls through to the
+// exact same local logic as before.
+function boardCardFoilTier(name, ownerId, instance) {
+  return (instance && instance.foilTier) || (ownerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
+    : (ownerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null));
+}
+
 // Fills the card viewer (Column A) with a card's illustration, identity, and
 // (for Pokémon) its real attacks + weakness/resistance/retreat -- shown by
 // clicking the card itself (hand or board). Attack rows are only real,
@@ -642,12 +654,7 @@ function showCardInViewer(name, instanceId) {
   var viewerOwnerId = !instanceId ? 'player'
     : findInstance(gameState.players.player, instanceId) ? 'player'
     : findInstance(gameState.players.cpu, instanceId) ? 'cpu' : null;
-  // instance.foilTier (server-set, PVP only -- see benchCardHtml's own
-  // comment) reflects the real owning account's real collection and takes
-  // priority for either side; local-vs-CPU play never sets it, so this
-  // falls through to the exact same local logic as before.
-  var viewerFoilTier = (instance && instance.foilTier) || (viewerOwnerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
-    : (viewerOwnerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null));
+  var viewerFoilTier = boardCardFoilTier(name, viewerOwnerId, instance);
   var viewerIsHolo = !!viewerFoilTier;
 
   var frameHtml = '<div class="shell-board-viewer-frame">' +
@@ -3000,6 +3007,23 @@ function wireBoardButtons() {
         resolveHandDrop(handId, false, null, el.getAttribute('data-instance-id'));
       });
     }
+  });
+
+  // Real reported request: right-click any card on the board (either
+  // side, Active or Bench) to zoom it front-and-center, foil included --
+  // a separate listener rather than folding this into the click handler
+  // above (which is already a long, stateful click-to-target flow) keeps
+  // this simple and independent of any of that state.
+  document.querySelectorAll('.shell-board-bench-card, .shell-board-active-card').forEach(function (el) {
+    el.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      var instanceId = el.getAttribute('data-instance-id');
+      var name = el.getAttribute('data-card-name');
+      if (!name) { return; }
+      var instance = findInstanceEitherSide(instanceId);
+      var ownerId = findInstance(gameState.players.player, instanceId) ? 'player' : 'cpu';
+      openCardModal(name, null, boardCardFoilTier(name, ownerId, instance));
+    });
   });
 
   // Click an empty Bench slot to place the selected Basic there, landing in
