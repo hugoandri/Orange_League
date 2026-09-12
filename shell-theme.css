@@ -1063,9 +1063,6 @@
 @keyframes cpuThinkingDot1{0%,74%{opacity:1;}75%,100%{opacity:0;}}
 @keyframes cpuThinkingDot2{0%,24%{opacity:0;}25%,74%{opacity:1;}75%,100%{opacity:0;}}
 @keyframes cpuThinkingDot3{0%,49%{opacity:0;}50%,74%{opacity:1;}75%,100%{opacity:0;}}
-.shell-board-clock{padding:11px 20px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);}
-.shell-board-clock.low{animation:blink 1s steps(1,end) infinite;}
-
 .shell-board-body{flex:1;display:flex;min-height:0;}
 
 /* --- A · Visor de carta --- */

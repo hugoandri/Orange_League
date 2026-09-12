@@ -1653,17 +1653,16 @@ function sideHeaderHtml(ownerId) {
   // mirrors pvpOpponentName's own pvpMode check right above.
   var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : PROFILE_PHOTO_URL.cpu);
   var on = gameState.activePlayerId === ownerId;
-  // Real reported bug: PVP never showed a real, per-side clock at all
-  // (the single shared local-play #boardClock is hidden for the whole
-  // PVP match, see enterPvpMatch) -- per user request, both players'
-  // own timers are always visible, one per side's own header, right next
-  // to their avatar/name. Only rendered while pvpMode is on (local play
-  // keeps using its own single #boardClock, untouched); id lets
-  // tickPvpClocks (below) target each one without re-rendering the whole
-  // header every 250ms.
-  var clockHtml = pvpMode
-    ? '<div class="shell-board-side-clock" id="pvpClock-' + ownerId + '"></div>'
-    : '';
+  // Real reported bug: PVP never showed a real, per-side clock at all --
+  // per user request, both players' own timers are always visible, one
+  // per side's own header, right next to their avatar/name. Real reported
+  // follow-up: local play used to show a single shared clock in its own
+  // top-toolbar spot instead (switching color/ownership by whoever's
+  // turn it was) -- per later user request, local play now uses this
+  // exact same per-side layout too, so both modes look identical here; id
+  // lets tickPvpClocks/tickGameClock (below) target each one without
+  // re-rendering the whole header on every tick.
+  var clockHtml = '<div class="shell-board-side-clock" id="sideClock-' + ownerId + '"></div>';
   return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
     '<div class="shell-board-side-avatar"><img src="' + avatar + '" alt=""></div>' +
     '<div class="shell-board-side-name">' + name + '</div>' +
@@ -1914,11 +1913,12 @@ function renderBoard() {
     sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu', cDiscardCount) + prizeGridHtml(s, 'cpu') +
     '<div class="shell-board-side-spacer"></div>' +
     prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player', pDiscardCount) + sideHeaderHtml('player');
-  // The innerHTML write above recreates #pvpClock-player/#pvpClock-cpu empty
-  // (sideHeaderHtml's own markup), and nothing refills them until the next
-  // 250ms tickPvpClocks() tick -- refill immediately so a re-render never
-  // blanks the clocks, even momentarily.
-  if (pvpMode) { tickPvpClocks(); }
+  // The innerHTML write above recreates #sideClock-player/#sideClock-cpu
+  // empty (sideHeaderHtml's own markup), and nothing refills them until the
+  // next tick (tickPvpClocks every 250ms, or tickGameClock's own interval
+  // for local play) -- refill immediately so a re-render never blanks the
+  // clocks, even momentarily.
+  if (pvpMode) { tickPvpClocks(); } else { renderClocks(); }
 
   renderBoardActions();
   document.getElementById('log').innerHTML = logHtml(s);
@@ -3110,11 +3110,12 @@ function formatClockMs(ms) {
 // Same pixel-glyph digit rendering the coin/collection counts use (not
 // plain browser text) -- per user feedback that the clock looked
 // inconsistent next to them.
-// blockPx (optional, defaults to 2, local play's own unchanged size): PVP's
-// two per-side clocks pass 1 instead -- real reported bug, the default size
-// crowded the fixed-width digits against .shell-board-side-name's own
-// flex:1 sizing in that tight per-side header, squeezing the username down
-// to near-nothing instead of sharing space with it cleanly.
+// blockPx (optional, defaults to 2): every real caller now passes 1 --
+// both modes render into the same tight per-side header spot
+// (.shell-board-side-clock), where the default size crowded the
+// fixed-width digits against .shell-board-side-name's own flex:1 sizing,
+// squeezing the username down to near-nothing instead of sharing space
+// with it cleanly.
 function renderClockDisplay(el, ms, isCpu, blockPx) {
   var low = ms <= 30000;
   el.innerHTML = pixelDigitsHtml(formatClockMs(ms), (isCpu || low) ? 'dano' : 'oro', blockPx || 2);
@@ -3122,13 +3123,22 @@ function renderClockDisplay(el, ms, isCpu, blockPx) {
   el.classList.toggle('low', low);
 }
 
+// Real reported bug: this used to render into one single shared spot
+// (the old top-toolbar #boardClock), switching color/ownership between
+// whichever side's turn it currently was. Per later user request, local
+// play now shows BOTH sides' own remaining time simultaneously, one per
+// side's own header -- matching PVP's exact presentation (isCpu always
+// false here, red only via renderClockDisplay's own <=30s threshold, same
+// color decision as tickPvpClocks' own comment explains). Only the
+// DISPLAY changed -- currentClockOwner()/tickGameClock below still decide
+// whose time bank actually keeps draining.
 function renderClocks() {
   var s = gameState;
-  var el = document.getElementById('boardClock');
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
-  var activeId = currentClockOwner();
-  var remaining = s.players[activeId].timeBankMs;
-  renderClockDisplay(el, remaining, activeId === 'cpu');
+  var myEl = document.getElementById('sideClock-player');
+  var cpuEl = document.getElementById('sideClock-cpu');
+  if (myEl) { renderClockDisplay(myEl, s.players.player.timeBankMs, false, 1); }
+  if (cpuEl) { renderClockDisplay(cpuEl, s.players.cpu.timeBankMs, false, 1); }
 }
 
 function tickGameClock() {
@@ -3171,13 +3181,16 @@ function startNewMatch() {
   gameState = createGame(Math.random, (econState && econState.activeDeck) || 'overgrowth');
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
-  // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
-  // the clock display is reset here directly -- otherwise it would keep
-  // showing whatever the previous match's clock last read.
-  var boardClockEl = document.getElementById('boardClock');
-  boardClockEl.classList.remove('hidden'); // undo enterPvpMatch's own hide, in case the previous match was PVP
-  renderClockDisplay(boardClockEl, DEFAULT_TIME_BANK_MS, false);
   renderBoard();
+  // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
+  // both fresh per-side clocks are primed directly here, AFTER renderBoard
+  // (which is what actually creates #sideClock-player/#sideClock-cpu via
+  // sideHeaderHtml) -- otherwise they'd stay blank until the first real
+  // tick once 'playing' begins.
+  var myClockEl = document.getElementById('sideClock-player');
+  var cpuClockEl = document.getElementById('sideClock-cpu');
+  if (myClockEl) { renderClockDisplay(myClockEl, DEFAULT_TIME_BANK_MS, false, 1); }
+  if (cpuClockEl) { renderClockDisplay(cpuClockEl, DEFAULT_TIME_BANK_MS, false, 1); }
 }
 
 var BOOSTER_PACKS = {
@@ -4827,11 +4840,10 @@ var pvpSetupHintShown = false;
 // spuriously flashes (nothing actually "changed" yet).
 var pvpLastActivePlayerId = null;
 
-// Real reported bug: PVP had no real, ticking clock at all (the old
-// local-play #boardClock is hidden for the whole match, see
-// enterPvpMatch). pvpClockTickInterval drives a lightweight re-render of
-// just the two #pvpClock-player/#pvpClock-cpu elements (sideHeaderHtml)
-// between real snapshots, computing the live remaining time from
+// Real reported bug: PVP had no real, ticking clock at all. pvpClockTickInterval
+// drives a lightweight re-render of just the two #sideClock-player/
+// #sideClock-cpu elements (sideHeaderHtml) between real snapshots,
+// computing the live remaining time from
 // pub.timeBank/pub.turnStartedAt (Task 1) the same way local play's own
 // tickGameClock computes it from local gameState -- corrected fresh every
 // time a real snapshot arrives (pvpLatestPub, set on every snapshot,
@@ -4856,8 +4868,8 @@ function tickPvpClocks() {
   // already uses everywhere else in this file.
   var myMs = pvpMySide === 'player1' ? hostMs : guestMs;
   var rivalMs = pvpMySide === 'player1' ? guestMs : hostMs;
-  var myEl = document.getElementById('pvpClock-player');
-  var rivalEl = document.getElementById('pvpClock-cpu');
+  var myEl = document.getElementById('sideClock-player');
+  var rivalEl = document.getElementById('sideClock-cpu');
   // Real reported bug: renderClockDisplay's isCpu param was originally
   // meant for local play's single CPU-vs-player clock ("whose time is
   // this" -> red for the CPU, gold for the player) -- passing it based on
@@ -5119,15 +5131,6 @@ function enterPvpMatch(matchId) {
   if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
   pvpLatestPub = null;
   pvpClaimedTimeoutFor = null;
-  // Real reported bug: the chess clock is intentionally never started/
-  // synced for PVP (timeBankMs enforcement stays out of scope, see
-  // pauseSurrender's own comment on this same rule) -- left visible, the
-  // element just sat on its raw index.html markup (plain "10:00" text, a
-  // different font than the pixel-glyph one local play's clock uses) and
-  // never ticked. A static, wrong-font display is worse than none, so hide
-  // it entirely for the duration of a PVP match; startNewMatch un-hides it
-  // for local play, where the real chess clock does run.
-  document.getElementById('boardClock').classList.add('hidden');
   pvpClockTickInterval = setInterval(tickPvpClocks, CLOCK_TICK_MS);
   pvpClaimedTimeoutFor = null;
   var myUid = firebase.auth().currentUser.uid;
