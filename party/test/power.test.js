@@ -169,8 +169,23 @@ async function evolveHostActive(roomCode, hostToken, guestToken, stage1Name, sta
   const setup = await playToTurn1(roomCode, hostToken, guestToken, hostActiveName);
   const ownerId = setup.hostState.public.board.player1.active.id;
   const hostTurn3 = await endTurnsUntilHostActive(setup.host, setup.guest, setup.hostNext, setup.guestNext);
-  const stage1Card = hostTurn3.myHand.find((c) => c.name === stage1Name);
-  assert.ok(stage1Card, 'expected ' + stage1Name + ' in hand by turn 3');
+  // Final-review fix: same bounded extra-turn-retry pattern as Rain
+  // Dance's own 2nd Water Energy search and Damage Swap's own 2nd Abra
+  // search below -- evolutionTimingAllowed (rules-engine.js) is only a
+  // MINIMUM-turn gate (target.turnEnteredCurrentForm < state.turnCounter),
+  // never a maximum, so there's no real deadline stopping the host from
+  // ending a few more turns (same endTurnsUntilHostActive helper, same
+  // 12-cycle bound) until stage1Name actually turns up in hand, instead of
+  // gambling everything on turn 3's own hand alone.
+  let handForStage1 = hostTurn3;
+  let stage1Card = handForStage1.myHand.find((c) => c.name === stage1Name);
+  let extraTurnCyclesForStage1 = 0;
+  while (!stage1Card && extraTurnCyclesForStage1 < 12) {
+    handForStage1 = await endTurnsUntilHostActive(setup.host, setup.guest, setup.hostNext, setup.guestNext);
+    stage1Card = handForStage1.myHand.find((c) => c.name === stage1Name);
+    extraTurnCyclesForStage1++;
+  }
+  assert.ok(stage1Card, 'expected ' + stage1Name + ' to eventually turn up in hand (even after ' + extraTurnCyclesForStage1 + ' extra turns)');
   sendAction(setup.host, { type: 'evolve', handCardId: stage1Card.id, targetInstanceId: ownerId });
   let afterStage1 = await nextOfType(setup.hostNext, 'match');
   if (!stage2Name) {
@@ -190,8 +205,20 @@ async function evolveHostActive(roomCode, hostToken, guestToken, stage1Name, sta
     return Object.assign({}, setup, { hostState: afterStage1, ownerId: ownerId });
   }
   const hostTurn5 = await endTurnsUntilHostActive(setup.host, setup.guest, setup.hostNext, setup.guestNext);
-  const stage2Card = hostTurn5.myHand.find((c) => c.name === stage2Name);
-  assert.ok(stage2Card, 'expected ' + stage2Name + ' in hand by turn 5');
+  // Final-review fix: same bounded extra-turn-retry pattern as the
+  // stage1Card search above -- stage2Name's evolve is likewise only
+  // MINIMUM-turn-gated, never deadline-gated, so keep ending turns (same
+  // helper, same 12-cycle bound) until it turns up instead of asserting
+  // against turn 5's own hand alone.
+  let handForStage2 = hostTurn5;
+  let stage2Card = handForStage2.myHand.find((c) => c.name === stage2Name);
+  let extraTurnCyclesForStage2 = 0;
+  while (!stage2Card && extraTurnCyclesForStage2 < 12) {
+    handForStage2 = await endTurnsUntilHostActive(setup.host, setup.guest, setup.hostNext, setup.guestNext);
+    stage2Card = handForStage2.myHand.find((c) => c.name === stage2Name);
+    extraTurnCyclesForStage2++;
+  }
+  assert.ok(stage2Card, 'expected ' + stage2Name + ' to eventually turn up in hand (even after ' + extraTurnCyclesForStage2 + ' extra turns)');
   sendAction(setup.host, { type: 'evolve', handCardId: stage2Card.id, targetInstanceId: ownerId });
   const afterStage2 = await nextOfType(setup.hostNext, 'match');
   await nextOfType(setup.guestNext, 'match'); // guest's own copy of the stage-2 evolve broadcast (same reasoning as the stage-1-only branch above)
@@ -280,14 +307,26 @@ async function testDamageSwap() {
   await nextOfType(setup.guestNext, 'match'); // guest's own copy of the evolve-to-Alakazam broadcast
 
   // Reviewer-requested fix (round 1): same bounded extra-turn-retry
-  // pattern as Rain Dance's own 2nd Water Energy search below -- unlike
-  // Kadabra-by-turn-3/Alakazam-by-turn-5 (genuinely deadline-locked by
-  // evolutionTimingAllowed, so they get a single-shot assert), the 2nd
+  // pattern as Rain Dance's own 2nd Water Energy search below -- the 2nd
   // Abra has no deadline at all: Alakazam is already fully evolved by this
   // point, so nothing stops the host from ending a few more real turns
   // (via the same endTurnsUntilHostActive helper, same 12-cycle bound)
   // until a 2nd Abra actually turns up, instead of gambling everything on
   // turn 5's own hand alone.
+  //
+  // Final-review fix: an earlier version of this comment claimed the
+  // Kadabra-by-turn-3/Alakazam-by-turn-5 searches above were "genuinely
+  // deadline-locked by evolutionTimingAllowed" and therefore had to stay
+  // single-shot asserts. That was factually wrong -- evolutionTimingAllowed
+  // (rules-engine.js) is only a MINIMUM-turn gate:
+  //   if (state.turnCounter <= 2 && target.turnEnteredCurrentForm <= 1) return false;
+  //   return target.turnEnteredCurrentForm < state.turnCounter;
+  // -- never a maximum, so evolving on turn 7, 9, or 15 is exactly as legal
+  // as turn 3 or 5. No card search anywhere in this file has a hard
+  // deadline; the bounded retry pattern is used wherever a search might
+  // not have naturally happened yet by the scripted turn count (now also
+  // evolveHostActive's own stage1Card/stage2Card searches and
+  // testEnergyTrans's Grass Energy search, not just this one).
   let handForBench = afterEvolve;
   let benchCard = handForBench.myHand.find((c) => c.name === 'Abra');
   let extraTurnCyclesForBench = 0;
@@ -410,8 +449,22 @@ async function testEnergyTrans() {
   const benchId = afterBench.public.board.player1.bench[0].id;
   await nextOfType(guestNext, 'match'); // guest's own copy
 
-  const grassEnergy = afterBench.myHand.find((c) => c.name === 'Grass Energy');
-  assert.ok(grassEnergy, 'expected Grass Energy in hand');
+  // Final-review fix: same bounded extra-turn-retry pattern as Rain
+  // Dance's own 2nd Water Energy search and Damage Swap's own 2nd Abra
+  // search -- this Grass Energy search has no deadline of any kind
+  // (Venusaur is already fully evolved by this point), matching exactly
+  // the shape of problem those 2 fixes already solved. Keep ending turns
+  // (same endTurnsUntilHostActive helper, same 12-cycle bound) until one
+  // turns up instead of gambling everything on the post-bench hand alone.
+  let handForEnergy = afterBench;
+  let grassEnergy = handForEnergy.myHand.find((c) => c.name === 'Grass Energy');
+  let extraTurnCyclesForEnergy = 0;
+  while (!grassEnergy && extraTurnCyclesForEnergy < 12) {
+    handForEnergy = await endTurnsUntilHostActive(host, guest, hostNext, guestNext);
+    grassEnergy = handForEnergy.myHand.find((c) => c.name === 'Grass Energy');
+    extraTurnCyclesForEnergy++;
+  }
+  assert.ok(grassEnergy, 'expected Grass Energy to eventually turn up in hand (even after ' + extraTurnCyclesForEnergy + ' extra turns)');
   sendAction(host, { type: 'attachEnergy', handCardId: grassEnergy.id, targetInstanceId: ownerId });
   const afterAttach = await nextOfType(hostNext, 'match');
   assert.strictEqual(afterAttach.public.board.player1.active.attachedEnergy.length, 1);
