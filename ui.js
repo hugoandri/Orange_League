@@ -3107,15 +3107,42 @@ function formatClockMs(ms) {
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
+// Real reported request: a real time-of-day clock in the board header
+// (right side, #boardWallClock), for both local play and PVP -- distinct
+// from the per-side game timers above (those count down the match's own
+// time bank; this just shows the real wall-clock time). 'plata' (neutral
+// silver, same palette room codes use) keeps it visually distinct from
+// the game timers' gold/red. Ticks on its own interval, independent of
+// any match lifecycle -- it's always relevant whenever the board is on
+// screen, in either mode, so it's started once at page load (below) and
+// just left running.
+function formatWallClockTime(d) {
+  var hh = d.getHours();
+  var mm = d.getMinutes();
+  return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+}
+function renderWallClock() {
+  var el = document.getElementById('boardWallClock');
+  if (!el) { return; }
+  el.innerHTML = pixelDigitsHtml(formatWallClockTime(new Date()), 'plata', SIDE_CLOCK_BLOCK_PX);
+}
+
+// Real reported bug: per-side clocks (both modes) were too small -- bumped
+// up from the original 1 (which just barely avoided crowding the username,
+// see below) while shell-theme.css's own side-header shrinks its avatar/
+// padding/name font a bit to give the wider digits room without pushing
+// the username back into ellipsis-truncation.
+var SIDE_CLOCK_BLOCK_PX = 1.4;
+
 // Same pixel-glyph digit rendering the coin/collection counts use (not
 // plain browser text) -- per user feedback that the clock looked
 // inconsistent next to them.
-// blockPx (optional, defaults to 2): every real caller now passes 1 --
-// both modes render into the same tight per-side header spot
-// (.shell-board-side-clock), where the default size crowded the
-// fixed-width digits against .shell-board-side-name's own flex:1 sizing,
-// squeezing the username down to near-nothing instead of sharing space
-// with it cleanly.
+// blockPx (optional, defaults to 2): every real caller now passes
+// SIDE_CLOCK_BLOCK_PX -- both modes render into the same tight per-side
+// header spot (.shell-board-side-clock), where the full default size
+// crowded the fixed-width digits against .shell-board-side-name's own
+// flex:1 sizing, squeezing the username down to near-nothing instead of
+// sharing space with it cleanly.
 function renderClockDisplay(el, ms, isCpu, blockPx) {
   var low = ms <= 30000;
   el.innerHTML = pixelDigitsHtml(formatClockMs(ms), (isCpu || low) ? 'dano' : 'oro', blockPx || 2);
@@ -3137,8 +3164,8 @@ function renderClocks() {
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
   var myEl = document.getElementById('sideClock-player');
   var cpuEl = document.getElementById('sideClock-cpu');
-  if (myEl) { renderClockDisplay(myEl, s.players.player.timeBankMs, false, 1); }
-  if (cpuEl) { renderClockDisplay(cpuEl, s.players.cpu.timeBankMs, false, 1); }
+  if (myEl) { renderClockDisplay(myEl, s.players.player.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
+  if (cpuEl) { renderClockDisplay(cpuEl, s.players.cpu.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
 }
 
 function tickGameClock() {
@@ -3189,8 +3216,8 @@ function startNewMatch() {
   // tick once 'playing' begins.
   var myClockEl = document.getElementById('sideClock-player');
   var cpuClockEl = document.getElementById('sideClock-cpu');
-  if (myClockEl) { renderClockDisplay(myClockEl, DEFAULT_TIME_BANK_MS, false, 1); }
-  if (cpuClockEl) { renderClockDisplay(cpuClockEl, DEFAULT_TIME_BANK_MS, false, 1); }
+  if (myClockEl) { renderClockDisplay(myClockEl, DEFAULT_TIME_BANK_MS, false, SIDE_CLOCK_BLOCK_PX); }
+  if (cpuClockEl) { renderClockDisplay(cpuClockEl, DEFAULT_TIME_BANK_MS, false, SIDE_CLOCK_BLOCK_PX); }
 }
 
 var BOOSTER_PACKS = {
@@ -4880,8 +4907,8 @@ function tickPvpClocks() {
   // request, PVP never passes isCpu at all: both clocks stay gold, turning
   // red only via renderClockDisplay's own internal `low` threshold
   // (<=30s), regardless of whose turn it is.
-  if (myEl) { renderClockDisplay(myEl, myMs, false, 1); }
-  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, false, 1); }
+  if (myEl) { renderClockDisplay(myEl, myMs, false, SIDE_CLOCK_BLOCK_PX); }
+  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, false, SIDE_CLOCK_BLOCK_PX); }
 
   var activeMs = pvpLatestPub.activePlayerId === 'player1' ? hostMs : guestMs;
   if (activeMs <= 0 && pvpClaimedTimeoutFor !== pvpLatestPub.turnStartedAt) {
@@ -5772,6 +5799,13 @@ document.addEventListener('DOMContentLoaded', function () {
   // browser has as much lead time as it can get before a real match or the
   // Collection screen ever starts needing these images.
   preloadCardImages();
+
+  // Real reported request: a real time-of-day clock in the board header,
+  // both modes -- independent of any match's own lifecycle (unlike every
+  // other interval in this file), so it's simplest to just start it once,
+  // here, and let it run for the rest of the page session.
+  renderWallClock();
+  setInterval(renderWallClock, 15000);
 
   // Theme init
   var savedTheme = null;
