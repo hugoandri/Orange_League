@@ -1358,9 +1358,23 @@ function redactMatchState(state, side1Uid, side2Uid) {
       player1: { active: publicPokemonView(p.active), bench: p.bench.map(publicPokemonView) },
       player2: { active: publicPokemonView(c.active), bench: c.bench.map(publicPokemonView) }
     },
+    // Real reported bug: "usé energy retrieval, seleccioné las energías del
+    // descarte pero no llegaron a mi mano" -- this redaction used to strip
+    // every discard card down to {name}, dropping its real id. Harmless for
+    // Trainer effects that only ever discard TO the pile (nothing reads an
+    // id back), but at least 4 real Trainer effects choose a SPECIFIC
+    // discard-pile card BY ID (Energy Retrieval's retrieveDiscardIds, Item
+    // Finder/Revive's own discardCardId, Pokémon Flute's
+    // opponentDiscardCardId -- see card-effects.js) -- the client had no
+    // real id to submit back, only ever "undefined" (every option in the
+    // picker modal collapsed onto the same literal string), which the
+    // server correctly rejected as "no existe en tu descarte". The discard
+    // pile is fully public information in the real game (both players can
+    // already see every card in it by name) -- exposing its real ids too
+    // leaks nothing new.
     discard: {
-      player1: p.discard.map(function (card) { return { name: card.name }; }),
-      player2: c.discard.map(function (card) { return { name: card.name }; })
+      player1: p.discard.map(function (card) { return { id: card.id, name: card.name }; }),
+      player2: c.discard.map(function (card) { return { id: card.id, name: card.name }; })
     },
     prizesRemaining: { player1: remainingPrizes(p), player2: remainingPrizes(c) },
     // Fixed 6-slot presence mask (true = still there, false = already
@@ -1444,6 +1458,13 @@ if (typeof module !== 'undefined') {
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
     evolutionTimingAllowed, makeFreshInstance, shuffle,
     discardedEnergyCard, discardedEvolutionCard, allInstances,
+    // Real reported bug found while testing the Energy Retrieval fix
+    // above: card-effects.js's own Energy Retrieval effect references this
+    // as a bare identifier too (same pattern as the block above) -- never
+    // exercised against the local dev server before, so this gap sat
+    // undiscovered. Left unbound, choosing any energy to retrieve threw
+    // "ENERGY_TYPE_BY_CARD_NAME is not defined" the instant it ran.
+    ENERGY_TYPE_BY_CARD_NAME,
     // Same story as the block above, one task later: ATTACK_EFFECTS entries
     // (invoked for real for the first time by removing runAction's old
     // "(Fase 2)" guard on the 'attack' case) call these as bare identifiers

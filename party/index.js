@@ -43,7 +43,13 @@ const {
   // internals as bare global identifiers too. Left unbound, Weedle's Poison
   // Sting (the first special-effect attack exercised against the local dev
   // server) threw "dealDamage is not defined" the instant it ran.
-  dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName
+  dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName,
+  // Real reported bug found while testing the Energy Retrieval fix: its own
+  // effect (card-effects.js) references this as a bare identifier too, the
+  // same class of gap as the block above -- never exercised against the
+  // local dev server before, so it sat undiscovered. Left unbound,
+  // retrieving any energy threw "ENERGY_TYPE_BY_CARD_NAME is not defined".
+  ENERGY_TYPE_BY_CARD_NAME
 } = require('../rules-engine.js');
 globalThis.findInstance = findInstance;
 globalThis.opponentOf = opponentOf;
@@ -65,6 +71,7 @@ globalThis.coinFlip = coinFlip;
 globalThis.addStatus = addStatus;
 globalThis.knockOutIfNeeded = knockOutIfNeeded;
 globalThis.translateAttackName = translateAttackName;
+globalThis.ENERGY_TYPE_BY_CARD_NAME = ENERGY_TYPE_BY_CARD_NAME;
 
 // functions/index.js's foilTierForCard (added earlier this session)
 // iterates CARD_CATALOG[setKey] (from functions/lib/cardCatalog.js, a
