@@ -559,6 +559,30 @@ function pokemonStageLabel(name) {
   return 'ETAPA 2';
 }
 
+// Real reported bug: the card viewer never showed a Pokémon's Power at
+// all (Alakazam's Damage Swap, Blastoise's Rain Dance, Charizard's Energy
+// Burn, Machamp's Strikes Back, Venusaur's Energy Trans, Electrode's
+// Buzzap) -- only its attack. Printed above the attacks on the real card,
+// so shown first here too. Read-only (activating a Power is a separate,
+// existing click-to-activate flow on the board itself, see
+// pendingPowerActivation) -- reuses the same row classes as a non-
+// actionable attack row (viewerAttacksHtml), just with no cost/damage
+// columns, since Powers have neither.
+function viewerPowerHtml(name) {
+  var stats = CARD_STATS[name];
+  var power = stats && stats.pokemonPower;
+  if (!power) { return ''; }
+  var nameEs = translatePowerName(power.name);
+  var textEs = translatePowerText(power.name);
+  return '<div class="shell-board-viewer-attacks"><div class="shell-board-viewer-attacks-header">PODER POKÉMON</div>' +
+    '<div class="shell-board-viewer-attack">' +
+      '<div class="shell-board-viewer-attack-body">' +
+        '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +
+        (textEs ? '<div class="shell-board-viewer-attack-text">' + escapeHtml(textEs) + '</div>' : '') +
+      '</div>' +
+    '</div></div>';
+}
+
 // actionableState is the live gameState when these rows should be real,
 // clickable attack buttons (viewing your own current Active, during your
 // turn, no pending prize choice) -- null/undefined renders plain read-only
@@ -659,7 +683,7 @@ function showCardInViewer(name, instanceId) {
     var discardBtnHtml = canVoluntaryDiscard
       ? '<div class="shell-board-viewer-attacks"><button type="button" class="shell-board-viewer-attack actionable" id="voluntaryDiscardBtn">DESCARTAR</button></div>'
       : '';
-    bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
+    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
   } else {
     // Trainer/Energy cards: the title stays in its real printed (English)
     // name here -- unlike the deck list/hand label, which do translate it

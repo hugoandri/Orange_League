@@ -703,6 +703,29 @@ var TRAINER_TEXT_ES = {
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
+// Real reported bug: the board's card viewer (ui.js's showCardInViewer)
+// only ever rendered a Pokémon's attacks -- a Pokémon Power (Alakazam's
+// Damage Swap, Blastoise's Rain Dance, Charizard's Energy Burn, Machamp's
+// Strikes Back, Venusaur's Energy Trans, Electrode's Buzzap) never showed
+// up there at all, only its attack. Keyed by POWER name (not Pokémon
+// name), same convention as ATTACK_NAME_ES/TRAINER_TEXT_ES above.
+var POWER_NAME_ES = {
+  'Damage Swap': 'Transferir Daño', 'Rain Dance': 'Danza de Lluvia',
+  'Energy Burn': 'Quemar Energía', 'Strikes Back': 'Contraataque',
+  'Energy Trans': 'Transferir Energía', 'Buzzap': 'Buzzap'
+};
+function translatePowerName(name) { return POWER_NAME_ES[name] || name; }
+
+var POWER_TEXT_ES = {
+  'Damage Swap': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes mover 1 ficha de daño de uno de tus Pokémon a otro, siempre que no lo noquees. No se puede usar si Alakazam está Dormido, Confundido o Paralizado.',
+  'Rain Dance': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes adjuntar 1 carta de Energía Agua a uno de tus Pokémon de tipo Agua. (Esto no gasta tu adjunto de Energía del turno.) No se puede usar si Blastoise está Dormido, Confundido o Paralizado.',
+  'Energy Burn': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes convertir toda la Energía adjunta a Charizard en Energía Fuego por el resto del turno. No se puede usar si Charizard está Dormido, Confundido o Paralizado.',
+  'Strikes Back': 'Cada vez que el ataque de tu rival dañe a Machamp (incluso si es noqueado), este poder inflige 10 de daño al Pokémon atacante. (No se aplican Debilidad ni Resistencia.) No se puede usar si Machamp ya estaba Dormido, Confundido o Paralizado cuando fue atacado.',
+  'Energy Trans': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes tomar 1 carta de Energía Planta adjunta a uno de tus Pokémon y adjuntarla a otro distinto. No se puede usar si Venusaur está Dormido, Confundido o Paralizado.',
+  'Buzzap': 'En cualquier momento durante tu turno (antes de tu ataque), puedes noquear a Electrode y adjuntarlo a otro de tus Pokémon. Si lo haces, elige un tipo de Energía: Electrode pasa a ser una carta de Energía (en vez de un Pokémon) que provee 2 de ese tipo. No se puede usar si Electrode está Dormido, Confundido o Paralizado.'
+};
+function translatePowerText(name) { return POWER_TEXT_ES[name] || ''; }
+
 function typeHasMatch(list, types) {
   return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
 }
