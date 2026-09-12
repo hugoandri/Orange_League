@@ -860,6 +860,9 @@ function cpuActionLabel(play) {
       return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) + ' de básico';
     case 'retreat':
       return (mine ? 'Retiras a ' : 'El rival retira a ') + translateCardName(play.outName) + ' → sale ' + translateCardName(play.name);
+    case 'power':
+      return (mine ? 'Usas el Poder ' : 'El rival usa el Poder ') + translatePowerName(play.powerName) + ' de ' + translateCardName(play.name) +
+        (play.targetName ? (' en ' + translateCardName(play.targetName)) : '');
     default:
       return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) +
         (play.targetName ? (' → sale ' + translateCardName(play.targetName)) : '');
@@ -2710,6 +2713,11 @@ function wireBoardButtons() {
   function startPowerFlow(instance) {
     var powerName = CARD_STATS[instance.name].pokemonPower.name;
     if (powerName === 'Energy Burn') {
+      if (pvpMode) {
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: instance.id, params: {} })
+          .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+        return;
+      }
       var result = usePokemonPower(gameState, 'player', instance.id, {});
       if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
       renderBoard();
@@ -2752,14 +2760,11 @@ function wireBoardButtons() {
   var habilidadBtn = document.getElementById('habilidadBtn');
   if (habilidadBtn) {
     habilidadBtn.addEventListener('click', function () {
-      // I8 (final-review fix): Pokémon Powers are Fase 2 scope -- every
-      // usePokemonPower() call site (Damage Swap/Energy Trans/Rain Dance/
-      // Buzzap resolution, all reached only via startPowerFlow below) is
-      // unreachable in PVP once this single entry point is guarded.
-      if (pvpMode) {
-        alert('Los Poderes Pokémon todavía no están disponibles en PVP (próximamente).');
-        return;
-      }
+      // Real reported request: Pokémon Powers now work in PVP too --
+      // usablePokemonPowers(gameState, 'player') already reads correctly
+      // in either mode (gameState is rebuilt from the server's own
+      // redacted snapshot in PVP, via buildPvpGameState), so the only
+      // thing that ever needed to change is this guard.
       clearPendingFlows();
       var usable = usablePokemonPowers(gameState, 'player');
       if (usable.length === 0) { return; }
@@ -2854,21 +2859,39 @@ function wireBoardButtons() {
             return;
           }
           pendingPowerActivation = null;
-          var swapResult = usePokemonPower(gameState, 'player', pa.ownerId, { fromInstanceId: pa.fromInstanceId, toInstanceId: instanceId });
+          var swapParams = { fromInstanceId: pa.fromInstanceId, toInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: swapParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var swapResult = usePokemonPower(gameState, 'player', pa.ownerId, swapParams);
           if (swapResult && !swapResult.legal) { logEvent(gameState, swapResult.reason, 'player'); }
           afterPlayerAction();
           return;
         }
         if (pa.powerName === 'Rain Dance') {
           pendingPowerActivation = null;
-          var rainResult = usePokemonPower(gameState, 'player', pa.ownerId, { handEnergyId: pa.handEnergyId, targetInstanceId: instanceId });
+          var rainParams = { handEnergyId: pa.handEnergyId, targetInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: rainParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var rainResult = usePokemonPower(gameState, 'player', pa.ownerId, rainParams);
           if (rainResult && !rainResult.legal) { logEvent(gameState, rainResult.reason, 'player'); }
           afterPlayerAction();
           return;
         }
         if (pa.powerName === 'Buzzap') {
           pendingPowerActivation = null;
-          var buzzapResult = usePokemonPower(gameState, 'player', pa.ownerId, { chosenType: pa.chosenType, targetInstanceId: instanceId });
+          var buzzapParams = { chosenType: pa.chosenType, targetInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: buzzapParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var buzzapResult = usePokemonPower(gameState, 'player', pa.ownerId, buzzapParams);
           if (buzzapResult && !buzzapResult.legal) { logEvent(gameState, buzzapResult.reason, 'player'); }
           afterPlayerAction();
           return;
@@ -4980,6 +5003,10 @@ var pvpRpsLatestMatchData = null;
 // reconnect) never replays a reveal that already happened.
 var pvpTrainerRevealedRound = 0;
 
+// Sibling to pvpTrainerRevealedRound above, same shape -- lastPowerUse.round
+// (party/index.js) increments every successful usePower action.
+var pvpPowerRevealedRound = 0;
+
 // Sibling to pvpTrainerRevealedRound above, same shape -- lastAttackResult.round
 // (party/index.js) increments every successful attack action (special-
 // effect or vanilla); this tracks the last round already shown so a
@@ -5065,6 +5092,7 @@ function resetPvpMatchState() {
   pvpRpsRevealedRound = 0;
   pvpRpsLatestMatchData = null;
   pvpTrainerRevealedRound = 0;
+  pvpPowerRevealedRound = 0;
   pvpAttackRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
@@ -5182,6 +5210,7 @@ function enterPvpMatch(matchId) {
   pvpRpsRevealedRound = 0;
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpTrainerRevealedRound = 0;
+  pvpPowerRevealedRound = 0;
   pvpAttackRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
@@ -5252,6 +5281,21 @@ function enterPvpMatch(matchId) {
         targetName: pub.lastTrainerPlay.targetName
       };
       showTrainerPlayedOverlay(play, function () {
+        processPvpMatchSnapshot(pvpRpsLatestMatchData);
+      });
+      return;
+    }
+
+    if (pub.lastPowerUse && pub.lastPowerUse.round > pvpPowerRevealedRound) {
+      pvpPowerRevealedRound = pub.lastPowerUse.round;
+      var powerPlay = {
+        kind: 'power',
+        name: pub.lastPowerUse.ownerName,
+        powerName: pub.lastPowerUse.powerName,
+        playerId: pub.lastPowerUse.side === pvpMySide ? 'player' : 'cpu',
+        targetName: pub.lastPowerUse.targetName
+      };
+      showTrainerPlayedOverlay(powerPlay, function () {
         processPvpMatchSnapshot(pvpRpsLatestMatchData);
       });
       return;
