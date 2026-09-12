@@ -2787,13 +2787,21 @@ function wireBoardButtons() {
           var activePokemon = gameState.players.player.active;
           var retreatCostNow = CARD_STATS[activePokemon.name].retreatCost;
           if (pvpMode) {
-            // Fase 1 PVP retreats always let the server pick which Energy to
-            // discard when the cost is >0 (omitting energyIndices falls back
-            // to "the first `cost` many," same as the AI/tests already do) --
-            // the richer "choose which specific Energy" modal stays
-            // local-only for now, a small, explicitly acceptable UX gap.
-            submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId })
-              .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+            // Real reported request: let the player choose WHICH attached
+            // Energy pays the retreat cost in PVP too, same modal local
+            // play already uses -- the server has always accepted
+            // action.discardEnergyIndices (see party/index.js's 'retreat'
+            // case), only the client never sent it for PVP, silently
+            // falling back to "the first `cost` many" instead.
+            if (retreatCostNow === 0) {
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId })
+                .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+              return;
+            }
+            openEnergyDiscardModal(activePokemon.attachedEnergy.slice(), retreatCostNow, function (indices) {
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId, discardEnergyIndices: indices })
+                .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+            });
             return;
           }
           if (retreatCostNow === 0) {
