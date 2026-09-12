@@ -1471,6 +1471,12 @@ if (typeof module !== 'undefined') {
     // too. Found the same way -- a genuine repro against the local dev
     // server threw "dealDamage is not defined" from Weedle's Poison Sting,
     // the very first special-effect attack this task exercised.
-    dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName
+    dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName,
+    // party/index.js's new 'usePower' runAction case calls this directly
+    // (not as a bare globalThis identifier) -- the same validated single
+    // entry point local play already uses for all 5 activatable Pokémon
+    // Powers (usablePokemonPowers, the button's own enabled/disabled
+    // check, was already exported above).
+    usePokemonPower
   };
 }

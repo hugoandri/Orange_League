@@ -49,7 +49,12 @@ const {
   // same class of gap as the block above -- never exercised against the
   // local dev server before, so it sat undiscovered. Left unbound,
   // retrieving any energy threw "ENERGY_TYPE_BY_CARD_NAME is not defined".
-  ENERGY_TYPE_BY_CARD_NAME
+  ENERGY_TYPE_BY_CARD_NAME,
+  // party/index.js's new 'usePower' runAction case calls this directly --
+  // the same validated single entry point (own-turn check, owner-belongs-
+  // to-caller check, Power-exists check, Asleep/Confused/Paralyzed check)
+  // local play's own HABILIDAD button already relies on.
+  usePokemonPower
 } = require('../rules-engine.js');
 globalThis.findInstance = findInstance;
 globalThis.opponentOf = opponentOf;
@@ -449,6 +454,8 @@ export default class Server {
     this.trainerRound = 0;
     this.lastAttackResult = null;
     this.lastTrainerPlay = null;
+    this.powerRound = 0;
+    this.lastPowerUse = null;
     this.persistState();
   }
 
@@ -483,6 +490,7 @@ export default class Server {
     redacted.public.guestUsername = this.info.guestUsername || null;
     redacted.public.guestPhoto = this.info.guestPhoto || null;
     redacted.public.lastAttackResult = this.lastAttackResult || null;
+    redacted.public.lastPowerUse = this.lastPowerUse || null;
     redacted.public.turnStartedAt = this.turnStartedAt || null;
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
@@ -697,6 +705,34 @@ export default class Server {
         if (!result.legal) { throw new Error(result.reason); }
         this.trainerRound = (this.trainerRound || 0) + 1;
         this.lastTrainerPlay = { side: side === 'player' ? 'player1' : 'player2', cardName: action.trainerName, targetName: result.targetName || null, round: this.trainerRound };
+        break;
+      }
+      case 'usePower': {
+        // Captured BEFORE the effect runs, not after: Buzzap knocks its
+        // OWN owner out of play (findInstance would return undefined
+        // afterward, since knockOutIfNeeded clears the slot) --
+        // ownerBefore/powerBefore are plain values by the time they're
+        // actually used below, so the owner leaving play doesn't matter.
+        const ownerBefore = findInstance(this.state.players[side], action.ownerInstanceId);
+        const powerBefore = ownerBefore && CARD_STATS[ownerBefore.name] && CARD_STATS[ownerBefore.name].pokemonPower;
+        const result = usePokemonPower(this.state, side, action.ownerInstanceId, action.params || {});
+        if (!result.legal) { throw new Error(result.reason); }
+        this.powerRound = (this.powerRound || 0) + 1;
+        // params.toInstanceId (Damage Swap/Energy Trans) or
+        // params.targetInstanceId (Rain Dance/Buzzap) -- Energy Burn has
+        // neither, so targetName stays null. Safe to resolve AFTER the
+        // effect ran (unlike ownerBefore above): none of the 5 effects
+        // ever remove the TARGET Pokémon from play, only Buzzap removes
+        // its own OWNER.
+        const targetId = (action.params && (action.params.toInstanceId || action.params.targetInstanceId)) || null;
+        const targetInstance = targetId ? findInstance(this.state.players[side], targetId) : null;
+        this.lastPowerUse = {
+          side: side === 'player' ? 'player1' : 'player2',
+          ownerName: ownerBefore.name,
+          powerName: powerBefore.name,
+          targetName: targetInstance ? targetInstance.name : null,
+          round: this.powerRound
+        };
         break;
       }
       default:
