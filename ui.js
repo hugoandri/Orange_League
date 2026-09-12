@@ -6435,9 +6435,13 @@ document.addEventListener('DOMContentLoaded', function () {
     hideBoardScreen();
     showMenu();
   });
-  document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
-    document.getElementById('matchEndModal').classList.add('hidden');
-  });
+  // Real reported bug: clicking the backdrop used to dismiss this modal
+  // the same way every other modal's backdrop does -- but the match is
+  // genuinely over once this shows (win or loss), and dismissing it left
+  // the board sitting there fully clickable/playable with nothing left to
+  // legitimately do. Deliberately no backdrop-click handler here: "VOLVER
+  // A JUGAR"/"SALIR" (matchEndReplayBtn/matchEndCancelBtn above) are the
+  // only ways out.
 
   // Booster select modal
   document.getElementById('boosterModalClose').addEventListener('click', closeBoosterSelectModal);
