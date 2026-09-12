@@ -8,7 +8,11 @@ const http = require('http');
 // scenarios don't need to actually play a full match out first.
 const IDENTITIES = {
   'rematch-host-token': { uid: 'rematch-host-uid', username: 'RematchHost', photo: null, deckKey: 'overgrowth', deckCoverName: null, customDeckCards: null, testTimeBankMs: 300, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
-  'rematch-guest-token': { uid: 'rematch-guest-uid', username: 'RematchGuest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, testTimeBankMs: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} }
+  'rematch-guest-token': { uid: 'rematch-guest-uid', username: 'RematchGuest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, testTimeBankMs: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
+  // Weedle's Poison Sting costs exactly 1 Grass Energy -- same deterministic
+  // one-attach-then-attack setup attack.test.js's own weedle-token uses.
+  'rematch-attack-host-token': { uid: 'rematch-attack-host-uid', username: 'RematchAttackHost', photo: null, deckKey: 'overgrowth', deckCoverName: null, customDeckCards: [{ name: 'Weedle', count: 10 }, { name: 'Grass Energy', count: 20 }], testTimeBankMs: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} },
+  'rematch-attack-guest-token': { uid: 'rematch-attack-guest-uid', username: 'RematchAttackGuest', photo: null, deckKey: 'blackout', deckCoverName: null, customDeckCards: null, testTimeBankMs: null, cardBackId: 'clasico', collectionHolo: {}, collectionSecret: {} }
 };
 const stub = http.createServer((req, res) => {
   let body = '';
@@ -171,11 +175,70 @@ async function testLeaveRoomFromHostFlagsForTheGuest() {
   host.close(); guest.close();
 }
 
+// Real reported bug: after attacking without ever confirming the end of
+// that turn, rematching both sides used to carry turnEndPendingSide/
+// lastAttackResult straight from the OLD match's Server instance into the
+// fresh one (these live on `this`, not `this.state`, which startMatch's
+// own createGame(...) call replaces fresh) -- wrongly blocking the WINNER's
+// very first action in the new match ('submitRpsChoice' isn't in
+// runAction's own turnEndPendingSide exemption list, so pressing rock/
+// paper/scissors threw "Debes confirmar el fin de tu turno primero"), and
+// risking a stale attack-overlay replay during the new match's opening
+// RPS/setup phase (lastAttackResult/lastTrainerPlay are broadcast on every
+// snapshot unconditionally, via redactedFor).
+async function testRematchResetsStaleTurnEndPendingAndAttackState() {
+  const { host, guest, hostNext, guestNext, hostState } = await playToTurn1('REMATCH4', 'rematch-attack-host-token', 'rematch-attack-guest-token');
+
+  const grassEnergy = hostState.myHand.find((c) => c.name === 'Grass Energy');
+  assert.ok(grassEnergy, 'expected a Grass Energy in the opening hand');
+  const hostActiveId = hostState.public.board.player1.active.id;
+  sendAction(host, { type: 'attachEnergy', handCardId: grassEnergy.id, targetInstanceId: hostActiveId });
+  await nextOfType(hostNext, 'match');
+  await nextOfType(guestNext, 'match'); // guest's own copy of the same broadcast
+
+  // Deliberately never confirms the end of this turn -- exactly the state
+  // a match that ends via this same attack's own KO would be left in (no
+  // more turn left to confirm once the match is already decided).
+  sendAction(host, { type: 'attack', attackName: 'Poison Sting' });
+  const afterAttack = await nextOfType(hostNext, 'match');
+  assert.ok(afterAttack.public.lastAttackResult, 'expected a real lastAttackResult right after the attack');
+  await nextOfType(guestNext, 'match'); // guest's own copy
+
+  host.send(JSON.stringify({ type: 'rematch' }));
+  await nextOfType(hostNext, 'room');
+  await nextOfType(guestNext, 'room');
+  guest.send(JSON.stringify({ type: 'rematch' }));
+  const roomStarted = await nextOfType(hostNext, 'room');
+  assert.strictEqual(roomStarted.status, 'started', 'expected the rematch to actually start a fresh match');
+  await nextOfType(guestNext, 'room');
+
+  const freshHostMatch = await nextOfType(hostNext, 'match');
+  const freshGuestMatch = await nextOfType(guestNext, 'match');
+  assert.strictEqual(freshHostMatch.public.phase, 'rps', 'expected a genuinely fresh match');
+  assert.strictEqual(freshHostMatch.public.lastAttackResult, null, 'expected the OLD match\'s lastAttackResult to be cleared, not carried into the fresh match');
+  assert.strictEqual(freshGuestMatch.public.lastAttackResult, null);
+  console.log('PASS: a rematch clears the previous match\'s stale lastAttackResult instead of carrying it into the fresh match');
+
+  sendAction(host, { type: 'submitRpsChoice', choice: 'rock' });
+  const hostImmediate = await hostNext();
+  assert.notStrictEqual(hostImmediate.type, 'error', 'submitRpsChoice was wrongly rejected: ' + (hostImmediate.message || ''));
+  sendAction(guest, { type: 'submitRpsChoice', choice: 'scissors' });
+  const guestImmediate = await guestNext();
+  assert.notStrictEqual(guestImmediate.type, 'error', 'submitRpsChoice was wrongly rejected: ' + (guestImmediate.message || ''));
+  let hostAfterRps = await nextOfType(hostNext, 'match');
+  while (hostAfterRps.public.phase !== 'setup') { hostAfterRps = await nextOfType(hostNext, 'match'); }
+  assert.strictEqual(hostAfterRps.public.phase, 'setup', 'expected RPS to resolve normally into setup');
+  console.log('PASS: submitRpsChoice is no longer blocked by the previous match\'s stale turnEndPendingSide');
+
+  host.close(); guest.close();
+}
+
 async function main() {
   await new Promise((resolve) => stub.listen(8796, resolve));
   await testRematchBothSidesReadyStartsAFreshMatch();
   await testLeaveRoomFlagsCarryOnTheRoomBroadcast();
   await testLeaveRoomFromHostFlagsForTheGuest();
+  await testRematchResetsStaleTurnEndPendingAndAttackState();
   stub.close();
   console.log('ALL PVP REMATCH (PartyKit) TESTS PASSED');
   process.exit(0);

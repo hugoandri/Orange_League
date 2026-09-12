@@ -427,6 +427,28 @@ export default class Server {
     // same mechanism, same reasoning.
     if (this.info.hostTestTimeBankMs) { this.state.players.player.timeBankMs = this.info.hostTestTimeBankMs; }
     if (this.info.guestTestTimeBankMs) { this.state.players.cpu.timeBankMs = this.info.guestTestTimeBankMs; }
+    // Real reported bug: a rematch (2nd+ match in the same room, same
+    // Server instance) could inherit STALE per-instance fields left over
+    // from the PREVIOUS match -- these live on `this`, not `this.state`
+    // (which createGame just replaced fresh, above), so nothing else ever
+    // reset them. Confirmed: turnEndPendingSide left set (the previous
+    // match ended via an attack that KO'd the last Pokémon and decided the
+    // winner before confirmEndTurn ever ran -- there was no more turn left
+    // to confirm) wrongly blocked the WINNER's very first action in the
+    // new match: 'submitRpsChoice' isn't in runAction's own
+    // turnEndPendingSide exemption list, so pressing rock/paper/scissors
+    // threw "Debes confirmar el fin de tu turno primero." lastAttackResult/
+    // lastTrainerPlay left set could similarly replay the OLD match's
+    // reveal overlay during the new match's opening RPS/setup phase (both
+    // are broadcast on every snapshot unconditionally, via redactedFor) --
+    // likely the "board flashed with the previous duel's cards" the same
+    // report described.
+    this.turnEndPendingSide = null;
+    this.turnStartedAt = null;
+    this.attackRound = 0;
+    this.trainerRound = 0;
+    this.lastAttackResult = null;
+    this.lastTrainerPlay = null;
     this.persistState();
   }
 
