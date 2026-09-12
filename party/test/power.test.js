@@ -279,8 +279,24 @@ async function testDamageSwap() {
   // lastPowerUse check below see null instead of the real reveal.
   await nextOfType(setup.guestNext, 'match'); // guest's own copy of the evolve-to-Alakazam broadcast
 
-  const benchCard = afterEvolve.myHand.find((c) => c.name === 'Abra');
-  assert.ok(benchCard, 'expected a 2nd Abra in hand to bench by turn 5');
+  // Reviewer-requested fix (round 1): same bounded extra-turn-retry
+  // pattern as Rain Dance's own 2nd Water Energy search below -- unlike
+  // Kadabra-by-turn-3/Alakazam-by-turn-5 (genuinely deadline-locked by
+  // evolutionTimingAllowed, so they get a single-shot assert), the 2nd
+  // Abra has no deadline at all: Alakazam is already fully evolved by this
+  // point, so nothing stops the host from ending a few more real turns
+  // (via the same endTurnsUntilHostActive helper, same 12-cycle bound)
+  // until a 2nd Abra actually turns up, instead of gambling everything on
+  // turn 5's own hand alone.
+  let handForBench = afterEvolve;
+  let benchCard = handForBench.myHand.find((c) => c.name === 'Abra');
+  let extraTurnCyclesForBench = 0;
+  while (!benchCard && extraTurnCyclesForBench < 12) {
+    handForBench = await endTurnsUntilHostActive(setup.host, setup.guest, setup.hostNext, setup.guestNext);
+    benchCard = handForBench.myHand.find((c) => c.name === 'Abra');
+    extraTurnCyclesForBench++;
+  }
+  assert.ok(benchCard, 'expected a 2nd Abra to eventually turn up (even after ' + extraTurnCyclesForBench + ' extra turns)');
   sendAction(setup.host, { type: 'placeBench', handCardId: benchCard.id, benchIndex: 0 });
   const afterBench = await nextOfType(setup.hostNext, 'match');
   const benchId = afterBench.public.board.player1.bench[0].id;
