@@ -351,7 +351,31 @@ export default class Server {
       // learns to take that path instead of waiting forever for a
       // rematch that will never arrive.
       if (sender.id === this.info.hostConnId) { this.info.hostLeft = true; }
-      else if (sender.id === this.info.guestConnId) { this.info.guestLeft = true; }
+      else if (sender.id === this.info.guestConnId) {
+        // Real reported bug: the guest leaving used to only ever set this
+        // flag -- the host, staying behind and pressing "VOLVER A JUGAR",
+        // got stuck forever: their own room broadcast still showed the
+        // DEPARTED guest as occupying the room (guestUid/guestConnId were
+        // never actually cleared), so no new rival -- the same guest
+        // rejoining, or anyone else -- could ever join this room code
+        // again (onConnect's join branch rejects whenever guestUid is
+        // already set). Actually vacate the slot here (same empty shape
+        // as onConnect's own room-creation branch) and drop status back
+        // to 'waiting' so the room is immediately open for a real new
+        // join, not just carrying a flag nobody reacts to.
+        this.info.guestUid = null; this.info.guestConnId = null;
+        this.info.guestUsername = null; this.info.guestPhoto = null;
+        this.info.guestDeckId = null; this.info.guestDeckKey = null;
+        this.info.guestCustomDeckCards = null; this.info.guestTestTimeBankMs = null;
+        this.info.guestCardBackId = null; this.info.guestCollectionHolo = null; this.info.guestCollectionSecret = null;
+        this.info.guestReady = false;
+        this.info.guestLeft = false; // the slot is genuinely empty now, not just "left"
+        this.info.status = 'waiting';
+        // Refreshed so a legitimately fresh rematch/re-join never gets
+        // rejected by onConnect's own ROOM_EXPIRY_MS check against the
+        // ORIGINAL room's creation time.
+        this.info.createdAt = Date.now();
+      }
       await this.room.storage.put('info', this.info);
       this.broadcastRoom();
       return;

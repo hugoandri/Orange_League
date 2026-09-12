@@ -4730,6 +4730,14 @@ function renderPvpWaitingReadyState(room) {
   var startBtn = document.getElementById('pvpStartMatchBtn');
   var startHint = document.getElementById('pvpStartHint');
   if (!oppUid) {
+    // Real reported bug: a rival leaving (SALIR) after a match, while I'd
+    // already pressed "VOLVER A JUGAR" and was sitting on this waiting
+    // screen, used to leave their ready badge/status frozen on whatever it
+    // showed right before they left -- this early return never reset it
+    // back to the same "nobody's here yet" state renderPvpWaitingMine sets
+    // up initially.
+    setPvpReadyBadge('pvpWaitingOpponentReadyBadge', false);
+    document.getElementById('pvpWaitingOpponentStatus').textContent = 'ESPERANDO';
     startBtn.classList.add('hidden');
     startHint.classList.add('hidden');
     return;
@@ -4755,7 +4763,20 @@ function renderPvpWaitingOpponentFromRoom(room) {
   var myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
   var iAmHost = room.hostUid === myUid;
   var oppUid = iAmHost ? room.guestUid : room.hostUid;
-  if (!oppUid) { return; }
+  if (!oppUid) {
+    // Real reported bug: this used to just return, leaving the rival's
+    // STALE photo/name on screen forever once they left (SALIR) -- the
+    // server now actually vacates a departed guest's slot (party/index.js's
+    // 'leaveRoom' case), but nothing here ever reset the DISPLAY back to
+    // the same placeholder/spinner state renderPvpWaitingMine originally
+    // set up, so the room visibly looked "full" even once it was open
+    // again for a new rival.
+    document.getElementById('pvpWaitingOpponentSpinner').classList.remove('hidden');
+    document.getElementById('pvpWaitingOpponentPhoto').classList.add('hidden');
+    document.getElementById('pvpWaitingOpponentName').textContent = 'ESPERANDO…';
+    document.getElementById('pvpWaitingOpponentDeckWrap').classList.add('hidden');
+    return;
+  }
   var oppName = iAmHost ? room.guestUsername : room.hostUsername;
   var oppPhoto = (iAmHost ? room.guestPhoto : room.hostPhoto) || PROFILE_PHOTO_URL.player;
   var oppDeckId = iAmHost ? room.guestDeckId : room.hostDeckId;

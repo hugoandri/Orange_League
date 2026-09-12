@@ -131,12 +131,37 @@ async function testRematchBothSidesReadyStartsAFreshMatch() {
 async function testLeaveRoomFlagsCarryOnTheRoomBroadcast() {
   const { host, guest, hostNext, guestNext } = await playToFinishedMatch('REMATCH2');
 
+  // Real reported bug: the guest leaving used to only ever set guestLeft --
+  // the host, staying behind and pressing "VOLVER A JUGAR", got stuck
+  // forever because guestUid/guestConnId were never actually cleared, so
+  // no new rival could ever join this room code again. Now the slot is
+  // genuinely vacated: status drops back to 'waiting', guestUid is null,
+  // and guestLeft resets to false (nothing is "left" any more -- the slot
+  // is just empty, the same as a room nobody ever joined).
+  host.send(JSON.stringify({ type: 'rematch' })); // host stays and wants a rematch
+  await nextOfType(hostNext, 'room');
   guest.send(JSON.stringify({ type: 'leaveRoom' }));
   const roomAfterGuestLeft = await nextOfType(hostNext, 'room');
-  assert.strictEqual(roomAfterGuestLeft.guestLeft, true, 'expected the host to learn the guest left');
+  assert.strictEqual(roomAfterGuestLeft.status, 'waiting', 'expected the room to be open again, not stuck showing the departed guest');
+  assert.strictEqual(roomAfterGuestLeft.guestUid, null, 'expected the guest slot to be genuinely vacated, not just flagged');
+  assert.strictEqual(roomAfterGuestLeft.guestLeft, false, 'nothing is "left" any more once the slot is actually empty');
   assert.strictEqual(roomAfterGuestLeft.hostLeft, false, 'the host itself never left');
-  await nextOfType(guestNext, 'room'); // drain the guest's own echo of this same broadcast
-  console.log('PASS: leaveRoom from the guest is visible to the host as guestLeft:true');
+  console.log('PASS: the guest leaving actually vacates their slot instead of just flagging it -- the host is never stuck');
+
+  // A brand new rival (or the same one, doesn't matter -- the server has
+  // no way to tell) can now join this exact room code.
+  const newGuest = connect('REMATCH2', 'rematch-guest-token', 'join');
+  const newGuestNext = makeQueue(newGuest);
+  await nextOfType(newGuestNext, 'room');
+  const roomAfterNewJoin = await nextOfType(hostNext, 'room');
+  assert.strictEqual(roomAfterNewJoin.guestUsername, 'RematchGuest', 'expected a fresh join to succeed and fill the vacated slot');
+  console.log('PASS: a new rival can join the same room code once the departed guest\'s slot is vacated');
+
+  host.close(); guest.close(); newGuest.close();
+}
+
+async function testLeaveRoomFromHostFlagsForTheGuest() {
+  const { host, guest, hostNext, guestNext } = await playToFinishedMatch('REMATCH3');
 
   host.send(JSON.stringify({ type: 'leaveRoom' }));
   const roomAfterHostLeft = await nextOfType(guestNext, 'room');
@@ -150,6 +175,7 @@ async function main() {
   await new Promise((resolve) => stub.listen(8796, resolve));
   await testRematchBothSidesReadyStartsAFreshMatch();
   await testLeaveRoomFlagsCarryOnTheRoomBroadcast();
+  await testLeaveRoomFromHostFlagsForTheGuest();
   stub.close();
   console.log('ALL PVP REMATCH (PartyKit) TESTS PASSED');
   process.exit(0);
