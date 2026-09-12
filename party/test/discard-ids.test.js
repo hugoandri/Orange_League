@@ -187,8 +187,16 @@ async function testDiscardIdsSurviveRedactionAndEnergyRetrievalWorks() {
 
   sendAction(host, { type: 'playTrainer', trainerName: 'Energy Retrieval', handId: energyRetrievalCard.id, args: [tradeCard.id, discardIds] });
   var afterRetrieval = await nextOfType(hostNext, 'match');
-  var handEnergyIds = afterRetrieval.myHand.filter((c) => c.name === 'Grass Energy').map((c) => c.id);
-  assert.strictEqual(handEnergyIds.length, 2, 'expected both retrieved Grass Energy cards to actually land in hand -- this is the exact reported bug');
+  // By id, not by a total Grass Energy count -- this custom deck is heavy
+  // enough in Grass Energy (needed for the opening-hand retry loop above)
+  // that normal turn-start draws can easily have put OTHER Grass Energy
+  // copies in hand too by now; what actually matters is that these 2
+  // SPECIFIC discard ids landed back in hand, not merely that the hand
+  // contains 2 Grass Energy cards total.
+  var handIds = afterRetrieval.myHand.map((c) => c.id);
+  discardIds.forEach((id) => {
+    assert.ok(handIds.indexOf(id) !== -1, 'expected retrieved card ' + id + ' to actually land in hand -- this is the exact reported bug');
+  });
   assert.strictEqual(afterRetrieval.public.discard.player1.length, 2, 'expected exactly 2 cards left in discard: the traded card + Energy Retrieval itself');
   console.log('PASS: Energy Retrieval, over the real PartyKit action API, now actually returns the chosen energies to hand');
 
