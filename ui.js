@@ -5134,7 +5134,22 @@ function enterPvpMatch(matchId) {
   pvpClockTickInterval = setInterval(tickPvpClocks, CLOCK_TICK_MS);
   pvpClaimedTimeoutFor = null;
   var myUid = firebase.auth().currentUser.uid;
-  if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
+  // Real reported bug: after a same-room rematch, the host's client
+  // never actually transitioned to the fresh match's RPS screen -- it
+  // just sat frozen on the PREVIOUS match's board, exactly as it looked
+  // right before "VOLVER A JUGAR" was pressed. Root cause: enterPvpMatch
+  // only ever ran ONCE per real socket connection before the rematch
+  // feature existed, so this old cleanup line -- calling the PREVIOUS
+  // match's own unsubscribe() -- was harmless (pvpMatchUnsubscribe was
+  // always null the first time). initPvpMatchListeners's own unsubscribe
+  // (economy.js) does more than drop the handler reference, though: it
+  // also CLOSES pvpSocket entirely (the right behavior for actually
+  // leaving PVP, see resetPvpMatchState's own call to it) -- calling it
+  // here, right as the server was about to send the fresh match's first
+  // 'rps'-phase snapshot over that same socket, killed the connection
+  // before it could ever arrive. Removed: initPvpMatchListeners already
+  // reassigns pvpMatchHandler unconditionally on its own next line, so
+  // this call was never actually needed for cleanup, only harmful here.
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
     pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
     pvpMode = true;
