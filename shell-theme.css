@@ -1066,7 +1066,11 @@
    out of that flow entirely (position:absolute, see its own comment
    above), so this is the only other real flex child besides the phase
    pill, and the only one that needs pushing. */
-.shell-board-wallclock{margin-left:auto;flex:none;}
+.shell-board-wallclock{margin-left:auto;flex:none;display:flex;align-items:flex-end;gap:6px;}
+/* AM/PM suffix (renderWallClock, ui.js) -- smaller than the time itself
+   and nudged down to its baseline, the same relationship a real clock
+   face's AM/PM indicator has to its hour digits. */
+.shell-board-wallclock-period{padding-bottom:2px;}
 /* "CPU PENSANDO..." dots (see showCpuThinkingIndicator, ui.js) -- one dot
    appears, then the next, then the third, all three hold, then all three
    drop out together and the cycle repeats. Three separate keyframes (not

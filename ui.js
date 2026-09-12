@@ -3116,15 +3116,27 @@ function formatClockMs(ms) {
 // any match lifecycle -- it's always relevant whenever the board is on
 // screen, in either mode, so it's started once at page load (below) and
 // just left running.
+// Real reported follow-up: bigger than the per-side clocks (this one has
+// the whole right side of the header to itself, no username fighting it
+// for room, unlike SIDE_CLOCK_BLOCK_PX above) -- PERIOD_BLOCK_PX renders
+// the smaller AM/PM suffix the same request asked for, same convention as
+// a real clock face (12-hour time, not the 24-hour format this used
+// before, since AM/PM only makes sense alongside 12-hour hours).
+var WALL_CLOCK_BLOCK_PX = 2.2;
+var WALL_CLOCK_PERIOD_BLOCK_PX = 1.2;
 function formatWallClockTime(d) {
   var hh = d.getHours();
   var mm = d.getMinutes();
-  return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+  var hh12 = hh % 12;
+  if (hh12 === 0) { hh12 = 12; }
+  return { time: hh12 + ':' + (mm < 10 ? '0' : '') + mm, period: hh >= 12 ? 'PM' : 'AM' };
 }
 function renderWallClock() {
   var el = document.getElementById('boardWallClock');
   if (!el) { return; }
-  el.innerHTML = pixelDigitsHtml(formatWallClockTime(new Date()), 'plata', SIDE_CLOCK_BLOCK_PX);
+  var parts = formatWallClockTime(new Date());
+  el.innerHTML = pixelDigitsHtml(parts.time, 'plata', WALL_CLOCK_BLOCK_PX) +
+    '<span class="shell-board-wallclock-period">' + pixelDigitsHtml(parts.period, 'plata', WALL_CLOCK_PERIOD_BLOCK_PX) + '</span>';
 }
 
 // Real reported bug: per-side clocks (both modes) were too small -- bumped
