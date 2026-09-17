@@ -15,6 +15,17 @@ admin.initializeApp();
 // "a real, purchasable set" (setRareOdds, setEconomyConfig's boosterCosts).
 const PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
 
+// Shared secret the PartyKit backend (party/index.js) uses to authenticate
+// itself when writing to the active-match directory below -- NOT a user ID
+// token, since these calls happen when a match starts/ends (server-side
+// events), not on a fresh browser request. Same process.env-with-literal-
+// fallback pattern as TELEGRAM_BOT_TOKEN elsewhere in this file; the
+// literal fallback is a LOCAL-DEV-ONLY placeholder -- the real deployed
+// project must set a real value via `firebase functions:config` (or the
+// v2 equivalent) with the SAME value configured on the party side via
+// `party env add PARTY_INTERNAL_SECRET`.
+const PARTY_INTERNAL_SECRET = process.env.PARTY_INTERNAL_SECRET || 'change-me-in-production-party-internal-secret';
+
 // Deck-building eligibility, separately: CARD_STATS (data-cards.js) only
 // ever implemented the Base Set's own 102 cards -- Jungle and Fossil are
 // fully collectible (real boosters, real catalog entries) but were never
@@ -1100,6 +1111,41 @@ exports.resolvePvpIdentity = onRequest(async (req, res) => {
     collectionHolo: userData.collectionHolo || {},
     collectionSecret: userData.collectionSecret || {}
   });
+});
+
+// "Duelo en Vivo": party/index.js calls this (best-effort, fire-and-forget)
+// the moment a match actually starts (startMatch()), once per side, so a
+// player who later loses access to their browser (crash, dead internet,
+// closed tab) can find their way back from ANY device -- see
+// 2026-09-17-pvp-reconnect-forfeit-design.md section 4.1.
+exports.registerActiveMatch = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { uid, roomCode, secret } = req.body || {};
+  if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
+  if (!uid || !roomCode) { res.status(400).json({ error: 'Faltan datos.' }); return; }
+  await admin.firestore().collection('activeMatches').doc(uid).set({ roomCode: roomCode });
+  res.status(200).json({ ok: true });
+});
+
+// Called by party/index.js (same auth as registerActiveMatch above) the
+// first time it observes the match has a winner -- normal win, timeout, or
+// a forfeit -- for both uids.
+exports.clearActiveMatch = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { uid, secret } = req.body || {};
+  if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
+  if (!uid) { res.status(400).json({ error: 'Faltan datos.' }); return; }
+  await admin.firestore().collection('activeMatches').doc(uid).delete();
+  res.status(200).json({ ok: true });
+});
+
+// Called by the BROWSER client (economy.js's getActiveMatchCloud) when the
+// main menu loads -- normal onCall auth via the caller's own Firebase Auth
+// context, same pattern as awardMatchResult/updateProfile above.
+exports.getActiveMatch = onCall(async (request) => {
+  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
+  const snap = await admin.firestore().collection('activeMatches').doc(request.auth.uid).get();
+  return { roomCode: snap.exists ? snap.data().roomCode : null };
 });
 
 // ===== TELEGRAM STARS PAYMENTS =====
