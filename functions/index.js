@@ -23,8 +23,16 @@ const PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
 // literal fallback is a LOCAL-DEV-ONLY placeholder -- the real deployed
 // project must set a real value via `firebase functions:config` (or the
 // v2 equivalent) with the SAME value configured on the party side via
-// `party env add PARTY_INTERNAL_SECRET`.
-const PARTY_INTERNAL_SECRET = process.env.PARTY_INTERNAL_SECRET || 'change-me-in-production-party-internal-secret';
+// `party env add PARTY_INTERNAL_SECRET`. The literal fallback must NEVER
+// apply to a real deployment missing the env var -- that would defeat the
+// whole point of the secret check (anyone can read this literal from this
+// public source file). FUNCTIONS_EMULATOR is set to 'true' by the Firebase
+// emulator (including under `firebase emulators:exec`, which
+// functions/test/activeMatch.test.js runs under), so the literal still
+// applies there; a real deploy missing the env var gets `null` instead, and
+// registerActiveMatch/clearActiveMatch below fail closed (503) on that.
+const PARTY_INTERNAL_SECRET = process.env.PARTY_INTERNAL_SECRET ||
+  (process.env.FUNCTIONS_EMULATOR === 'true' ? 'change-me-in-production-party-internal-secret' : null);
 
 // Deck-building eligibility, separately: CARD_STATS (data-cards.js) only
 // ever implemented the Base Set's own 102 cards -- Jungle and Fossil are
@@ -1121,6 +1129,11 @@ exports.resolvePvpIdentity = onRequest(async (req, res) => {
 exports.registerActiveMatch = onRequest(async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
   const { uid, roomCode, secret } = req.body || {};
+  // Fail closed: PARTY_INTERNAL_SECRET is only ever null in a real deploy
+  // that forgot to set the env var (see its own comment above). Without
+  // this check, a request with an explicit `secret: null` in its JSON body
+  // would pass `secret !== PARTY_INTERNAL_SECRET` (null !== null is false).
+  if (!PARTY_INTERNAL_SECRET) { res.status(503).json({ error: 'No configurado.' }); return; }
   if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
   if (!uid || !roomCode) { res.status(400).json({ error: 'Faltan datos.' }); return; }
   await admin.firestore().collection('activeMatches').doc(uid).set({ roomCode: roomCode });
@@ -1133,6 +1146,8 @@ exports.registerActiveMatch = onRequest(async (req, res) => {
 exports.clearActiveMatch = onRequest(async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
   const { uid, secret } = req.body || {};
+  // Same fail-closed check as registerActiveMatch above -- see its comment.
+  if (!PARTY_INTERNAL_SECRET) { res.status(503).json({ error: 'No configurado.' }); return; }
   if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
   if (!uid) { res.status(400).json({ error: 'Faltan datos.' }); return; }
   await admin.firestore().collection('activeMatches').doc(uid).delete();

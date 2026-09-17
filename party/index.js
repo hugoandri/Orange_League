@@ -148,19 +148,26 @@ const DEFAULT_PARTY_INTERNAL_SECRET = 'change-me-in-production-party-internal-se
 async function registerActiveMatch(env, uid, roomCode) {
   const url = (env && env.REGISTER_ACTIVE_MATCH_URL) || DEFAULT_REGISTER_ACTIVE_MATCH_URL;
   const secret = (env && env.PARTY_INTERNAL_SECRET) || DEFAULT_PARTY_INTERNAL_SECRET;
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uid: uid, roomCode: roomCode, secret: secret })
   });
+  // Still fire-and-forget (never awaited at the call sites below, never
+  // throws/blocks match start) -- this only adds visibility so a
+  // misconfigured secret (e.g. half-rotated, or the 503 from
+  // functions/index.js's fail-closed check) doesn't silently degrade
+  // "Duelo en Vivo" for everyone with zero signal anywhere.
+  if (!res.ok) { console.warn('registerActiveMatch failed', res.status); }
 }
 
 async function clearActiveMatch(env, uid) {
   const url = (env && env.CLEAR_ACTIVE_MATCH_URL) || DEFAULT_CLEAR_ACTIVE_MATCH_URL;
   const secret = (env && env.PARTY_INTERNAL_SECRET) || DEFAULT_PARTY_INTERNAL_SECRET;
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uid: uid, secret: secret })
   });
+  if (!res.ok) { console.warn('clearActiveMatch failed', res.status); }
 }
 
 function roomBroadcastPayload(info) {
@@ -490,8 +497,8 @@ export default class Server {
     // match gets its own real clear, not a stale skip.
     this.matchEndNotified = false;
     this.persistState();
-    registerActiveMatch(this.room.env, this.info.hostUid, this.info.roomCode).catch(() => {});
-    registerActiveMatch(this.room.env, this.info.guestUid, this.info.roomCode).catch(() => {});
+    registerActiveMatch(this.room.env, this.info.hostUid, this.info.roomCode).catch((e) => console.warn('registerActiveMatch error', e));
+    registerActiveMatch(this.room.env, this.info.guestUid, this.info.roomCode).catch((e) => console.warn('registerActiveMatch error', e));
   }
 
   async persistState() {
@@ -545,8 +552,8 @@ export default class Server {
     if (this.matchEndNotified) { return; }
     if (!getWinner(this.state)) { return; }
     this.matchEndNotified = true;
-    clearActiveMatch(this.room.env, this.info.hostUid).catch(() => {});
-    clearActiveMatch(this.room.env, this.info.guestUid).catch(() => {});
+    clearActiveMatch(this.room.env, this.info.hostUid).catch((e) => console.warn('clearActiveMatch error', e));
+    clearActiveMatch(this.room.env, this.info.guestUid).catch((e) => console.warn('clearActiveMatch error', e));
   }
 
   sendMatchTo(connection, side) {
@@ -797,6 +804,12 @@ export default class Server {
         // sendMatchTo() call (right after this runAction returns, in
         // onMessage's 'action' handler) both decides the winner AND fires
         // maybeClearActiveMatch() for both sides.
+        // Guard: a stale/duplicate 'forfeit' (e.g. a directory entry that
+        // survived a failed best-effort clearActiveMatch -- see
+        // registerActiveMatch/clearActiveMatch above -- and the player later
+        // pressing "No" on the Duelo en Vivo banner) must never re-open and
+        // flip the winner of a match that's already decided.
+        if (getWinner(this.state)) { break; }
         this.state.forfeitedBy = side;
         break;
       }

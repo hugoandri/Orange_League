@@ -5425,7 +5425,13 @@ function enterPvpMatch(matchId) {
 // on screen, rather than racing it.
 function processPvpMatchSnapshot(data) {
   var pub = data.public;
-  if (pub.phase === 'rps') {
+  // A forfeit (or, in principle, any winner) can be decided while still in
+  // 'rps' -- getWinner() (rules-engine.js) checks forfeitedBy regardless of
+  // phase. Without the "&& !pub.winner" guard here, a match decided during
+  // RPS would render the RPS screen forever and never reach the
+  // winner-handling logic below, stranding both players with no way back to
+  // the main menu (RENDIRSE is the only exit from PVP -- see pause menu).
+  if (pub.phase === 'rps' && !pub.winner) {
     renderRpsScreen(pub);
     return;
   }
