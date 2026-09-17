@@ -12,14 +12,15 @@ globalThis.PRECON_DECK_KEYS = PRECON_DECK_KEYS;
 globalThis.ATTACK_EFFECTS = ATTACK_EFFECTS;
 globalThis.TRAINER_EFFECTS = TRAINER_EFFECTS;
 globalThis.POKEMON_POWER_EFFECTS = POKEMON_POWER_EFFECTS;
-// getWinner isn't destructured here even though Task 1 exports it --
-// redactMatchState (below) already calls it internally as a bare
-// identifier within rules-engine.js's own module scope, so nothing
-// outside that file ever needs to call it directly.
+// getWinner is destructured below (in addition to redactMatchState already
+// calling it internally as a bare identifier within rules-engine.js's own
+// module scope) -- maybeClearActiveMatch() (this task, see redactedFor/
+// sendMatchTo/broadcastMatch further down) needs to call it directly from
+// party/index.js to decide whether the match has a winner yet.
 const {
   createGame, startMatch: engineStartMatch, canPlayBasic, playBasic, canEvolve, evolve,
   canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize, chooseNewActive,
-  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice, applyEndOfTurnCheckup,
+  canAttack, attack, endTurn, drawForTurnStart, redactMatchState, submitRpsChoice, applyEndOfTurnCheckup, getWinner,
   // Needed for this task's server-authoritative clock commits (the plain
   // 'endTurn' case, the 'confirmEndTurn' case, and the top-of-runAction
   // timeout check all call this directly) -- same function ui.js's own
@@ -133,6 +134,33 @@ async function resolveIdentity(env, idToken, deckId, cardBackId) {
   const data = await res.json();
   if (!res.ok) { throw new Error(data.error || 'No se pudo verificar tu cuenta.'); }
   return data;
+}
+
+const DEFAULT_REGISTER_ACTIVE_MATCH_URL = 'https://us-central1-pokemon-tcg-simulador.cloudfunctions.net/registerActiveMatch';
+const DEFAULT_CLEAR_ACTIVE_MATCH_URL = 'https://us-central1-pokemon-tcg-simulador.cloudfunctions.net/clearActiveMatch';
+const DEFAULT_PARTY_INTERNAL_SECRET = 'change-me-in-production-party-internal-secret';
+
+// Best-effort: a Firestore hiccup here must never block a match from
+// starting or ending (see 2026-09-17-pvp-reconnect-forfeit-design.md
+// section 4.1) -- every call site below fires these WITHOUT awaiting and
+// swallows any rejection itself (`.catch(() => {})`), same spirit as the
+// client's own awardMatchResultCloud(...).catch(...) calls.
+async function registerActiveMatch(env, uid, roomCode) {
+  const url = (env && env.REGISTER_ACTIVE_MATCH_URL) || DEFAULT_REGISTER_ACTIVE_MATCH_URL;
+  const secret = (env && env.PARTY_INTERNAL_SECRET) || DEFAULT_PARTY_INTERNAL_SECRET;
+  await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: uid, roomCode: roomCode, secret: secret })
+  });
+}
+
+async function clearActiveMatch(env, uid) {
+  const url = (env && env.CLEAR_ACTIVE_MATCH_URL) || DEFAULT_CLEAR_ACTIVE_MATCH_URL;
+  const secret = (env && env.PARTY_INTERNAL_SECRET) || DEFAULT_PARTY_INTERNAL_SECRET;
+  await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: uid, secret: secret })
+  });
 }
 
 function roomBroadcastPayload(info) {
@@ -456,7 +484,14 @@ export default class Server {
     this.lastTrainerPlay = null;
     this.powerRound = 0;
     this.lastPowerUse = null;
+    // "Duelo en Vivo": guards clearActiveMatch (maybeClearActiveMatch,
+    // below) from firing more than once per match -- reset here exactly
+    // like every other per-instance field above, so a rematch's fresh
+    // match gets its own real clear, not a stale skip.
+    this.matchEndNotified = false;
     this.persistState();
+    registerActiveMatch(this.room.env, this.info.hostUid, this.info.roomCode).catch(() => {});
+    registerActiveMatch(this.room.env, this.info.guestUid, this.info.roomCode).catch(() => {});
   }
 
   async persistState() {
@@ -492,15 +527,35 @@ export default class Server {
     redacted.public.lastAttackResult = this.lastAttackResult || null;
     redacted.public.lastPowerUse = this.lastPowerUse || null;
     redacted.public.turnStartedAt = this.turnStartedAt || null;
+    // "Duelo en Vivo": lets the WINNING side's client tell a forfeit apart
+    // from every other win condition (see finishMatch, ui.js) -- same
+    // 'player'/'cpu' -> 'player1'/'player2' ternary shape redactMatchState
+    // itself already uses for `winner`.
+    redacted.public.forfeitedBy = this.state.forfeitedBy === 'player' ? 'player1' : (this.state.forfeitedBy === 'cpu' ? 'player2' : null);
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }
 
+  // "Duelo en Vivo": fires clearActiveMatch (best-effort, fire-and-forget)
+  // for both uids the first time this Server instance observes the match
+  // has a winner -- guarded by matchEndNotified (reset in startMatch()) so
+  // it only ever fires once per match, regardless of how many times
+  // sendMatchTo/broadcastMatch run afterward.
+  maybeClearActiveMatch() {
+    if (this.matchEndNotified) { return; }
+    if (!getWinner(this.state)) { return; }
+    this.matchEndNotified = true;
+    clearActiveMatch(this.room.env, this.info.hostUid).catch(() => {});
+    clearActiveMatch(this.room.env, this.info.guestUid).catch(() => {});
+  }
+
   sendMatchTo(connection, side) {
+    this.maybeClearActiveMatch();
     connection.send(JSON.stringify(this.redactedFor(side)));
   }
 
   broadcastMatch() {
+    this.maybeClearActiveMatch();
     const host = this.info.hostConnId && this.room.getConnection(this.info.hostConnId);
     const guest = this.info.guestConnId && this.room.getConnection(this.info.guestConnId);
     if (host) { host.send(JSON.stringify(this.redactedFor('player'))); }
@@ -547,7 +602,7 @@ export default class Server {
     // pending side except confirming, taking an owed prize, or choosing a
     // new Active (a self-KO, e.g. Confusion's self-hit or Selfdestruct,
     // can still need one before the player can confirm at all).
-    if (this.turnEndPendingSide === side && ['confirmEndTurn', 'takePrize', 'chooseActive', 'claimTimeout'].indexOf(action.type) === -1) {
+    if (this.turnEndPendingSide === side && ['confirmEndTurn', 'takePrize', 'chooseActive', 'claimTimeout', 'forfeit'].indexOf(action.type) === -1) {
       throw new Error('Debes confirmar el fin de tu turno primero.');
     }
     if (TURN_GATED_ACTIONS.indexOf(action.type) !== -1 && this.state.phase === 'playing' && activeBefore !== side) {
@@ -733,6 +788,16 @@ export default class Server {
           targetName: targetInstance ? targetInstance.name : null,
           round: this.powerRound
         };
+        break;
+      }
+      case 'forfeit': {
+        // Always legal (see Step 7's exemption + TURN_GATED_ACTIONS never
+        // listing it) -- getWinner() (rules-engine.js) now checks this
+        // before anything else, so the very next broadcastMatch()/
+        // sendMatchTo() call (right after this runAction returns, in
+        // onMessage's 'action' handler) both decides the winner AND fires
+        // maybeClearActiveMatch() for both sides.
+        this.state.forfeitedBy = side;
         break;
       }
       default:

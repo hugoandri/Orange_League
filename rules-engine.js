@@ -1307,6 +1307,11 @@ function endTurn(state) {
 }
 
 function getWinner(state) {
+  // "Duelo en Vivo" / Rendirse: an explicit forfeit always wins immediately,
+  // checked first so it short-circuits every other condition -- see
+  // 2026-09-17-pvp-reconnect-forfeit-design.md section 4.2.
+  if (state.forfeitedBy === 'player') { return 'cpu'; }
+  if (state.forfeitedBy === 'cpu') { return 'player'; }
   if (state.players.player.prizes.length > 0 && remainingPrizes(state.players.player) === 0) { return 'player'; }
   if (state.players.cpu.prizes.length > 0 && remainingPrizes(state.players.cpu) === 0) { return 'cpu'; }
   if (state.players.player.hasHadActive && !state.players.player.active && benchCount(state.players.player) === 0) { return 'cpu'; }
