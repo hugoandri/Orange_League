@@ -5877,6 +5877,12 @@ function hideConfigScreen() {
 
 function openPauseMenu() {
   stopGameClock();
+  // Duelo en Vivo: PVP's only intentional way to leave a live match is now
+  // RENDIRSE (Step 4 below) -- SALIR AL MENÚ used to abandon the match
+  // silently, without telling the server anything, which is exactly the
+  // "accidental disappearance" gap this whole feature closes. Local play
+  // is unaffected (pvpMode is only ever true during a real PVP match).
+  document.getElementById('pauseExit').classList.toggle('hidden', !!pvpMode);
   document.getElementById('pauseModal').classList.remove('hidden');
 }
 function closePauseMenu() {
@@ -6372,12 +6378,11 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('surrenderConfirmBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
-    // I4 (final-review fix) belt-and-suspenders: the pauseSurrender handler
-    // above already keeps this modal from ever opening in pvpMode, but if it
-    // somehow got shown anyway, mark the match ended locally first so a
-    // later real win/loss arriving from the opponent's side via the match
-    // listener can't fire finishMatch/awardMatchResultCloud a second time.
-    if (pvpMode) { pvpMatchEnded = true; }
+    if (pvpMode) {
+      submitMatchActionCloud(pvpActiveMatchId, { type: 'forfeit' })
+        .catch(function (err) { alert(err.message || 'No se pudo rendir.'); });
+      return;
+    }
     finishMatch('cpu');
   });
 
@@ -6562,23 +6567,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseSurrender').addEventListener('click', function () {
     closePauseMenu();
-    // I4 (final-review fix): surrender in PVP had no server call at all --
-    // it ended the match ONLY on the surrendering player's own client (the
-    // opponent never learns, no timeout exists by design in Fase 1), and
-    // didn't set pvpMatchEnded, risking a double coin-award if the opponent
-    // later reaches a real win/loss. A real forfeit action is Fase 2 scope --
-    // simplest safe fix for now is to just not offer surrender in a PVP
-    // match at all.
-    if (pvpMode) {
-      // Not calling resumeGameClockIfNeeded() here on purpose -- the local
-      // chess clock is never started for a PVP match at all (timeBankMs
-      // isn't synced/enforced for PVP this phase, per spec), so starting it
-      // now would tick against a gameState that gets fully overwritten by
-      // the next server snapshot anyway, and could even spuriously trigger
-      // a local-only time-based finishMatch() the server knows nothing about.
-      alert('Rendirse todavía no está disponible en partidas PVP (próximamente).');
-      return;
-    }
     document.getElementById('surrenderModal').classList.remove('hidden');
   });
   document.getElementById('pauseMusic').addEventListener('click', function () {
