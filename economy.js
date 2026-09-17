@@ -159,6 +159,10 @@ function awardMatchResultCloud(result) {
   return firebase.functions().httpsCallable('awardMatchResult')({ result: result });
 }
 
+function getActiveMatchCloud() {
+  return firebase.functions().httpsCallable('getActiveMatch')().then(function (res) { return res.data; });
+}
+
 function openBoosterCloud(setKey) {
   return firebase.functions().httpsCallable('openBooster')({ setKey: setKey })
     .then(function (res) { return res.data.cards; });

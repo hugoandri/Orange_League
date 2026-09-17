@@ -2244,7 +2244,15 @@ function finishMatch(winner) {
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results)
   var textEl = document.getElementById('matchEndText');
-  textEl.textContent = winner === 'player' ? 'Has Ganado' : 'Has Perdido';
+  // Duelo en Vivo / Rendirse: pvpLatestPub.forfeitedBy names whichever
+  // side (player1/player2) gave up, set fresh by processPvpMatchSnapshot
+  // right before this call (see that function's own `pvpLatestPub = pub;`
+  // line) -- null for every other win condition. Only the WINNING side's
+  // modal gets the special copy; the side that forfeited still just sees
+  // "Has Perdido", same as any other loss.
+  var rivalForfeited = pvpMode && winner === 'player' && pvpLatestPub &&
+    pvpLatestPub.forfeitedBy && pvpLatestPub.forfeitedBy !== pvpMySide;
+  textEl.textContent = rivalForfeited ? 'Tu rival te ha cedido la victoria' : (winner === 'player' ? 'Has Ganado' : 'Has Perdido');
   textEl.classList.remove('win', 'loss');
   textEl.classList.add(winner === 'player' ? 'win' : 'loss');
   document.getElementById('matchEndModal').classList.remove('hidden');
@@ -4647,9 +4655,18 @@ function toggleTheme() {
 }
 
 // ── Menu ───────────────────────────────────────────────────────────
+var pvpLiveDuelRoomCode = null;
 function showMenu() {
   document.getElementById('menuScreen').classList.remove('hidden');
   playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+  getActiveMatchCloud().then(function (res) {
+    pvpLiveDuelRoomCode = res.roomCode;
+    document.getElementById('menuLiveDuelBtn').classList.toggle('hidden', !res.roomCode);
+  }).catch(function () {
+    // Best-effort UI convenience -- a failed lookup just means the banner
+    // doesn't show this time, same as it wouldn't if there genuinely were
+    // no active match. Never blocks the menu from showing.
+  });
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
@@ -6384,6 +6401,39 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     finishMatch('cpu');
+  });
+
+  document.getElementById('menuLiveDuelBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.remove('hidden');
+  });
+  document.querySelector('#liveDuelModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+  });
+  document.getElementById('liveDuelYesBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+    if (!pvpLiveDuelRoomCode) { return; }
+    var deckId = (econState && econState.activeDeck) || 'overgrowth';
+    openPvpSocket(pvpLiveDuelRoomCode, deckId, getCardBackId(), 'join').then(function (res) {
+      hideMenu();
+      enterPvpMatch(res.roomCode);
+    }).catch(function (err) {
+      alert(err.message || 'No se pudo reconectar a ese duelo.');
+      pvpLiveDuelRoomCode = null;
+      document.getElementById('menuLiveDuelBtn').classList.add('hidden');
+    });
+  });
+  document.getElementById('liveDuelNoBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+    if (!pvpLiveDuelRoomCode) { return; }
+    var roomCode = pvpLiveDuelRoomCode;
+    var deckId = (econState && econState.activeDeck) || 'overgrowth';
+    openPvpSocket(roomCode, deckId, getCardBackId(), 'join').then(function () {
+      return submitMatchActionCloud(roomCode, { type: 'forfeit' });
+    }).then(function () {
+      leaveRoomCloud();
+      pvpLiveDuelRoomCode = null;
+      document.getElementById('menuLiveDuelBtn').classList.add('hidden');
+    }).catch(function (err) { alert(err.message || 'No se pudo rendir.'); });
   });
 
   document.getElementById('targetHintOkBtn').addEventListener('click', closeTargetHintModal);

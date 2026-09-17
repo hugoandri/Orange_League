@@ -166,6 +166,15 @@
             </div>
 
             <nav class="shell-nav">
+              <button type="button" class="shell-nav-item shell-nav-item-live hidden" id="menuLiveDuelBtn">
+                <span class="shell-nav-item-accent"></span>
+                <span class="shell-nav-item-glyph"><i class="ph-duotone ph-sword"></i></span>
+                <span class="shell-nav-item-text">
+                  <span class="shell-nav-item-title">⚔️ DUELO EN VIVO</span>
+                  <span class="shell-nav-item-sub">TIENES UNA PARTIDA EN CURSO</span>
+                </span>
+                <span class="shell-nav-item-chevron">›</span>
+              </button>
               <button type="button" class="shell-nav-item" id="menuPlay">
                 <span class="shell-nav-item-accent"></span>
                 <span class="shell-nav-item-glyph"><i class="ph-duotone ph-sword"></i></span>
@@ -480,6 +489,17 @@
       <div class="shell-modal-actions">
         <button type="button" id="surrenderConfirmBtn" class="shell-modal-btn shell-modal-btn-danger">SÍ</button>
         <button type="button" id="surrenderCancelBtn" class="shell-modal-btn">NO</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="liveDuelModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text">¿Quieres volver al duelo?</p>
+      <div class="shell-modal-actions">
+        <button type="button" id="liveDuelYesBtn" class="shell-modal-btn shell-modal-btn-danger">SÍ</button>
+        <button type="button" id="liveDuelNoBtn" class="shell-modal-btn">NO</button>
       </div>
     </div>
   </div>
