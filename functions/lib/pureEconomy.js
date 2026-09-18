@@ -1,3 +1,5 @@
+const { STARTER_DECKLISTS } = require('./starterDecks');
+
 var BOOSTER_COST = 100;
 
 // Cosmetic card-back skins sold in the Tienda's "Protectores" tab (see
@@ -212,6 +214,29 @@ function validateCustomDeck(cards, owned, supertypes, evolvesFrom) {
   return { valid: true };
 }
 
+// The inverse of ownedCountsByName: given one of the 4 real starter
+// decklists (by name+count, see functions/lib/starterDecks.js) and the
+// Base set's own catalog, returns {'base-<num>': count} grants ready to
+// merge into a user doc's collection map -- same 'setKey-num' keying
+// openBooster already uses. Throws on an unknown deckKey since this is
+// only ever called after chooseStarterDeck's own onCall-level validation
+// already accepted it (same trust boundary as drawBoosterCards trusting
+// its own caller's setKey).
+function starterDeckGrants(deckKey, cardCatalogBase) {
+  var decklist = STARTER_DECKLISTS[deckKey];
+  if (!decklist) { throw new Error('Unknown starter deckKey: ' + deckKey); }
+  var nameToNum = {};
+  cardCatalogBase.forEach(function (c) { nameToNum[c.n] = c.num; });
+  var grants = {};
+  decklist.forEach(function (entry) {
+    var num = nameToNum[entry.name];
+    if (!num) { throw new Error('Starter decklist name not in Base catalog: ' + entry.name); }
+    var key = 'base-' + num;
+    grants[key] = (grants[key] || 0) + entry.count;
+  });
+  return grants;
+}
+
 module.exports = {
   BOOSTER_COST: BOOSTER_COST,
   PROTECTOR_COST: PROTECTOR_COST,
@@ -227,5 +252,6 @@ module.exports = {
   CUSTOM_DECK_SLOTS: CUSTOM_DECK_SLOTS,
   ownedCountsByName: ownedCountsByName,
   supertypeByName: supertypeByName,
-  validateCustomDeck: validateCustomDeck
+  validateCustomDeck: validateCustomDeck,
+  starterDeckGrants: starterDeckGrants
 };
