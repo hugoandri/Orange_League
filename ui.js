@@ -2709,6 +2709,7 @@ function wireBoardButtons() {
     retreatBtn.addEventListener('click', function () {
       clearPendingFlows();
       retreatMode = true;
+      showTargetHintModal('Elige un Pokémon de la Banca');
     });
   }
 
