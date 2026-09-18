@@ -1,0 +1,49 @@
+const { app, BrowserWindow, shell } = require('electron');
+const path = require('path');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    title: 'Orange League',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  win.loadFile(path.join(__dirname, '..', 'index.html'));
+
+  // Real-money purchase links (Telegram/Discord/Orbes-with-Stars) use
+  // target="_blank" / window.open expecting the user's actual system
+  // browser -- without this, Electron's default is to open a new
+  // chrome-less BrowserWindow with no address bar, which also lets the
+  // app navigate off file:// to an arbitrary remote origin.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith('file://')) {
+      e.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  // macOS convention: re-open a window when the dock icon is clicked and
+  // no windows are currently open (the app itself stays running after all
+  // windows close, see the 'window-all-closed' handler below).
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) { createWindow(); }
+  });
+});
+
+// macOS convention: apps stay running (visible in the dock) after their
+// last window closes, until the user explicitly quits (Cmd+Q) -- only
+// Windows/Linux quit outright when the last window closes.
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') { app.quit(); }
+});
