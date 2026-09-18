@@ -6322,6 +6322,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var elDeckKey = el.getAttribute('data-deck');
     if (!DECKLISTS[elDeckKey]) { return; }
     el.addEventListener('click', function () {
+      // Once a starter deck is chosen (a real deckKey, not null/undefined),
+      // the other 3 precons stay visible but can't become the active deck
+      // -- the real enforcement is server-side (updateActiveDeck's own
+      // lock, functions/index.js); this is just UX so the player isn't
+      // confused by a click that would silently fail on Guardar.
+      var chosen = econState && econState.starterDeckChosen;
+      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && elDeckKey !== chosen;
+      if (isLockedPrecon) {
+        showTargetHintModal('Ya elegiste tu mazo inicial -- este precon está bloqueado.');
+        return;
+      }
       selectDeckCard(elDeckKey);
     });
   });
