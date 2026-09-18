@@ -15,6 +15,25 @@ admin.initializeApp();
 // "a real, purchasable set" (setRareOdds, setEconomyConfig's boosterCosts).
 const PLAYABLE_SET_KEYS = ['base', 'jungle', 'fossil'];
 
+// Shared secret the PartyKit backend (party/index.js) uses to authenticate
+// itself when writing to the active-match directory below -- NOT a user ID
+// token, since these calls happen when a match starts/ends (server-side
+// events), not on a fresh browser request. Same process.env-with-literal-
+// fallback pattern as TELEGRAM_BOT_TOKEN elsewhere in this file; the
+// literal fallback is a LOCAL-DEV-ONLY placeholder -- the real deployed
+// project must set a real value via `firebase functions:config` (or the
+// v2 equivalent) with the SAME value configured on the party side via
+// `party env add PARTY_INTERNAL_SECRET`. The literal fallback must NEVER
+// apply to a real deployment missing the env var -- that would defeat the
+// whole point of the secret check (anyone can read this literal from this
+// public source file). FUNCTIONS_EMULATOR is set to 'true' by the Firebase
+// emulator (including under `firebase emulators:exec`, which
+// functions/test/activeMatch.test.js runs under), so the literal still
+// applies there; a real deploy missing the env var gets `null` instead, and
+// registerActiveMatch/clearActiveMatch below fail closed (503) on that.
+const PARTY_INTERNAL_SECRET = process.env.PARTY_INTERNAL_SECRET ||
+  (process.env.FUNCTIONS_EMULATOR === 'true' ? 'change-me-in-production-party-internal-secret' : null);
+
 // Deck-building eligibility, separately: CARD_STATS (data-cards.js) only
 // ever implemented the Base Set's own 102 cards -- Jungle and Fossil are
 // fully collectible (real boosters, real catalog entries) but were never
@@ -974,14 +993,6 @@ exports.openCodePack = onCall(async (request) => {
 });
 
 const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];
-const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
-const ROOM_EXPIRY_MS = 20 * 60 * 1000;
-
-function randomRoomCode() {
-  var code = '';
-  for (var i = 0; i < 6; i++) { code += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)]; }
-  return code;
-}
 
 // Throws if deckId isn't usable -- either a real precon key, or
 // 'custom:<slot>' where the caller actually has a saved deck in that slot.
@@ -1025,501 +1036,131 @@ async function fetchDeckCoverName(uid, deckId) {
   return (deck && deck.coverName) || null;
 }
 
-exports.createRoom = onCall(async (request) => {
-  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
-  const deckId = (request.data || {}).deckId;
-  await validateDeckId(request.auth.uid, deckId);
-  const hostProfile = await fetchProfile(request.auth.uid);
-  const hostDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
+// Real reported bug: the opponent's chosen card protector never reached
+// the other client at all (ui.js's cardBackUrlFor forced the default for
+// any non-'player' side, since the local CPU bot never has a real one) --
+// captured here the same way hostUsername/hostDeckCoverName already are,
+// so it can be carried onto the room/match docs. Trusts the CLIENT's own
+// choice only as far as it can prove ownership: 'clasico' (the default) and
+// the two other cost-less options are always allowed; every purchased
+// Protector is named 'protector_*' (CARD_BACK_OPTIONS, ui.js) and must
+// actually be in the caller's own users/{uid}.cardBacks array -- anything
+// else (unrecognized id, or a paid one the caller never bought) silently
+// falls back to the default rather than blocking room creation over a
+// cosmetic. Keep FREE_CARD_BACK_IDS in sync with the cost-less entries in
+// ui.js's CARD_BACK_OPTIONS if that list ever changes.
+const FREE_CARD_BACK_IDS = ['clasico', 'pocket_monsters', 'arcoiris'];
+async function resolveCardBackId(uid, cardBackId) {
+  const id = typeof cardBackId === 'string' ? cardBackId : '';
+  if (FREE_CARD_BACK_IDS.indexOf(id) !== -1) { return id; }
+  if (id.indexOf('protector_') !== 0) { return 'clasico'; }
+  const snap = await admin.firestore().collection('users').doc(uid).get();
+  const owned = (snap.data() || {}).cardBacks || [];
+  return owned.indexOf(id) !== -1 ? id : 'clasico';
+}
 
-  const db = admin.firestore();
-  let roomCode;
-  await db.runTransaction(async (tx) => {
-    // Extremely unlikely collision on a 6-char, 32-symbol alphabet
-    // (32^6 ≈ 1 billion) -- retried a few times inside one transaction
-    // rather than assumed away.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate = randomRoomCode();
-      const snap = await tx.get(db.collection('rooms').doc(candidate));
-      if (!snap.exists) { roomCode = candidate; break; }
-    }
-    if (!roomCode) { throw new HttpsError('internal', 'No se pudo generar un código de sala.'); }
-    tx.set(db.collection('rooms').doc(roomCode), {
-      hostUid: request.auth.uid, hostDeckId: deckId, hostReady: false,
-      hostUsername: hostProfile.username, hostPhoto: hostProfile.photo, hostDeckCoverName: hostDeckCoverName,
-      guestUid: null, guestDeckId: null, guestReady: false, guestUsername: null, guestPhoto: null, guestDeckCoverName: null,
-      status: 'waiting', matchId: null, createdAt: FieldValue.serverTimestamp()
-    });
-  });
-  return { roomCode: roomCode };
-});
+// Server-to-server only (the PartyKit room's own `fetch()`, never a
+// browser) -- a plain onRequest endpoint, not onCall, since there's no
+// Firebase client SDK on the calling side to attach request.auth
+// automatically. Called once per socket, on connect (see
+// party/index.js's onConnect) -- never once per action, which is what
+// keeps this off PVP's hot path entirely.
+exports.resolvePvpIdentity = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { idToken, deckId, cardBackId } = req.body || {};
 
-exports.joinRoom = onCall(async (request) => {
-  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
-  const data = request.data || {};
-  const roomCode = (data.roomCode || '').trim().toUpperCase();
-  const deckId = data.deckId;
-  await validateDeckId(request.auth.uid, deckId);
-  const guestProfile = await fetchProfile(request.auth.uid);
-  const guestDeckCoverName = await fetchDeckCoverName(request.auth.uid, deckId);
+  let uid;
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken || '');
+    uid = decoded.uid;
+  } catch (err) {
+    res.status(401).json({ error: 'Token inválido.' });
+    return;
+  }
 
-  const db = admin.firestore();
-  const roomRef = db.collection('rooms').doc(roomCode);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(roomRef);
-    if (!snap.exists) { throw new HttpsError('not-found', 'Ese código no existe.'); }
-    const room = snap.data();
-    const isExpired = room.status === 'waiting' &&
-      room.createdAt && (Date.now() - room.createdAt.toMillis()) > ROOM_EXPIRY_MS;
-    if (isExpired) { throw new HttpsError('not-found', 'Ese código venció.'); }
-    if (room.hostUid === request.auth.uid) {
-      throw new HttpsError('failed-precondition', 'No puedes unirte a tu propia sala.');
-    }
-    if (room.status !== 'waiting' || room.guestUid) {
-      throw new HttpsError('failed-precondition', 'Esa sala ya está llena o ya empezó.');
-    }
-    tx.update(roomRef, {
-      guestUid: request.auth.uid, guestDeckId: deckId,
-      guestUsername: guestProfile.username, guestPhoto: guestProfile.photo, guestDeckCoverName: guestDeckCoverName
-    });
-  });
-  return { roomCode: roomCode };
-});
+  try {
+    await validateDeckId(uid, deckId);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Mazo inválido.' });
+    return;
+  }
 
-// rules-engine.js is synced verbatim from the client (functions/scripts/
-// sync-shared-engine.js) where CARD_STATS/DECKLISTS/PRECON_DECK_KEYS are
-// script-tag globals (index.html loads data-cards.js/data-decks.js before
-// rules-engine.js) rather than module imports -- rules-engine.js's own
-// functions reference them as bare identifiers with no local declaration.
-// To make that same file work under CommonJS here, these have to be bound
-// onto the true global object before rules-engine.js's functions are
-// called, so its bare references resolve via the scope chain.
-const { CARD_STATS } = require('./lib/dataCards');
-const { DECKLISTS, PRECON_DECK_KEYS } = require('./lib/dataDecks');
-global.CARD_STATS = CARD_STATS;
-global.DECKLISTS = DECKLISTS;
-global.PRECON_DECK_KEYS = PRECON_DECK_KEYS;
-// I5 (final-review fix): ATTACK_EFFECTS/TRAINER_EFFECTS/POKEMON_POWER_EFFECTS
-// need the exact same global binding as CARD_STATS/DECKLISTS/PRECON_DECK_KEYS
-// above, and for the same reason -- attack()'s own `typeof ATTACK_EFFECTS
-// !== 'undefined'` check (rules-engine.js) resolves via the scope chain, so
-// it silently always evaluated to false under Node until this was bound
-// (harmless today only because submitMatchAction's own pre-check already
-// rejects every special attack before attack() ever runs -- but a latent
-// trap for Fase 2, when special attacks actually need this to work). Must
-// be bound before requiring ./lib/rulesEngine, same ordering requirement as
-// the other three tables.
-const { ATTACK_EFFECTS, TRAINER_EFFECTS, POKEMON_POWER_EFFECTS } = require('./lib/cardEffects');
-global.ATTACK_EFFECTS = ATTACK_EFFECTS;
-global.TRAINER_EFFECTS = TRAINER_EFFECTS;
-global.POKEMON_POWER_EFFECTS = POKEMON_POWER_EFFECTS;
-const { createGame, redactMatchState } = require('./lib/rulesEngine');
-
-// Mirrors ui.js's registerCustomDecks() (ui.js:3309) for exactly the one
-// deck this match needs -- reads the caller's own saved custom deck and
-// registers it into the server's own DECKLISTS under a synthetic key, so
-// createGame() (which only ever looks up DECKLISTS[key]) doesn't need any
-// changes to support a custom deck.
-async function resolveDeckKeyForMatch(uid, deckId) {
-  const m = /^custom:(.+)$/.exec(deckId || '');
-  if (!m) { return deckId; } // already a real precon key
+  const profile = await fetchProfile(uid);
+  const deckCoverName = await fetchDeckCoverName(uid, deckId);
+  const resolvedCardBackId = await resolveCardBackId(uid, cardBackId);
   const userSnap = await admin.firestore().collection('users').doc(uid).get();
-  const customDeck = (userSnap.data() || {}).customDecks || {};
-  const saved = customDeck[m[1]];
-  const syntheticKey = 'pvp_' + uid + '_' + m[1];
-  DECKLISTS[syntheticKey] = saved.cards;
-  return syntheticKey;
-}
+  const userData = userSnap.data() || {};
 
-exports.setReady = onCall(async (request) => {
-  if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
-  const roomCode = ((request.data || {}).roomCode || '').trim().toUpperCase();
-  const uid = request.auth.uid;
-  const db = admin.firestore();
-  const roomRef = db.collection('rooms').doc(roomCode);
-
-  const roomSnap = await roomRef.get();
-  if (!roomSnap.exists) { throw new HttpsError('not-found', 'Esa sala no existe.'); }
-  const room = roomSnap.data();
-  if (room.status !== 'waiting') { throw new HttpsError('failed-precondition', 'Esa sala ya no está esperando.'); }
-  if (uid !== room.hostUid && uid !== room.guestUid) {
-    throw new HttpsError('permission-denied', 'No formas parte de esa sala.');
+  // Same synthetic-key convention resolveDeckKeyForMatch already used --
+  // duplicated here (not calling that function) because it mutates a
+  // shared DECKLISTS global that no longer exists in this file after
+  // Task 7; the PARTY registers customDeckCards into its OWN DECKLISTS
+  // right before calling createGame (see party/index.js, Task 5).
+  const customMatch = /^custom:(.+)$/.exec(deckId || '');
+  let deckKey = deckId;
+  let customDeckCards = null;
+  if (customMatch) {
+    const saved = (userData.customDecks || {})[customMatch[1]];
+    // Narrow race: validateDeckId (above) did its own separate Firestore
+    // read to confirm this slot existed, but userSnap here is a second,
+    // later read -- if the slot was deleted/overwritten in between, saved
+    // is undefined. Fail clean (400) rather than let saved.cards throw,
+    // same defensive shape fetchDeckCoverName already uses for the
+    // identical case just above.
+    if (!saved) { res.status(400).json({ error: 'Ese mazo personalizado ya no existe.' }); return; }
+    deckKey = 'pvp_' + uid + '_' + customMatch[1];
+    customDeckCards = saved.cards;
   }
 
-  const isHost = uid === room.hostUid;
-  const readyField = isHost ? 'hostReady' : 'guestReady';
-  const otherReady = isHost ? room.guestReady : room.hostReady;
-
-  if (!otherReady) {
-    await roomRef.update({ [readyField]: true });
-    return { ready: true, matchId: null };
-  }
-
-  // Both sides ready -- resolve deck keys (before the transaction: these
-  // are simple reads plus a DECKLISTS registration, not writes) and build
-  // the match. hostUid always maps to engine slot 'player', guestUid
-  // always to 'cpu' (see this plan's Global Constraints).
-  // C3 (final-review fix): the guest's own chosen deck (room.guestDeckId)
-  // used to be validated and stored but never actually USED -- createGame's
-  // 'cpu' side always picked a random precon instead. Resolve the guest's
-  // deck key too, exactly the same way the host's already is, and pass it
-  // through as createGame's new 4th (cpuDeckKey) argument below.
-  const hostDeckKey = await resolveDeckKeyForMatch(room.hostUid, room.hostDeckId);
-  const guestDeckKey = await resolveDeckKeyForMatch(room.guestUid, room.guestDeckId);
-  const matchRef = db.collection('matches').doc();
-
-  await db.runTransaction(async (tx) => {
-    const freshRoomSnap = await tx.get(roomRef);
-    const freshRoom = freshRoomSnap.data();
-    if (freshRoom.status !== 'waiting') {
-      throw new HttpsError('failed-precondition', 'Esa sala ya no está esperando.');
-    }
-    tx.update(roomRef, { [readyField]: true, status: 'started', matchId: matchRef.id });
-
-    const state = createGame(Math.random, hostDeckKey, { player: true, cpu: true }, guestDeckKey);
-    const redacted = redactMatchState(state, freshRoom.hostUid, freshRoom.guestUid);
-    // Real usernames aren't part of the engine's own state (redactMatchState
-    // has no concept of them) -- carried on the match doc itself, straight
-    // from the room doc that already captured them at create/join time. The
-    // client substitutes these for "Jugador"/"CPU" in board labels and log
-    // text (buildPvpGameState, ui.js).
-    tx.set(matchRef, Object.assign({}, redacted.public, {
-      hostUsername: freshRoom.hostUsername, guestUsername: freshRoom.guestUsername
-    }));
-    tx.set(matchRef.collection('private').doc(freshRoom.hostUid), redacted.private[freshRoom.hostUid]);
-    tx.set(matchRef.collection('private').doc(freshRoom.guestUid), redacted.private[freshRoom.guestUid]);
-    // state.rng is the literal Math.random function reference createGame
-    // stored on the state -- Firestore can't serialize a function, and a
-    // live RNG couldn't survive a round-trip through Firestore anyway.
-    // Persist everything else verbatim; whoever loads serverOnly/state
-    // back out (Tasks 7-9) re-attaches a fresh Math.random before calling
-    // back into the engine.
-    tx.set(matchRef.collection('serverOnly').doc('state'), { state: Object.assign({}, state, { rng: null }) });
+  res.status(200).json({
+    uid: uid, username: profile.username, photo: profile.photo,
+    deckKey: deckKey, deckCoverName: deckCoverName, customDeckCards: customDeckCards,
+    cardBackId: resolvedCardBackId,
+    collectionHolo: userData.collectionHolo || {},
+    collectionSecret: userData.collectionSecret || {}
   });
-
-  return { ready: true, matchId: matchRef.id };
 });
 
-const { canPlayBasic, playBasic, startMatch, canEvolve, evolve, canAttachEnergy, attachEnergy, canRetreat, retreat, endTurn, drawForTurnStart, takePrize, chooseNewActive, canAttack, attack, submitRpsChoice } = require('./lib/rulesEngine');
+// "Duelo en Vivo": party/index.js calls this (best-effort, fire-and-forget)
+// the moment a match actually starts (startMatch()), once per side, so a
+// player who later loses access to their browser (crash, dead internet,
+// closed tab) can find their way back from ANY device -- see
+// 2026-09-17-pvp-reconnect-forfeit-design.md section 4.1.
+exports.registerActiveMatch = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { uid, roomCode, secret } = req.body || {};
+  // Fail closed: PARTY_INTERNAL_SECRET is only ever null in a real deploy
+  // that forgot to set the env var (see its own comment above). Without
+  // this check, a request with an explicit `secret: null` in its JSON body
+  // would pass `secret !== PARTY_INTERNAL_SECRET` (null !== null is false).
+  if (!PARTY_INTERNAL_SECRET) { res.status(503).json({ error: 'No configurado.' }); return; }
+  if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
+  if (!uid || !roomCode) { res.status(400).json({ error: 'Faltan datos.' }); return; }
+  await admin.firestore().collection('activeMatches').doc(uid).set({ roomCode: roomCode });
+  res.status(200).json({ ok: true });
+});
 
-// Shared by every action below that only ever makes sense on the acting
-// side's own turn -- gives one specific, consistent rejection message
-// instead of each case's own generic "can't do that here" text, which
-// could also fire for unrelated reasons (bad target, insufficient energy,
-// ...). Deliberately excludes placeActive/placeBench during 'setup' (both
-// sides act simultaneously there, no turn order yet), confirmSetup/
-// submitRpsChoice/takePrize/chooseActive (none of these are turn-gated --
-// each has its own specific pending-state check instead).
-const TURN_GATED_ACTIONS = ['placeActive', 'placeBench', 'evolve', 'attachEnergy', 'retreat', 'endTurn', 'attack'];
-// ATTACK_EFFECTS is already required + bound to global above (I5 fix),
-// before ./lib/rulesEngine is first required -- no need to require it again.
+// Called by party/index.js (same auth as registerActiveMatch above) the
+// first time it observes the match has a winner -- normal win, timeout, or
+// a forfeit -- for both uids.
+exports.clearActiveMatch = onRequest(async (req, res) => {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed.' }); return; }
+  const { uid, secret } = req.body || {};
+  // Same fail-closed check as registerActiveMatch above -- see its comment.
+  if (!PARTY_INTERNAL_SECRET) { res.status(503).json({ error: 'No configurado.' }); return; }
+  if (secret !== PARTY_INTERNAL_SECRET) { res.status(401).json({ error: 'No autorizado.' }); return; }
+  if (!uid) { res.status(400).json({ error: 'Faltan datos.' }); return; }
+  await admin.firestore().collection('activeMatches').doc(uid).delete();
+  res.status(200).json({ ok: true });
+});
 
-// Loads a match's full serverOnly state and resolves which engine slot
-// ('player'/'cpu') the calling uid actually is. Every action handler below
-// starts with this. Throws not-found/permission-denied as appropriate.
-// tx: the Firestore transaction submitMatchAction runs everything inside --
-// setup is explicitly simultaneous/concurrent (both players place Basics
-// independently, no turn order yet), so two near-simultaneous actions
-// against the same match must not be allowed to each read stale state and
-// have the later write silently clobber the earlier one's mutation. Both
-// reads this function does (the match doc, then serverOnly/state) go
-// through tx.get so Firestore enforces the transaction's read set.
-async function resolveMatchSide(tx, matchId, uid) {
-  const db = admin.firestore();
-  const matchRef = db.collection('matches').doc(matchId);
-  const matchSnap = await tx.get(matchRef);
-  if (!matchSnap.exists) { throw new HttpsError('not-found', 'Esa partida no existe.'); }
-  const pub = matchSnap.data();
-  let side, opponentSide, opponentUid;
-  if (pub.players.player1 === uid) { side = 'player'; opponentSide = 'cpu'; opponentUid = pub.players.player2; }
-  else if (pub.players.player2 === uid) { side = 'cpu'; opponentSide = 'player'; opponentUid = pub.players.player1; }
-  else { throw new HttpsError('permission-denied', 'No formas parte de esa partida.'); }
-  const serverOnlySnap = await tx.get(matchRef.collection('serverOnly').doc('state'));
-  const state = serverOnlySnap.data().state;
-  // state.rng was nulled out before being written to Firestore (see
-  // setReady's comment above -- Firestore can't store a function value).
-  // Re-attach a fresh Math.random here, before returning, so anything
-  // downstream that calls back into the engine (e.g. confirmSetup's
-  // startMatch(state) -> coinFlip(state) -> state.rng()) has a real
-  // function to call instead of crashing on a null.
-  state.rng = Math.random;
-  return { state: state, side: side, opponentSide: opponentSide, uid: uid, opponentUid: opponentUid, matchRef: matchRef, pub: pub };
-}
-
-// Writes the redacted public/private views back after a mutation --
-// side1Uid/side2Uid are always (hostUid, guestUid) regardless of who
-// called this action, matching redactMatchState's own fixed player1='player'/
-// player2='cpu' mapping. Not async: tx.set is synchronous (queues the write
-// against the same transaction resolveMatchSide's reads came from -- it
-// isn't a Promise), the transaction itself is what submitMatchAction awaits.
-function persistMatchState(tx, matchRef, state, hostUid, guestUid) {
-  const redacted = redactMatchState(state, hostUid, guestUid);
-  // Null out state.rng again before writing -- mirrors setReady's exact
-  // pattern above -- Firestore can't serialize a function value.
-  tx.set(matchRef.collection('serverOnly').doc('state'), { state: Object.assign({}, state, { rng: null }) });
-  // merge:true -- redactMatchState's output never includes hostUsername/
-  // guestUsername (setReady is the only writer of those two fields, once,
-  // at match creation); a bare tx.set here would otherwise wipe them out on
-  // literally the very next action taken.
-  tx.set(matchRef, redacted.public, { merge: true });
-  tx.set(matchRef.collection('private').doc(hostUid), redacted.private[hostUid]);
-  tx.set(matchRef.collection('private').doc(guestUid), redacted.private[guestUid]);
-}
-
-exports.submitMatchAction = onCall(async (request) => {
+// Called by the BROWSER client (economy.js's getActiveMatchCloud) when the
+// main menu loads -- normal onCall auth via the caller's own Firebase Auth
+// context, same pattern as awardMatchResult/updateProfile above.
+exports.getActiveMatch = onCall(async (request) => {
   if (!request.auth) { throw new HttpsError('unauthenticated', 'Debes iniciar sesión.'); }
-  const data = request.data || {};
-  const matchId = data.matchId;
-  const action = data.action || {};
-  const db = admin.firestore();
-
-  // Everything -- the reads resolveMatchSide does, the in-memory switch
-  // below (pure engine mutation, no Firestore calls of its own), and the
-  // writes persistMatchState does -- runs inside one transaction. Firestore
-  // requires all reads before any writes within a transaction; that
-  // ordering already holds here since the switch never touches Firestore
-  // directly, so nothing needed to change about the shape of the handler
-  // itself, only how its reads/writes reach Firestore.
-  await db.runTransaction(async (tx) => {
-    const { state, side, matchRef, pub } = await resolveMatchSide(tx, matchId, request.auth.uid);
-    const hostUid = pub.players.player1;
-    const guestUid = pub.players.player2;
-    // Captured BEFORE the switch runs so the draw-compensation guard below
-    // can tell "a turn transition just happened" (activePlayerId changed)
-    // apart from "it's already this side's turn and they're submitting
-    // another ordinary action" (activePlayerId unchanged). See that guard's
-    // comment for why this distinction is required.
-    const activeBefore = state.activePlayerId;
-
-    // One specific, user-facing message for "you tried to act but it isn't
-    // your turn" -- covers every turn-gated action uniformly, before any
-    // individual case's own (more generic) legality check ever runs.
-    if (TURN_GATED_ACTIONS.indexOf(action.type) !== -1 && state.phase === 'playing' && activeBefore !== side) {
-      throw new HttpsError('failed-precondition', 'No puedes jugar, aún no es tu turno.');
-    }
-
-    switch (action.type) {
-      case 'placeActive': {
-        if (!canPlayBasic(state, side, action.handCardId)) {
-          throw new HttpsError('failed-precondition', 'No puedes jugar esa carta ahí.');
-        }
-        if (state.players[side].active) {
-          throw new HttpsError('failed-precondition', 'Ya tienes un Pokémon Activo.');
-        }
-        // playBasic(state, playerId, handId, benchIndex) needs a benchIndex,
-        // but placing the very first (Active) Pokémon during setup has no
-        // bench slot -- reuse the existing local convention (ui.js's own
-        // drop-on-empty-Active-spot path) of calling playBasic with
-        // benchIndex null. Confirmed against rules-engine.js:230-243:
-        // playBasic places into p.active whenever it's currently null,
-        // regardless of what benchIndex was passed, so this is correct
-        // exactly as written.
-        playBasic(state, side, action.handCardId, null);
-        break;
-      }
-      case 'placeBench': {
-        if (!canPlayBasic(state, side, action.handCardId)) {
-          throw new HttpsError('failed-precondition', 'No puedes jugar esa carta ahí.');
-        }
-        // Without this guard, a client calling placeBench before placing
-        // an Active would have the card silently routed into .active
-        // instead of the requested bench slot -- playBasic (see
-        // rules-engine.js:230-241) places into p.active whenever it's
-        // still null, ignoring benchIndex entirely.
-        if (!state.players[side].active) {
-          throw new HttpsError('failed-precondition', 'Debes colocar tu Pokémon Activo primero.');
-        }
-        if (typeof action.benchIndex !== 'number' || state.players[side].bench[action.benchIndex]) {
-          throw new HttpsError('invalid-argument', 'Slot de banca inválido u ocupado.');
-        }
-        playBasic(state, side, action.handCardId, action.benchIndex);
-        break;
-      }
-      case 'confirmSetup': {
-        if (state.phase !== 'setup') { throw new HttpsError('failed-precondition', 'La partida ya empezó.'); }
-        // Requires BOTH sides to have placed their opening Active before
-        // this confirm can register -- not just the caller's own side. Real
-        // rules: you can't lock in "ready to start" while your opponent's
-        // board is still empty, since the coin flip (startMatch) needs both
-        // Actives to exist. Confirmed by tracing the exact test above: the
-        // guest's confirmSetup call right after placing their OWN Active
-        // (with the host's Active still unset) must be rejected, even
-        // though the guest's own side already has an Active at that point --
-        // the only check that produces that rejection is one that looks at
-        // both sides, not just the caller's.
-        if (!state.players.player.active || !state.players.cpu.active) {
-          throw new HttpsError('failed-precondition', 'Ambos jugadores deben colocar su Pokémon Activo antes de confirmar.');
-        }
-        state.setupConfirmed = state.setupConfirmed || { player: false, cpu: false };
-        state.setupConfirmed[side] = true;
-        if (state.setupConfirmed.player && state.setupConfirmed.cpu) {
-          // A real PVP match already decided this via rock-paper-scissors
-          // (submitRpsChoice, before setup even started) -- state.activePlayerId
-          // already holds that winner, so pass it straight through instead
-          // of letting startMatch flip its own coin.
-          startMatch(state, state.activePlayerId);
-        }
-        break;
-      }
-      case 'evolve': {
-        if (!canEvolve(state, side, action.handCardId, action.targetInstanceId)) {
-          throw new HttpsError('failed-precondition', 'Esa evolución no es legal ahí.');
-        }
-        evolve(state, side, action.handCardId, action.targetInstanceId);
-        break;
-      }
-      case 'attachEnergy': {
-        if (!canAttachEnergy(state, side, action.handCardId, action.targetInstanceId)) {
-          throw new HttpsError('failed-precondition', 'No puedes adjuntar esa Energía ahí.');
-        }
-        attachEnergy(state, side, action.handCardId, action.targetInstanceId);
-        break;
-      }
-      case 'retreat': {
-        if (!canRetreat(state, side, action.targetInstanceId)) {
-          throw new HttpsError('failed-precondition', 'No puedes retirarte ahí.');
-        }
-        retreat(state, side, action.targetInstanceId, action.discardEnergyIndices);
-        break;
-      }
-      case 'endTurn': {
-        if (state.phase !== 'playing' || state.activePlayerId !== side) {
-          throw new HttpsError('failed-precondition', 'No es tu turno.');
-        }
-        endTurn(state);
-        // C4 (final-review fix): the turn-start-draw compensation used to
-        // live here, but attack() ALSO ends the turn internally (via its own
-        // endThisTurn() -> endTurn(state) call, unconditionally, every time
-        // an attack resolves) -- and the 'attack' case had no equivalent
-        // compensation at all, so the guest lost their turn-start draw almost
-        // every turn cycle (attacking is the normal way a turn ends). Moved
-        // to run once, unconditionally, right after this whole switch --
-        // see the comment down there for the full reasoning.
-        break;
-      }
-      case 'takePrize': {
-        if (!state.pendingPrizeChoice || state.pendingPrizeChoice.playerId !== side) {
-          throw new HttpsError('failed-precondition', 'No tienes un premio pendiente para elegir.');
-        }
-        const prizes = state.players[side].prizes;
-        if (typeof action.prizeIndex !== 'number' || action.prizeIndex < 0 || action.prizeIndex >= prizes.length || !prizes[action.prizeIndex]) {
-          throw new HttpsError('invalid-argument', 'Índice de premio inválido.');
-        }
-        takePrize(state, side, action.prizeIndex);
-        break;
-      }
-      case 'attack': {
-        if (!canAttack(state, side, action.attackName)) {
-          throw new HttpsError('failed-precondition', 'No puedes usar ese ataque ahora.');
-        }
-        // Fase 1 only supports the generic damage-only attack path -- any
-        // attack with a real ATTACK_EFFECTS entry (coin flips, status
-        // conditions, self-damage, targeting, ...) is Fase 2 territory and
-        // must be rejected here, BEFORE attack() ever runs, rather than
-        // silently falling back to vanilla damage. Keyed off the
-        // ATTACKER's own name (not the defender's, not the side) since
-        // ATTACK_EFFECTS is indexed by Pokemon name -> attack name.
-        const attackerName = state.players[side].active.name;
-        if (ATTACK_EFFECTS[attackerName] && ATTACK_EFFECTS[attackerName][action.attackName]) {
-          throw new HttpsError('failed-precondition', 'Ese ataque todavía no está disponible en PVP (Fase 2).');
-        }
-        attack(state, side, action.attackName);
-        break;
-      }
-      case 'submitRpsChoice': {
-        if (state.phase !== 'rps') {
-          throw new HttpsError('failed-precondition', 'La partida no está en la fase de piedra, papel o tijera.');
-        }
-        if (['rock', 'paper', 'scissors'].indexOf(action.choice) === -1) {
-          throw new HttpsError('invalid-argument', 'Elección inválida.');
-        }
-        submitRpsChoice(state, side, action.choice);
-        break;
-      }
-      case 'chooseActive': {
-        if (state.pendingActiveChoice !== side) {
-          throw new HttpsError('failed-precondition', 'No tienes una elección de Activo pendiente.');
-        }
-        const bench = state.players[side].bench;
-        if (typeof action.benchIndex !== 'number' || !bench[action.benchIndex] || bench[action.benchIndex].id !== action.benchInstanceId) {
-          throw new HttpsError('invalid-argument', 'Selección de banca inválida.');
-        }
-        chooseNewActive(state, side, action.benchInstanceId);
-        break;
-      }
-      default:
-        throw new HttpsError('invalid-argument', 'Tipo de acción desconocido o no soportado en Fase 1: ' + action.type);
-    }
-
-    // C4 (final-review fix): endTurn() (rules-engine.js) only auto-draws for
-    // the literal 'player' slot -- ai.js's cpuTakeTurn (the only other
-    // caller of drawForTurnStart for the 'cpu' slot) never runs in PVP, so a
-    // humanControlled non-'player' side (a real PVP guest) needs its
-    // turn-start draw compensated for here. This has to run after ANY
-    // action that might have just handed the turn to that side via an
-    // internal endTurn() call -- not just the explicit 'endTurn' action --
-    // since attack() ALSO ends the turn internally (via its own
-    // endThisTurn() -> endTurn(state), unconditionally, every single time an
-    // attack resolves, regardless of KO). Placed once, right here, after the
-    // whole switch, so it applies uniformly to both.
-    //
-    // Regression fix (fix-wave re-review): this guard MUST also check that
-    // activePlayerId actually changed across the switch (activeBefore !==
-    // state.activePlayerId) -- without that comparison, the guard was true
-    // for EVERY action the guest submitted during their OWN turn (attach
-    // Energy, retreat, attack, ...), not just the one action that started
-    // it, since "activePlayerId === 'cpu' && humanControlled.cpu" stays true
-    // for the whole duration of the guest's turn. That drew the guest an
-    // extra, unearned card on every single action, eventually emptying
-    // their deck (state.deckedOut) and auto-losing them -- far worse than
-    // the bug this whole compensation was meant to fix. Requiring a real
-    // transition (activeBefore !== state.activePlayerId) makes this fire
-    // exactly once per turn handoff: most actions never change
-    // activePlayerId at all, and endTurn(state) itself only ever draws for
-    // the 'player' slot on its own -- it never also draws for a
-    // humanControlled non-'player' side, so there's nothing here to
-    // double up with for that side.
-    //
-    // turnCounter > 1 is STILL required alongside activeBefore, and for a
-    // different reason than just "no previous turn to have ended": the
-    // 'confirmSetup' case (via startMatch(), rules-engine.js:175-185) also
-    // transitions activePlayerId from null to whichever side won the coin
-    // flip, AND startMatch() already calls drawForTurnStart for that side
-    // itself, unconditionally, as part of starting the match. Without
-    // turnCounter > 1 here, a guest who wins the coin flip and starts first
-    // would get double-drawn right at match start (once from startMatch's
-    // own call, once from this guard reacting to the null -> 'cpu'
-    // transition). turnCounter is set to exactly 1 by startMatch and only
-    // ever incremented by endTurn(), so requiring > 1 excludes exactly that
-    // match-start transition while still catching every later turn handoff.
-    if (state.turnCounter > 1 && state.activePlayerId !== activeBefore && state.activePlayerId !== 'player' && state.humanControlled[state.activePlayerId]) {
-      drawForTurnStart(state, state.activePlayerId);
-    }
-
-    persistMatchState(tx, matchRef, state, hostUid, guestUid);
-  });
-
-  return { ok: true };
-});
-
-const { onSchedule } = require('firebase-functions/v2/scheduler');
-
-// Backstop for joinRoom's own lazy expiry check (Task 5) -- deletes
-// 'waiting' rooms nobody ever joined, past ROOM_EXPIRY_MS old, so they
-// don't accumulate in Firestore forever even if nobody ever tries to join
-// them (which is the only other place staleness gets checked).
-exports.cleanupExpiredRooms = onSchedule('every 15 minutes', async () => {
-  const db = admin.firestore();
-  const cutoff = Date.now() - ROOM_EXPIRY_MS;
-  const snap = await db.collection('rooms').where('status', '==', 'waiting').get();
-  const deletions = [];
-  snap.forEach((doc) => {
-    const room = doc.data();
-    const isStale = room.createdAt && room.createdAt.toMillis() < cutoff;
-    if (isStale && !room.guestUid) { deletions.push(doc.ref.delete()); }
-  });
-  await Promise.all(deletions);
-  console.log('cleanupExpiredRooms: deleted ' + deletions.length + ' expired room(s)');
+  const snap = await admin.firestore().collection('activeMatches').doc(request.auth.uid).get();
+  return { roomCode: snap.exists ? snap.data().roomCode : null };
 });
 
 // ===== TELEGRAM STARS PAYMENTS =====

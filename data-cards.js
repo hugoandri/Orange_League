@@ -1425,3 +1425,7 @@ const CARD_STATS = {
     "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [], "retreatCost": 1
   }
 };
+
+if (typeof module !== 'undefined') {
+  module.exports = { CARD_STATS };
+}

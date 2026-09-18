@@ -159,6 +159,10 @@ function awardMatchResultCloud(result) {
   return firebase.functions().httpsCallable('awardMatchResult')({ result: result });
 }
 
+function getActiveMatchCloud() {
+  return firebase.functions().httpsCallable('getActiveMatch')().then(function (res) { return res.data; });
+}
+
 function openBoosterCloud(setKey) {
   return firebase.functions().httpsCallable('openBooster')({ setKey: setKey })
     .then(function (res) { return res.data.cards; });
@@ -185,53 +189,197 @@ function saveCustomDeckCloud(slot, name, cards, coverName) {
   return firebase.functions().httpsCallable('saveCustomDeck')({ slot: slot, name: name, cards: cards, coverName: coverName || null });
 }
 
+// PartyKit host -- the same one used in production, or 127.0.0.1:1999
+// during local development (uncomment the second line and comment the
+// first, mirroring firebase-init.js's own useEmulator toggle pattern).
+var PVP_PARTY_HOST = 'tcg-simulador-pvp.hugoandri.partykit.dev';
+// var PVP_PARTY_HOST = '127.0.0.1:1999';
+
+var pvpSocket = null;
+var pvpRoomHandler = null;
+var pvpMatchHandler = null;
+var pvpReqCounter = 0;
+var pvpPendingActions = {}; // reqId -> {resolve, reject}
+// Firestore's onSnapshot always fires immediately with the last-known
+// value the instant something subscribes, even if that value arrived
+// before the subscription existed -- initPvpRoomListener/
+// initPvpMatchListeners below need the exact same behavior, since
+// ui.js's startPvpRoomWait only calls initPvpRoomListener INSIDE
+// createRoomCloud/joinRoomCloud's OWN .then() callback, i.e. strictly
+// AFTER the party's first 'room' message already arrived and resolved
+// that promise. Without caching it here, that first message (and for the
+// match phase, the first 'match' message, delivered before enterPvpMatch
+// ever calls initPvpMatchListeners) would already be lost by the time
+// either handler gets registered -- these two variables are that cache.
+var pvpLastRoomMessage = null;
+var pvpLastMatchMessage = null;
+
+function dispatchPvpMessage(data) {
+  if (data.type === 'room') {
+    pvpLastRoomMessage = data;
+    if (pvpRoomHandler) { pvpRoomHandler(data); }
+    return;
+  }
+  if (data.type === 'match') {
+    pvpLastMatchMessage = data;
+    if (pvpMatchHandler) { pvpMatchHandler(data); }
+    return;
+  }
+  if (data.type === 'ack') {
+    var pendingAck = pvpPendingActions[data.reqId];
+    if (pendingAck) { delete pvpPendingActions[data.reqId]; pendingAck.resolve(); }
+    return;
+  }
+  if (data.type === 'error') {
+    var pendingErr = data.reqId != null ? pvpPendingActions[data.reqId] : null;
+    if (pendingErr) { delete pvpPendingActions[data.reqId]; pendingErr.reject(new Error(data.message)); }
+    return;
+  }
+  if (data.type === 'deckPeek') {
+    var pendingPeek = pvpPendingActions[data.reqId];
+    if (pendingPeek) { delete pvpPendingActions[data.reqId]; pendingPeek.resolve(data.cards); }
+    return;
+  }
+}
+
+// Opens the one shared PVP socket and resolves once the party's first
+// real message arrives (an 'error' rejects, matching today's
+// createRoom/joinRoom's own reject-on-invalid-code behavior) -- resolving
+// on the bare WebSocket 'open' event isn't enough, since that only proves
+// the TCP/TLS handshake succeeded, not that the party's own onConnect
+// logic actually accepted this connection (room already taken, code
+// doesn't exist, etc. all close the socket AFTER a real 'open'). Every
+// message (including this first one) always goes through
+// dispatchPvpMessage, so pvpLastRoomMessage/pvpLastMatchMessage are
+// populated from the very start, regardless of whether a handler has
+// been registered yet.
+// Real gap this closes: pressing "back" out of the waiting-room screen
+// before a match starts (pvpCreateBackBtn, ui.js) only ever clears
+// pvpRoomHandler -- it has no reason to know it should also close a raw
+// socket, since Firestore's onSnapshot (what it replaces) had no such
+// resource to leak. Rather than teach ui.js about socket lifecycle, every
+// fresh create/join here closes out any stale previous connection first,
+// so backing out and trying again never accumulates more than one
+// briefly-dangling connection (reaped the instant the next attempt
+// starts, or by the browser itself on tab/page close either way).
+function openPvpSocket(roomCode, deckId, cardBackId, intent) {
+  if (pvpSocket) { pvpSocket.close(); pvpSocket = null; }
+  pvpLastRoomMessage = null;
+  pvpLastMatchMessage = null;
+  return firebase.auth().currentUser.getIdToken().then(function (idToken) {
+    return new Promise(function (resolve, reject) {
+      var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + PVP_PARTY_HOST +
+        '/parties/main/' + encodeURIComponent(roomCode) +
+        '?token=' + encodeURIComponent(idToken) +
+        '&deckId=' + encodeURIComponent(deckId) +
+        '&cardBackId=' + encodeURIComponent(cardBackId) +
+        '&intent=' + intent;
+      var ws = new WebSocket(url);
+      var settled = false;
+      ws.addEventListener('message', function (e) {
+        var data = JSON.parse(e.data);
+        if (!settled) {
+          settled = true;
+          if (data.type === 'error') { ws.close(); reject(new Error(data.message)); return; }
+          pvpSocket = ws;
+          resolve({ roomCode: roomCode });
+        }
+        dispatchPvpMessage(data);
+      });
+      ws.addEventListener('close', function () {
+        if (!settled) { settled = true; reject(new Error('No se pudo conectar a la sala.')); }
+      });
+      ws.addEventListener('error', function () {
+        if (!settled) { settled = true; reject(new Error('No se pudo conectar a la sala.')); }
+      });
+    });
+  });
+}
+
+// Real simplification from today's behavior: the old server-side
+// createRoom retried up to 5 times inside one transaction on a
+// collision. A collision here means openPvpSocket rejects (the party's
+// onConnect sees an existing host and this client's intent is 'create')
+// and the .catch() already wired at both ui.js call sites shows a plain
+// alert -- no client-side auto-retry loop. Accepted: the odds are
+// 1-in-32^6 (~1 billion), and the user's fix is just pressing "Crear
+// Sala" again, which generates a fresh code.
 function createRoomCloud(deckId) {
-  var fn = firebase.functions().httpsCallable('createRoom');
-  return fn({ deckId: deckId }).then(function (res) { return res.data; });
+  var roomCode = randomRoomCodeClient();
+  return openPvpSocket(roomCode, deckId, getCardBackId(), 'create');
 }
 
 function joinRoomCloud(roomCode, deckId) {
-  var fn = firebase.functions().httpsCallable('joinRoom');
-  return fn({ roomCode: roomCode, deckId: deckId }).then(function (res) { return res.data; });
+  return openPvpSocket(roomCode, deckId, getCardBackId(), 'join');
 }
 
-function setReadyCloud(roomCode) {
-  var fn = firebase.functions().httpsCallable('setReady');
-  return fn({ roomCode: roomCode }).then(function (res) { return res.data; });
+// Same 6-char, 32-symbol alphabet as the server used to generate
+// (functions/index.js's now-deleted randomRoomCode) -- generated
+// client-side now since PartyKit creates the room on first connection,
+// there's no server round trip to ask for a fresh code.
+function randomRoomCodeClient() {
+  var alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 6; i++) { code += alphabet[Math.floor(Math.random() * alphabet.length)]; }
+  return code;
+}
+
+function setReadyCloud() {
+  pvpSocket.send(JSON.stringify({ type: 'setReady' }));
+  return Promise.resolve();
+}
+
+// Real reported bug: "VOLVER A JUGAR" after a PVP match used to disconnect
+// from PVP entirely and start a local match vs CPU instead. Sent over the
+// SAME still-open socket a finished match's own actions used (see
+// party/index.js's 'rematch' onMessage case) -- rejoins the exact same room
+// at the pre-match waiting stage, no new connection needed.
+function rematchCloud() {
+  pvpSocket.send(JSON.stringify({ type: 'rematch' }));
+  return Promise.resolve();
+}
+
+// Sent right before the socket actually closes (ui.js's matchEndCancelBtn/
+// pauseExit, PVP branch) so the other side -- if they're still looking at
+// the same finished match -- learns their room mate is gone (see
+// party/index.js's 'leaveRoom' case and roomBroadcastPayload's hostLeft/
+// guestLeft). No-op if the socket is already gone.
+function leaveRoomCloud() {
+  if (pvpSocket) { pvpSocket.send(JSON.stringify({ type: 'leaveRoom' })); }
+  return Promise.resolve();
 }
 
 function submitMatchActionCloud(matchId, action) {
-  var fn = firebase.functions().httpsCallable('submitMatchAction');
-  return fn({ matchId: matchId, action: action }).then(function (res) { return res.data; });
+  return new Promise(function (resolve, reject) {
+    var reqId = ++pvpReqCounter;
+    pvpPendingActions[reqId] = { resolve: resolve, reject: reject };
+    pvpSocket.send(JSON.stringify({ type: 'action', reqId: reqId, action: action }));
+  });
 }
 
-// Waiting-room screen (ui.js) listens to this to know when the opponent
-// joins/readies and when the match actually starts (roomData.status
-// flips to 'started', roomData.matchId becomes non-null).
+function peekOwnDeckCloud() {
+  return new Promise(function (resolve, reject) {
+    var reqId = ++pvpReqCounter;
+    pvpPendingActions[reqId] = { resolve: resolve, reject: reject };
+    pvpSocket.send(JSON.stringify({ type: 'peekOwnDeck', reqId: reqId }));
+  });
+}
+
 function initPvpRoomListener(roomCode, onUpdate) {
-  return firebase.firestore().collection('rooms').doc(roomCode)
-    .onSnapshot(function (snap) {
-      if (!snap.exists) { onUpdate(null); return; }
-      onUpdate(snap.data());
-    }, function (err) { console.error('No se pudo escuchar la sala', err); });
+  pvpRoomHandler = onUpdate;
+  if (pvpLastRoomMessage) { onUpdate(pvpLastRoomMessage); }
+  return function unsubscribe() { pvpRoomHandler = null; };
 }
 
-// Merges the public board doc + my own private hand doc into one callback
-// -- ui.js's PVP board-render path (Task 14) never has to reason about
-// the two listeners firing independently/out of order, since either one
-// firing just re-delivers both pieces together from their last-known
-// values.
 function initPvpMatchListeners(matchId, myUid, onUpdate) {
-  var latestPublic = null;
-  var latestHand = null;
-  function fire() { if (latestPublic) { onUpdate({ public: latestPublic, myHand: latestHand || [] }); } }
-  var unsubPublic = firebase.firestore().collection('matches').doc(matchId)
-    .onSnapshot(function (snap) { latestPublic = snap.data(); fire(); },
-      function (err) { console.error('No se pudo escuchar la partida', err); });
-  var unsubPrivate = firebase.firestore().collection('matches').doc(matchId).collection('private').doc(myUid)
-    .onSnapshot(function (snap) { latestHand = snap.exists ? snap.data().hand : []; fire(); },
-      function (err) { console.error('No se pudo escuchar tu mano', err); });
-  return function unsubscribeBoth() { unsubPublic(); unsubPrivate(); };
+  pvpMatchHandler = function (data) { onUpdate({ public: data.public, myHand: data.myHand }); };
+  if (pvpLastMatchMessage) { pvpMatchHandler(pvpLastMatchMessage); }
+  return function unsubscribe() {
+    pvpMatchHandler = null;
+    if (pvpSocket) { pvpSocket.close(); pvpSocket = null; }
+    pvpLastRoomMessage = null;
+    pvpLastMatchMessage = null;
+  };
 }
 
 function createStarsInvoiceCloud(packageId) {

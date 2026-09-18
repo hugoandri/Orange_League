@@ -304,12 +304,25 @@ function setCardBackId(id) {
   if (!ownsCardBack(id)) { return; }
   try { localStorage.setItem('tcg_card_back', id); } catch (e) {}
 }
-// The rival's face-down cards never change -- only 'player' reads the
-// chosen option; any other owner falls back to the real default.
+// 'player' always reads the LIVE local choice (getCardBackId()), even in
+// PVP, so changing it in Configuración mid-match updates my own view
+// instantly instead of waiting on a round-trip. The local CPU bot never
+// has a real equipped protector, so its cards stay the fixed default --
+// but a real PVP rival does: pvpOpponentCardBackId (set by
+// buildPvpGameState from pub.hostCardBackId/guestCardBackId, captured
+// server-side at room create/join time -- functions/index.js) carries
+// their own real choice, per user request that protectors be visible to
+// the opponent instead of always forced to the default.
 function cardBackUrlFor(ownerId) {
-  if (ownerId !== 'player') { return CARD_BACK_URL; }
-  var chosen = CARD_BACK_OPTIONS.filter(function (o) { return o.id === getCardBackId(); })[0];
-  return chosen ? chosen.img : CARD_BACK_URL;
+  if (ownerId === 'player') {
+    var mine = CARD_BACK_OPTIONS.filter(function (o) { return o.id === getCardBackId(); })[0];
+    return mine ? mine.img : CARD_BACK_URL;
+  }
+  if (pvpMode && pvpOpponentCardBackId) {
+    var theirs = CARD_BACK_OPTIONS.filter(function (o) { return o.id === pvpOpponentCardBackId; })[0];
+    return theirs ? theirs.img : CARD_BACK_URL;
+  }
+  return CARD_BACK_URL;
 }
 
 function renderCardBackPicker() {
@@ -546,6 +559,30 @@ function pokemonStageLabel(name) {
   return 'ETAPA 2';
 }
 
+// Real reported bug: the card viewer never showed a Pokémon's Power at
+// all (Alakazam's Damage Swap, Blastoise's Rain Dance, Charizard's Energy
+// Burn, Machamp's Strikes Back, Venusaur's Energy Trans, Electrode's
+// Buzzap) -- only its attack. Printed above the attacks on the real card,
+// so shown first here too. Read-only (activating a Power is a separate,
+// existing click-to-activate flow on the board itself, see
+// pendingPowerActivation) -- reuses the same row classes as a non-
+// actionable attack row (viewerAttacksHtml), just with no cost/damage
+// columns, since Powers have neither.
+function viewerPowerHtml(name) {
+  var stats = CARD_STATS[name];
+  var power = stats && stats.pokemonPower;
+  if (!power) { return ''; }
+  var nameEs = translatePowerName(power.name);
+  var textEs = translatePowerText(power.name);
+  return '<div class="shell-board-viewer-attacks"><div class="shell-board-viewer-attacks-header">PODER POKÉMON</div>' +
+    '<div class="shell-board-viewer-attack">' +
+      '<div class="shell-board-viewer-attack-body">' +
+        '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +
+        (textEs ? '<div class="shell-board-viewer-attack-text">' + escapeHtml(textEs) + '</div>' : '') +
+      '</div>' +
+    '</div></div>';
+}
+
 // actionableState is the live gameState when these rows should be real,
 // clickable attack buttons (viewing your own current Active, during your
 // turn, no pending prize choice) -- null/undefined renders plain read-only
@@ -584,6 +621,18 @@ function findInstanceEitherSide(instanceId) {
   return findInstance(gameState.players.player, instanceId) || findInstance(gameState.players.cpu, instanceId);
 }
 
+// Shared by showCardInViewer (left-click) and the board's right-click zoom
+// (openCardModal, wireBoardButtons below) -- both need this same "what's
+// this instance's real foil tier" computation. instance.foilTier
+// (server-set, PVP only -- see benchCardHtml's own comment) reflects the
+// real owning account's real collection and takes priority for either
+// side; local-vs-CPU play never sets it, so this falls through to the
+// exact same local logic as before.
+function boardCardFoilTier(name, ownerId, instance) {
+  return (instance && instance.foilTier) || (ownerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
+    : (ownerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null));
+}
+
 // Fills the card viewer (Column A) with a card's illustration, identity, and
 // (for Pokémon) its real attacks + weakness/resistance/retreat -- shown by
 // clicking the card itself (hand or board). Attack rows are only real,
@@ -605,8 +654,7 @@ function showCardInViewer(name, instanceId) {
   var viewerOwnerId = !instanceId ? 'player'
     : findInstance(gameState.players.player, instanceId) ? 'player'
     : findInstance(gameState.players.cpu, instanceId) ? 'cpu' : null;
-  var viewerFoilTier = viewerOwnerId === 'player' ? (getPlayerCardFoilTier(name) || (isHoloInMatch('player', name) ? 'holo' : null))
-    : (viewerOwnerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null);
+  var viewerFoilTier = boardCardFoilTier(name, viewerOwnerId, instance);
   var viewerIsHolo = !!viewerFoilTier;
 
   var frameHtml = '<div class="shell-board-viewer-frame">' +
@@ -642,7 +690,7 @@ function showCardInViewer(name, instanceId) {
     var discardBtnHtml = canVoluntaryDiscard
       ? '<div class="shell-board-viewer-attacks"><button type="button" class="shell-board-viewer-attack actionable" id="voluntaryDiscardBtn">DESCARTAR</button></div>'
       : '';
-    bodyHtml = identityHtml + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
+    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
   } else {
     // Trainer/Energy cards: the title stays in its real printed (English)
     // name here -- unlike the deck list/hand label, which do translate it
@@ -663,34 +711,33 @@ function showCardInViewer(name, instanceId) {
         var atkName = btn.getAttribute('data-attack-name');
         if (!canAttack(gameState, 'player', atkName)) { return; }
         if (atkName === 'Lure') {
-          // I8 (final-review fix): Lure has a real ATTACK_EFFECTS entry (it's
-          // the one Base Set attack needing a chosen target), so it's Fase-2
-          // territory same as every other special attack -- but unlike a
-          // normal special attack, this button never reaches the pvpMode
-          // check/submitMatchActionCloud call below at all (it arms local-only
-          // target-selection mode instead), so the server-side rejection
-          // (submitMatchAction's own ATTACK_EFFECTS check, see I5) never gets
-          // a chance to run. Guarded here explicitly instead.
-          if (pvpMode) {
-            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
-            return;
-          }
           // Needs a chosen rival Bench Pokémon -- arm target-selection
           // mode instead of firing immediately (see the Bench/Active
           // click handler in wireBoardButtons for the other half of this).
+          // Works identically in PVP now: the Bench click below submits
+          // the real chosen target to the server instead of applying it
+          // locally.
           pendingAttackNeedingTarget = atkName;
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
           return;
         }
         if (atkName === 'Metronome') {
-          if (pvpMode) {
-            alert('Este ataque especial todavía no está disponible en PVP (próximamente).');
-            return;
-          }
           var op = gameState.players[opponentOf('player')];
           var defender = op && op.active;
           var defStats = defender && CARD_STATS[defender.name];
           var rivalAttacks = (defStats && defStats.attacks) || [];
+          // Same submit-or-apply split every other targeted attack/Trainer
+          // uses -- the modal/auto-pick logic above is identical for PVP
+          // and local play, only the final call differs.
+          function submitOrApplyMetronome(copiedAtkName) {
+            if (pvpMode) {
+              pvpAttackEndedMyTurn = true;
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Metronome', targetInstanceId: copiedAtkName })
+                .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+              return;
+            }
+            executePlayerAttack('Metronome', copiedAtkName);
+          }
           if (rivalAttacks.length > 1) {
             var options = rivalAttacks.map(function (atk) {
               var dmgText = (atk.damage && atk.damage !== '0') ? ' (' + atk.damage + ' daño)' : '';
@@ -700,12 +747,10 @@ function showCardInViewer(name, instanceId) {
                 label: nameEs.toUpperCase() + dmgText
               };
             });
-            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, function (chosenAtkName) {
-              executePlayerAttack('Metronome', chosenAtkName);
-            });
+            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, submitOrApplyMetronome);
             return;
           } else if (rivalAttacks.length === 1) {
-            executePlayerAttack('Metronome', rivalAttacks[0].name);
+            submitOrApplyMetronome(rivalAttacks[0].name);
             return;
           }
         }
@@ -815,6 +860,9 @@ function cpuActionLabel(play) {
       return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) + ' de básico';
     case 'retreat':
       return (mine ? 'Retiras a ' : 'El rival retira a ') + translateCardName(play.outName) + ' → sale ' + translateCardName(play.name);
+    case 'power':
+      return (mine ? 'Usas el Poder ' : 'El rival usa el Poder ') + translatePowerName(play.powerName) + ' de ' + translateCardName(play.name) +
+        (play.targetName ? (' en ' + translateCardName(play.targetName)) : '');
     default:
       return (mine ? 'Juegas ' : 'El rival juega ') + translateCardName(play.name) +
         (play.targetName ? (' → sale ' + translateCardName(play.targetName)) : '');
@@ -992,7 +1040,35 @@ function executePlayerAttack(atkName, targetInstanceId) {
   // second line of defense (see its own comment).
   var endTurnBtnDuringReveal = document.getElementById('endTurnBtn');
   if (endTurnBtnDuringReveal) { endTurnBtnDuringReveal.disabled = true; }
-  showAttackOverlayIfAny(afterPlayerAction);
+  showAttackOverlayIfAny(function () {
+    afterPlayerAction();
+    maybeShowLocalEndTurnConfirm();
+  });
+}
+
+// Real reported request: local play never proactively asked "ya atacaste,
+// ¿querés terminar tu turno?" the way PVP always does -- the player had to
+// notice and click the persistent TERMINAR TURNO board button themselves.
+// Mirrors the KO+prize-take flow's own showEndTurnConfirmAfter check
+// (renderPrizeChoiceModal's click handler, above) for the plain,
+// no-knockout case -- and the delayed case where MY OWN attack forced a
+// self-KO (e.g. Confusion), so I owe a new Active choice before anything
+// else can happen: renderActiveChoiceModal's own resolution calls this too,
+// and localAttackEndedMyTurn (consumed here, not before) makes sure only
+// whichever of the two call sites actually clears last is the one that
+// fires, exactly the same "wait for every pending choice to clear first"
+// rule the KO+prize flow already follows.
+function maybeShowLocalEndTurnConfirm() {
+  if (!localAttackEndedMyTurn || getWinner(gameState) || gameState.pendingPrizeChoice ||
+      gameState.pendingActiveChoice === 'player' || gameState.activePlayerId === 'player') {
+    return;
+  }
+  localAttackEndedMyTurn = false;
+  // false, not the default (KO-specific "¡NOQUEASTE UN POKÉMON RIVAL!" text)
+  // -- neither call site into this function represents that: a plain attack
+  // knocked out nothing, and the self-KO case (Confusion et al.) knocked out
+  // MY OWN Pokémon, not the rival's, which that text would misrepresent.
+  renderEndTurnConfirm(false);
 }
 
 // Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
@@ -1392,6 +1468,12 @@ function renderActiveChoiceModal() {
       // actually start now that the player has picked their replacement --
       // see runCpuTurn/maybeResumeCpuTurn.
       maybeResumeCpuTurn();
+      // See maybeShowLocalEndTurnConfirm's own comment -- covers the case
+      // where it was MY OWN attack that forced this choice (a self-KO, e.g.
+      // Confusion), so the confirm modal was held back until now. A no-op
+      // whenever this choice came from anything else (the CPU's own attack,
+      // a checkup, a Trainer card), since localAttackEndedMyTurn is false then.
+      maybeShowLocalEndTurnConfirm();
     });
   });
   document.getElementById('activeChoiceModal').classList.remove('hidden');
@@ -1419,8 +1501,15 @@ function renderPrizeChoiceModal() {
     btn.addEventListener('click', function () {
       var index = parseInt(btn.getAttribute('data-prize-index'), 10);
       if (pvpMode) {
+        // Real reported bug: taking a prize in PVP never showed the "here's
+        // the card you won" zoom local play already has (see this
+        // function's local branch below). Prizes are secret server-side
+        // until taken -- snapshot my own hand's card ids right now, before
+        // submitting; applyPvpSnapshotEffects diffs the next snapshot's
+        // myHand against this list to find the card that just arrived.
+        pvpPrizeRevealPending = gameState.players.player.hand.map(function (c) { return c.id; });
         submitMatchActionCloud(pvpActiveMatchId, { type: 'takePrize', prizeIndex: index })
-          .catch(function (err) { alert(err.message || 'No se pudo tomar el premio.'); });
+          .catch(function (err) { pvpPrizeRevealPending = null; alert(err.message || 'No se pudo tomar el premio.'); });
         return;
       }
       var wonCard = gameState.players.player.prizes[index];
@@ -1514,6 +1603,16 @@ function cardStatusOverlayHtml(activeInstance) {
 // `flipped` rotates the CPU's Bench art 180° too, same as its Active --
 // per user request, so the whole rival side reads consistently as "facing
 // across the table" instead of just the Active looking that way.
+//
+// instance.foilTier ('holo'/'secret', or absent): only ever set server-side
+// (functions/index.js's attachFoilTiers, PVP only) from whichever REAL
+// account owns that side, using their actual collectionHolo/
+// collectionSecret -- takes priority over the local-only fallbacks below
+// (getPlayerCardFoilTier/isHoloInMatch) so a real PVP rival's holo/secret
+// rare cards show their real foil to both players, not just the deck's one
+// fixed guaranteed Rare Holo. Local-vs-CPU play never sets this field, so
+// it's always undefined there and every card falls through to the exact
+// same local logic as before.
 function benchCardHtml(instance, mine, flipped) {
   if (!instance || !CARD_STATS[instance.name]) { return benchEmptyHtml(mine, 0); }
   var stats = CARD_STATS[instance.name];
@@ -1521,7 +1620,7 @@ function benchCardHtml(instance, mine, flipped) {
   var pct = Math.max(0, Math.round((hp / stats.hp) * 100));
   var cardHtml = '<div class="shell-board-bench-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + instance.id + '" data-card-name="' + escapeHtml(instance.name) + '">' +
-    cardImageTag(instance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(instance.name) || isHoloInMatch('player', instance.name)) : isHoloInMatch('cpu', instance.name)) +
+    cardImageTag(instance.name, 'shell-board-card-art', instance.foilTier || (mine ? (getPlayerCardFoilTier(instance.name) || isHoloInMatch('player', instance.name)) : isHoloInMatch('cpu', instance.name))) +
     cardEnergiesOverlayHtml(instance.attachedEnergy) + '</div>';
   var hpHtml = '<div class="shell-board-bench-hp"><div class="shell-board-bench-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var nameHtml = '<div class="shell-board-bench-name">' + escapeHtml(translateCardName(instance.name)) + '</div>';
@@ -1582,7 +1681,7 @@ function activeColHtml(activeInstance, mine, flipped) {
     '<div class="shell-board-active-hp"><div class="shell-board-active-hp-fill' + (mine ? ' mine' : '') + '" style="width:' + pct + '%"></div></div>';
   var cardHtml = '<div class="shell-board-active-card' + (mine ? ' mine' : '') + (flipped ? ' flipped' : '') +
     '" data-instance-id="' + activeInstance.id + '" data-card-name="' + escapeHtml(activeInstance.name) + '">' +
-    cardImageTag(activeInstance.name, 'shell-board-card-art', mine ? (getPlayerCardFoilTier(activeInstance.name) || isHoloInMatch('player', activeInstance.name)) : isHoloInMatch('cpu', activeInstance.name)) +
+    cardImageTag(activeInstance.name, 'shell-board-card-art', activeInstance.foilTier || (mine ? (getPlayerCardFoilTier(activeInstance.name) || isHoloInMatch('player', activeInstance.name)) : isHoloInMatch('cpu', activeInstance.name))) +
     cardEnergiesOverlayHtml(activeInstance.attachedEnergy) +
     cardStatusOverlayHtml(activeInstance) +
     '</div>';
@@ -1593,11 +1692,25 @@ function activeColHtml(activeInstance, mine, flipped) {
 function sideHeaderHtml(ownerId) {
   var mine = ownerId === 'player';
   var name = mine ? escapeHtml(playerDisplayName()) : (pvpMode && pvpOpponentName ? escapeHtml(pvpOpponentName) : 'CPU');
-  var avatar = mine ? playerPhotoUrl() : PROFILE_PHOTO_URL.cpu;
+  // Real reported bug: this always showed the CPU bot avatar for the
+  // opponent slot, even in PVP against a real human -- pvpOpponentPhoto
+  // mirrors pvpOpponentName's own pvpMode check right above.
+  var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : PROFILE_PHOTO_URL.cpu);
   var on = gameState.activePlayerId === ownerId;
+  // Real reported bug: PVP never showed a real, per-side clock at all --
+  // per user request, both players' own timers are always visible, one
+  // per side's own header, right next to their avatar/name. Real reported
+  // follow-up: local play used to show a single shared clock in its own
+  // top-toolbar spot instead (switching color/ownership by whoever's
+  // turn it was) -- per later user request, local play now uses this
+  // exact same per-side layout too, so both modes look identical here; id
+  // lets tickPvpClocks/tickGameClock (below) target each one without
+  // re-rendering the whole header on every tick.
+  var clockHtml = '<div class="shell-board-side-clock" id="sideClock-' + ownerId + '"></div>';
   return '<div class="shell-board-side-header' + (mine ? ' mine' : '') + '">' +
     '<div class="shell-board-side-avatar"><img src="' + avatar + '" alt=""></div>' +
     '<div class="shell-board-side-name">' + name + '</div>' +
+    clockHtml +
     '<div class="shell-board-side-led' + (on ? '' : ' off') + '"></div>' +
     '</div>';
 }
@@ -1652,9 +1765,18 @@ function prizeGridHtml(state, ownerId) {
 // the DOM) centers it in the gap between the hand-card fan and the CPU's
 // bench row, without touching the bench or hand-card markup/sizing at all.
 function cpuHandRowHtml(count) {
+  // Real reported bug: every other face-down zone (deck/discard/prizes,
+  // see deckDiscardRowHtml/prizeGridHtml above) already resolves the real
+  // opponent protector via cardBackUrlFor('cpu') in PVP -- this one spot
+  // was left hardcoded to the fixed default CARD_BACK_URL, so a PVP
+  // rival's own equipped protector never showed on their hand-card fan.
+  var backUrl = cardBackUrlFor('cpu');
+  // Real reported bug: this label always read "MANO CPU", even in PVP
+  // against a real rival.
+  var label = pvpMode ? 'MANO RIVAL' : 'MANO CPU';
   var cards = '';
-  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + CARD_BACK_URL + '" alt="Carta boca abajo"></div>'; }
-  return '<div class="shell-board-hand-cpu-label"><span>MANO CPU</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
+  for (var i = 0; i < count; i++) { cards += '<div class="shell-board-hand-cpu-card"><img src="' + backUrl + '" alt="Carta boca abajo"></div>'; }
+  return '<div class="shell-board-hand-cpu-label"><span>' + label + '</span><span class="shell-board-hand-cpu-count">' + pixelDigitsHtml(count, 'dano', 2) + '</span></div>' +
     '<div class="shell-board-hand-cpu">' +
     '<div class="shell-board-hand-cpu-fan">' + cards + '</div>' +
     '</div>';
@@ -1738,7 +1860,16 @@ function renderBoardActions() {
   var html = '';
 
   if (s.phase === 'setup') {
-    html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>🪙 LANZAR MONEDA Y COMENZAR</button></div>';
+    // Real PVP already decided who goes first via rock-paper-scissors
+    // BEFORE this screen (see createGame's phase:'rps' comment,
+    // rules-engine.js) -- this button only confirms both boards are ready,
+    // it never flips anything. Local-vs-CPU play has no RPS step, so this
+    // button is the actual, literal coin flip there (startMatch's own
+    // coinFlip) -- keeping that label accurate for that mode only, per
+    // user request to stop the PVP board implying a second coin flip that
+    // doesn't happen.
+    var startLabel = pvpMode ? 'INICIAR DUELO' : '🪙 LANZAR MONEDA Y COMENZAR';
+    html += '<div class="shell-board-actions"><button type="button" class="shell-board-action-start" id="startMatchBtn"' + (p.active ? '' : ' disabled') + '>' + startLabel + '</button></div>';
   } else if (s.phase === 'playing' && !pendingPlayerPrize && !pendingActive) {
     var canRetreatAny = p.bench.some(function (b) { return b && canRetreat(s, 'player', b.id); });
     var canUsePower = usablePokemonPowers(s, 'player').length > 0;
@@ -1826,6 +1957,12 @@ function renderBoard() {
     sideHeaderHtml('cpu') + deckDiscardRowHtml(s, 'cpu', cDiscardCount) + prizeGridHtml(s, 'cpu') +
     '<div class="shell-board-side-spacer"></div>' +
     prizeGridHtml(s, 'player') + deckDiscardRowHtml(s, 'player', pDiscardCount) + sideHeaderHtml('player');
+  // The innerHTML write above recreates #sideClock-player/#sideClock-cpu
+  // empty (sideHeaderHtml's own markup), and nothing refills them until the
+  // next tick (tickPvpClocks every 250ms, or tickGameClock's own interval
+  // for local play) -- refill immediately so a re-render never blanks the
+  // clocks, even momentarily.
+  if (pvpMode) { tickPvpClocks(); } else { renderClocks(); }
 
   renderBoardActions();
   document.getElementById('log').innerHTML = logHtml(s);
@@ -1836,6 +1973,18 @@ function renderBoard() {
   if (s.phase === 'setup') {
     turnValueEl.textContent = 'PREPARANDO';
     turnValueEl.classList.remove('cpu');
+  } else if (pvpMode) {
+    // Real reported bug: every branch below this one is local-vs-CPU-only
+    // (cpuTurnInProgress/cpuTurnRevealInProgress never go true in PVP), so
+    // a real PVP match always fell through to the plain 'TU TURNO' default,
+    // regardless of whose turn it actually was -- per user request, this
+    // header must reflect the real rival's turn too, not just mine.
+    // s.activePlayerId is already viewer-relative here (buildPvpGameState
+    // maps it to 'player'/'cpu' meaning "me"/"my rival", exactly like the
+    // rest of gameState), so this reads the same way local play's own
+    // checks below do.
+    turnValueEl.textContent = s.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DE TU RIVAL';
+    turnValueEl.classList.toggle('cpu', s.activePlayerId !== 'player');
   } else if (cpuTurnInProgress) {
     // Real reported bug: this used to only ever get set by the explicit
     // showCpuThinkingIndicator() calls (proceedWithCpuTurn) -- any OTHER
@@ -2116,12 +2265,28 @@ function finishMatch(winner) {
   gameState.pendingPrizeChoice = null;
   gameState.pendingActiveChoice = null;
   stopGameClock();
+  // PVP counterpart to stopGameClock() above -- rules-engine.js never moves
+  // phase away from 'playing' once a winner is decided, so tickPvpClocks's
+  // own phase guard can't stop it on its own; left running, it would keep
+  // re-rendering both PVP clocks (and could fire a spurious claimTimeout)
+  // against a now-frozen turnStartedAt until the player leaves via
+  // Revancha/Cancelar. Only ever non-null during a PVP match, so this is a
+  // no-op for local play, same as stopGameClock() is today.
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
   playMatchEndMusic(winner);
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results)
   var textEl = document.getElementById('matchEndText');
-  textEl.textContent = winner === 'player' ? 'Has Ganado' : 'Has Perdido';
+  // Duelo en Vivo / Rendirse: pvpLatestPub.forfeitedBy names whichever
+  // side (player1/player2) gave up, set fresh by processPvpMatchSnapshot
+  // right before this call (see that function's own `pvpLatestPub = pub;`
+  // line) -- null for every other win condition. Only the WINNING side's
+  // modal gets the special copy; the side that forfeited still just sees
+  // "Has Perdido", same as any other loss.
+  var rivalForfeited = pvpMode && winner === 'player' && pvpLatestPub &&
+    pvpLatestPub.forfeitedBy && pvpLatestPub.forfeitedBy !== pvpMySide;
+  textEl.textContent = rivalForfeited ? 'Tu rival te ha cedido la victoria' : (winner === 'player' ? 'Has Ganado' : 'Has Perdido');
   textEl.classList.remove('win', 'loss');
   textEl.classList.add(winner === 'player' ? 'win' : 'loss');
   document.getElementById('matchEndModal').classList.remove('hidden');
@@ -2203,6 +2368,25 @@ function wireBoardButtons() {
     closeTargetHintModal();
   }
 
+  // Every TRAINER_EFFECTS[name] function shares rules-engine.js's
+  // (state, playerId, handId, ...args) shape and already validates
+  // legality before mutating (see card-effects.js) -- in PVP that exact
+  // same call just needs to happen on the SERVER's real state instead of
+  // this client's reconstructed one, which is why this can be one
+  // generic helper instead of a bespoke branch per card. Every one of
+  // this file's ~15 Trainer-card call sites routes through this.
+  function applyOrSubmitTrainerEffect(trainerName, handId, args) {
+    if (pvpMode) {
+      submitMatchActionCloud(pvpActiveMatchId, { type: 'playTrainer', trainerName: trainerName, handId: handId, args: args || [] })
+        .catch(function (err) { alert(err.message || 'Jugada inválida.'); });
+      return;
+    }
+    var result = TRAINER_EFFECTS[trainerName].apply(null, [gameState, 'player', handId].concat(args || []));
+    if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+    selectedHandId = null;
+    renderBoard();
+  }
+
   handButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
       showCardInViewer(btn.getAttribute('data-card-name'));
@@ -2223,10 +2407,7 @@ function wireBoardButtons() {
           handCard.name === 'Impostor Professor Oak' || handCard.name === 'Full Heal' || handCard.name === 'Pokémon Center';
         showHandCardMenu(btn, 'USAR', function () {
           if (isNoTargetTrainer) {
-            var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', handId);
-            if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-            selectedHandId = null;
-            renderBoard();
+            applyOrSubmitTrainerEffect(handCard.name, handId, []);
           } else if (handCard.name === 'Computer Search') {
             // Two steps, neither of which is a board-click target: first
             // discard 2 OTHER hand cards as the cost (per the real printed
@@ -2241,12 +2422,11 @@ function wireBoardButtons() {
               return;
             }
             openHandDiscardModal(otherHandCards, 2, function (discardHandIds) {
-              openDeckSearchModal(p.deck.slice(), function (deckCardId) {
-                var result = TRAINER_EFFECTS['Computer Search'](gameState, 'player', handId, deckCardId, discardHandIds);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
-              });
+              (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+                openDeckSearchModal(deckCards, function (deckCardId) {
+                  applyOrSubmitTrainerEffect('Computer Search', handId, [deckCardId, discardHandIds]);
+                });
+              }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
             });
           } else if (handCard.name === 'Energy Retrieval') {
             // Two steps: trade 1 OTHER hand card as the cost, then choose
@@ -2262,10 +2442,7 @@ function wireBoardButtons() {
             openHandDiscardModal(otherHandCardsForTrade, 1, function (tradeIds) {
               var basicEnergyInDiscard = p.discard.filter(function (c) { return ENERGY_TYPE_BY_CARD_NAME.hasOwnProperty(c.name); });
               openEnergyRetrievalModal(basicEnergyInDiscard, function (retrieveIds) {
-                var result = TRAINER_EFFECTS['Energy Retrieval'](gameState, 'player', handId, tradeIds[0], retrieveIds);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
+                applyOrSubmitTrainerEffect('Energy Retrieval', handId, [tradeIds[0], retrieveIds]);
               });
             });
           } else if (handCard.name === 'Item Finder') {
@@ -2284,10 +2461,7 @@ function wireBoardButtons() {
             openHandDiscardModal(otherHandCardsForFinder, 2, function (discardHandIds) {
               var trainersInDiscard = p.discard.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Trainer'; });
               openDeckSearchModal(trainersInDiscard, function (discardCardId) {
-                var result = TRAINER_EFFECTS['Item Finder'](gameState, 'player', handId, discardHandIds, discardCardId);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
+                applyOrSubmitTrainerEffect('Item Finder', handId, [discardHandIds, discardCardId]);
               });
             });
           } else if (handCard.name === 'Maintenance') {
@@ -2304,10 +2478,7 @@ function wireBoardButtons() {
               return;
             }
             openHandDiscardModal(otherHandCardsForMaintenance, 2, function (shuffleHandIds) {
-              var result = TRAINER_EFFECTS['Maintenance'](gameState, 'player', handId, shuffleHandIds);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Maintenance', handId, [shuffleHandIds]);
             });
           } else if (handCard.name === 'Pokémon Trader') {
             // Two steps, both card-picker modals (no board click): a
@@ -2321,13 +2492,12 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(pokemonInHandForTrader, function (tradeHandId) {
-              var pokemonInDeck = p.deck.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
-              openDeckSearchModal(pokemonInDeck, function (deckCardId) {
-                var result = TRAINER_EFFECTS['Pokémon Trader'](gameState, 'player', handId, tradeHandId, deckCardId);
-                if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-                selectedHandId = null;
-                renderBoard();
-              });
+              (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+                var pokemonInDeck = deckCards.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+                openDeckSearchModal(pokemonInDeck, function (deckCardId) {
+                  applyOrSubmitTrainerEffect('Pokémon Trader', handId, [tradeHandId, deckCardId]);
+                });
+              }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
             });
           } else if (handCard.name === 'Pokémon Breeder') {
             // Two steps: pick a Stage 2 card from hand (2 evolution hops
@@ -2359,10 +2529,7 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(opBasicsInDiscard, function (opponentDiscardCardId) {
-              var result = TRAINER_EFFECTS['Pokémon Flute'](gameState, 'player', handId, opponentDiscardCardId);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Pokémon Flute', handId, [opponentDiscardCardId]);
             });
           } else if (handCard.name === 'Revive') {
             var basicsInOwnDiscard = p.discard.filter(function (c) { return isBasicPokemon(c.name); });
@@ -2373,19 +2540,15 @@ function wireBoardButtons() {
               return;
             }
             openDeckSearchModal(basicsInOwnDiscard, function (discardCardId) {
-              var result = TRAINER_EFFECTS['Revive'](gameState, 'player', handId, discardCardId);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
+              applyOrSubmitTrainerEffect('Revive', handId, [discardCardId]);
             });
           } else if (handCard.name === 'Pokédex') {
-            var topOfDeck = p.deck.slice(0, Math.min(5, p.deck.length));
-            openPokedexModal(topOfDeck, function (orderedIds) {
-              var result = TRAINER_EFFECTS['Pokédex'](gameState, 'player', handId, orderedIds);
-              if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-              selectedHandId = null;
-              renderBoard();
-            });
+            (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+              var topOfDeck = deckCards.slice(0, Math.min(5, deckCards.length));
+              openPokedexModal(topOfDeck, function (orderedIds) {
+                applyOrSubmitTrainerEffect('Pokédex', handId, [orderedIds]);
+              });
+            }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
           } else {
             selectedHandId = handId;
             btn.classList.add('armed');
@@ -2483,8 +2646,17 @@ function wireBoardButtons() {
   if (startMatchBtn) {
     startMatchBtn.addEventListener('click', function () {
       if (pvpMode) {
+        // Shown right away (before the server even confirms) so pressing
+        // INICIAR DUELO always gives immediate feedback -- processPvpMatchSnapshot
+        // hides it again the instant the match actually leaves 'setup'
+        // (both sides confirmed), and the catch below hides it if this
+        // side's own confirm failed outright.
+        document.getElementById('pvpWaitingConfirmModal').classList.remove('hidden');
         submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmSetup' })
-          .catch(function (err) { alert(err.message || 'No se pudo confirmar.'); });
+          .catch(function (err) {
+            document.getElementById('pvpWaitingConfirmModal').classList.add('hidden');
+            alert(err.message || 'No se pudo confirmar.');
+          });
         return;
       }
       if (gameState.phase === 'setup' && gameState.players.player.active) {
@@ -2533,15 +2705,17 @@ function wireBoardButtons() {
       // landed the same instant the button was disabled).
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       if (pvpMode) {
-        // See runCpuTurn's own comment (the same fix, local-mode side) --
-        // reaching this action at all means MY attack didn't already end my
-        // turn (the server rejects 'endTurn' once it's not my turn anymore,
-        // see TURN_GATED_ACTIONS), so pvpAttackEndedMyTurn can only be stale
-        // here, armed by some EARLIER attack that never led to a KO+prize.
-        // Clear it before the checkup this endTurn triggers server-side can
-        // award an unrelated prize of its own (a poisoned/burned Active
-        // dying right at the turn boundary) and wrongly read as "my own
-        // attack just ended my turn".
+        // Real reported bug: clicking "NO, MIRAR EL CAMPO" on the confirm
+        // modal used to still hand the turn to the rival -- fixed (see
+        // sendPvpConfirmEndTurn's own comment) so "NO" now genuinely leaves
+        // the turn open, tracked by pvpTurnConfirmOwed. This button is the
+        // ONLY other way to actually confirm afterward -- a plain 'endTurn'
+        // would be rejected server-side once an attack of mine is already
+        // pending confirmation (see party/index.js's runAction guard), so
+        // this sends the real confirmation instead in that case.
+        if (pvpTurnConfirmOwed) { sendPvpConfirmEndTurn(); return; }
+        // Normal case: no attack happened this turn, this really is a
+        // plain voluntary end-of-turn.
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
         submitMatchActionCloud(pvpActiveMatchId, { type: 'endTurn' }).catch(function (err) { alert(err.message || 'No puedes terminar tu turno ahora.'); });
@@ -2569,6 +2743,7 @@ function wireBoardButtons() {
     retreatBtn.addEventListener('click', function () {
       clearPendingFlows();
       retreatMode = true;
+      showTargetHintModal('Elige un Pokémon de la Banca');
     });
   }
 
@@ -2581,6 +2756,11 @@ function wireBoardButtons() {
   function startPowerFlow(instance) {
     var powerName = CARD_STATS[instance.name].pokemonPower.name;
     if (powerName === 'Energy Burn') {
+      if (pvpMode) {
+        submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: instance.id, params: {} })
+          .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+        return;
+      }
       var result = usePokemonPower(gameState, 'player', instance.id, {});
       if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
       renderBoard();
@@ -2623,14 +2803,11 @@ function wireBoardButtons() {
   var habilidadBtn = document.getElementById('habilidadBtn');
   if (habilidadBtn) {
     habilidadBtn.addEventListener('click', function () {
-      // I8 (final-review fix): Pokémon Powers are Fase 2 scope -- every
-      // usePokemonPower() call site (Damage Swap/Energy Trans/Rain Dance/
-      // Buzzap resolution, all reached only via startPowerFlow below) is
-      // unreachable in PVP once this single entry point is guarded.
-      if (pvpMode) {
-        alert('Los Poderes Pokémon todavía no están disponibles en PVP (próximamente).');
-        return;
-      }
+      // Real reported request: Pokémon Powers now work in PVP too --
+      // usablePokemonPowers(gameState, 'player') already reads correctly
+      // in either mode (gameState is rebuilt from the server's own
+      // redacted snapshot in PVP, via buildPvpGameState), so the only
+      // thing that ever needed to change is this guard.
       clearPendingFlows();
       var usable = usablePokemonPowers(gameState, 'player');
       if (usable.length === 0) { return; }
@@ -2658,13 +2835,21 @@ function wireBoardButtons() {
           var activePokemon = gameState.players.player.active;
           var retreatCostNow = CARD_STATS[activePokemon.name].retreatCost;
           if (pvpMode) {
-            // Fase 1 PVP retreats always let the server pick which Energy to
-            // discard when the cost is >0 (omitting energyIndices falls back
-            // to "the first `cost` many," same as the AI/tests already do) --
-            // the richer "choose which specific Energy" modal stays
-            // local-only for now, a small, explicitly acceptable UX gap.
-            submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId })
-              .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+            // Real reported request: let the player choose WHICH attached
+            // Energy pays the retreat cost in PVP too, same modal local
+            // play already uses -- the server has always accepted
+            // action.discardEnergyIndices (see party/index.js's 'retreat'
+            // case), only the client never sent it for PVP, silently
+            // falling back to "the first `cost` many" instead.
+            if (retreatCostNow === 0) {
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId })
+                .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+              return;
+            }
+            openEnergyDiscardModal(activePokemon.attachedEnergy.slice(), retreatCostNow, function (indices) {
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'retreat', targetInstanceId: instanceId, discardEnergyIndices: indices })
+                .catch(function (err) { alert(err.message || 'No te puedes retirar.'); });
+            });
             return;
           }
           if (retreatCostNow === 0) {
@@ -2689,6 +2874,12 @@ function wireBoardButtons() {
           return;
         }
         pendingAttackNeedingTarget = null;
+        if (pvpMode) {
+          pvpAttackEndedMyTurn = true;
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Lure', targetInstanceId: instanceId })
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
         executePlayerAttack('Lure', instanceId);
         return;
       }
@@ -2711,21 +2902,39 @@ function wireBoardButtons() {
             return;
           }
           pendingPowerActivation = null;
-          var swapResult = usePokemonPower(gameState, 'player', pa.ownerId, { fromInstanceId: pa.fromInstanceId, toInstanceId: instanceId });
+          var swapParams = { fromInstanceId: pa.fromInstanceId, toInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: swapParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var swapResult = usePokemonPower(gameState, 'player', pa.ownerId, swapParams);
           if (swapResult && !swapResult.legal) { logEvent(gameState, swapResult.reason, 'player'); }
           afterPlayerAction();
           return;
         }
         if (pa.powerName === 'Rain Dance') {
           pendingPowerActivation = null;
-          var rainResult = usePokemonPower(gameState, 'player', pa.ownerId, { handEnergyId: pa.handEnergyId, targetInstanceId: instanceId });
+          var rainParams = { handEnergyId: pa.handEnergyId, targetInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: rainParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var rainResult = usePokemonPower(gameState, 'player', pa.ownerId, rainParams);
           if (rainResult && !rainResult.legal) { logEvent(gameState, rainResult.reason, 'player'); }
           afterPlayerAction();
           return;
         }
         if (pa.powerName === 'Buzzap') {
           pendingPowerActivation = null;
-          var buzzapResult = usePokemonPower(gameState, 'player', pa.ownerId, { chosenType: pa.chosenType, targetInstanceId: instanceId });
+          var buzzapParams = { chosenType: pa.chosenType, targetInstanceId: instanceId };
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: buzzapParams })
+              .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
+            return;
+          }
+          var buzzapResult = usePokemonPower(gameState, 'player', pa.ownerId, buzzapParams);
           if (buzzapResult && !buzzapResult.legal) { logEvent(gameState, buzzapResult.reason, 'player'); }
           afterPlayerAction();
           return;
@@ -2735,25 +2944,23 @@ function wireBoardButtons() {
       if (pendingPokemonBreeder) {
         var pb = pendingPokemonBreeder;
         pendingPokemonBreeder = null;
-        var breederResult = TRAINER_EFFECTS['Pokémon Breeder'](gameState, 'player', pb.handId, pb.evolutionHandId, instanceId);
-        if (breederResult && !breederResult.legal) { logEvent(gameState, breederResult.reason, 'player'); }
-        selectedHandId = null;
-        renderBoard();
+        applyOrSubmitTrainerEffect('Pokémon Breeder', pb.handId, [pb.evolutionHandId, instanceId]);
         return;
       }
       if (!selectedHandId) { return; }
       var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
-      // C2 (final-review fix): this click-to-select-then-click-target
-      // fallback for placeBench/evolve/attachEnergy bypassed the server
-      // entirely in PVP -- only the drag-and-drop equivalent (resolveHandDrop)
-      // was guarded. Only intercept+return when one of these 3 vanilla
-      // actions actually matches -- anything else (Trainer-card effects)
-      // falls through to the existing logic below unchanged, since Trainer
-      // cards stay an accepted, unguarded Fase-2-scope gap in PVP (same as
-      // every other Trainer-effect path in this file), not something this
-      // finding asked to fix.
+      // C2 (final-review fix, historical): this click-to-select-then-
+      // click-target fallback for placeBench/evolve/attachEnergy bypassed
+      // the server entirely in PVP -- only the drag-and-drop equivalent
+      // (resolveHandDrop) was guarded. Only intercept+return when one of
+      // these 3 vanilla actions actually matches -- Trainer-card effects
+      // (Super Potion, Energy Removal, Super Energy Removal, and the
+      // generic single-target fallback below) now route through
+      // applyOrSubmitTrainerEffect themselves, each at their own call
+      // site further down, so nothing about THIS specific pvpMode check
+      // needs to also handle them.
       if (pvpMode) {
         var pvpBoardClickAction = null;
         if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
@@ -2789,9 +2996,7 @@ function wireBoardButtons() {
         var superPotionHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(superPotionTarget.attachedEnergy.slice(), 1, function (indices) {
-          var result = TRAINER_EFFECTS['Super Potion'](gameState, 'player', superPotionHandId, instanceId, indices[0]);
-          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-          renderBoard();
+          applyOrSubmitTrainerEffect('Super Potion', superPotionHandId, [instanceId, indices[0]]);
         });
         return;
       } else if (energyRemovalTarget && energyRemovalTarget.attachedEnergy.length > 0) {
@@ -2802,9 +3007,7 @@ function wireBoardButtons() {
         var energyRemovalHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(energyRemovalTarget.attachedEnergy.slice(), 1, function (indices) {
-          var result = TRAINER_EFFECTS['Energy Removal'](gameState, 'player', energyRemovalHandId, instanceId, indices[0]);
-          if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-          renderBoard();
+          applyOrSubmitTrainerEffect('Energy Removal', energyRemovalHandId, [instanceId, indices[0]]);
         });
         return;
       } else if (handCard.name === 'Super Energy Removal' && !pendingSuperEnergyRemoval) {
@@ -2847,18 +3050,15 @@ function wireBoardButtons() {
         var countToDiscard = Math.min(2, cpuTarget.attachedEnergy.length);
         if (cpuTarget.attachedEnergy.length >= 2) {
           openEnergyDiscardModal(cpuTarget.attachedEnergy.slice(), countToDiscard, function (indices) {
-            var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices);
-            if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
-            renderBoard();
+            applyOrSubmitTrainerEffect('Super Energy Removal', pendingRemoval.handId, [pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices]);
           });
           return;
         } else {
-          var removalResult = TRAINER_EFFECTS['Super Energy Removal'](gameState, 'player', pendingRemoval.handId, pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, [0]);
-          if (removalResult && !removalResult.legal) { logEvent(gameState, removalResult.reason, 'player'); }
+          applyOrSubmitTrainerEffect('Super Energy Removal', pendingRemoval.handId, [pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, [0]]);
         }
       } else if (TRAINER_EFFECTS[handCard.name]) {
-        var result = TRAINER_EFFECTS[handCard.name](gameState, 'player', selectedHandId, instanceId);
-        if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
+        applyOrSubmitTrainerEffect(handCard.name, selectedHandId, [instanceId]);
+        return;
       }
       selectedHandId = null;
       renderBoard();
@@ -2881,6 +3081,23 @@ function wireBoardButtons() {
         resolveHandDrop(handId, false, null, el.getAttribute('data-instance-id'));
       });
     }
+  });
+
+  // Real reported request: right-click any card on the board (either
+  // side, Active or Bench) to zoom it front-and-center, foil included --
+  // a separate listener rather than folding this into the click handler
+  // above (which is already a long, stateful click-to-target flow) keeps
+  // this simple and independent of any of that state.
+  document.querySelectorAll('.shell-board-bench-card, .shell-board-active-card').forEach(function (el) {
+    el.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      var instanceId = el.getAttribute('data-instance-id');
+      var name = el.getAttribute('data-card-name');
+      if (!name) { return; }
+      var instance = findInstanceEitherSide(instanceId);
+      var ownerId = findInstance(gameState.players.player, instanceId) ? 'player' : 'cpu';
+      openCardModal(name, null, boardCardFoilTier(name, ownerId, instance));
+    });
   });
 
   // Click an empty Bench slot to place the selected Basic there, landing in
@@ -2988,23 +3205,77 @@ function formatClockMs(ms) {
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
+// Real reported request: a real time-of-day clock in the board header
+// (right side, #boardWallClock), for both local play and PVP -- distinct
+// from the per-side game timers above (those count down the match's own
+// time bank; this just shows the real wall-clock time). 'plata' (neutral
+// silver, same palette room codes use) keeps it visually distinct from
+// the game timers' gold/red. Ticks on its own interval, independent of
+// any match lifecycle -- it's always relevant whenever the board is on
+// screen, in either mode, so it's started once at page load (below) and
+// just left running.
+// Real reported follow-up: bigger than the per-side clocks (this one has
+// the whole right side of the header to itself, no username fighting it
+// for room, unlike SIDE_CLOCK_BLOCK_PX above) -- PERIOD_BLOCK_PX renders
+// the smaller AM/PM suffix the same request asked for, same convention as
+// a real clock face (12-hour time, not the 24-hour format this used
+// before, since AM/PM only makes sense alongside 12-hour hours).
+var WALL_CLOCK_BLOCK_PX = 2.2;
+var WALL_CLOCK_PERIOD_BLOCK_PX = 1.2;
+function formatWallClockTime(d) {
+  var hh = d.getHours();
+  var mm = d.getMinutes();
+  var hh12 = hh % 12;
+  if (hh12 === 0) { hh12 = 12; }
+  return { time: hh12 + ':' + (mm < 10 ? '0' : '') + mm, period: hh >= 12 ? 'PM' : 'AM' };
+}
+function renderWallClock() {
+  var el = document.getElementById('boardWallClock');
+  if (!el) { return; }
+  var parts = formatWallClockTime(new Date());
+  el.innerHTML = pixelDigitsHtml(parts.time, 'plata', WALL_CLOCK_BLOCK_PX) +
+    '<span class="shell-board-wallclock-period">' + pixelDigitsHtml(parts.period, 'plata', WALL_CLOCK_PERIOD_BLOCK_PX) + '</span>';
+}
+
+// Real reported bug: per-side clocks (both modes) were too small -- bumped
+// up from the original 1 (which just barely avoided crowding the username,
+// see below) while shell-theme.css's own side-header shrinks its avatar/
+// padding/name font a bit to give the wider digits room without pushing
+// the username back into ellipsis-truncation.
+var SIDE_CLOCK_BLOCK_PX = 1.4;
+
 // Same pixel-glyph digit rendering the coin/collection counts use (not
 // plain browser text) -- per user feedback that the clock looked
 // inconsistent next to them.
-function renderClockDisplay(el, ms, isCpu) {
+// blockPx (optional, defaults to 2): every real caller now passes
+// SIDE_CLOCK_BLOCK_PX -- both modes render into the same tight per-side
+// header spot (.shell-board-side-clock), where the full default size
+// crowded the fixed-width digits against .shell-board-side-name's own
+// flex:1 sizing, squeezing the username down to near-nothing instead of
+// sharing space with it cleanly.
+function renderClockDisplay(el, ms, isCpu, blockPx) {
   var low = ms <= 30000;
-  el.innerHTML = pixelDigitsHtml(formatClockMs(ms), (isCpu || low) ? 'dano' : 'oro', 2);
+  el.innerHTML = pixelDigitsHtml(formatClockMs(ms), (isCpu || low) ? 'dano' : 'oro', blockPx || 2);
   el.classList.toggle('cpu', !!isCpu);
   el.classList.toggle('low', low);
 }
 
+// Real reported bug: this used to render into one single shared spot
+// (the old top-toolbar #boardClock), switching color/ownership between
+// whichever side's turn it currently was. Per later user request, local
+// play now shows BOTH sides' own remaining time simultaneously, one per
+// side's own header -- matching PVP's exact presentation (isCpu always
+// false here, red only via renderClockDisplay's own <=30s threshold, same
+// color decision as tickPvpClocks' own comment explains). Only the
+// DISPLAY changed -- currentClockOwner()/tickGameClock below still decide
+// whose time bank actually keeps draining.
 function renderClocks() {
   var s = gameState;
-  var el = document.getElementById('boardClock');
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
-  var activeId = currentClockOwner();
-  var remaining = s.players[activeId].timeBankMs;
-  renderClockDisplay(el, remaining, activeId === 'cpu');
+  var myEl = document.getElementById('sideClock-player');
+  var cpuEl = document.getElementById('sideClock-cpu');
+  if (myEl) { renderClockDisplay(myEl, s.players.player.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
+  if (cpuEl) { renderClockDisplay(cpuEl, s.players.cpu.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
 }
 
 function tickGameClock() {
@@ -3047,11 +3318,16 @@ function startNewMatch() {
   gameState = createGame(Math.random, (econState && econState.activeDeck) || 'overgrowth');
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
-  // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
-  // the clock display is reset here directly -- otherwise it would keep
-  // showing whatever the previous match's clock last read.
-  renderClockDisplay(document.getElementById('boardClock'), DEFAULT_TIME_BANK_MS, false);
   renderBoard();
+  // renderClocks() itself no-ops during 'setup' (no activePlayerId yet), so
+  // both fresh per-side clocks are primed directly here, AFTER renderBoard
+  // (which is what actually creates #sideClock-player/#sideClock-cpu via
+  // sideHeaderHtml) -- otherwise they'd stay blank until the first real
+  // tick once 'playing' begins.
+  var myClockEl = document.getElementById('sideClock-player');
+  var cpuClockEl = document.getElementById('sideClock-cpu');
+  if (myClockEl) { renderClockDisplay(myClockEl, DEFAULT_TIME_BANK_MS, false, SIDE_CLOCK_BLOCK_PX); }
+  if (cpuClockEl) { renderClockDisplay(cpuClockEl, DEFAULT_TIME_BANK_MS, false, SIDE_CLOCK_BLOCK_PX); }
 }
 
 var BOOSTER_PACKS = {
@@ -4414,9 +4690,27 @@ function toggleTheme() {
 }
 
 // ── Menu ───────────────────────────────────────────────────────────
+var pvpLiveDuelRoomCode = null;
+// Duelo en Vivo: shared by showMenu() (in-app navigation back to the menu)
+// AND auth-ui.js's onAuthStateChanged handler (the menu's very FIRST
+// appearance after a fresh page load/refresh -- that path used to set
+// #menuScreen visible directly, never calling showMenu() at all, so a
+// player who refreshed mid-crash to reach exactly this screen never had
+// their active match looked up the one time it mattered most).
+function checkLiveDuelBanner() {
+  getActiveMatchCloud().then(function (res) {
+    pvpLiveDuelRoomCode = res.roomCode;
+    document.getElementById('menuLiveDuelBtn').classList.toggle('hidden', !res.roomCode);
+  }).catch(function () {
+    // Best-effort UI convenience -- a failed lookup just means the banner
+    // doesn't show this time, same as it wouldn't if there genuinely were
+    // no active match. Never blocks the menu from showing.
+  });
+}
 function showMenu() {
   document.getElementById('menuScreen').classList.remove('hidden');
   playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+  checkLiveDuelBanner();
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
@@ -4604,6 +4898,14 @@ function renderPvpWaitingReadyState(room) {
   var startBtn = document.getElementById('pvpStartMatchBtn');
   var startHint = document.getElementById('pvpStartHint');
   if (!oppUid) {
+    // Real reported bug: a rival leaving (SALIR) after a match, while I'd
+    // already pressed "VOLVER A JUGAR" and was sitting on this waiting
+    // screen, used to leave their ready badge/status frozen on whatever it
+    // showed right before they left -- this early return never reset it
+    // back to the same "nobody's here yet" state renderPvpWaitingMine sets
+    // up initially.
+    setPvpReadyBadge('pvpWaitingOpponentReadyBadge', false);
+    document.getElementById('pvpWaitingOpponentStatus').textContent = 'ESPERANDO';
     startBtn.classList.add('hidden');
     startHint.classList.add('hidden');
     return;
@@ -4629,7 +4931,20 @@ function renderPvpWaitingOpponentFromRoom(room) {
   var myUid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
   var iAmHost = room.hostUid === myUid;
   var oppUid = iAmHost ? room.guestUid : room.hostUid;
-  if (!oppUid) { return; }
+  if (!oppUid) {
+    // Real reported bug: this used to just return, leaving the rival's
+    // STALE photo/name on screen forever once they left (SALIR) -- the
+    // server now actually vacates a departed guest's slot (party/index.js's
+    // 'leaveRoom' case), but nothing here ever reset the DISPLAY back to
+    // the same placeholder/spinner state renderPvpWaitingMine originally
+    // set up, so the room visibly looked "full" even once it was open
+    // again for a new rival.
+    document.getElementById('pvpWaitingOpponentSpinner').classList.remove('hidden');
+    document.getElementById('pvpWaitingOpponentPhoto').classList.add('hidden');
+    document.getElementById('pvpWaitingOpponentName').textContent = 'ESPERANDO…';
+    document.getElementById('pvpWaitingOpponentDeckWrap').classList.add('hidden');
+    return;
+  }
   var oppName = iAmHost ? room.guestUsername : room.hostUsername;
   var oppPhoto = (iAmHost ? room.guestPhoto : room.hostPhoto) || PROFILE_PHOTO_URL.player;
   var oppDeckId = iAmHost ? room.guestDeckId : room.hostDeckId;
@@ -4654,10 +4969,81 @@ var pvpActiveMatchId = null;
 var pvpMySide = null; // 'player1' | 'player2'
 var pvpMatchUnsubscribe = null;
 var pvpMode = false;
+// Set at both deck-picker callback sites (pvpCreateRoomBtn/pvpJoinCodeInput
+// below) -- kept around (deliberately NOT cleared by resetPvpMatchState)
+// so a later "VOLVER A JUGAR" rematch, or a guest becoming the new room
+// owner after the old one left, can reuse the same deck without asking
+// again. See matchEndReplayBtn's own comment for the full rematch flow.
+var pvpCurrentDeckId = null;
 // Firestore's onSnapshot can re-deliver a snapshot after the match has
 // already ended (e.g. on reconnect) -- guards finishMatch/awardMatchResultCloud
 // against firing more than once for the same match.
 var pvpMatchEnded = false;
+// Guards startDuelMusic() (processPvpMatchSnapshot) against restarting the
+// track from 0:00 on every single snapshot once phase is 'playing' -- it
+// must fire exactly once, the instant BOTH sides have pressed INICIAR
+// DUELO, not on every subsequent action's snapshot.
+var pvpDuelMusicStarted = false;
+// Real reported bug: local play shows a hint the instant the board appears
+// in 'setup' phase ("Coloca tu Pokémon Activo..."), but PVP showed nothing
+// at all -- fires once per match, the first snapshot seen in 'setup'.
+var pvpSetupHintShown = false;
+// Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL RIVAL"
+// banner every time control changes hands (showTurnFlash) -- PVP only ever
+// had the small header text (boardTurnValue), never this. null until the
+// first 'playing'-phase snapshot is seen, so the very first snapshot never
+// spuriously flashes (nothing actually "changed" yet).
+var pvpLastActivePlayerId = null;
+
+// Real reported bug: PVP had no real, ticking clock at all. pvpClockTickInterval
+// drives a lightweight re-render of just the two #sideClock-player/
+// #sideClock-cpu elements (sideHeaderHtml) between real snapshots,
+// computing the live remaining time from
+// pub.timeBank/pub.turnStartedAt (Task 1) the same way local play's own
+// tickGameClock computes it from local gameState -- corrected fresh every
+// time a real snapshot arrives (pvpLatestPub, set on every snapshot,
+// mirrors pvpRpsLatestMatchData's own "always current" role for the other
+// reveal gates).
+var pvpClockTickInterval = null;
+var pvpLatestPub = null;
+// Guards claimTimeout from being sent more than once per observed
+// timeout -- reset every time a NEW turnStartedAt is seen (a real turn
+// handoff happened), so it can fire again for a later, different timeout.
+var pvpClaimedTimeoutFor = null;
+
+function tickPvpClocks() {
+  if (!pvpLatestPub || pvpLatestPub.phase !== 'playing' || !pvpLatestPub.activePlayerId ||
+      !pvpLatestPub.timeBank || !pvpLatestPub.turnStartedAt) { return; }
+  var hostMs = pvpLatestPub.timeBank.player1;
+  var guestMs = pvpLatestPub.timeBank.player2;
+  var elapsedSinceStart = Date.now() - pvpLatestPub.turnStartedAt;
+  if (pvpLatestPub.activePlayerId === 'player1') { hostMs = Math.max(0, hostMs - elapsedSinceStart); }
+  else { guestMs = Math.max(0, guestMs - elapsedSinceStart); }
+  // pvpMySide/'player'/'cpu' -- same viewer-relative mapping buildPvpGameState
+  // already uses everywhere else in this file.
+  var myMs = pvpMySide === 'player1' ? hostMs : guestMs;
+  var rivalMs = pvpMySide === 'player1' ? guestMs : hostMs;
+  var myEl = document.getElementById('sideClock-player');
+  var rivalEl = document.getElementById('sideClock-cpu');
+  // Real reported bug: renderClockDisplay's isCpu param was originally
+  // meant for local play's single CPU-vs-player clock ("whose time is
+  // this" -> red for the CPU, gold for the player) -- passing it based on
+  // "is this side active right now" here meant a viewer's OWN clock turned
+  // red the instant it wasn't their turn (frozen, still plenty of time
+  // left), while their rival's turned red on the viewer's own turn --
+  // losing the real "you're running low" warning entirely. Per user
+  // request, PVP never passes isCpu at all: both clocks stay gold, turning
+  // red only via renderClockDisplay's own internal `low` threshold
+  // (<=30s), regardless of whose turn it is.
+  if (myEl) { renderClockDisplay(myEl, myMs, false, SIDE_CLOCK_BLOCK_PX); }
+  if (rivalEl) { renderClockDisplay(rivalEl, rivalMs, false, SIDE_CLOCK_BLOCK_PX); }
+
+  var activeMs = pvpLatestPub.activePlayerId === 'player1' ? hostMs : guestMs;
+  if (activeMs <= 0 && pvpClaimedTimeoutFor !== pvpLatestPub.turnStartedAt) {
+    pvpClaimedTimeoutFor = pvpLatestPub.turnStartedAt;
+    submitMatchActionCloud(pvpActiveMatchId, { type: 'claimTimeout' }).catch(function () {});
+  }
+}
 
 // Rock-paper-scissors reveal gate (see renderRpsReveal/processPvpMatchSnapshot
 // below) -- pub.rpsRound (rules-engine.js) increments every time a round
@@ -4671,6 +5057,37 @@ var pvpMatchEnded = false;
 var pvpRpsRevealedRound = 0;
 var pvpRpsRevealTimer = null;
 var pvpRpsLatestMatchData = null;
+
+// Sibling to the RPS-reveal gate above, same shape -- lastTrainerPlay.round
+// (party/index.js) increments every successful playTrainer action; this
+// tracks the last round already shown so a re-delivered snapshot (e.g. on
+// reconnect) never replays a reveal that already happened.
+var pvpTrainerRevealedRound = 0;
+
+// Sibling to pvpTrainerRevealedRound above, same shape -- lastPowerUse.round
+// (party/index.js) increments every successful usePower action.
+var pvpPowerRevealedRound = 0;
+
+// Sibling to pvpTrainerRevealedRound above, same shape -- lastAttackResult.round
+// (party/index.js) increments every successful attack action (special-
+// effect or vanilla); this tracks the last round already shown so a
+// re-delivered snapshot never replays a reveal that already happened.
+var pvpAttackRevealedRound = 0;
+
+// Real reported bug: all 4 *RevealedRound watermarks above reset to 0 on
+// every enterPvpMatch call, including a Duelo en Vivo reconnect -- so the
+// FIRST snapshot after reconnecting always looked "new" for whatever
+// round each already sat at server-side (an attack the OTHER player made
+// while this player was disconnected, or even one from before they ever
+// disappeared), replaying it right as the reconnected player took their
+// own, completely unrelated next action (placing a Pokémon triggered the
+// attack overlay, with no attack involved at all). Set alongside those 4
+// resets in enterPvpMatch; consumed on the very first snapshot the
+// listener callback below processes, seeding each watermark to whatever
+// round the server already reports instead of 0 -- "catch up silently,
+// don't replay" -- then never touched again, so every later GENUINE new
+// round still reveals normally.
+var pvpRevealCatchupPending = false;
 
 // End-of-turn confirm (renderEndTurnConfirm, below) -- attack() always ends
 // the turn the instant it's submitted (server-side in PVP; see functions/
@@ -4693,17 +5110,35 @@ var pvpMyPrizeChoiceSeen = false;
 var localAttackEndedMyTurn = false;
 var localMyPrizeChoiceSeen = false;
 // True while the confirm modal is up in PVP -- the board already reflects
-// the finished KO/prize by the time it shows (rendered once, right before),
-// but the RIVAL isn't waiting on this player's click at all (their own
-// client already sees it's their turn) -- so further snapshots (their real
-// moves) are buffered in pvpEndTurnLatestData instead of silently
-// overwriting the board out from under this modal, and only actually
-// applied once the player dismisses it (either button -- see the two
-// handlers, DOMContentLoaded). Without this gate, both buttons "did
-// nothing" from the player's perspective: the board had already fully
-// updated before the modal even appeared, so dismissing it changed nothing
-// visible.
+// the attack's own result (damage/status/KO) by the time it shows
+// (rendered once, right before). The RIVAL genuinely IS waiting on this
+// player's own confirmation now (party/index.js keeps activePlayerId
+// exactly as it was until 'confirmEndTurn' actually runs), so no real
+// moves of theirs can arrive during this window at all -- but a
+// reconnect's own resend of the current snapshot still could, so this
+// still buffers into pvpEndTurnLatestData instead of applying it out from
+// under the modal, applied once the player dismisses it either way (see
+// the two handlers, DOMContentLoaded).
 var pvpEndTurnConfirmPending = false;
+// True from the moment this modal is first shown until the player has
+// actually sent 'confirmEndTurn' to the server -- "SÍ" sends it right
+// away and clears this; "NO, MIRAR EL CAMPO" only hides the modal,
+// deliberately leaving this true (nothing was confirmed, real rules: my
+// turn hasn't ended yet). The persistent "Terminar Turno" board button
+// checks this: while true, clicking it sends 'confirmEndTurn' (the only
+// thing the server will actually accept from me right now -- see
+// party/index.js's runAction, which rejects a plain 'endTurn' once an
+// attack of mine is already pending confirmation) instead of its normal
+// plain 'endTurn'.
+var pvpTurnConfirmOwed = false;
+// Real reported bug: taking a prize in PVP never showed the "here's the
+// card you won" zoom modal local play already has (renderPrizeChoiceModal's
+// own local branch, openCardModal). Prizes stay secret until taken, so the
+// only way to know which card just arrived is diffing my own hand -- set
+// to my hand's card ids right before submitting 'takePrize'; the first
+// card in a later snapshot's myHand that ISN'T in this list is the one I
+// just won (see applyPvpSnapshotEffects). null the rest of the time.
+var pvpPrizeRevealPending = null;
 var pvpEndTurnLatestData = null;
 
 // C5 (final-review fix): pvpMode used to only ever get set to true (in the
@@ -4720,13 +5155,25 @@ function resetPvpMatchState() {
   pvpMySide = null;
   pvpMatchEnded = false;
   pvpOpponentName = null;
+  pvpOpponentPhoto = null;
+  pvpDuelMusicStarted = false;
+  pvpSetupHintShown = false;
+  pvpLastActivePlayerId = null;
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
+  pvpLatestPub = null;
+  pvpClaimedTimeoutFor = null;
   if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); pvpMatchUnsubscribe = null; }
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
   pvpRpsRevealedRound = 0;
   pvpRpsLatestMatchData = null;
+  pvpTrainerRevealedRound = 0;
+  pvpPowerRevealedRound = 0;
+  pvpAttackRevealedRound = 0;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
+  pvpTurnConfirmOwed = false;
+  pvpPrizeRevealPending = null;
   pvpEndTurnLatestData = null;
   // Also called at the start of a fresh LOCAL match (startNewMatch) -- reset
   // the local end-turn-confirm flags here too so a match ending mid-KO
@@ -4736,6 +5183,8 @@ function resetPvpMatchState() {
   var endTurnModal = document.getElementById('endTurnConfirmModal');
   if (endTurnModal) { endTurnModal.classList.add('hidden'); }
   hideRpsScreen();
+  var waitingConfirmModal = document.getElementById('pvpWaitingConfirmModal');
+  if (waitingConfirmModal) { waitingConfirmModal.classList.add('hidden'); }
 }
 
 // Reshapes {public, myHand} (from initPvpMatchListeners) into the same
@@ -4748,10 +5197,22 @@ function resetPvpMatchState() {
 // -- set by buildPvpGameState below, the only place that has pub.hostUsername/
 // guestUsername available.
 var pvpOpponentName = null;
+// Real reported bug: sideHeaderHtml showed the CPU bot avatar for a real
+// PVP rival -- pub.hostPhoto/guestPhoto (party/index.js's redactedFor) now
+// carries it the same way pvpOpponentName above already does for the name.
+var pvpOpponentPhoto = null;
+// The rival's real equipped protector for this match (functions/index.js's
+// setReady copies hostCardBackId/guestCardBackId onto the match doc from
+// whichever room field matches their side) -- read by cardBackUrlFor
+// above. Falls back to the default card back if the match predates this
+// field or the id isn't a real option.
+var pvpOpponentCardBackId = null;
 function buildPvpGameState(data, mySide) {
   var pub = data.public;
   var oppSide = mySide === 'player1' ? 'player2' : 'player1';
   pvpOpponentName = (oppSide === 'player1' ? pub.hostUsername : pub.guestUsername) || 'Rival';
+  pvpOpponentPhoto = (oppSide === 'player1' ? pub.hostPhoto : pub.guestPhoto) || PROFILE_PHOTO_URL.player;
+  pvpOpponentCardBackId = (oppSide === 'player1' ? pub.hostCardBackId : pub.guestCardBackId) || DEFAULT_CARD_BACK_ID;
   // "Jugador"/"CPU" in log text always literally mean the host/guest engine
   // slots respectively (translatePlayer, rules-engine.js -- a fixed
   // convention, not viewer-relative), so the real-username substitution is
@@ -4823,18 +5284,60 @@ function enterPvpMatch(matchId) {
   pvpMatchEnded = false;
   pvpRpsRevealedRound = 0;
   if (pvpRpsRevealTimer) { clearTimeout(pvpRpsRevealTimer); pvpRpsRevealTimer = null; }
+  pvpTrainerRevealedRound = 0;
+  pvpPowerRevealedRound = 0;
+  pvpAttackRevealedRound = 0;
+  pvpRevealCatchupPending = true;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
+  pvpTurnConfirmOwed = false;
+  pvpPrizeRevealPending = null;
   pvpEndTurnLatestData = null;
   document.getElementById('pvpCreateScreen').classList.add('hidden');
+  // Real reported bug (first pass): starting duel music here, the moment
+  // the match SCREEN is entered, fired it during the RPS reveal and the
+  // setup/placement screen too -- before the duel has actually started.
+  // Per user follow-up, it must wait for BOTH sides to actually press
+  // INICIAR DUELO (phase leaves 'setup') -- see processPvpMatchSnapshot's
+  // own pvpDuelMusicStarted guard below, which is where it fires now.
+  pvpDuelMusicStarted = false;
+  pvpSetupHintShown = false;
+  pvpLastActivePlayerId = null;
+  if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
+  pvpLatestPub = null;
+  pvpClaimedTimeoutFor = null;
+  pvpClockTickInterval = setInterval(tickPvpClocks, CLOCK_TICK_MS);
+  pvpClaimedTimeoutFor = null;
   var myUid = firebase.auth().currentUser.uid;
-  if (pvpMatchUnsubscribe) { pvpMatchUnsubscribe(); }
+  // Real reported bug: after a same-room rematch, the host's client
+  // never actually transitioned to the fresh match's RPS screen -- it
+  // just sat frozen on the PREVIOUS match's board, exactly as it looked
+  // right before "VOLVER A JUGAR" was pressed. Root cause: enterPvpMatch
+  // only ever ran ONCE per real socket connection before the rematch
+  // feature existed, so this old cleanup line -- calling the PREVIOUS
+  // match's own unsubscribe() -- was harmless (pvpMatchUnsubscribe was
+  // always null the first time). initPvpMatchListeners's own unsubscribe
+  // (economy.js) does more than drop the handler reference, though: it
+  // also CLOSES pvpSocket entirely (the right behavior for actually
+  // leaving PVP, see resetPvpMatchState's own call to it) -- calling it
+  // here, right as the server was about to send the fresh match's first
+  // 'rps'-phase snapshot over that same socket, killed the connection
+  // before it could ever arrive. Removed: initPvpMatchListeners already
+  // reassigns pvpMatchHandler unconditionally on its own next line, so
+  // this call was never actually needed for cleanup, only harmful here.
   pvpMatchUnsubscribe = initPvpMatchListeners(matchId, myUid, function (data) {
     pvpMySide = data.public.players.player1 === myUid ? 'player1' : 'player2';
     pvpMode = true;
     pvpRpsLatestMatchData = data;
     var pub = data.public;
+    if (pvpRevealCatchupPending) {
+      pvpRevealCatchupPending = false;
+      pvpRpsRevealedRound = pub.rpsRound || 0;
+      pvpTrainerRevealedRound = pub.lastTrainerPlay ? pub.lastTrainerPlay.round : 0;
+      pvpPowerRevealedRound = pub.lastPowerUse ? pub.lastPowerUse.round : 0;
+      pvpAttackRevealedRound = pub.lastAttackResult ? pub.lastAttackResult.round : 0;
+    }
     // A freshly-resolved RPS round (tie or real winner) always arrives in
     // the SAME snapshot as the phase change it causes (rules-engine.js
     // resolves both synchronously) -- intercepting it here, before the
@@ -4852,35 +5355,143 @@ function enterPvpMatch(matchId) {
     }
     if (pvpRpsRevealTimer) { return; } // reveal still on screen -- pvpRpsLatestMatchData already updated above
 
-    // See pvpEndTurnConfirmPending's own comment above -- while the confirm
-    // modal is up, the rival's own moves keep arriving as real snapshots
-    // (their client never waits on this one) but must NOT overwrite the
-    // board out from under the modal -- buffer the latest one instead;
-    // endTurnConfirmYes/No (DOMContentLoaded) apply it once dismissed.
+    if (pub.lastTrainerPlay && pub.lastTrainerPlay.round > pvpTrainerRevealedRound) {
+      pvpTrainerRevealedRound = pub.lastTrainerPlay.round;
+      var play = {
+        kind: 'trainer',
+        name: pub.lastTrainerPlay.cardName,
+        playerId: pub.lastTrainerPlay.side === pvpMySide ? 'player' : 'cpu',
+        targetName: pub.lastTrainerPlay.targetName
+      };
+      showTrainerPlayedOverlay(play, function () {
+        processPvpMatchSnapshot(pvpRpsLatestMatchData);
+      });
+      return;
+    }
+
+    if (pub.lastPowerUse && pub.lastPowerUse.round > pvpPowerRevealedRound) {
+      pvpPowerRevealedRound = pub.lastPowerUse.round;
+      var powerPlay = {
+        kind: 'power',
+        name: pub.lastPowerUse.ownerName,
+        powerName: pub.lastPowerUse.powerName,
+        playerId: pub.lastPowerUse.side === pvpMySide ? 'player' : 'cpu',
+        targetName: pub.lastPowerUse.targetName
+      };
+      showTrainerPlayedOverlay(powerPlay, function () {
+        processPvpMatchSnapshot(pvpRpsLatestMatchData);
+      });
+      return;
+    }
+
+    // Real reported bug (attack-reveal gate below): an attack, unlike a
+    // Trainer play or an RPS round, can knock out a Pokémon and open the
+    // prize-choice/end-turn-confirm flow -- this used to run inline here,
+    // right after processPvpMatchSnapshot(data), which only ever happens
+    // on the DIRECT (non-reveal) path. Extracted so the attack-reveal
+    // gate's own deferred completion can call it too, on whichever
+    // snapshot is current by the time the reveal finishes.
+    function applyPvpSnapshotEffects(matchData) {
+      var mpub = matchData.public;
+      // Real reported bug: this modal used to only ever fire gated on
+      // pvpMyPrizeChoiceSeen having been set (i.e. only when my own attack
+      // actually knocked something out AND I'd already taken the prize) --
+      // a routine attack that didn't KO anything never set that flag, so
+      // this never fired at all, meaning confirmEndTurn never got sent and
+      // the deferred Pokémon Checkup (see rules-engine.js's attack()) never
+      // actually applied for the overwhelming majority of turns. Worse: the
+      // persistent "Terminar Turno" button can't help either once an attack
+      // already ended the turn server-side (plain 'endTurn' is turn-gated,
+      // see TURN_GATED_ACTIONS -- the server rejects it as "no es tu
+      // turno"), so there was literally no way to reach this moment for a
+      // non-KO attack. Now tracked only to pick the modal's copy (a real
+      // knockout still gets its own "¡NOQUEASTE...!" text), never to gate
+      // whether it shows at all -- it shows for every attack of mine that
+      // ended my turn, the instant any KO of mine is done being resolved
+      // (immediately if there wasn't one).
+      if (mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide) {
+        pvpMyPrizeChoiceSeen = true;
+      }
+      processPvpMatchSnapshot(matchData);
+      // Real reported bug: taking a prize in PVP never zoomed the card just
+      // won, unlike local play (renderPrizeChoiceModal's own local branch).
+      // pvpPrizeRevealPending holds the hand's card ids from right before
+      // 'takePrize' was submitted -- the first card in THIS snapshot's
+      // myHand that wasn't in that list is the one that just arrived.
+      // Mirrors the local branch's onCardModalClose idiom: defer everything
+      // below (including the end-turn-confirm tail) until the player
+      // dismisses the zoom, then re-run this same function on the latest
+      // cached snapshot -- pvpPrizeRevealPending is null by then, so this
+      // block is skipped and the tail logic below runs normally.
+      if (pvpPrizeRevealPending) {
+        var pendingHandIds = pvpPrizeRevealPending;
+        var wonPrizeCard = matchData.myHand.filter(function (c) { return pendingHandIds.indexOf(c.id) === -1; })[0];
+        if (wonPrizeCard) {
+          pvpPrizeRevealPending = null;
+          var wonPrizeFoil = getPlayerCardFoilTier(wonPrizeCard.name) || (isHoloInMatch('player', wonPrizeCard.name) ? 'holo' : null);
+          openCardModal(wonPrizeCard.name, null, wonPrizeFoil);
+          onCardModalClose = function () { applyPvpSnapshotEffects(pvpRpsLatestMatchData); };
+          return;
+        }
+      }
+      // pendingActiveChoice !== pvpMySide guards against stacking this on
+      // top of my OWN still-open "choose new Active" modal -- a
+      // simultaneous KO (my own Active also fell, e.g. to a checkup)
+      // leaves that one blocking first; this waits for it to clear like
+      // everything else does. !mpub.winner guards against stacking this
+      // on top of the win/loss modal processPvpMatchSnapshot just showed
+      // -- taking the LAST prize of the match ends the duel, not just the
+      // turn. Real reported bug: this used to also require
+      // mpub.activePlayerId !== pvpMySide (the turn having ALREADY passed)
+      // -- but the server (party/index.js) no longer flips activePlayerId
+      // at all until confirmEndTurn actually runs, specifically so the
+      // rival can't act early; requiring it here was checking for
+      // something that can now never become true, so this modal would
+      // never have fired again. activePlayerId staying mine IS the
+      // expected state at this exact moment now.
+      //
+      // Real reported bug: a Confused self-hit (or any other self-KO,
+      // e.g. Selfdestruct) awards the PRIZE to the RIVAL, not me (real
+      // rule -- knockOutIfNeeded, rules-engine.js, always credits the
+      // KO'd Pokémon's OWNER's opponent). This check used to block on
+      // !mpub.pendingPrizeChoice generically -- any pending prize, not
+      // just my own -- so it waited forever on a prize that was never
+      // mine to take, deadlocking the whole match (I'd already resolved
+      // my own pendingActiveChoice; the rival's own pendingPrizeChoice
+      // has nothing to do with whether MY turn can end). Only a prize
+      // choice that's actually MINE should hold this back.
+      var myPrizeStillPending = !!(mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide);
+      // Duelo en Vivo: pvpAttackEndedMyTurn alone can never fire again for
+      // a player who reconnected while genuinely owing a confirmation (it
+      // resets on every enterPvpMatch, see its own declaration) -- but a
+      // real one is server-truth now (party/index.js's redactedFor), so
+      // recovering it here directly closes that stuck state. Guarded by
+      // !pvpEndTurnConfirmPending so this never re-fires the modal on a
+      // LATER snapshot arriving while it's already up (mpub.turnEndPendingSide
+      // stays true server-side for the whole window the confirmation is
+      // owed, unlike pvpAttackEndedMyTurn's own one-shot nature).
+      var recoveringPendingConfirm = !pvpEndTurnConfirmPending && mpub.turnEndPendingSide === pvpMySide;
+      if (!mpub.winner && (pvpAttackEndedMyTurn || recoveringPendingConfirm) && !myPrizeStillPending && mpub.pendingActiveChoice !== pvpMySide) {
+        var hadKnockout = pvpMyPrizeChoiceSeen;
+        pvpAttackEndedMyTurn = false;
+        pvpMyPrizeChoiceSeen = false;
+        pvpEndTurnConfirmPending = true;
+        pvpTurnConfirmOwed = true;
+        renderEndTurnConfirm(hadKnockout);
+      }
+    }
+
+    if (pub.lastAttackResult && pub.lastAttackResult.round > pvpAttackRevealedRound) {
+      pvpAttackRevealedRound = pub.lastAttackResult.round;
+      showAttackOverlay(pub.lastAttackResult, function () {
+        applyPvpSnapshotEffects(pvpRpsLatestMatchData);
+      });
+      return;
+    }
+
     if (pvpEndTurnConfirmPending) { pvpEndTurnLatestData = data; return; }
 
-    // See pvpAttackEndedMyTurn's own comment above -- tracks whether a
-    // prize choice of MINE is (or just was) open, so the check right below
-    // can tell "my own attack just finished awarding me a prize" apart from
-    // a plain attack that never opened one.
-    if (pub.pendingPrizeChoice && pub.pendingPrizeChoice.side === pvpMySide) {
-      pvpMyPrizeChoiceSeen = true;
-    }
-    processPvpMatchSnapshot(data);
-    // pendingActiveChoice !== pvpMySide guards against stacking this on top
-    // of my OWN still-open "choose new Active" modal -- a simultaneous KO
-    // (my own Active also fell, e.g. to a checkup) leaves that one blocking
-    // first; this waits for it to clear like everything else does.
-    // !pub.winner guards against stacking this on top of the win/loss modal
-    // processPvpMatchSnapshot just showed -- taking the LAST prize of the
-    // match ends the duel, not just the turn.
-    if (!pub.winner && pvpAttackEndedMyTurn && pvpMyPrizeChoiceSeen && !pub.pendingPrizeChoice &&
-        pub.activePlayerId !== pvpMySide && pub.pendingActiveChoice !== pvpMySide) {
-      pvpAttackEndedMyTurn = false;
-      pvpMyPrizeChoiceSeen = false;
-      pvpEndTurnConfirmPending = true;
-      renderEndTurnConfirm();
-    }
+    applyPvpSnapshotEffects(data);
   });
   showBoardScreen();
 }
@@ -4890,12 +5501,72 @@ function enterPvpMatch(matchId) {
 // on screen, rather than racing it.
 function processPvpMatchSnapshot(data) {
   var pub = data.public;
-  if (pub.phase === 'rps') {
+  // A forfeit (or, in principle, any winner) can be decided while still in
+  // 'rps' -- getWinner() (rules-engine.js) checks forfeitedBy regardless of
+  // phase. Without the "&& !pub.winner" guard here, a match decided during
+  // RPS would render the RPS screen forever and never reach the
+  // winner-handling logic below, stranding both players with no way back to
+  // the main menu (RENDIRSE is the only exit from PVP -- see pause menu).
+  if (pub.phase === 'rps' && !pub.winner) {
     renderRpsScreen(pub);
     return;
   }
   hideRpsScreen();
+  // Real reported bug: local play shows this same hint (as a log line) the
+  // instant the board appears in 'setup' -- PVP never showed anything,
+  // leaving the player to guess what to do. Reuses the generic hint modal
+  // (targetHintModal) local play's own Trainer-targeting flows already use
+  // -- same OK/backdrop dismissal, no new markup needed.
+  if (pub.phase === 'setup' && !pvpSetupHintShown) {
+    pvpSetupHintShown = true;
+    // Real reported bug: "y si quieres, tu Banca" read as optional/vague --
+    // per user request, spelled out as 3 concrete steps instead.
+    showTargetHintModal('Baja tus Pokémon Básicos: elige uno como tu Activo y el resto en la Banca (máx. 5).');
+  }
+  // Only ever shown by startMatchBtn's own click handler above (confirmSetup)
+  // while phase is still 'setup' -- once it's anything else (always
+  // 'playing' by the time this runs), both sides have confirmed and the
+  // match has actually started, so there's nothing left to wait on.
+  if (pub.phase !== 'setup') {
+    document.getElementById('pvpWaitingConfirmModal').classList.add('hidden');
+    // Real reported bug: this used to fire the instant the match SCREEN
+    // was entered (enterPvpMatch), well before the duel itself actually
+    // started -- per user request, it now waits for the same signal the
+    // waiting modal above does: phase has left 'setup', meaning both
+    // sides already pressed INICIAR DUELO.
+    if (!pvpDuelMusicStarted) {
+      pvpDuelMusicStarted = true;
+      startDuelMusic();
+    }
+  }
   gameState = buildPvpGameState(data, pvpMySide);
+  pvpLatestPub = pub;
+  // Real reported bug: local play flashes a big "TU TURNO"/"TURNO DEL
+  // RIVAL" banner every time control changes hands, including right when
+  // the very first turn of the match starts -- PVP only ever had the small
+  // header text. A first fix here still missed the very first flash: RPS's
+  // own winner is already recorded as activePlayerId during 'setup' (well
+  // before 'playing' starts, see engineStartMatch/rules-engine.js), so
+  // pvpLastActivePlayerId got contaminated with that same value while
+  // still in 'setup' -- by the time 'playing' actually began, nothing
+  // looked "changed" anymore. Both the comparison AND the update below now
+  // only ever run while phase is genuinely 'playing', so
+  // pvpLastActivePlayerId stays null through 'rps'/'setup' and the first
+  // real turn always reads as a genuine change.
+  if (pub.phase === 'playing' && gameState.activePlayerId) {
+    // Real reported bug: a match-ending checkup KO (e.g. poison finishing
+    // off the last Pokémon at turn handoff) can flip activePlayerId in the
+    // SAME snapshot that also sets gameState.winner -- this flash used to
+    // fire unconditionally, overlapping its own 1.25s-long overlay
+    // ("TURNO DE TU RIVAL") on top of finishMatch's "Has Ganado" modal
+    // below. The duel is already over, so there's no real "turn" left to
+    // announce.
+    if (gameState.activePlayerId !== pvpLastActivePlayerId && !gameState.winner) {
+      showTurnFlash(gameState.activePlayerId === 'player' ? 'TU TURNO' : 'TURNO DEL RIVAL',
+        gameState.activePlayerId === 'player' ? 'mine' : 'rival');
+    }
+    pvpLastActivePlayerId = gameState.activePlayerId;
+  }
   if (gameState.winner && !pvpMatchEnded) {
     pvpMatchEnded = true;
     finishMatch(gameState.winner);
@@ -4911,9 +5582,26 @@ function processPvpMatchSnapshot(data) {
 // anything about the match itself. It just stops the board from silently
 // handing over to the rival's turn, with nothing marking the moment, right
 // as the player is still looking at what they just knocked out.
-function renderEndTurnConfirm() {
+// hadKnockout (default true, matching local play's own 2 call sites which
+// are BOTH already KO-specific): PVP's own call site (below) passes this
+// explicitly, since -- unlike local play -- PVP shows this same modal for
+// EVERY attack that ends the player's turn, not just ones that knocked
+// something out (see applyPvpSnapshotEffects's own comment on why the
+// modal used to only ever fire for the KO case, leaving a routine attack
+// with no real "your turn ended" moment at all in PVP).
+function renderEndTurnConfirm(hadKnockout) {
   var modal = document.getElementById('endTurnConfirmModal');
-  if (modal) { modal.classList.remove('hidden'); }
+  if (!modal) { return; }
+  var titleEl = modal.querySelector('.shell-modal-title');
+  var textEl = modal.querySelector('.shell-modal-text');
+  if (hadKnockout === false) {
+    if (titleEl) { titleEl.textContent = 'TU ATAQUE TERMINÓ TU TURNO'; }
+    if (textEl) { textEl.textContent = '¿Quieres pasarle el turno a tu rival?'; }
+  } else {
+    if (titleEl) { titleEl.textContent = '¡NOQUEASTE UN POKÉMON RIVAL!'; }
+    if (textEl) { textEl.textContent = 'Ya tomaste tu premio y tu turno ha terminado. ¿Quieres pasarle el turno a tu rival?'; }
+  }
+  modal.classList.remove('hidden');
 }
 
 var RPS_EMOJI = { rock: '✊', paper: '✋', scissors: '✌️' };
@@ -5057,6 +5745,8 @@ var DUEL_MUSIC_TRACKS = {
   orange_duel2: { label: 'Duel Music 2', file: 'Songs/Duel_Music_2.mp3' },
   orange_duel3: { label: 'Duel Music 3', file: 'Songs/Duel_Music_3.mp3' },
   orange_duel4: { label: 'Duel Music 4', file: 'Songs/Duel_Music_4.mp3' },
+  orange_duel5: { label: 'Duel Music 5', file: 'Songs/Duel_Music_5.mp3' },
+  orange_duel6: { label: 'Duel Music 6', file: 'Songs/Duel_Music_6.mp3' },
   orange_duel9: { label: 'Duel Music 9', file: 'Songs/Duel_Music_9.mp3' },
   orange_determination: { label: 'Determination Battle', file: 'Songs/Determination Battle.mp3' },
   orange_determined: { label: 'Determined Duelist', file: 'Songs/Determined Duelist.mp3' },
@@ -5286,6 +5976,12 @@ function hideConfigScreen() {
 
 function openPauseMenu() {
   stopGameClock();
+  // Duelo en Vivo: PVP's only intentional way to leave a live match is now
+  // RENDIRSE (Step 4 below) -- SALIR AL MENÚ used to abandon the match
+  // silently, without telling the server anything, which is exactly the
+  // "accidental disappearance" gap this whole feature closes. Local play
+  // is unaffected (pvpMode is only ever true during a real PVP match).
+  document.getElementById('pauseExit').classList.toggle('hidden', !!pvpMode);
   document.getElementById('pauseModal').classList.remove('hidden');
 }
 function closePauseMenu() {
@@ -5296,6 +5992,13 @@ document.addEventListener('DOMContentLoaded', function () {
   // browser has as much lead time as it can get before a real match or the
   // Collection screen ever starts needing these images.
   preloadCardImages();
+
+  // Real reported request: a real time-of-day clock in the board header,
+  // both modes -- independent of any match's own lifecycle (unlike every
+  // other interval in this file), so it's simplest to just start it once,
+  // here, and let it run for the rest of the page session.
+  renderWallClock();
+  setInterval(renderWallClock, 15000);
 
   // Theme init
   var savedTheme = null;
@@ -5368,11 +6071,12 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('pvpCreateDeckPicker').classList.remove('hidden');
       document.getElementById('pvpCreateWaiting').classList.add('hidden');
       renderPvpDeckPicker('pvpCreateDeckList', function (deckId) {
+        pvpCurrentDeckId = deckId;
         return createRoomCloud(deckId).then(function (res) {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
           renderPvpWaitingMine(deckId);
-          document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(res.roomCode, 'plata', 3);
+          document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
           startPvpRoomWait(res.roomCode, deckId);
         }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
       });
@@ -5445,14 +6149,25 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('pvpJoinCodeStep').classList.add('hidden');
         document.getElementById('pvpJoinDeckPicker').classList.remove('hidden');
         renderPvpDeckPicker('pvpJoinDeckList', function (deckId) {
+          pvpCurrentDeckId = deckId;
           return joinRoomCloud(code, deckId).then(function () {
-            startPvpRoomWait(code, deckId);
             document.getElementById('pvpJoinScreen').classList.add('hidden');
             document.getElementById('pvpCreateScreen').classList.remove('hidden');
             document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
             document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+            // Real reported bug: renderPvpWaitingMine unconditionally resets
+            // the opponent slot to its unknown/spinner state -- it must run
+            // BEFORE startPvpRoomWait (same order the create-room flow above
+            // already uses), otherwise it wipes out the opponent info that
+            // initPvpRoomListener renders synchronously from the room
+            // broadcast the join call itself already received (economy.js's
+            // fire-immediately-with-last-known-value replay). With the old
+            // order, the guest's screen got stuck on "ESPERANDO" forever
+            // since no further room broadcast arrives once both sides are
+            // already connected.
             renderPvpWaitingMine(deckId);
-            document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(code, 'plata', 3);
+            document.getElementById('pvpRoomCodeDisplay').textContent = code;
+            startPvpRoomWait(code, deckId);
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
             document.getElementById('pvpJoinCodeStep').classList.remove('hidden');
@@ -5478,32 +6193,41 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // PVP: the turn already ended server-side by the time this modal can even
-  // show, and the RIVAL never waited on this player's click at all -- their
-  // real moves keep arriving as snapshots the whole time this is up
-  // (buffered in pvpEndTurnLatestData, see enterPvpMatch's own comment), so
-  // both buttons do the same thing here: catch the board up to whatever's
-  // actually true right now. There's no real "hold it back longer" option
-  // once dismissed -- the live game doesn't pause for one side looking.
-  //
-  // Local vs CPU: the CPU genuinely hasn't moved at all yet (same as if the
-  // player had simply left "Terminar Turno" unclicked) -- "SÍ" directly
-  // mirrors that button's own logic (inlined, not a synthetic .click(), so
-  // there's no dependency on that exact button still existing/being enabled
-  // in the DOM at this instant) to actually hand the turn to the CPU now;
-  // "NO" changes nothing, leaving "Terminar Turno" there for whenever the
-  // player's ready.
-  function applyPvpEndTurnConfirmDismiss() {
+  // PVP: just hides the modal and catches the board up to whatever's
+  // arrived since (buffered in pvpEndTurnLatestData while it was up, see
+  // enterPvpMatch's own comment) -- shared by both buttons. Does NOT send
+  // anything to the server by itself: confirmEndTurn (the real "yes, my
+  // turn is over now") is a separate, explicit step -- see
+  // sendPvpConfirmEndTurn below, called only by "SÍ".
+  function dismissPvpEndTurnConfirmModal() {
     pvpEndTurnConfirmPending = false;
     var latest = pvpEndTurnLatestData;
     pvpEndTurnLatestData = null;
     if (latest) { processPvpMatchSnapshot(latest); }
   }
+  // Real reported bug: this used to fire unconditionally on EITHER button
+  // (the modal used to be purely cosmetic -- the turn had already passed
+  // server-side by the time it could even show, so there was nothing left
+  // to actually confirm). Now that the server genuinely holds the turn
+  // open until this fires (party/index.js's 'confirmEndTurn', see
+  // rules-engine.js's attack()/deferTurnEnd), sending it from "NO, MIRAR
+  // EL CAMPO" was a second real reported bug on its own: clicking "No" —
+  // meaning "don't end my turn yet, let me look" — still handed the turn
+  // to the rival. Only "SÍ, TERMINAR TURNO" calls this now; pvpTurnConfirmOwed
+  // (see its own declaration) stays true after "NO" specifically so the
+  // persistent "Terminar Turno" board button knows to send this same
+  // action (not a plain 'endTurn', which the server would now reject —
+  // see runAction's own guard) whenever the player eventually IS ready.
+  function sendPvpConfirmEndTurn() {
+    pvpTurnConfirmOwed = false;
+    submitMatchActionCloud(pvpActiveMatchId, { type: 'confirmEndTurn' })
+      .catch(function (err) { pvpTurnConfirmOwed = true; alert(err.message || 'No se pudo confirmar el fin de turno.'); });
+  }
   var endTurnConfirmYesBtn = document.getElementById('endTurnConfirmYes');
   if (endTurnConfirmYesBtn) {
     endTurnConfirmYesBtn.addEventListener('click', function () {
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
-      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); return; }
+      if (pvpMode) { dismissPvpEndTurnConfirmModal(); sendPvpConfirmEndTurn(); return; }
       if (revealAnimationInProgress || cpuTurnInProgress) { return; }
       logEvent(gameState, 'HAS TERMINADO TU TURNO', 'player', 'turn-end');
       if (gameState.activePlayerId === 'player') { endTurn(gameState); }
@@ -5514,7 +6238,9 @@ document.addEventListener('DOMContentLoaded', function () {
   if (endTurnConfirmNoBtn) {
     endTurnConfirmNoBtn.addEventListener('click', function () {
       document.getElementById('endTurnConfirmModal').classList.add('hidden');
-      if (pvpMode) { applyPvpEndTurnConfirmDismiss(); }
+      // pvpTurnConfirmOwed deliberately stays true here -- see its own
+      // declaration and sendPvpConfirmEndTurn's comment above.
+      if (pvpMode) { dismissPvpEndTurnConfirmModal(); }
     });
   }
 
@@ -5751,13 +6477,61 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('surrenderConfirmBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');
-    // I4 (final-review fix) belt-and-suspenders: the pauseSurrender handler
-    // above already keeps this modal from ever opening in pvpMode, but if it
-    // somehow got shown anyway, mark the match ended locally first so a
-    // later real win/loss arriving from the opponent's side via the match
-    // listener can't fire finishMatch/awardMatchResultCloud a second time.
-    if (pvpMode) { pvpMatchEnded = true; }
+    if (pvpMode) {
+      submitMatchActionCloud(pvpActiveMatchId, { type: 'forfeit' })
+        .catch(function (err) { alert(err.message || 'No se pudo rendir.'); });
+      return;
+    }
     finishMatch('cpu');
+  });
+
+  document.getElementById('menuLiveDuelBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.remove('hidden');
+  });
+  document.querySelector('#liveDuelModal .card-modal-backdrop').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+  });
+  document.getElementById('liveDuelYesBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+    if (!pvpLiveDuelRoomCode) { return; }
+    // A reconnect's own deckId is never actually applied to the match --
+    // onConnect's reconnect branch (party/index.js) resumes purely off
+    // identity.uid, ignoring every other resolveIdentity field -- but
+    // resolveIdentity's own validateDeckId (functions/index.js) still runs
+    // UNCONDITIONALLY before that branch is ever reached, so any deckId
+    // sent here still has to be one that validates for this uid right now.
+    // econState.activeDeck can legitimately be invalid at this exact
+    // moment (not yet loaded after a fresh page refresh -- precisely the
+    // scenario this whole feature targets -- or since edited/deleted), so
+    // a real reported bug: reconnecting with a custom deck as the current
+    // active deck failed with "Mazo inválido." A known-good precon key
+    // sidesteps this entirely, since the value is provably never used.
+    var deckId = 'overgrowth';
+    openPvpSocket(pvpLiveDuelRoomCode, deckId, getCardBackId(), 'join').then(function (res) {
+      hideMenu();
+      enterPvpMatch(res.roomCode);
+    }).catch(function (err) {
+      alert(err.message || 'No se pudo reconectar a ese duelo.');
+      pvpLiveDuelRoomCode = null;
+      document.getElementById('menuLiveDuelBtn').classList.add('hidden');
+    });
+  });
+  document.getElementById('liveDuelNoBtn').addEventListener('click', function () {
+    document.getElementById('liveDuelModal').classList.add('hidden');
+    if (!pvpLiveDuelRoomCode) { return; }
+    var roomCode = pvpLiveDuelRoomCode;
+    // Same reasoning as liveDuelYesBtn above -- this deckId is never
+    // actually applied either (this socket only lives long enough to send
+    // 'forfeit'), so a known-good precon key sidesteps validateDeckId
+    // rejecting a stale/not-yet-loaded econState.activeDeck.
+    var deckId = 'overgrowth';
+    openPvpSocket(roomCode, deckId, getCardBackId(), 'join').then(function () {
+      return submitMatchActionCloud(roomCode, { type: 'forfeit' });
+    }).then(function () {
+      leaveRoomCloud();
+      pvpLiveDuelRoomCode = null;
+      document.getElementById('menuLiveDuelBtn').classList.add('hidden');
+    }).catch(function (err) { alert(err.message || 'No se pudo rendir.'); });
   });
 
   document.getElementById('targetHintOkBtn').addEventListener('click', closeTargetHintModal);
@@ -5815,17 +6589,88 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('matchEndReplayBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
-    startNewMatch();
+    if (!pvpMode) { startNewMatch(); return; }
+    // Real reported bug: this used to unconditionally fall through to
+    // startNewMatch() above even in PVP -- that function's own very first
+    // step is resetPvpMatchState(), which closes the shared PVP socket,
+    // so "VOLVER A JUGAR" silently dropped the player out of PVP and into
+    // a fresh LOCAL match vs CPU instead of back into a room screen. Per
+    // the user's own specified rules: the room OWNER (host, pvpMySide ===
+    // 'player1') always rejoins THIS SAME room, marked ready right away;
+    // the guest does too, UNLESS the host has already left
+    // (pvpLastRoomMessage.hostLeft, kept live by the 'leaveRoom' broadcast
+    // matchEndCancelBtn's PVP branch sends below) -- in that case there's
+    // no room left to rejoin, so the guest becomes the owner of a brand
+    // new one instead, exactly like pressing "Crear Sala" fresh.
+    var iAmHost = pvpMySide === 'player1';
+    var hostGone = !iAmHost && pvpLastRoomMessage && pvpLastRoomMessage.hostLeft;
+    var deckId = pvpCurrentDeckId;
+    if (hostGone) {
+      resetPvpMatchState(); // safe here -- about to open a BRAND NEW socket anyway
+      hideBoardScreen();
+      document.getElementById('pvpCreateScreen').classList.remove('hidden');
+      document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+      document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+      createRoomCloud(deckId).then(function (res) {
+        renderPvpWaitingMine(deckId);
+        document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
+        startPvpRoomWait(res.roomCode, deckId);
+      }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); showMenu(); });
+      return;
+    }
+    // Same-room rematch: deliberately does NOT call resetPvpMatchState --
+    // it would close the shared pvpSocket the 'rematch' message below and
+    // the room-wait listener both still need. Clearing pvpLastMatchMessage
+    // stops initPvpMatchListeners (called once the room flips back to
+    // 'started') from replaying this now-finished match's own stale last
+    // snapshot into the freshly rematched one for a frame before the real
+    // new snapshot arrives -- enterPvpMatch itself (called by
+    // startPvpRoomWait below once both sides are ready) already
+    // re-initializes every other per-match flag the same way it does for
+    // a brand new match.
+    // Real reported bug: pressing this on BOTH accounts left the game
+    // "mareado" (rapidly flipping screens) and stuck, unresponsive, on the
+    // just-finished match's board. Root cause: pvpLastRoomMessage was
+    // still caching the ORIGINAL pre-match 'room' broadcast (status
+    // 'started', this SAME room code as matchId -- the last 'room' message
+    // this client ever saw, since no further room broadcasts happen during
+    // actual gameplay). startPvpRoomWait below calls initPvpRoomListener,
+    // which replays whatever's cached IMMEDIATELY and SYNCHRONOUSLY -- so
+    // it re-entered enterPvpMatch with the OLD, already-finished match's
+    // data a split second after this handler had just torn down the board
+    // to show the waiting screen, well before the real 'rematch' round
+    // trip could ever complete. Must be cleared here too, exactly like
+    // pvpLastMatchMessage above, so the replay is a genuine no-op until
+    // the real post-rematch room broadcast arrives.
+    var myRoomCode = pvpActiveMatchId;
+    pvpLastMatchMessage = null;
+    pvpLastRoomMessage = null;
+    rematchCloud();
+    hideBoardScreen();
+    document.getElementById('pvpCreateScreen').classList.remove('hidden');
+    document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
+    document.getElementById('pvpCreateWaiting').classList.remove('hidden');
+    renderPvpWaitingMine(deckId);
+    document.getElementById('pvpRoomCodeDisplay').textContent = myRoomCode;
+    startPvpRoomWait(myRoomCode, deckId);
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
+    // Lets a room mate still looking at their own match-end modal learn
+    // I'm gone (see leaveRoomCloud/party/index.js's 'leaveRoom' case) --
+    // sent BEFORE resetPvpMatchState below closes the socket.
+    if (pvpMode) { leaveRoomCloud(); }
     resetPvpMatchState();
     hideBoardScreen();
     showMenu();
   });
-  document.querySelector('#matchEndModal .card-modal-backdrop').addEventListener('click', function () {
-    document.getElementById('matchEndModal').classList.add('hidden');
-  });
+  // Real reported bug: clicking the backdrop used to dismiss this modal
+  // the same way every other modal's backdrop does -- but the match is
+  // genuinely over once this shows (win or loss), and dismissing it left
+  // the board sitting there fully clickable/playable with nothing left to
+  // legitimately do. Deliberately no backdrop-click handler here: "VOLVER
+  // A JUGAR"/"SALIR" (matchEndReplayBtn/matchEndCancelBtn above) are the
+  // only ways out.
 
   // Booster select modal
   document.getElementById('boosterModalClose').addEventListener('click', closeBoosterSelectModal);
@@ -5870,23 +6715,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseSurrender').addEventListener('click', function () {
     closePauseMenu();
-    // I4 (final-review fix): surrender in PVP had no server call at all --
-    // it ended the match ONLY on the surrendering player's own client (the
-    // opponent never learns, no timeout exists by design in Fase 1), and
-    // didn't set pvpMatchEnded, risking a double coin-award if the opponent
-    // later reaches a real win/loss. A real forfeit action is Fase 2 scope --
-    // simplest safe fix for now is to just not offer surrender in a PVP
-    // match at all.
-    if (pvpMode) {
-      // Not calling resumeGameClockIfNeeded() here on purpose -- the local
-      // chess clock is never started for a PVP match at all (timeBankMs
-      // isn't synced/enforced for PVP this phase, per spec), so starting it
-      // now would tick against a gameState that gets fully overwritten by
-      // the next server snapshot anyway, and could even spuriously trigger
-      // a local-only time-based finishMatch() the server knows nothing about.
-      alert('Rendirse todavía no está disponible en partidas PVP (próximamente).');
-      return;
-    }
     document.getElementById('surrenderModal').classList.remove('hidden');
   });
   document.getElementById('pauseMusic').addEventListener('click', function () {

@@ -703,6 +703,29 @@ var TRAINER_TEXT_ES = {
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
+// Real reported bug: the board's card viewer (ui.js's showCardInViewer)
+// only ever rendered a Pokémon's attacks -- a Pokémon Power (Alakazam's
+// Damage Swap, Blastoise's Rain Dance, Charizard's Energy Burn, Machamp's
+// Strikes Back, Venusaur's Energy Trans, Electrode's Buzzap) never showed
+// up there at all, only its attack. Keyed by POWER name (not Pokémon
+// name), same convention as ATTACK_NAME_ES/TRAINER_TEXT_ES above.
+var POWER_NAME_ES = {
+  'Damage Swap': 'Transferir Daño', 'Rain Dance': 'Danza de Lluvia',
+  'Energy Burn': 'Quemar Energía', 'Strikes Back': 'Contraataque',
+  'Energy Trans': 'Transferir Energía', 'Buzzap': 'Buzzap'
+};
+function translatePowerName(name) { return POWER_NAME_ES[name] || name; }
+
+var POWER_TEXT_ES = {
+  'Damage Swap': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes mover 1 ficha de daño de uno de tus Pokémon a otro, siempre que no lo noquees. No se puede usar si Alakazam está Dormido, Confundido o Paralizado.',
+  'Rain Dance': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes adjuntar 1 carta de Energía Agua a uno de tus Pokémon de tipo Agua. (Esto no gasta tu adjunto de Energía del turno.) No se puede usar si Blastoise está Dormido, Confundido o Paralizado.',
+  'Energy Burn': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes convertir toda la Energía adjunta a Charizard en Energía Fuego por el resto del turno. No se puede usar si Charizard está Dormido, Confundido o Paralizado.',
+  'Strikes Back': 'Cada vez que el ataque de tu rival dañe a Machamp (incluso si es noqueado), este poder inflige 10 de daño al Pokémon atacante. (No se aplican Debilidad ni Resistencia.) No se puede usar si Machamp ya estaba Dormido, Confundido o Paralizado cuando fue atacado.',
+  'Energy Trans': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes tomar 1 carta de Energía Planta adjunta a uno de tus Pokémon y adjuntarla a otro distinto. No se puede usar si Venusaur está Dormido, Confundido o Paralizado.',
+  'Buzzap': 'En cualquier momento durante tu turno (antes de tu ataque), puedes noquear a Electrode y adjuntarlo a otro de tus Pokémon. Si lo haces, elige un tipo de Energía: Electrode pasa a ser una carta de Energía (en vez de un Pokémon) que provee 2 de ese tipo. No se puede usar si Electrode está Dormido, Confundido o Paralizado.'
+};
+function translatePowerText(name) { return POWER_TEXT_ES[name] || ''; }
+
 function typeHasMatch(list, types) {
   return (list || []).some(function (entry) { return types.indexOf(entry.type) !== -1; });
 }
@@ -971,7 +994,7 @@ function usePokemonPower(state, playerId, ownerInstanceId, params) {
 // one real Base Set attack that (like a Trainer) needs the player to
 // choose a specific opposing Bench Pokémon -- every other attack always
 // just hits the opponent's current Active, no target needed.
-function attack(state, playerId, attackName, targetInstanceId) {
+function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   var p = state.players[playerId];
   var opId = opponentOf(playerId);
   var op = state.players[opId];
@@ -998,7 +1021,31 @@ function attack(state, playerId, attackName, targetInstanceId) {
   // the click) -- otherwise the player would see status damage resolve on
   // either side the instant they attacked, before they'd done anything to
   // actually hand the turn over.
+  //
+  // deferTurnEnd (optional, 5th arg): PVP-only. Local play can get away
+  // with deferring just the *visible reveal* of checkup (see the
+  // playerId==='cpu' rule above) because there's only ever one real human
+  // there -- the engine's own activePlayerId can flip immediately with
+  // nobody around to see it early. PVP has a second real client watching
+  // the same state: if activePlayerId flipped the instant this attack
+  // landed, the RIVAL's own turn-gated actions (TURN_GATED_ACTIONS,
+  // party/index.js) would already be legal the instant they received that
+  // snapshot -- even while the ATTACKING player is still looking at their
+  // own end-of-turn confirm modal, not yet having pressed anything. Real
+  // reported bug: exactly that -- "tengo el modal de terminar turno y el
+  // rival ya está jugando". So in PVP, deferTurnEnd skips endTurn() (and
+  // therefore the checkup, and the turnCounter/shield/PlusPower/Paralyzed
+  // sweep it does) ENTIRELY here -- activePlayerId stays the attacker's
+  // own side, genuinely, until party/index.js's 'confirmEndTurn' action
+  // runs both endTurn() and the checkup together, once the attacking
+  // player actually presses the confirm button. party/index.js's own
+  // runAction also blocks the attacking side from doing anything else
+  // (besides taking a prize or choosing a new Active) until that happens,
+  // since canAttack()'s own turn check can no longer catch a second
+  // attack the way it naturally did when activePlayerId flipped right
+  // away.
   function endThisTurn() {
+    if (deferTurnEnd) { return; }
     endTurn(state);
     if (playerId === 'cpu') { applyEndOfTurnCheckup(state); }
   }
@@ -1260,6 +1307,11 @@ function endTurn(state) {
 }
 
 function getWinner(state) {
+  // "Duelo en Vivo" / Rendirse: an explicit forfeit always wins immediately,
+  // checked first so it short-circuits every other condition -- see
+  // 2026-09-17-pvp-reconnect-forfeit-design.md section 4.2.
+  if (state.forfeitedBy === 'player') { return 'cpu'; }
+  if (state.forfeitedBy === 'cpu') { return 'player'; }
   if (state.players.player.prizes.length > 0 && remainingPrizes(state.players.player) === 0) { return 'player'; }
   if (state.players.cpu.prizes.length > 0 && remainingPrizes(state.players.cpu) === 0) { return 'cpu'; }
   if (state.players.player.hasHadActive && !state.players.player.active && benchCount(state.players.player) === 0) { return 'cpu'; }
@@ -1311,9 +1363,23 @@ function redactMatchState(state, side1Uid, side2Uid) {
       player1: { active: publicPokemonView(p.active), bench: p.bench.map(publicPokemonView) },
       player2: { active: publicPokemonView(c.active), bench: c.bench.map(publicPokemonView) }
     },
+    // Real reported bug: "usé energy retrieval, seleccioné las energías del
+    // descarte pero no llegaron a mi mano" -- this redaction used to strip
+    // every discard card down to {name}, dropping its real id. Harmless for
+    // Trainer effects that only ever discard TO the pile (nothing reads an
+    // id back), but at least 4 real Trainer effects choose a SPECIFIC
+    // discard-pile card BY ID (Energy Retrieval's retrieveDiscardIds, Item
+    // Finder/Revive's own discardCardId, Pokémon Flute's
+    // opponentDiscardCardId -- see card-effects.js) -- the client had no
+    // real id to submit back, only ever "undefined" (every option in the
+    // picker modal collapsed onto the same literal string), which the
+    // server correctly rejected as "no existe en tu descarte". The discard
+    // pile is fully public information in the real game (both players can
+    // already see every card in it by name) -- exposing its real ids too
+    // leaks nothing new.
     discard: {
-      player1: p.discard.map(function (card) { return { name: card.name }; }),
-      player2: c.discard.map(function (card) { return { name: card.name }; })
+      player1: p.discard.map(function (card) { return { id: card.id, name: card.name }; }),
+      player2: c.discard.map(function (card) { return { id: card.id, name: card.name }; })
     },
     prizesRemaining: { player1: remainingPrizes(p), player2: remainingPrizes(c) },
     // Fixed 6-slot presence mask (true = still there, false = already
@@ -1328,6 +1394,12 @@ function redactMatchState(state, side1Uid, side2Uid) {
     prizeSlots: { player1: p.prizes.map(function (card) { return !!card; }), player2: c.prizes.map(function (card) { return !!card; }) },
     deckCount: { player1: p.deck.length, player2: c.deck.length },
     handCount: { player1: p.hand.length, player2: c.hand.length },
+    // The *banked* (already-committed) time bank for each side, in ms --
+    // not the live-ticking value. party/index.js's redactedFor adds
+    // turnStartedAt alongside this (a Server-instance concern, not a
+    // rules-engine.js one) so the client can compute the actual live
+    // countdown for whichever side is currently active.
+    timeBank: { player1: p.timeBankMs, player2: c.timeBankMs },
     pendingPrizeChoice: state.pendingPrizeChoice
       ? { side: state.pendingPrizeChoice.playerId === 'player' ? 'player1' : 'player2', count: state.pendingPrizeChoice.count }
       : null,
@@ -1354,4 +1426,62 @@ function redactMatchState(state, side1Uid, side2Uid) {
   privateViews[side1Uid] = { hand: p.hand.map(function (card) { return { id: card.id, name: card.name }; }) };
   privateViews[side2Uid] = { hand: c.hand.map(function (card) { return { id: card.id, name: card.name }; }) };
   return { public: publicView, private: privateViews };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    createGame, startMatch, canPlayBasic, playBasic, canEvolve, evolve,
+    canAttachEnergy, attachEnergy, canRetreat, retreat, takePrize,
+    chooseNewActive, canAttack, attack, endTurn, drawForTurnStart,
+    getWinner, redactMatchState, submitRpsChoice,
+    // party/index.js's Server class calls this directly at both real
+    // turn-handoff points ('endTurn' and 'confirmEndTurn') plus the
+    // top-of-runAction timeout check -- same function ui.js's own
+    // tickGameClock already calls as a bare global in the browser, just
+    // needed here too now that PVP commits real elapsed time server-side.
+    tickClock,
+    // party/index.js calls this directly (not as a bare globalThis
+    // identifier -- unlike the card-effects.js internals below, this one
+    // has a real call site of its own): the plain 'endTurn' action runs it
+    // immediately (no attack involved, nothing to defer), and the new
+    // 'confirmEndTurn' action runs it once the attacking player dismisses
+    // the end-of-turn reveal modal (see attack()'s own deferCheckup
+    // comment for why PVP can't just rely on endThisTurn()'s existing
+    // playerId==='cpu' auto-checkup).
+    applyEndOfTurnCheckup,
+    // Not consumed directly by party/index.js's own code -- these are the
+    // internal helpers card-effects.js's TRAINER_EFFECTS entries call as
+    // bare identifiers (same pattern CARD_STATS/etc. already rely on, see
+    // that file's own top-of-file comment). Exporting them here lets
+    // party/index.js bind them onto globalThis too, alongside CARD_STATS,
+    // so TRAINER_EFFECTS functions (invoked for real for the first time by
+    // the 'playTrainer' runAction case) don't ReferenceError the moment
+    // they call e.g. drawCard/logEvent/findInstance. Found via a genuine
+    // repro: Bill's effect threw "drawCard is not defined" the first time
+    // playTrainer actually ran against the local dev server.
+    findInstance, opponentOf, translatePlayer, translateCardName,
+    logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
+    evolutionTimingAllowed, makeFreshInstance, shuffle,
+    discardedEnergyCard, discardedEvolutionCard, allInstances,
+    // Real reported bug found while testing the Energy Retrieval fix
+    // above: card-effects.js's own Energy Retrieval effect references this
+    // as a bare identifier too (same pattern as the block above) -- never
+    // exercised against the local dev server before, so this gap sat
+    // undiscovered. Left unbound, choosing any energy to retrieve threw
+    // "ENERGY_TYPE_BY_CARD_NAME is not defined" the instant it ran.
+    ENERGY_TYPE_BY_CARD_NAME,
+    // Same story as the block above, one task later: ATTACK_EFFECTS entries
+    // (invoked for real for the first time by removing runAction's old
+    // "(Fase 2)" guard on the 'attack' case) call these as bare identifiers
+    // too. Found the same way -- a genuine repro against the local dev
+    // server threw "dealDamage is not defined" from Weedle's Poison Sting,
+    // the very first special-effect attack this task exercised.
+    dealDamage, coinFlip, addStatus, knockOutIfNeeded, translateAttackName,
+    // party/index.js's new 'usePower' runAction case calls this directly
+    // (not as a bare globalThis identifier) -- the same validated single
+    // entry point local play already uses for all 5 activatable Pokémon
+    // Powers (usablePokemonPowers, the button's own enabled/disabled
+    // check, was already exported above).
+    usePokemonPower
+  };
 }

@@ -1,10 +1,15 @@
 functions/node_modules/
 node_modules/
 dist/
+party/node_modules/
+party/.partykit/
 .firebase/
 .superpowers/
+.claude/worktrees/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
 *-debug.log
 .DS_Store
+functions/.env
+functions/.env.*
