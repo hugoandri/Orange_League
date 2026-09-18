@@ -5036,9 +5036,23 @@ var pvpPowerRevealedRound = 0;
 // Sibling to pvpTrainerRevealedRound above, same shape -- lastAttackResult.round
 // (party/index.js) increments every successful attack action (special-
 // effect or vanilla); this tracks the last round already shown so a
-// re-delivered snapshot (e.g. on reconnect) never replays a reveal that
-// already happened.
+// re-delivered snapshot never replays a reveal that already happened.
 var pvpAttackRevealedRound = 0;
+
+// Real reported bug: all 4 *RevealedRound watermarks above reset to 0 on
+// every enterPvpMatch call, including a Duelo en Vivo reconnect -- so the
+// FIRST snapshot after reconnecting always looked "new" for whatever
+// round each already sat at server-side (an attack the OTHER player made
+// while this player was disconnected, or even one from before they ever
+// disappeared), replaying it right as the reconnected player took their
+// own, completely unrelated next action (placing a Pokémon triggered the
+// attack overlay, with no attack involved at all). Set alongside those 4
+// resets in enterPvpMatch; consumed on the very first snapshot the
+// listener callback below processes, seeding each watermark to whatever
+// round the server already reports instead of 0 -- "catch up silently,
+// don't replay" -- then never touched again, so every later GENUINE new
+// round still reveals normally.
+var pvpRevealCatchupPending = false;
 
 // End-of-turn confirm (renderEndTurnConfirm, below) -- attack() always ends
 // the turn the instant it's submitted (server-side in PVP; see functions/
@@ -5238,6 +5252,7 @@ function enterPvpMatch(matchId) {
   pvpTrainerRevealedRound = 0;
   pvpPowerRevealedRound = 0;
   pvpAttackRevealedRound = 0;
+  pvpRevealCatchupPending = true;
   pvpAttackEndedMyTurn = false;
   pvpMyPrizeChoiceSeen = false;
   pvpEndTurnConfirmPending = false;
@@ -5281,6 +5296,13 @@ function enterPvpMatch(matchId) {
     pvpMode = true;
     pvpRpsLatestMatchData = data;
     var pub = data.public;
+    if (pvpRevealCatchupPending) {
+      pvpRevealCatchupPending = false;
+      pvpRpsRevealedRound = pub.rpsRound || 0;
+      pvpTrainerRevealedRound = pub.lastTrainerPlay ? pub.lastTrainerPlay.round : 0;
+      pvpPowerRevealedRound = pub.lastPowerUse ? pub.lastPowerUse.round : 0;
+      pvpAttackRevealedRound = pub.lastAttackResult ? pub.lastAttackResult.round : 0;
+    }
     // A freshly-resolved RPS round (tie or real winner) always arrives in
     // the SAME snapshot as the phase change it causes (rules-engine.js
     // resolves both synchronously) -- intercepting it here, before the
