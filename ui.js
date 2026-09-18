@@ -1040,7 +1040,35 @@ function executePlayerAttack(atkName, targetInstanceId) {
   // second line of defense (see its own comment).
   var endTurnBtnDuringReveal = document.getElementById('endTurnBtn');
   if (endTurnBtnDuringReveal) { endTurnBtnDuringReveal.disabled = true; }
-  showAttackOverlayIfAny(afterPlayerAction);
+  showAttackOverlayIfAny(function () {
+    afterPlayerAction();
+    maybeShowLocalEndTurnConfirm();
+  });
+}
+
+// Real reported request: local play never proactively asked "ya atacaste,
+// ¿querés terminar tu turno?" the way PVP always does -- the player had to
+// notice and click the persistent TERMINAR TURNO board button themselves.
+// Mirrors the KO+prize-take flow's own showEndTurnConfirmAfter check
+// (renderPrizeChoiceModal's click handler, above) for the plain,
+// no-knockout case -- and the delayed case where MY OWN attack forced a
+// self-KO (e.g. Confusion), so I owe a new Active choice before anything
+// else can happen: renderActiveChoiceModal's own resolution calls this too,
+// and localAttackEndedMyTurn (consumed here, not before) makes sure only
+// whichever of the two call sites actually clears last is the one that
+// fires, exactly the same "wait for every pending choice to clear first"
+// rule the KO+prize flow already follows.
+function maybeShowLocalEndTurnConfirm() {
+  if (!localAttackEndedMyTurn || getWinner(gameState) || gameState.pendingPrizeChoice ||
+      gameState.pendingActiveChoice === 'player' || gameState.activePlayerId === 'player') {
+    return;
+  }
+  localAttackEndedMyTurn = false;
+  // false, not the default (KO-specific "¡NOQUEASTE UN POKÉMON RIVAL!" text)
+  // -- neither call site into this function represents that: a plain attack
+  // knocked out nothing, and the self-KO case (Confusion et al.) knocked out
+  // MY OWN Pokémon, not the rival's, which that text would misrepresent.
+  renderEndTurnConfirm(false);
 }
 
 // Big centered "TURNO DEL RIVAL" (red) / "TU TURNO" (green) flash for about
@@ -1440,6 +1468,12 @@ function renderActiveChoiceModal() {
       // actually start now that the player has picked their replacement --
       // see runCpuTurn/maybeResumeCpuTurn.
       maybeResumeCpuTurn();
+      // See maybeShowLocalEndTurnConfirm's own comment -- covers the case
+      // where it was MY OWN attack that forced this choice (a self-KO, e.g.
+      // Confusion), so the confirm modal was held back until now. A no-op
+      // whenever this choice came from anything else (the CPU's own attack,
+      // a checkup, a Trainer card), since localAttackEndedMyTurn is false then.
+      maybeShowLocalEndTurnConfirm();
     });
   });
   document.getElementById('activeChoiceModal').classList.remove('hidden');
