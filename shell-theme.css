@@ -884,9 +884,24 @@
 }
 .shell-starter-deck-grid{
   display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:0 40px;
+  /* Grid's default align-content:normal resolves to stretch (unlike flexbox's
+     flex-start), so without this the lone card row would stretch to fill
+     .shell-decks-body's full height and -- since the cards below are now
+     height:auto instead of a fixed 150px -- balloon into oversized cards
+     with the spacer soaking up all the extra room. Pin the row to its
+     content height instead. */
+  align-content:start;
 }
+/* The starter-deck cards reuse the shared .shell-deck-card row layout
+   (stripe/art/body), but each card now also carries a full-width ELEGIR
+   button as the last child of .shell-deck-card-body -- taller than the
+   Decks screen's cards need. Scoped to .shell-starter-deck-grid so the
+   shared .shell-deck-card (used by the Decks screen's own precon/custom
+   list) keeps its fixed 150px height untouched. */
+.shell-starter-deck-grid .shell-deck-card{height:auto;}
 .shell-starter-deck-pick-btn{
-  margin:12px 16px 16px;padding:10px 0;cursor:pointer;
+  display:block;width:100%;box-sizing:border-box;
+  margin:0;padding:10px 0;cursor:pointer;
   font-family:'Silkscreen',monospace;font-size:12px;letter-spacing:.1em;color:#efe9dd;
   border:1px solid #0b0907;border-radius:4px;
   background:linear-gradient(180deg,#4a7a2f,#2f4d1e);
