@@ -113,3 +113,7 @@ const DECKLISTS = {
 // (rules-engine.js) needs exactly this fixed list -- the CPU must never be
 // handed one of the PLAYER's own personally-built custom decks.
 const PRECON_DECK_KEYS = ['overgrowth', 'blackout', 'zap', 'brushfire'];
+
+if (typeof module !== 'undefined') {
+  module.exports = { DECKLISTS, PRECON_DECK_KEYS };
+}

@@ -206,6 +206,30 @@
 .shell-player-balance{font-size:16px;color:#e8c46a;}
 .shell-player-card:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
 
+.shell-live-duel-btn{
+  position:absolute;left:50%;top:36px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;
+  padding:10px 22px 10px 10px;border:1px solid #0b0907;
+  background:linear-gradient(180deg,#5a2a22,#2e1512);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 16px rgba(0,0,0,.55),0 0 16px rgba(255,106,90,.35);
+  clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);
+  font-family:'Silkscreen',monospace;transition:transform .12s,filter .12s;
+}
+.shell-live-duel-btn:hover{transform:translateX(-50%) translateY(-2px);filter:brightness(1.15);}
+.shell-live-duel-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-live-duel-btn.hidden{display:none;}
+.shell-live-duel-btn-glyph{
+  width:40px;height:40px;flex:none;display:grid;place-items:center;
+  background:linear-gradient(180deg,#1f1512,#150d0b);border:1px solid #0a0806;
+  box-shadow:inset 0 3px 8px rgba(0,0,0,.8);font-size:20px;color:#ff6a5a;
+}
+.shell-live-duel-btn-text{display:flex;flex-direction:column;gap:4px;}
+.shell-live-duel-btn-title{
+  font-family:'Pixelify Sans',sans-serif;font-size:16px;font-weight:700;letter-spacing:.03em;
+  color:#ffb4a8;text-shadow:0 2px 0 rgba(0,0,0,.7);
+}
+.shell-live-duel-btn-sub{font-size:9px;letter-spacing:.1em;color:#c98a7f;}
+
 .shell-bottombar{
   position:absolute;left:0;right:0;bottom:0;height:96px;display:flex;align-items:center;
   justify-content:space-between;padding:0 40px;
@@ -1026,7 +1050,7 @@
 .shell-board-page{position:absolute;inset:0;display:flex;flex-direction:column;font-family:'Silkscreen',monospace;color:#efe9dd;}
 
 .shell-board-header{
-  height:62px;flex:none;display:flex;align-items:center;gap:18px;padding:0 24px;z-index:6;
+  position:relative;height:62px;flex:none;display:flex;align-items:center;gap:18px;padding:0 24px;z-index:6;
   background:linear-gradient(180deg,#2c2721,#17140f);border-bottom:1px solid #0b0907;box-shadow:0 4px 16px rgba(0,0,0,.6);
 }
 .shell-board-back{
@@ -1039,8 +1063,16 @@
 .shell-board-phase-pill{display:flex;align-items:center;gap:10px;padding:9px 16px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);}
 .shell-board-phase-led{width:9px;height:9px;border-radius:50%;background:#8dff62;box-shadow:0 0 10px #8dff62;animation:blink 1.4s steps(1,end) infinite;}
 .shell-board-phase-text{font-size:12px;letter-spacing:.16em;color:#8dff62;}
-.shell-board-spacer{flex:1;}
 .shell-board-turn-plate{
+  /* Real reported bug: this used to sit in the normal flex flow, centered
+     only via a pair of flex:1 spacer siblings -- once the clock that used
+     to sit on the right was removed (local play's own per-side clocks
+     replaced it, see sideHeaderHtml/ui.js), nothing on the right balanced
+     the back-button + phase-pill on the left any more, pushing this off
+     to one side instead of the header's true center. Absolute + translate
+     centers it exactly regardless of what else sits in the flex flow on
+     either side. */
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   display:flex;align-items:center;gap:16px;padding:8px 26px;
   background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 3px 10px rgba(0,0,0,.5);
@@ -1050,6 +1082,19 @@
 .shell-board-turn-divider{width:1px;height:22px;background:#0b0907;}
 .shell-board-turn-value{font-family:'Pixelify Sans',sans-serif;font-size:22px;font-weight:700;color:#8dff62;text-shadow:0 0 14px rgba(141,255,98,.6);}
 .shell-board-turn-value.cpu{color:#ff8a72;text-shadow:0 0 14px rgba(255,138,114,.6);}
+/* Real reported request: a real time-of-day clock in the header, right
+   side, for both local play and PVP (see renderWallClock, ui.js) --
+   distinct from the per-side game timers (.shell-board-side-clock), which
+   count down the match's own time bank. margin-left:auto pushes it to the
+   far right of the header's flex row -- .shell-board-turn-plate sits
+   out of that flow entirely (position:absolute, see its own comment
+   above), so this is the only other real flex child besides the phase
+   pill, and the only one that needs pushing. */
+.shell-board-wallclock{margin-left:auto;flex:none;display:flex;align-items:flex-end;gap:6px;}
+/* AM/PM suffix (renderWallClock, ui.js) -- smaller than the time itself
+   and nudged down to its baseline, the same relationship a real clock
+   face's AM/PM indicator has to its hour digits. */
+.shell-board-wallclock-period{padding-bottom:2px;}
 /* "CPU PENSANDO..." dots (see showCpuThinkingIndicator, ui.js) -- one dot
    appears, then the next, then the third, all three hold, then all three
    drop out together and the cycle repeats. Three separate keyframes (not
@@ -1063,9 +1108,6 @@
 @keyframes cpuThinkingDot1{0%,74%{opacity:1;}75%,100%{opacity:0;}}
 @keyframes cpuThinkingDot2{0%,24%{opacity:0;}25%,74%{opacity:1;}75%,100%{opacity:0;}}
 @keyframes cpuThinkingDot3{0%,49%{opacity:0;}50%,74%{opacity:1;}75%,100%{opacity:0;}}
-.shell-board-clock{padding:11px 20px;background:#0f0d0b;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.9);}
-.shell-board-clock.low{animation:blink 1s steps(1,end) infinite;}
-
 .shell-board-body{flex:1;display:flex;min-height:0;}
 
 /* --- A · Visor de carta --- */
@@ -1346,13 +1388,26 @@
   background:linear-gradient(180deg,#221e19,#191612);border-left:1px solid #0b0907;box-shadow:-3px 0 14px rgba(0,0,0,.45);
   font-family:'Silkscreen',monospace;
 }
-.shell-board-side-header{display:flex;align-items:center;gap:10px;padding:8px 10px;background:linear-gradient(180deg,#3a2a26,#241715);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);}
+.shell-board-side-header{display:flex;align-items:center;gap:8px;padding:6px 8px;background:linear-gradient(180deg,#3a2a26,#241715);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);}
 .shell-board-side-header.mine{background:linear-gradient(180deg,#2a3a26,#172415);}
-.shell-board-side-avatar{width:34px;height:34px;flex:none;overflow:hidden;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);}
+/* Real reported bug: enlarging the clock (SIDE_CLOCK_BLOCK_PX, ui.js) ate
+   into the same tight row the username shares -- shrunk here (34px->28px)
+   plus the header's own tighter gap/padding above, and the name's own
+   font-size below, to give the wider digits room without pushing the
+   username back into ellipsis-truncation. */
+.shell-board-side-avatar{width:28px;height:28px;flex:none;overflow:hidden;background:#12100d;border:1px solid #0a0806;box-shadow:inset 0 2px 6px rgba(0,0,0,.85);}
 .shell-board-side-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
-.shell-board-side-name{font-size:13px;letter-spacing:.08em;color:#ff8a72;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.shell-board-side-name{font-size:12px;letter-spacing:.06em;color:#ff8a72;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .shell-board-side-header.mine .shell-board-side-name{color:#8dff62;}
-.shell-board-side-led{width:9px;height:9px;border-radius:50%;flex:none;background:#ff6a5a;box-shadow:0 0 8px #ff6a5a;}
+/* Real reported bug: this element (PVP's two per-side clocks) had no CSS
+   rule at all -- as a bare, unstyled flex child sitting between the name
+   (flex:1, can shrink) and the fixed-width digits it renders (each pixel
+   cell has an explicit inline px width/height, so it can't shrink), the
+   name got squeezed down to near-nothing instead of sharing space
+   cleanly. flex:none keeps the clock at its own natural width; the
+   margin keeps a clear gap from the name text. */
+.shell-board-side-clock{flex:none;margin-left:6px;}
+.shell-board-side-led{width:8px;height:8px;border-radius:50%;flex:none;background:#ff6a5a;box-shadow:0 0 8px #ff6a5a;}
 .shell-board-side-header.mine .shell-board-side-led{background:#8dff62;box-shadow:0 0 8px #8dff62;}
 .shell-board-side-led.off{background:#4a4239;box-shadow:none;}
 

@@ -304,7 +304,7 @@ TRAINER_EFFECTS['Computer Search'] = function (state, playerId, handId, deckCard
   p.hand.push(found);
   p.deck = shuffle(p.deck, state.rng);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Computer Search') + ' y busca ' + translateCardName(found.name), playerId);
-  return { legal: true };
+  return { legal: true, targetName: found.name };
 };
 
 // Real card text: "Attach Defender to 1 of your Pokémon" -- any of the
@@ -514,7 +514,7 @@ TRAINER_EFFECTS['Pokémon Trader'] = function (state, playerId, handId, tradeHan
   p.hand.push(found);
   p.deck = shuffle(p.deck, state.rng);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Pokémon Trader') + ' y busca ' + translateCardName(found.name), playerId);
-  return { legal: true };
+  return { legal: true, targetName: found.name };
 };
 
 // targetInstanceId: any of the player's own Pokémon in play (Active or
@@ -908,7 +908,12 @@ ATTACK_EFFECTS['Haunter'] = {
 
 ATTACK_EFFECTS['Gastly'] = {
   'Sleeping Gas': function (state, attacker, defender) {
-    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+    // Real reported bug: a 0-damage, status-only coin flip that comes up
+    // tails used to leave NOTHING visible at all -- no damage, no status,
+    // no MISS -- unlike Horn Hazard/Twineedle's own all-or-nothing coin
+    // flips (which already flag this). Same fix: attack()'s own generic
+    // handling (rules-engine.js) surfaces a MISS overlay off this flag.
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); } else { state.attackMissed = true; }
   },
   // Sets a revenge-KO flag consumed later by knockOutIfNeeded
   // (rules-engine.js), not anything resolved here -- Destiny Bond does no
@@ -1173,7 +1178,9 @@ ATTACK_EFFECTS['Charizard'] = {
 
 ATTACK_EFFECTS['Clefairy'] = {
   'Sing': function (state, attacker, defender) {
-    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); }
+    // Same real reported bug as Gastly's Sleeping Gas above -- a 0-damage,
+    // status-only coin flip landing tails used to be completely silent.
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Asleep'); } else { state.attackMissed = true; }
   },
   'Metronome': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     var chosenAttackName = targetInstanceId;
@@ -1497,3 +1504,7 @@ ATTACK_EFFECTS["Farfetch'd"] = {
   },
   'Pot Smash': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); }
 };
+
+if (typeof module !== 'undefined') {
+  module.exports = { ATTACK_EFFECTS, TRAINER_EFFECTS, POKEMON_POWER_EFFECTS };
+}

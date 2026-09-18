@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Pokémon TCG Simulador · Overgrowth vs Blackout</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=20260907e">
-<link rel="stylesheet" href="shell-theme.css?v=20260907e">
+<link rel="stylesheet" href="style.css?v=20260918g">
+<link rel="stylesheet" href="shell-theme.css?v=20260918g">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -223,6 +223,14 @@
             </nav>
           </div>
 
+          <button type="button" class="shell-live-duel-btn hidden" id="menuLiveDuelBtn">
+            <span class="shell-live-duel-btn-glyph"><i class="ph-duotone ph-sword"></i></span>
+            <span class="shell-live-duel-btn-text">
+              <span class="shell-live-duel-btn-title">DUELO EN VIVO</span>
+              <span class="shell-live-duel-btn-sub">TIENES UNA PARTIDA EN CURSO</span>
+            </span>
+          </button>
+
           <button type="button" class="shell-player-card" id="menuProfileBtn">
             <span class="shell-player-avatar"><img id="menuProfilePhoto" src="Perfil/Jugador.jpg" alt=""></span>
             <span class="shell-player-id">
@@ -372,14 +380,12 @@
               <span class="shell-board-phase-led"></span>
               <span class="shell-board-phase-text" id="boardPhaseText">FASE PRINCIPAL</span>
             </div>
-            <div class="shell-board-spacer"></div>
             <div class="shell-board-turn-plate">
               <span class="shell-board-turn-label" id="boardTurnLabel">TURNO 1</span>
               <span class="shell-board-turn-divider"></span>
               <span class="shell-board-turn-value" id="boardTurnValue">TU TURNO</span>
             </div>
-            <div class="shell-board-spacer"></div>
-            <div class="shell-board-clock" id="boardClock">10:00</div>
+            <div class="shell-board-wallclock" id="boardWallClock"></div>
           </div>
 
           <div class="shell-board-body">
@@ -482,6 +488,17 @@
       <div class="shell-modal-actions">
         <button type="button" id="surrenderConfirmBtn" class="shell-modal-btn shell-modal-btn-danger">SÍ</button>
         <button type="button" id="surrenderCancelBtn" class="shell-modal-btn">NO</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="liveDuelModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text">¿Quieres volver al duelo?</p>
+      <div class="shell-modal-actions">
+        <button type="button" id="liveDuelYesBtn" class="shell-modal-btn shell-modal-btn-danger">SÍ</button>
+        <button type="button" id="liveDuelNoBtn" class="shell-modal-btn">NO</button>
       </div>
     </div>
   </div>
@@ -627,8 +644,8 @@
       <div class="shell-pause-buttons">
         <button type="button" class="shell-modal-btn" id="pauseResume">▶️ REANUDAR</button>
         <button type="button" class="shell-modal-btn" id="pauseConfig">⚙️ CONFIGURACIÓN</button>
-        <button type="button" class="shell-modal-btn" id="pauseSurrender">🏳️ RENDIRSE</button>
         <button type="button" class="shell-modal-btn" id="pauseMusic">🔈 MÚSICA</button>
+        <button type="button" class="shell-modal-btn" id="pauseSurrender">🏳️ RENDIRSE</button>
         <button type="button" class="shell-modal-btn shell-modal-btn-danger" id="pauseExit">🏠 SALIR AL MENÚ</button>
       </div>
     </div>
@@ -694,6 +711,8 @@
                         <option value="orange_duel2">Duel Music 2</option>
                         <option value="orange_duel3">Duel Music 3</option>
                         <option value="orange_duel4">Duel Music 4</option>
+                        <option value="orange_duel5">Duel Music 5</option>
+                        <option value="orange_duel6">Duel Music 6</option>
                         <option value="orange_duel9">Duel Music 9</option>
                         <option value="orange_determination">Determination Battle</option>
                         <option value="orange_determined">Determined Duelist</option>
@@ -1268,6 +1287,19 @@
        shows, "SÍ" is really just "let the CPU/rival's turn actually start
        now" and "NO" just lets the player keep looking a bit longer (see
        ui.js's renderEndTurnConfirm and its two button handlers). -->
+  <!-- Shown after I press "INICIAR DUELO" on the PVP board (confirmSetup)
+       while my rival hasn't pressed it yet -- not dismissible (there's
+       nothing to cancel back into once I've confirmed), auto-hidden by
+       processPvpMatchSnapshot (ui.js) the instant the match actually
+       leaves 'setup' phase. -->
+  <div id="pvpWaitingConfirmModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <div class="shell-loading-spinner"></div>
+      <p class="shell-modal-title">ESPERANDO A TU RIVAL...</p>
+    </div>
+  </div>
+
   <div id="endTurnConfirmModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card">
@@ -1346,16 +1378,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-<script src="firebase-init.js?v=20260907e"></script>
-<script src="data-sets.js?v=20260907e"></script>
-<script src="data-decks.js?v=20260907e"></script>
-<script src="data-cards.js?v=20260907e"></script>
-<script src="rules-engine.js?v=20260907e"></script>
-<script src="card-effects.js?v=20260907e"></script>
-<script src="ai.js?v=20260907e"></script>
-<script src="economy.js?v=20260907e"></script>
-<script src="shell-layout.js?v=20260907e"></script>
-<script src="ui.js?v=20260907e"></script>
-<script src="auth-ui.js?v=20260907e"></script>
+<script src="firebase-init.js?v=20260918g"></script>
+<script src="data-sets.js?v=20260918g"></script>
+<script src="data-decks.js?v=20260918g"></script>
+<script src="data-cards.js?v=20260918g"></script>
+<script src="rules-engine.js?v=20260918g"></script>
+<script src="card-effects.js?v=20260918g"></script>
+<script src="ai.js?v=20260918g"></script>
+<script src="economy.js?v=20260918g"></script>
+<script src="shell-layout.js?v=20260918g"></script>
+<script src="ui.js?v=20260918g"></script>
+<script src="auth-ui.js?v=20260918g"></script>
 </body>
 </html>
