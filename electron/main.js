@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -12,6 +12,22 @@ function createWindow() {
     }
   });
   win.loadFile(path.join(__dirname, '..', 'index.html'));
+
+  // Real-money purchase links (Telegram/Discord/Orbes-with-Stars) use
+  // target="_blank" / window.open expecting the user's actual system
+  // browser -- without this, Electron's default is to open a new
+  // chrome-less BrowserWindow with no address bar, which also lets the
+  // app navigate off file:// to an arbitrary remote origin.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith('file://')) {
+      e.preventDefault();
+      shell.openExternal(url);
+    }
+  });
 }
 
 app.whenReady().then(() => {
