@@ -6000,7 +6000,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
           document.getElementById('pvpCreateWaiting').classList.remove('hidden');
           renderPvpWaitingMine(deckId);
-          document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(res.roomCode, 'plata', 3);
+          document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
           startPvpRoomWait(res.roomCode, deckId);
         }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); });
       });
@@ -6090,7 +6090,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // since no further room broadcast arrives once both sides are
             // already connected.
             renderPvpWaitingMine(deckId);
-            document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(code, 'plata', 3);
+            document.getElementById('pvpRoomCodeDisplay').textContent = code;
             startPvpRoomWait(code, deckId);
           }).catch(function (err) {
             document.getElementById('pvpJoinDeckPicker').classList.add('hidden');
@@ -6521,7 +6521,7 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('pvpCreateWaiting').classList.remove('hidden');
       createRoomCloud(deckId).then(function (res) {
         renderPvpWaitingMine(deckId);
-        document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(res.roomCode, 'plata', 3);
+        document.getElementById('pvpRoomCodeDisplay').textContent = res.roomCode;
         startPvpRoomWait(res.roomCode, deckId);
       }).catch(function (err) { alert(err.message || 'No se pudo crear la sala.'); showMenu(); });
       return;
@@ -6559,7 +6559,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('pvpCreateDeckPicker').classList.add('hidden');
     document.getElementById('pvpCreateWaiting').classList.remove('hidden');
     renderPvpWaitingMine(deckId);
-    document.getElementById('pvpRoomCodeDisplay').innerHTML = pixelDigitsHtml(myRoomCode, 'plata', 3);
+    document.getElementById('pvpRoomCodeDisplay').textContent = myRoomCode;
     startPvpRoomWait(myRoomCode, deckId);
   });
   document.getElementById('matchEndCancelBtn').addEventListener('click', function () {
