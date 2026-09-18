@@ -1055,7 +1055,21 @@ const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];
 // Throws if deckId isn't usable -- either a real precon key, or
 // 'custom:<slot>' where the caller actually has a saved deck in that slot.
 async function validateDeckId(uid, deckId) {
-  if (PRECON_DECK_KEYS_LIST.indexOf(deckId) !== -1) { return; }
+  if (PRECON_DECK_KEYS_LIST.indexOf(deckId) !== -1) {
+    // Same starter-deck lock updateActiveDeck (above) already enforces for
+    // local play -- mirrored here so "Duelo en Vivo" can't be used as a
+    // bypass. Three-state-correct on purpose: starterDeckChosen absent
+    // (grandfathered account) or null (no choice made yet -- shouldn't
+    // reach a PvP room anyway since the mandatory screen gates the menu,
+    // but defense-in-depth) is falsy and never blocks; only a real,
+    // different, already-chosen deckKey string blocks.
+    const userSnap = await admin.firestore().collection('users').doc(uid).get();
+    const uData = userSnap.data() || {};
+    if (uData.starterDeckChosen && uData.starterDeckChosen !== deckId) {
+      throw new HttpsError('invalid-argument', 'Ya elegiste tu mazo inicial -- no puedes usar otro precon en Duelo en Vivo.');
+    }
+    return;
+  }
   const m = /^custom:(.+)$/.exec(deckId || '');
   if (!m || CUSTOM_DECK_SLOTS.indexOf(m[1]) === -1) {
     throw new HttpsError('invalid-argument', 'Mazo inválido.');

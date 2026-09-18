@@ -4800,7 +4800,16 @@ var PRECON_DECK_ART = {
 function renderPvpDeckPicker(containerId, onPicked) {
   var el = document.getElementById(containerId);
   if (!el) { return; }
-  var options = PRECON_DECK_KEYS.map(function (key) {
+  // Same starter-deck lock the Decks screen's own click handler and the
+  // server (validateDeckId, functions/index.js) already enforce -- once
+  // starterDeckChosen is a real, chosen deckKey (not null/undefined), the
+  // player can only ever bring THAT one precon into a PVP room, so don't
+  // even offer the other 3. A grandfathered account (starterDeckChosen
+  // absent) or the theoretical not-yet-chosen edge case (null) is falsy
+  // here and sees all 4 precons exactly as before -- zero behavior change.
+  var lockedPrecon = (econState && econState.starterDeckChosen) || null;
+  var preconKeys = lockedPrecon ? [lockedPrecon] : PRECON_DECK_KEYS;
+  var options = preconKeys.map(function (key) {
     var art = PRECON_DECK_ART[key] || {};
     return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
   });
