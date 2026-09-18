@@ -6427,7 +6427,19 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('liveDuelYesBtn').addEventListener('click', function () {
     document.getElementById('liveDuelModal').classList.add('hidden');
     if (!pvpLiveDuelRoomCode) { return; }
-    var deckId = (econState && econState.activeDeck) || 'overgrowth';
+    // A reconnect's own deckId is never actually applied to the match --
+    // onConnect's reconnect branch (party/index.js) resumes purely off
+    // identity.uid, ignoring every other resolveIdentity field -- but
+    // resolveIdentity's own validateDeckId (functions/index.js) still runs
+    // UNCONDITIONALLY before that branch is ever reached, so any deckId
+    // sent here still has to be one that validates for this uid right now.
+    // econState.activeDeck can legitimately be invalid at this exact
+    // moment (not yet loaded after a fresh page refresh -- precisely the
+    // scenario this whole feature targets -- or since edited/deleted), so
+    // a real reported bug: reconnecting with a custom deck as the current
+    // active deck failed with "Mazo inválido." A known-good precon key
+    // sidesteps this entirely, since the value is provably never used.
+    var deckId = 'overgrowth';
     openPvpSocket(pvpLiveDuelRoomCode, deckId, getCardBackId(), 'join').then(function (res) {
       hideMenu();
       enterPvpMatch(res.roomCode);
@@ -6441,7 +6453,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('liveDuelModal').classList.add('hidden');
     if (!pvpLiveDuelRoomCode) { return; }
     var roomCode = pvpLiveDuelRoomCode;
-    var deckId = (econState && econState.activeDeck) || 'overgrowth';
+    // Same reasoning as liveDuelYesBtn above -- this deckId is never
+    // actually applied either (this socket only lives long enough to send
+    // 'forfeit'), so a known-good precon key sidesteps validateDeckId
+    // rejecting a stale/not-yet-loaded econState.activeDeck.
+    var deckId = 'overgrowth';
     openPvpSocket(roomCode, deckId, getCardBackId(), 'join').then(function () {
       return submitMatchActionCloud(roomCode, { type: 'forfeit' });
     }).then(function () {
