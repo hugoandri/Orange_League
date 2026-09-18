@@ -314,7 +314,16 @@
         checkLiveDuelBanner();
         showAccountVerifyingOverlay();
         if (unsubscribeEconomy) { unsubscribeEconomy(); }
-        unsubscribeEconomy = initEconomyListener(user.uid, hideAccountVerifyingOverlay);
+        unsubscribeEconomy = initEconomyListener(user.uid, function () {
+          hideAccountVerifyingOverlay();
+          // econState.starterDeckChosen === null (not undefined) means this
+          // account was created after the starter-deck feature shipped and
+          // hasn't chosen yet -- a grandfathered account's field is simply
+          // absent (undefined), which deliberately does NOT trigger this.
+          if (econState && econState.starterDeckChosen === null) {
+            showStarterDeckScreen();
+          }
+        });
         if (unsubscribeNews) { unsubscribeNews(); }
         unsubscribeNews = initNewsListener();
         if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }

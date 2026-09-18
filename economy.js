@@ -16,11 +16,17 @@ function initEconomyListener(uid, onFirstLoad) {
   }
   return firebase.firestore().collection('users').doc(uid)
     .onSnapshot(function (snap) {
-      handleFirstLoad();
       var data = snap.data();
-      if (!data) { return; }
-      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {}, pendingCodePacks: data.pendingCodePacks || [] };
+      if (!data) { handleFirstLoad(); return; }
+      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {}, pendingCodePacks: data.pendingCodePacks || [], starterDeckChosen: data.starterDeckChosen };
       profileState = { uid: uid, username: data.username || '', photo: data.photo || null };
+      // Set before handleFirstLoad() (moved from the top of this callback)
+      // so onFirstLoad consumers (auth-ui.js's starter-deck gate) see a
+      // populated econState instead of the pre-reset null -- previously
+      // handleFirstLoad() ran before econState was assigned here, which
+      // didn't matter for hideAccountVerifyingOverlay (doesn't read
+      // econState) but silently broke any onFirstLoad callback that does.
+      handleFirstLoad();
       renderCoinCount();
       renderProfile();
       updateShopBalance();
@@ -178,6 +184,11 @@ function updateProfileCloud(data) {
 
 function updateActiveDeckCloud(deckKey) {
   return firebase.functions().httpsCallable('updateActiveDeck')({ deckKey: deckKey });
+}
+
+function chooseStarterDeckCloud(deckKey) {
+  return firebase.functions().httpsCallable('chooseStarterDeck')({ deckKey: deckKey })
+    .then(function (res) { return res.data; });
 }
 
 // cards: [{name, count}]. coverName (optional): a card name from within

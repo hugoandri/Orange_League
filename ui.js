@@ -4267,6 +4267,60 @@ function hideDecksScreen() {
   document.getElementById('decksScreen').classList.add('hidden');
 }
 
+// ── Mazo inicial obligatorio (una sola vez, cuenta nueva) ─────────────
+function showStarterDeckScreen() {
+  document.getElementById('menuScreen').classList.add('hidden');
+  document.getElementById('starterDeckScreen').classList.remove('hidden');
+}
+
+function hideStarterDeckScreen() {
+  document.getElementById('starterDeckScreen').classList.add('hidden');
+}
+
+var starterDeckPendingChoice = null;
+
+function wireStarterDeckScreen() {
+  document.querySelectorAll('.shell-starter-deck-pick-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var deckKey = btn.getAttribute('data-starter-deck');
+      starterDeckPendingChoice = deckKey;
+      var name = DECK_DISPLAY_NAME[deckKey] || deckKey;
+      document.getElementById('starterDeckConfirmText').textContent =
+        'Vas a elegir ' + name + ' como tu mazo inicial. Esta elección es permanente y no podrás cambiarla después. ¿Confirmas?';
+      document.getElementById('starterDeckConfirmModal').classList.remove('hidden');
+    });
+  });
+
+  document.getElementById('starterDeckConfirmNo').addEventListener('click', function () {
+    starterDeckPendingChoice = null;
+    document.getElementById('starterDeckConfirmModal').classList.add('hidden');
+  });
+
+  document.getElementById('starterDeckConfirmYes').addEventListener('click', function () {
+    if (!starterDeckPendingChoice) { return; }
+    var deckKey = starterDeckPendingChoice;
+    var yesBtn = document.getElementById('starterDeckConfirmYes');
+    yesBtn.disabled = true;
+    chooseStarterDeckCloud(deckKey)
+      .then(function (res) {
+        if (econState) {
+          econState.collection = res.collection;
+          econState.starterDeckChosen = deckKey;
+          econState.activeDeck = deckKey;
+        }
+        yesBtn.disabled = false;
+        document.getElementById('starterDeckConfirmModal').classList.add('hidden');
+        hideStarterDeckScreen();
+        showMenu();
+      })
+      .catch(function (e) {
+        yesBtn.disabled = false;
+        document.getElementById('starterDeckConfirmText').textContent =
+          (e && e.message) || 'No se pudo guardar tu elección. Intenta de nuevo.';
+      });
+  });
+}
+
 // ── Deck Builder (Fase 4: mazos personalizados) ───────────────────────
 // Real 1999 Base Set deck-construction rules, mirrored client-side purely
 // for responsive UI feedback (add/remove buttons enable/disable live) --
@@ -6253,6 +6307,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (pvpMode) { dismissPvpEndTurnConfirmModal(); }
     });
   }
+
+  wireStarterDeckScreen();
 
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();

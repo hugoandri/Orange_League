@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Orange League Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=20260918g">
-<link rel="stylesheet" href="shell-theme.css?v=20260918g">
+<link rel="stylesheet" href="style.css?v=20260918h">
+<link rel="stylesheet" href="shell-theme.css?v=20260918h">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -866,6 +866,86 @@
     </div>
   </div>
 
+  <!-- ===== MAZO INICIAL (obligatorio, una sola vez) ===== -->
+  <div id="starterDeckScreen" class="hidden">
+    <div class="shell-viewport">
+      <div class="shell-stage">
+        <div class="shell-stage-overlay"></div>
+
+        <div class="shell-page">
+          <div class="shell-page-header">
+            <div class="shell-page-spacer"></div>
+            <div class="shell-page-title">ELIGE TU MAZO INICIAL</div>
+            <div class="shell-page-spacer"></div>
+          </div>
+
+          <p class="shell-starter-deck-intro">Esta elección es permanente -- las 60 cartas del mazo que elijas pasarán a ser tuyas. No podrás elegir otro más adelante.</p>
+
+          <div class="shell-decks-body">
+            <div class="shell-starter-deck-grid" id="starterDeckGrid">
+              <div class="shell-deck-card" data-starter-deck="overgrowth">
+                <div class="shell-deck-card-stripe deck-overgrowth"></div>
+                <div class="shell-deck-card-art"><img src="Mazos/overgrowth.png" alt="Caja del mazo Overgrowth"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">OVERGROWTH</div>
+                  <div class="shell-deck-card-types">PLANTA · AGUA</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer"><span class="shell-deck-card-count">60 CARTAS</span></div>
+                </div>
+                <button type="button" class="shell-starter-deck-pick-btn" data-starter-deck="overgrowth">ELEGIR</button>
+              </div>
+              <div class="shell-deck-card" data-starter-deck="blackout">
+                <div class="shell-deck-card-stripe deck-blackout"></div>
+                <div class="shell-deck-card-art"><img src="Mazos/blackout.png" alt="Caja del mazo Blackout"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">BLACKOUT</div>
+                  <div class="shell-deck-card-types">AGUA · LUCHA</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer"><span class="shell-deck-card-count">60 CARTAS</span></div>
+                </div>
+                <button type="button" class="shell-starter-deck-pick-btn" data-starter-deck="blackout">ELEGIR</button>
+              </div>
+              <div class="shell-deck-card" data-starter-deck="zap">
+                <div class="shell-deck-card-stripe deck-zap"></div>
+                <div class="shell-deck-card-art"><img src="Mazos/zap.png" alt="Caja del mazo Zap!"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">ZAP!</div>
+                  <div class="shell-deck-card-types">RAYO · PSÍQUICO</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer"><span class="shell-deck-card-count">60 CARTAS</span></div>
+                </div>
+                <button type="button" class="shell-starter-deck-pick-btn" data-starter-deck="zap">ELEGIR</button>
+              </div>
+              <div class="shell-deck-card" data-starter-deck="brushfire">
+                <div class="shell-deck-card-stripe deck-brushfire"></div>
+                <div class="shell-deck-card-art"><img src="Mazos/brushfire.png" alt="Caja del mazo Brushfire"></div>
+                <div class="shell-deck-card-body">
+                  <div class="shell-deck-card-name">BRUSHFIRE</div>
+                  <div class="shell-deck-card-types">FUEGO · PLANTA</div>
+                  <div class="shell-deck-card-spacer"></div>
+                  <div class="shell-deck-card-footer"><span class="shell-deck-card-count">60 CARTAS</span></div>
+                </div>
+                <button type="button" class="shell-starter-deck-pick-btn" data-starter-deck="brushfire">ELEGIR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="starterDeckConfirmModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">¿SEGURO?</p>
+      <p class="shell-modal-text" id="starterDeckConfirmText"></p>
+      <div class="shell-modal-actions">
+        <button type="button" id="starterDeckConfirmYes" class="shell-modal-btn shell-modal-btn-primary">SÍ, ELEGIR ESTE MAZO</button>
+        <button type="button" id="starterDeckConfirmNo" class="shell-modal-btn">VOLVER A MIRAR</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SELECCIÓN DE MAZO ===== -->
   <div id="decksScreen" class="hidden">
     <div class="shell-viewport">
@@ -1383,16 +1463,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-<script src="firebase-init.js?v=20260918g"></script>
-<script src="data-sets.js?v=20260918g"></script>
-<script src="data-decks.js?v=20260918g"></script>
-<script src="data-cards.js?v=20260918g"></script>
-<script src="rules-engine.js?v=20260918g"></script>
-<script src="card-effects.js?v=20260918g"></script>
-<script src="ai.js?v=20260918g"></script>
-<script src="economy.js?v=20260918g"></script>
-<script src="shell-layout.js?v=20260918g"></script>
-<script src="ui.js?v=20260918g"></script>
-<script src="auth-ui.js?v=20260918g"></script>
+<script src="firebase-init.js?v=20260918h"></script>
+<script src="data-sets.js?v=20260918h"></script>
+<script src="data-decks.js?v=20260918h"></script>
+<script src="data-cards.js?v=20260918h"></script>
+<script src="rules-engine.js?v=20260918h"></script>
+<script src="card-effects.js?v=20260918h"></script>
+<script src="ai.js?v=20260918h"></script>
+<script src="economy.js?v=20260918h"></script>
+<script src="shell-layout.js?v=20260918h"></script>
+<script src="ui.js?v=20260918h"></script>
+<script src="auth-ui.js?v=20260918h"></script>
 </body>
 </html>

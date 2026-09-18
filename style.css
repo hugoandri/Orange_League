@@ -60,6 +60,15 @@ body::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover);}
   background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
 #decksScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 
+/* Same full-screen-overlay pattern as every other #*Screen here -- without
+   this pair, #starterDeckScreen's `hidden` class has no effect (no generic
+   .hidden{display:none} rule exists in this file; see #deckBuilderScreen's
+   comment below for the same gotcha) and it would either never hide or
+   never actually appear positioned as a full screen. */
+#starterDeckScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+  background:#0b1120;overflow:hidden;transition:opacity 0.4s,visibility 0.4s;}
+#starterDeckScreen.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+
 /* The deck builder is another full-screen surface. Without this pair, its
    `hidden` class has no effect and it can sit above the PvP room flow. */
 #deckBuilderScreen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
