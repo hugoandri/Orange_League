@@ -118,9 +118,13 @@ decision above.
 ## 6. App identity & window
 
 - App name: "Orange League" (the game's existing in-app branding).
-- Icon: derived from `Perfil/Logo.png` (already in the repo), converted to
-  each platform's required format (`.icns` for macOS, `.ico` for Windows,
-  PNG set for Linux).
+- Icon: `Perfil/Logo.png` turned out unsuitable as an icon source — it's the
+  in-game wordmark, a 1536×1024 two-line "ORANGE LEAGUE" lockup that can't
+  be squared or read at icon sizes. Instead, a square 640×640 "OL" monogram
+  badge (user-provided, matching the same brand colors/starburst motif) is
+  committed at `build/icon-source.png` and converted to each platform's
+  required format (`.icns` for macOS, `.ico` for Windows, PNG set for Linux)
+  from there.
 - Window chrome: the platform's native title bar/frame — the game already
   draws its own complete visual shell inside the page, so a custom
   (frameless) window adds cost without a clear benefit and isn't part of
