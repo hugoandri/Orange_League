@@ -302,6 +302,7 @@
         playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
+        checkLiveDuelBanner();
         showAccountVerifyingOverlay();
         if (unsubscribeEconomy) { unsubscribeEconomy(); }
         unsubscribeEconomy = initEconomyListener(user.uid, hideAccountVerifyingOverlay);

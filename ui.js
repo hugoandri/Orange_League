@@ -4656,9 +4656,13 @@ function toggleTheme() {
 
 // ── Menu ───────────────────────────────────────────────────────────
 var pvpLiveDuelRoomCode = null;
-function showMenu() {
-  document.getElementById('menuScreen').classList.remove('hidden');
-  playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+// Duelo en Vivo: shared by showMenu() (in-app navigation back to the menu)
+// AND auth-ui.js's onAuthStateChanged handler (the menu's very FIRST
+// appearance after a fresh page load/refresh -- that path used to set
+// #menuScreen visible directly, never calling showMenu() at all, so a
+// player who refreshed mid-crash to reach exactly this screen never had
+// their active match looked up the one time it mattered most).
+function checkLiveDuelBanner() {
   getActiveMatchCloud().then(function (res) {
     pvpLiveDuelRoomCode = res.roomCode;
     document.getElementById('menuLiveDuelBtn').classList.toggle('hidden', !res.roomCode);
@@ -4667,6 +4671,11 @@ function showMenu() {
     // doesn't show this time, same as it wouldn't if there genuinely were
     // no active match. Never blocks the menu from showing.
   });
+}
+function showMenu() {
+  document.getElementById('menuScreen').classList.remove('hidden');
+  playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+  checkLiveDuelBanner();
 }
 function hideMenu() {
   document.getElementById('menuScreen').classList.add('hidden');
