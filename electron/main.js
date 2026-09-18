@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -8,7 +8,8 @@ function createWindow() {
     title: 'Orange League',
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
   win.loadFile(path.join(__dirname, '..', 'index.html'));
@@ -29,6 +30,10 @@ function createWindow() {
     }
   });
 }
+
+// Renderer-side "SALIR" button (see electron/preload.js) -- quits the whole
+// app, distinct from the game's own "CERRAR SESIÓN" which just signs out.
+ipcMain.on('quit-app', () => { app.quit(); });
 
 app.whenReady().then(() => {
   createWindow();

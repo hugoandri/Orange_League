@@ -1,6 +1,7 @@
 functions/node_modules/
 node_modules/
 dist/
+.dist-ci-downloads/
 party/node_modules/
 party/.partykit/
 .firebase/

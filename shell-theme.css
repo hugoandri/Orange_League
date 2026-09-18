@@ -305,6 +305,7 @@
 }
 .shell-logout:hover{color:#efe9dd;filter:brightness(1.25);}
 .shell-logout:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-logout.hidden{display:none;}
 
 /* ===== Shared full-page header (Tienda now; Mazos/Colección/Configuración
    reuse this exact recipe in later phases) ===== */
@@ -1676,6 +1677,11 @@
 .shell-match-end-text{font-family:'Pixelify Sans',sans-serif;font-size:28px;font-weight:700;margin:0;text-align:center;}
 .shell-match-end-text.win{color:#8dff62;text-shadow:0 0 20px rgba(141,255,98,.5);}
 .shell-match-end-text.loss{color:#ff6a5a;text-shadow:0 0 20px rgba(255,106,90,.4);}
+.shell-match-end-reward{
+  font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.08em;
+  color:#e8c14a;text-align:center;margin:8px 0 0;
+}
+.shell-match-end-reward.hidden{display:none;}
 
 .shell-pause-card{width:340px;}
 .shell-pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}

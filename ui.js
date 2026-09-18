@@ -2274,7 +2274,17 @@ function finishMatch(winner) {
   // no-op for local play, same as stopGameClock() is today.
   if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
   playMatchEndMusic(winner);
+  var rewardEl = document.getElementById('matchEndReward');
+  rewardEl.classList.add('hidden');
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
+    .then(function (res) {
+      // Only a win ever has a nonzero delta (see computeMatchReward) -- a
+      // loss's own "Has Perdido" text already says enough on its own.
+      if (res && res.data && res.data.delta > 0) {
+        rewardEl.textContent = 'Orbes: ' + res.data.delta;
+        rewardEl.classList.remove('hidden');
+      }
+    })
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results)
   var textEl = document.getElementById('matchEndText');

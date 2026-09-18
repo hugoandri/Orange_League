@@ -154,7 +154,7 @@ exports.awardMatchResult = onCall(async (request) => {
     return updated;
   });
 
-  return { coins: newCoins };
+  return { coins: newCoins, delta: delta };
 });
 
 async function fetchEconomyConfig() {

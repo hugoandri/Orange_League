@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Pokémon TCG Simulador · Overgrowth vs Blackout</title>
+<title>Orange League Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css?v=20260918g">
 <link rel="stylesheet" href="shell-theme.css?v=20260918g">
@@ -268,6 +268,10 @@
               <div class="shell-type-badge" title="Incoloro"><img src="Tipos/incoloro.png" alt=""></div>
             </div>
             <button type="button" class="shell-logout" id="menuLogoutBtn">CERRAR SESIÓN</button>
+            <!-- Desktop (Electron) app only -- quits the whole app instead of
+                 just signing out; hidden by default and revealed by ui.js
+                 when window.electronAPI is present (see electron/preload.js). -->
+            <button type="button" class="shell-logout hidden" id="menuQuitBtn">SALIR</button>
           </div>
         </div>
       </div>
@@ -603,6 +607,7 @@
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card">
       <p id="matchEndText" class="shell-match-end-text"></p>
+      <p id="matchEndReward" class="shell-match-end-reward hidden"></p>
       <div class="shell-modal-actions">
         <button type="button" id="matchEndReplayBtn" class="shell-modal-btn shell-modal-btn-primary">VOLVER A JUGAR</button>
         <button type="button" id="matchEndCancelBtn" class="shell-modal-btn">SALIR</button>
