@@ -539,6 +539,18 @@ export default class Server {
     // 'player'/'cpu' -> 'player1'/'player2' ternary shape redactMatchState
     // itself already uses for `winner`.
     redacted.public.forfeitedBy = this.state.forfeitedBy === 'player' ? 'player1' : (this.state.forfeitedBy === 'cpu' ? 'player2' : null);
+    // Real reported bug: turnEndPendingSide was never exposed to clients at
+    // all -- the end-turn confirm modal only ever showed itself off a
+    // purely client-ephemeral flag (ui.js's pvpAttackEndedMyTurn, set the
+    // instant a player's OWN attack click fires, never reconstructible
+    // from a snapshot) reset on every enterPvpMatch call. A player who
+    // disconnected (or reconnected via Duelo en Vivo) while genuinely
+    // owing a confirmation came back to a client with no way to ever show
+    // that modal again, while this exact guard kept rejecting every other
+    // action with "Debes confirmar el fin de tu turno primero." forever --
+    // permanently stuck, no escape. Same 'player'/'cpu' -> 'player1'/
+    // 'player2' mapping as forfeitedBy/winner just above.
+    redacted.public.turnEndPendingSide = this.turnEndPendingSide === 'player' ? 'player1' : (this.turnEndPendingSide === 'cpu' ? 'player2' : null);
     const uid = side === 'player' ? this.info.hostUid : this.info.guestUid;
     return { type: 'match', public: redacted.public, myHand: redacted.private[uid].hand };
   }

@@ -5404,7 +5404,17 @@ function enterPvpMatch(matchId) {
       // has nothing to do with whether MY turn can end). Only a prize
       // choice that's actually MINE should hold this back.
       var myPrizeStillPending = !!(mpub.pendingPrizeChoice && mpub.pendingPrizeChoice.side === pvpMySide);
-      if (!mpub.winner && pvpAttackEndedMyTurn && !myPrizeStillPending && mpub.pendingActiveChoice !== pvpMySide) {
+      // Duelo en Vivo: pvpAttackEndedMyTurn alone can never fire again for
+      // a player who reconnected while genuinely owing a confirmation (it
+      // resets on every enterPvpMatch, see its own declaration) -- but a
+      // real one is server-truth now (party/index.js's redactedFor), so
+      // recovering it here directly closes that stuck state. Guarded by
+      // !pvpEndTurnConfirmPending so this never re-fires the modal on a
+      // LATER snapshot arriving while it's already up (mpub.turnEndPendingSide
+      // stays true server-side for the whole window the confirmation is
+      // owed, unlike pvpAttackEndedMyTurn's own one-shot nature).
+      var recoveringPendingConfirm = !pvpEndTurnConfirmPending && mpub.turnEndPendingSide === pvpMySide;
+      if (!mpub.winner && (pvpAttackEndedMyTurn || recoveringPendingConfirm) && !myPrizeStillPending && mpub.pendingActiveChoice !== pvpMySide) {
         var hadKnockout = pvpMyPrizeChoiceSeen;
         pvpAttackEndedMyTurn = false;
         pvpMyPrizeChoiceSeen = false;
