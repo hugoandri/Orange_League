@@ -355,8 +355,9 @@ exports.updateActiveDeck = onCall(async (request) => {
     await admin.firestore().runTransaction(async (tx) => {
       const snap = await tx.get(userRef);
       const uData = snap.exists ? snap.data() : {};
-      if (uData.starterDeckChosen && uData.starterDeckChosen !== deckKey) {
-        throw new HttpsError('failed-precondition', 'Ya elegiste tu mazo inicial -- no puedes cambiarte a otro precon.');
+      const owned = Array.isArray(uData.ownedPrecons) ? uData.ownedPrecons : [];
+      if (uData.starterDeckChosen && owned.indexOf(deckKey) === -1) {
+        throw new HttpsError('failed-precondition', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
       }
       tx.set(userRef, { activeDeck: deckKey }, { merge: true });
     });
@@ -1122,8 +1123,9 @@ async function validateDeckId(uid, deckId) {
     // different, already-chosen deckKey string blocks.
     const userSnap = await admin.firestore().collection('users').doc(uid).get();
     const uData = userSnap.data() || {};
-    if (uData.starterDeckChosen && uData.starterDeckChosen !== deckId) {
-      throw new HttpsError('invalid-argument', 'Ya elegiste tu mazo inicial -- no puedes usar otro precon en Duelo en Vivo.');
+    const owned = Array.isArray(uData.ownedPrecons) ? uData.ownedPrecons : [];
+    if (uData.starterDeckChosen && owned.indexOf(deckId) === -1) {
+      throw new HttpsError('invalid-argument', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
     }
     return;
   }

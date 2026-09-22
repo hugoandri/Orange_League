@@ -4807,8 +4807,9 @@ function renderPvpDeckPicker(containerId, onPicked) {
   // even offer the other 3. A grandfathered account (starterDeckChosen
   // absent) or the theoretical not-yet-chosen edge case (null) is falsy
   // here and sees all 4 precons exactly as before -- zero behavior change.
-  var lockedPrecon = (econState && econState.starterDeckChosen) || null;
-  var preconKeys = lockedPrecon ? [lockedPrecon] : PRECON_DECK_KEYS;
+  var chosen = (econState && econState.starterDeckChosen) || null;
+  var owned = (econState && econState.ownedPrecons) || [];
+  var preconKeys = chosen ? PRECON_DECK_KEYS.filter(function (key) { return owned.indexOf(key) !== -1; }) : PRECON_DECK_KEYS;
   var options = preconKeys.map(function (key) {
     var art = PRECON_DECK_ART[key] || {};
     return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
@@ -6337,9 +6338,10 @@ document.addEventListener('DOMContentLoaded', function () {
       // lock, functions/index.js); this is just UX so the player isn't
       // confused by a click that would silently fail on Guardar.
       var chosen = econState && econState.starterDeckChosen;
-      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && elDeckKey !== chosen;
+      var owned = (econState && econState.ownedPrecons) || [];
+      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && owned.indexOf(elDeckKey) === -1;
       if (isLockedPrecon) {
-        showTargetHintModal('Ya elegiste tu mazo inicial -- este precon está bloqueado.');
+        showTargetHintModal('No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
         return;
       }
       selectDeckCard(elDeckKey);
