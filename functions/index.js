@@ -114,6 +114,7 @@ exports.createAccount = onCall(async (request) => {
     coins: 150,
     collection: {},
     starterDeckChosen: null,
+    ownedPrecons: [],
     createdAt: FieldValue.serverTimestamp()
   });
   try {
@@ -164,7 +165,8 @@ async function fetchEconomyConfig() {
   return {
     boosterCosts: Object.assign({ base: 100, jungle: 100, fossil: 100 }, data.boosterCosts || {}),
     protectorCosts: Object.assign({}, data.protectorCosts || {}),
-    starsPackages: Object.assign({}, STARS_PACKAGES, data.starsPackages || {})
+    starsPackages: Object.assign({}, STARS_PACKAGES, data.starsPackages || {}),
+    deckCosts: Object.assign({ overgrowth: 1500, blackout: 1500, zap: 1500, brushfire: 1500 }, data.deckCosts || {})
   };
 }
 
@@ -413,12 +415,65 @@ exports.chooseStarterDeck = onCall(async (request) => {
     tx.update(userRef, {
       collection: updatedCollection,
       starterDeckChosen: deckKey,
-      activeDeck: deckKey
+      activeDeck: deckKey,
+      ownedPrecons: [deckKey]
     });
     return updatedCollection;
   });
 
   return { collection: newCollection };
+});
+
+// A precon a player already owns (via the free starter choice OR a
+// previous purchase here) can never be bought again -- mirrors
+// buyCardBack's exact idempotent shape (silent success, no charge, no
+// error) rather than throwing, so a stale "COMPRAR" button or a double-
+// click can never double-charge. The actual card grant reuses
+// starterDeckGrants verbatim (the same server-side-only computation
+// chooseStarterDeck already relies on) -- buying a deck grants EXACTLY
+// what choosing it as your starter deck would have.
+exports.buyDeck = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const deckKey = (request.data || {}).deckKey;
+  if (VALID_DECK_KEYS.indexOf(deckKey) === -1) {
+    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const ecoConfig = await fetchEconomyConfig();
+  const cost = (ecoConfig.deckCosts && typeof ecoConfig.deckCosts[deckKey] === 'number')
+    ? ecoConfig.deckCosts[deckKey]
+    : 1500;
+  const grants = starterDeckGrants(deckKey, CARD_CATALOG.base);
+
+  return admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? snap.data() : null;
+    if (!data) {
+      throw new HttpsError('failed-precondition', 'Cuenta no encontrada.');
+    }
+    const owned = Array.isArray(data.ownedPrecons) ? data.ownedPrecons : [];
+    if (owned.indexOf(deckKey) !== -1) {
+      return { collection: data.collection || {}, ownedPrecons: owned, coins: data.coins };
+    }
+    if (data.coins < cost) {
+      throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
+    }
+    const updatedCollection = Object.assign({}, data.collection);
+    Object.keys(grants).forEach(function (key) {
+      updatedCollection[key] = (updatedCollection[key] || 0) + grants[key];
+    });
+    const newOwnedPrecons = owned.concat([deckKey]);
+    const newCoins = data.coins - cost;
+    tx.update(userRef, {
+      coins: newCoins,
+      collection: updatedCollection,
+      ownedPrecons: newOwnedPrecons
+    });
+    return { collection: updatedCollection, ownedPrecons: newOwnedPrecons, coins: newCoins };
+  });
 });
 
 // Saves (creates or overwrites) one of the player's up to 4 custom-deck
