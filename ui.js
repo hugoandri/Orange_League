@@ -3643,7 +3643,7 @@ function renderShopDecksGrid() {
       : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(cost, 'oro', 3) + '</span>' +
         '<button type="button" class="shell-shop-card-btn" data-buy-deck="' + key + '">COMPRAR</button>';
     return '<div class="shell-shop-card' + (isOwned ? ' shell-shop-card-owned' : '') + '">' +
-      '<div class="shell-deck-card-art"><img src="' + art.img + '" alt="' + escapeHtml(DECK_DISPLAY_NAME[key] || key) + '"></div>' +
+      '<div class="shell-shop-card-art"><img src="' + art.img + '" alt="' + escapeHtml(DECK_DISPLAY_NAME[key] || key) + '"></div>' +
       '<div class="shell-shop-card-text">' +
         '<div class="shell-shop-card-name">' + escapeHtml((DECK_DISPLAY_NAME[key] || key).toUpperCase()) + '</div>' +
         '<div class="shell-shop-card-desc">' + escapeHtml(art.types || '') + '</div>' +
