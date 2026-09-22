@@ -4367,6 +4367,7 @@ function wireStarterDeckScreen() {
           econState.collection = res.collection;
           econState.starterDeckChosen = deckKey;
           econState.activeDeck = deckKey;
+          econState.ownedPrecons = [deckKey];
         }
         yesBtn.disabled = false;
         document.getElementById('starterDeckConfirmModal').classList.add('hidden');
@@ -4863,10 +4864,15 @@ function renderPvpDeckPicker(containerId, onPicked) {
   // Same starter-deck lock the Decks screen's own click handler and the
   // server (validateDeckId, functions/index.js) already enforce -- once
   // starterDeckChosen is a real, chosen deckKey (not null/undefined), the
-  // player can only ever bring THAT one precon into a PVP room, so don't
-  // even offer the other 3. A grandfathered account (starterDeckChosen
-  // absent) or the theoretical not-yet-chosen edge case (null) is falsy
-  // here and sees all 4 precons exactly as before -- zero behavior change.
+  // player can only ever bring an OWNED precon (econState.ownedPrecons --
+  // the starter choice plus any buyDeck purchases) into a PVP room, so
+  // unowned precons aren't offered. econState.ownedPrecons already falls
+  // back to [starterDeckChosen] (see initEconomyListener, economy.js) for
+  // accounts that predate the ownedPrecons field, so they still see the
+  // one precon they actually own instead of none. A grandfathered account
+  // (starterDeckChosen absent) or the theoretical not-yet-chosen edge case
+  // (null) is falsy here and sees all 4 precons exactly as before -- zero
+  // behavior change.
   var chosen = (econState && econState.starterDeckChosen) || null;
   var owned = (econState && econState.ownedPrecons) || [];
   var preconKeys = chosen ? PRECON_DECK_KEYS.filter(function (key) { return owned.indexOf(key) !== -1; }) : PRECON_DECK_KEYS;
@@ -6393,10 +6399,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!DECKLISTS[elDeckKey]) { return; }
     el.addEventListener('click', function () {
       // Once a starter deck is chosen (a real deckKey, not null/undefined),
-      // the other 3 precons stay visible but can't become the active deck
-      // -- the real enforcement is server-side (updateActiveDeck's own
-      // lock, functions/index.js); this is just UX so the player isn't
-      // confused by a click that would silently fail on Guardar.
+      // any precon the player doesn't own (not in econState.ownedPrecons --
+      // the starter choice plus any buyDeck purchases) stays visible but
+      // can't become the active deck -- the real enforcement is server-side
+      // (updateActiveDeck's own lock, functions/index.js); this is just UX
+      // so the player isn't confused by a click that would silently fail on
+      // Guardar. econState.ownedPrecons already falls back to
+      // [starterDeckChosen] for accounts that predate that field, so they
+      // aren't locked out of the one deck they actually own.
       var chosen = econState && econState.starterDeckChosen;
       var owned = (econState && econState.ownedPrecons) || [];
       var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && owned.indexOf(elDeckKey) === -1;

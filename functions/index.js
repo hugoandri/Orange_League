@@ -343,19 +343,25 @@ exports.updateActiveDeck = onCall(async (request) => {
   const uid = request.auth.uid;
 
   // Once starterDeckChosen is a real deckKey (not null, not absent), the
-  // player may only ever have THAT precon as their active deck -- switching
-  // to any of the other 3 unpicked precons is blocked here, the real
-  // enforcement point (the Decks screen's own click handler, ui.js, is UX
-  // only and could be bypassed by calling this function directly). A
-  // grandfathered account (starterDeckChosen absent/undefined) is
-  // completely unaffected -- the check below only ever fires when the
-  // field is a non-null string that differs from the requested deckKey.
+  // player may only ever have an OWNED precon (starter choice plus any
+  // buyDeck purchases, tracked in ownedPrecons) as their active deck --
+  // switching to any unowned precon is blocked here, the real enforcement
+  // point (the Decks screen's own click handler, ui.js, is UX only and
+  // could be bypassed by calling this function directly). An account that
+  // predates ownedPrecons (chose a starter deck before that field existed)
+  // falls back to treating starterDeckChosen alone as its owned set, so it
+  // isn't locked out of the one deck it actually owns. A grandfathered
+  // account that never chose a starter deck at all (starterDeckChosen
+  // absent/undefined) is completely unaffected -- the check below only
+  // ever fires when starterDeckChosen is a non-null string.
   if (VALID_DECK_KEYS.indexOf(deckKey) !== -1) {
     const userRef = admin.firestore().collection('users').doc(uid);
     await admin.firestore().runTransaction(async (tx) => {
       const snap = await tx.get(userRef);
       const uData = snap.exists ? snap.data() : {};
-      const owned = Array.isArray(uData.ownedPrecons) ? uData.ownedPrecons : [];
+      const owned = Array.isArray(uData.ownedPrecons)
+        ? uData.ownedPrecons
+        : (uData.starterDeckChosen ? [uData.starterDeckChosen] : []);
       if (uData.starterDeckChosen && owned.indexOf(deckKey) === -1) {
         throw new HttpsError('failed-precondition', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
       }
@@ -457,7 +463,9 @@ exports.buyDeck = onCall(async (request) => {
     if (!data) {
       throw new HttpsError('failed-precondition', 'Cuenta no encontrada.');
     }
-    const owned = Array.isArray(data.ownedPrecons) ? data.ownedPrecons : [];
+    const owned = Array.isArray(data.ownedPrecons)
+      ? data.ownedPrecons
+      : (data.starterDeckChosen ? [data.starterDeckChosen] : []);
     if (owned.indexOf(deckKey) !== -1) {
       return { collection: data.collection || {}, ownedPrecons: owned, coins: data.coins };
     }
@@ -1120,10 +1128,14 @@ async function validateDeckId(uid, deckId) {
     // (grandfathered account) or null (no choice made yet -- shouldn't
     // reach a PvP room anyway since the mandatory screen gates the menu,
     // but defense-in-depth) is falsy and never blocks; only a real,
-    // different, already-chosen deckKey string blocks.
+    // already-chosen starterDeckChosen paired with a deckId that isn't in
+    // the account's owned set (ownedPrecons, falling back to just
+    // [starterDeckChosen] for accounts that predate that field) blocks.
     const userSnap = await admin.firestore().collection('users').doc(uid).get();
     const uData = userSnap.data() || {};
-    const owned = Array.isArray(uData.ownedPrecons) ? uData.ownedPrecons : [];
+    const owned = Array.isArray(uData.ownedPrecons)
+      ? uData.ownedPrecons
+      : (uData.starterDeckChosen ? [uData.starterDeckChosen] : []);
     if (uData.starterDeckChosen && owned.indexOf(deckId) === -1) {
       throw new HttpsError('invalid-argument', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
     }

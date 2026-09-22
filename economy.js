@@ -18,7 +18,7 @@ function initEconomyListener(uid, onFirstLoad) {
     .onSnapshot(function (snap) {
       var data = snap.data();
       if (!data) { handleFirstLoad(); return; }
-      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {}, pendingCodePacks: data.pendingCodePacks || [], starterDeckChosen: data.starterDeckChosen, ownedPrecons: data.ownedPrecons || [] };
+      econState = { coins: data.coins, collection: data.collection || {}, collectionHolo: data.collectionHolo || {}, collectionSecret: data.collectionSecret || {}, activeDeck: data.activeDeck || 'overgrowth', cardBacks: data.cardBacks || [], customDecks: data.customDecks || {}, pendingCodePacks: data.pendingCodePacks || [], starterDeckChosen: data.starterDeckChosen, ownedPrecons: data.ownedPrecons || (data.starterDeckChosen ? [data.starterDeckChosen] : []) };
       profileState = { uid: uid, username: data.username || '', photo: data.photo || null };
       // Set before handleFirstLoad() (moved from the top of this callback)
       // so onFirstLoad consumers (auth-ui.js's starter-deck gate) see a
@@ -412,6 +412,7 @@ function initEconomyConfigListener() {
       globalEconomyConfig = data ? {
         boosterCosts: Object.assign({ base: 100, jungle: 100, fossil: 100 }, data.boosterCosts || {}),
         protectorCosts: Object.assign({}, data.protectorCosts || {}),
+        deckCosts: Object.assign({}, data.deckCosts || {}),
         starsPackages: data.starsPackages || null
       } : null;
       if (typeof renderShopScreen === 'function') { renderShopScreen(); }
