@@ -3392,9 +3392,11 @@ function showShopTab(tab) {
   });
   document.getElementById('shopPacksPanel').classList.toggle('hidden', tab !== 'packs');
   document.getElementById('shopProtectorsPanel').classList.toggle('hidden', tab !== 'protectores');
+  document.getElementById('shopDecksPanel').classList.toggle('hidden', tab !== 'mazos');
   var orbesPanel = document.getElementById('shopOrbesPanel');
   if (orbesPanel) { orbesPanel.classList.toggle('hidden', tab !== 'orbes'); }
   if (tab === 'protectores') { renderProtectorsGrid(); }
+  if (tab === 'mazos') { renderShopDecksGrid(); }
   if (tab === 'orbes') { renderOrbesShopGrid(); }
 }
 
@@ -3420,6 +3422,13 @@ function getProtectorCost(id) {
   }
   var opt = CARD_BACK_OPTIONS.filter(function (o) { return o.id === id; })[0];
   return (opt && opt.cost) ? opt.cost : 75;
+}
+
+function getDeckCost(deckKey) {
+  if (globalEconomyConfig && globalEconomyConfig.deckCosts && typeof globalEconomyConfig.deckCosts[deckKey] === 'number') {
+    return globalEconomyConfig.deckCosts[deckKey];
+  }
+  return 1500;
 }
 
 function getStarsShopPackages() {
@@ -3609,6 +3618,57 @@ function renderProtectorsGrid() {
         })
         .catch(function (err) {
           alert(err.message || 'No se pudo comprar el protector.');
+          btn.disabled = false;
+          btn.textContent = 'COMPRAR';
+        });
+    });
+  });
+}
+
+// Mazos: additional preconstructed decks bought with real coins (Cloud
+// Function, see buyDeckCloud) -- mirrors renderProtectorsGrid's exact
+// structure (per-item owned-vs-buyable footer, disable-on-click,
+// re-render-on-success, error-and-re-enable-on-failure).
+function renderShopDecksGrid() {
+  var grid = document.getElementById('shopDecksGrid');
+  if (!grid || !econState) { return; }
+
+  var owned = econState.ownedPrecons || [];
+  grid.innerHTML = PRECON_DECK_KEYS.map(function (key) {
+    var art = PRECON_DECK_ART[key] || {};
+    var isOwned = owned.indexOf(key) !== -1;
+    var cost = getDeckCost(key);
+    var footer = isOwned
+      ? '<span class="shell-shop-card-owned-label">EN TU COLECCIÓN</span>'
+      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(cost, 'oro', 3) + '</span>' +
+        '<button type="button" class="shell-shop-card-btn" data-buy-deck="' + key + '">COMPRAR</button>';
+    return '<div class="shell-shop-card' + (isOwned ? ' shell-shop-card-owned' : '') + '">' +
+      '<div class="shell-deck-card-art"><img src="' + art.img + '" alt="' + escapeHtml(DECK_DISPLAY_NAME[key] || key) + '"></div>' +
+      '<div class="shell-shop-card-text">' +
+        '<div class="shell-shop-card-name">' + escapeHtml((DECK_DISPLAY_NAME[key] || key).toUpperCase()) + '</div>' +
+        '<div class="shell-shop-card-desc">' + escapeHtml(art.types || '') + '</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-footer">' + footer + '</div>' +
+    '</div>';
+  }).join('');
+
+  grid.querySelectorAll('[data-buy-deck]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var deckKey = btn.getAttribute('data-buy-deck');
+      btn.disabled = true;
+      btn.textContent = 'COMPRANDO...';
+      buyDeckCloud(deckKey)
+        .then(function (res) {
+          if (econState) {
+            econState.collection = res.collection;
+            econState.ownedPrecons = res.ownedPrecons;
+            econState.coins = res.coins;
+          }
+          renderShopDecksGrid();
+          renderCoinCount();
+        })
+        .catch(function (err) {
+          alert(err.message || 'No se pudo comprar el mazo.');
           btn.disabled = false;
           btn.textContent = 'COMPRAR';
         });
