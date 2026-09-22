@@ -3439,6 +3439,22 @@ function getStarsShopPackages() {
   return STARS_SHOP_PACKAGES;
 }
 
+// Shared "¿Seguro?" confirm step for every real-money-adjacent purchase in
+// the Tienda (packs, protectores, mazos) -- shows text, runs onConfirm only
+// if the player picks SÍ, does nothing (including no charge) on CANCELAR.
+var shopPurchaseConfirmAction = null;
+
+function showShopPurchaseConfirm(text, onConfirm) {
+  document.getElementById('shopPurchaseConfirmText').textContent = text;
+  shopPurchaseConfirmAction = onConfirm;
+  document.getElementById('shopPurchaseConfirmModal').classList.remove('hidden');
+}
+
+function hideShopPurchaseConfirm() {
+  document.getElementById('shopPurchaseConfirmModal').classList.add('hidden');
+  shopPurchaseConfirmAction = null;
+}
+
 // Builds the card grid -- called once per screen-open (showShopScreen), not
 // on every economy update (see updateShopBalance above).
 function renderShopScreen() {
@@ -3609,18 +3625,23 @@ function renderProtectorsGrid() {
   grid.querySelectorAll('[data-buy-back]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var id = btn.getAttribute('data-buy-back');
-      btn.disabled = true;
-      btn.textContent = 'COMPRANDO...';
-      buyCardBackCloud(id)
-        .then(function () {
-          renderProtectorsGrid();
-          renderCardBackPicker();
-        })
-        .catch(function (err) {
-          alert(err.message || 'No se pudo comprar el protector.');
-          btn.disabled = false;
-          btn.textContent = 'COMPRAR';
-        });
+      var opt = CARD_BACK_OPTIONS.filter(function (o) { return o.id === id; })[0];
+      var name = opt ? opt.name : 'este protector';
+      var cost = getProtectorCost(id);
+      showShopPurchaseConfirm('¿Seguro que quieres comprar ' + name + ' por ' + cost + ' Orbes?', function () {
+        btn.disabled = true;
+        btn.textContent = 'COMPRANDO...';
+        buyCardBackCloud(id)
+          .then(function () {
+            renderProtectorsGrid();
+            renderCardBackPicker();
+          })
+          .catch(function (err) {
+            alert(err.message || 'No se pudo comprar el protector.');
+            btn.disabled = false;
+            btn.textContent = 'COMPRAR';
+          });
+      });
     });
   });
 }
@@ -3655,23 +3676,27 @@ function renderShopDecksGrid() {
   grid.querySelectorAll('[data-buy-deck]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var deckKey = btn.getAttribute('data-buy-deck');
-      btn.disabled = true;
-      btn.textContent = 'COMPRANDO...';
-      buyDeckCloud(deckKey)
-        .then(function (res) {
-          if (econState) {
-            econState.collection = res.collection;
-            econState.ownedPrecons = res.ownedPrecons;
-            econState.coins = res.coins;
-          }
-          renderShopDecksGrid();
-          renderCoinCount();
-        })
-        .catch(function (err) {
-          alert(err.message || 'No se pudo comprar el mazo.');
-          btn.disabled = false;
-          btn.textContent = 'COMPRAR';
-        });
+      var name = DECK_DISPLAY_NAME[deckKey] || deckKey;
+      var cost = getDeckCost(deckKey);
+      showShopPurchaseConfirm('¿Seguro que quieres comprar el mazo ' + name + ' por ' + cost + ' Orbes?', function () {
+        btn.disabled = true;
+        btn.textContent = 'COMPRANDO...';
+        buyDeckCloud(deckKey)
+          .then(function (res) {
+            if (econState) {
+              econState.collection = res.collection;
+              econState.ownedPrecons = res.ownedPrecons;
+              econState.coins = res.coins;
+            }
+            renderShopDecksGrid();
+            renderCoinCount();
+          })
+          .catch(function (err) {
+            alert(err.message || 'No se pudo comprar el mazo.');
+            btn.disabled = false;
+            btn.textContent = 'COMPRAR';
+          });
+      });
     });
   });
 }
@@ -6833,7 +6858,20 @@ document.addEventListener('DOMContentLoaded', function () {
   // Booster select modal
   document.getElementById('boosterModalClose').addEventListener('click', closeBoosterSelectModal);
   document.querySelector('#boosterSelectModal .card-modal-backdrop').addEventListener('click', closeBoosterSelectModal);
-  document.getElementById('boosterOpenBtn').addEventListener('click', openBoosterAndPurchase);
+  document.getElementById('boosterOpenBtn').addEventListener('click', function () {
+    if (!boosterSelectState || boosterSelectState.selectedPack === null) { return; }
+    var setKey = boosterSelectState.setKey;
+    var cost = getBoosterCost(setKey);
+    showShopPurchaseConfirm('¿Seguro que quieres abrir el pack ' + (BOOSTER_NAMES[setKey] || '').toUpperCase() + ' por ' + cost + ' Orbes?', openBoosterAndPurchase);
+  });
+  document.getElementById('shopPurchaseConfirmYes').addEventListener('click', function () {
+    var action = shopPurchaseConfirmAction;
+    hideShopPurchaseConfirm();
+    if (action) { action(); }
+  });
+  document.getElementById('shopPurchaseConfirmNo').addEventListener('click', function () {
+    hideShopPurchaseConfirm();
+  });
 
   // Gift booster modal (Tienda's "PACK GRATIS" slot)
   document.getElementById('giftBoosterModalClose').addEventListener('click', closeGiftBoosterModal);
