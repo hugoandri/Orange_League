@@ -305,6 +305,7 @@
 }
 .shell-logout:hover{color:#efe9dd;filter:brightness(1.25);}
 .shell-logout:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-logout.hidden{display:none;}
 
 /* ===== Shared full-page header (Tienda now; Mazos/Colección/Configuración
    reuse this exact recipe in later phases) ===== */
@@ -876,6 +877,38 @@
 .shell-profile-modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:16px 22px;border-top:1px solid #0b0907;}
 
 .shell-page-meta{font-size:12px;letter-spacing:.14em;color:#9a8d7c;font-family:'Silkscreen',monospace;}
+
+/* ===== Mazo inicial (obligatorio, una sola vez) ===== */
+.shell-starter-deck-intro{
+  text-align:center;font-size:13px;color:#c9bfae;max-width:640px;margin:0 auto 24px;line-height:1.5;
+}
+.shell-starter-deck-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:0 40px;
+  /* Grid's default align-content:normal resolves to stretch (unlike flexbox's
+     flex-start), so without this the lone card row would stretch to fill
+     .shell-decks-body's full height and -- since the cards below are now
+     height:auto instead of a fixed 150px -- balloon into oversized cards
+     with the spacer soaking up all the extra room. Pin the row to its
+     content height instead. */
+  align-content:start;
+}
+/* The starter-deck cards reuse the shared .shell-deck-card row layout
+   (stripe/art/body), but each card now also carries a full-width ELEGIR
+   button as the last child of .shell-deck-card-body -- taller than the
+   Decks screen's cards need. Scoped to .shell-starter-deck-grid so the
+   shared .shell-deck-card (used by the Decks screen's own precon/custom
+   list) keeps its fixed 150px height untouched. */
+.shell-starter-deck-grid .shell-deck-card{height:auto;}
+.shell-starter-deck-pick-btn{
+  display:block;width:100%;box-sizing:border-box;
+  margin:0;padding:10px 0;cursor:pointer;
+  font-family:'Silkscreen',monospace;font-size:12px;letter-spacing:.1em;color:#efe9dd;
+  border:1px solid #0b0907;border-radius:4px;
+  background:linear-gradient(180deg,#4a7a2f,#2f4d1e);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 3px 0 #100e0b;
+}
+.shell-starter-deck-pick-btn:hover{filter:brightness(1.2);}
+.shell-starter-deck-pick-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
 
 /* ===== Selección de mazo ===== */
 .shell-decks-body{flex:1;min-height:0;display:flex;gap:28px;padding:32px 40px 40px;font-family:'Silkscreen',monospace;}
@@ -1676,6 +1709,11 @@
 .shell-match-end-text{font-family:'Pixelify Sans',sans-serif;font-size:28px;font-weight:700;margin:0;text-align:center;}
 .shell-match-end-text.win{color:#8dff62;text-shadow:0 0 20px rgba(141,255,98,.5);}
 .shell-match-end-text.loss{color:#ff6a5a;text-shadow:0 0 20px rgba(255,106,90,.4);}
+.shell-match-end-reward{
+  font-family:'Silkscreen',monospace;font-size:14px;letter-spacing:.08em;
+  color:#e8c14a;text-align:center;margin:8px 0 0;
+}
+.shell-match-end-reward.hidden{display:none;}
 
 .shell-pause-card{width:340px;}
 .shell-pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}

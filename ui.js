@@ -2274,7 +2274,17 @@ function finishMatch(winner) {
   // no-op for local play, same as stopGameClock() is today.
   if (pvpClockTickInterval) { clearInterval(pvpClockTickInterval); pvpClockTickInterval = null; }
   playMatchEndMusic(winner);
+  var rewardEl = document.getElementById('matchEndReward');
+  rewardEl.classList.add('hidden');
   awardMatchResultCloud(winner === 'player' ? 'win' : 'loss')
+    .then(function (res) {
+      // Only a win ever has a nonzero delta (see computeMatchReward) -- a
+      // loss's own "Has Perdido" text already says enough on its own.
+      if (res && res.data && res.data.delta > 0) {
+        rewardEl.textContent = 'Orbes: ' + res.data.delta;
+        rewardEl.classList.remove('hidden');
+      }
+    })
     .catch(function (e) { console.error('No se pudo registrar el resultado de la partida', e); });
   renderBoard(); // shows the final board state (last action's results)
   var textEl = document.getElementById('matchEndText');
@@ -4257,6 +4267,60 @@ function hideDecksScreen() {
   document.getElementById('decksScreen').classList.add('hidden');
 }
 
+// ── Mazo inicial obligatorio (una sola vez, cuenta nueva) ─────────────
+function showStarterDeckScreen() {
+  document.getElementById('menuScreen').classList.add('hidden');
+  document.getElementById('starterDeckScreen').classList.remove('hidden');
+}
+
+function hideStarterDeckScreen() {
+  document.getElementById('starterDeckScreen').classList.add('hidden');
+}
+
+var starterDeckPendingChoice = null;
+
+function wireStarterDeckScreen() {
+  document.querySelectorAll('.shell-starter-deck-pick-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var deckKey = btn.getAttribute('data-starter-deck');
+      starterDeckPendingChoice = deckKey;
+      var name = DECK_DISPLAY_NAME[deckKey] || deckKey;
+      document.getElementById('starterDeckConfirmText').textContent =
+        'Vas a elegir ' + name + ' como tu mazo inicial. Esta elección es permanente y no podrás cambiarla después. ¿Confirmas?';
+      document.getElementById('starterDeckConfirmModal').classList.remove('hidden');
+    });
+  });
+
+  document.getElementById('starterDeckConfirmNo').addEventListener('click', function () {
+    starterDeckPendingChoice = null;
+    document.getElementById('starterDeckConfirmModal').classList.add('hidden');
+  });
+
+  document.getElementById('starterDeckConfirmYes').addEventListener('click', function () {
+    if (!starterDeckPendingChoice) { return; }
+    var deckKey = starterDeckPendingChoice;
+    var yesBtn = document.getElementById('starterDeckConfirmYes');
+    yesBtn.disabled = true;
+    chooseStarterDeckCloud(deckKey)
+      .then(function (res) {
+        if (econState) {
+          econState.collection = res.collection;
+          econState.starterDeckChosen = deckKey;
+          econState.activeDeck = deckKey;
+        }
+        yesBtn.disabled = false;
+        document.getElementById('starterDeckConfirmModal').classList.add('hidden');
+        hideStarterDeckScreen();
+        showMenu();
+      })
+      .catch(function (e) {
+        yesBtn.disabled = false;
+        document.getElementById('starterDeckConfirmText').textContent =
+          (e && e.message) || 'No se pudo guardar tu elección. Intenta de nuevo.';
+      });
+  });
+}
+
 // ── Deck Builder (Fase 4: mazos personalizados) ───────────────────────
 // Real 1999 Base Set deck-construction rules, mirrored client-side purely
 // for responsive UI feedback (add/remove buttons enable/disable live) --
@@ -4736,7 +4800,16 @@ var PRECON_DECK_ART = {
 function renderPvpDeckPicker(containerId, onPicked) {
   var el = document.getElementById(containerId);
   if (!el) { return; }
-  var options = PRECON_DECK_KEYS.map(function (key) {
+  // Same starter-deck lock the Decks screen's own click handler and the
+  // server (validateDeckId, functions/index.js) already enforce -- once
+  // starterDeckChosen is a real, chosen deckKey (not null/undefined), the
+  // player can only ever bring THAT one precon into a PVP room, so don't
+  // even offer the other 3. A grandfathered account (starterDeckChosen
+  // absent) or the theoretical not-yet-chosen edge case (null) is falsy
+  // here and sees all 4 precons exactly as before -- zero behavior change.
+  var lockedPrecon = (econState && econState.starterDeckChosen) || null;
+  var preconKeys = lockedPrecon ? [lockedPrecon] : PRECON_DECK_KEYS;
+  var options = preconKeys.map(function (key) {
     var art = PRECON_DECK_ART[key] || {};
     return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
   });
@@ -6244,6 +6317,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  wireStarterDeckScreen();
+
   document.getElementById('menuDeck').addEventListener('click', function () {
     hideMenu();
     showDecksScreen();
@@ -6256,6 +6331,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var elDeckKey = el.getAttribute('data-deck');
     if (!DECKLISTS[elDeckKey]) { return; }
     el.addEventListener('click', function () {
+      // Once a starter deck is chosen (a real deckKey, not null/undefined),
+      // the other 3 precons stay visible but can't become the active deck
+      // -- the real enforcement is server-side (updateActiveDeck's own
+      // lock, functions/index.js); this is just UX so the player isn't
+      // confused by a click that would silently fail on Guardar.
+      var chosen = econState && econState.starterDeckChosen;
+      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && elDeckKey !== chosen;
+      if (isLockedPrecon) {
+        showTargetHintModal('Ya elegiste tu mazo inicial -- este precon está bloqueado.');
+        return;
+      }
       selectDeckCard(elDeckKey);
     });
   });

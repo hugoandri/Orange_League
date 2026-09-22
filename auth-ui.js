@@ -166,6 +166,15 @@
       firebase.auth().signOut();
     });
 
+    // Desktop (Electron) app only -- window.electronAPI only exists when
+    // electron/preload.js actually ran, i.e. never in a plain browser tab.
+    if (window.electronAPI) {
+      document.getElementById('menuQuitBtn').classList.remove('hidden');
+      document.getElementById('menuQuitBtn').addEventListener('click', function () {
+        window.electronAPI.quitApp();
+      });
+    }
+
     // ── Profile widget + edit modal ──────────────────────────────────
     var pendingPhoto = null;
 
@@ -305,7 +314,16 @@
         checkLiveDuelBanner();
         showAccountVerifyingOverlay();
         if (unsubscribeEconomy) { unsubscribeEconomy(); }
-        unsubscribeEconomy = initEconomyListener(user.uid, hideAccountVerifyingOverlay);
+        unsubscribeEconomy = initEconomyListener(user.uid, function () {
+          hideAccountVerifyingOverlay();
+          // econState.starterDeckChosen === null (not undefined) means this
+          // account was created after the starter-deck feature shipped and
+          // hasn't chosen yet -- a grandfathered account's field is simply
+          // absent (undefined), which deliberately does NOT trigger this.
+          if (econState && econState.starterDeckChosen === null) {
+            showStarterDeckScreen();
+          }
+        });
         if (unsubscribeNews) { unsubscribeNews(); }
         unsubscribeNews = initNewsListener();
         if (unsubscribeCustomPacks) { unsubscribeCustomPacks(); }

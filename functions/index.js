@@ -3,7 +3,7 @@ const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const {
   computeMatchReward, BOOSTER_COST, drawBoosterCards, drawCustomPackCards, PROTECTOR_COST, PROTECTOR_IDS,
-  CUSTOM_DECK_SLOTS, ownedCountsByName, supertypeByName, validateCustomDeck
+  CUSTOM_DECK_SLOTS, ownedCountsByName, supertypeByName, validateCustomDeck, starterDeckGrants
 } = require('./lib/pureEconomy');
 const CARD_CATALOG = require('./lib/cardCatalog');
 const POKEMON_EVOLUTION = require('./lib/pokemonEvolution');
@@ -113,6 +113,7 @@ exports.createAccount = onCall(async (request) => {
     username: username,
     coins: 150,
     collection: {},
+    starterDeckChosen: null,
     createdAt: FieldValue.serverTimestamp()
   });
   try {
@@ -154,7 +155,7 @@ exports.awardMatchResult = onCall(async (request) => {
     return updated;
   });
 
-  return { coins: newCoins };
+  return { coins: newCoins, delta: delta };
 });
 
 async function fetchEconomyConfig() {
@@ -339,8 +340,24 @@ exports.updateActiveDeck = onCall(async (request) => {
   const deckKey = (request.data || {}).deckKey;
   const uid = request.auth.uid;
 
+  // Once starterDeckChosen is a real deckKey (not null, not absent), the
+  // player may only ever have THAT precon as their active deck -- switching
+  // to any of the other 3 unpicked precons is blocked here, the real
+  // enforcement point (the Decks screen's own click handler, ui.js, is UX
+  // only and could be bypassed by calling this function directly). A
+  // grandfathered account (starterDeckChosen absent/undefined) is
+  // completely unaffected -- the check below only ever fires when the
+  // field is a non-null string that differs from the requested deckKey.
   if (VALID_DECK_KEYS.indexOf(deckKey) !== -1) {
-    await admin.firestore().collection('users').doc(uid).set({ activeDeck: deckKey }, { merge: true });
+    const userRef = admin.firestore().collection('users').doc(uid);
+    await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      const uData = snap.exists ? snap.data() : {};
+      if (uData.starterDeckChosen && uData.starterDeckChosen !== deckKey) {
+        throw new HttpsError('failed-precondition', 'Ya elegiste tu mazo inicial -- no puedes cambiarte a otro precon.');
+      }
+      tx.set(userRef, { activeDeck: deckKey }, { merge: true });
+    });
     return { activeDeck: deckKey };
   }
   // A custom deck slot ('custom-1'..'custom-4') is only a legal activeDeck
@@ -361,6 +378,47 @@ exports.updateActiveDeck = onCall(async (request) => {
     return { activeDeck: deckKey };
   }
   throw new HttpsError('invalid-argument', 'Mazo inválido.');
+});
+
+// The starter-deck counterpart to openBooster: grants a fixed, known
+// 60-card decklist instead of a random pull, but the same trust boundary
+// applies -- the grant is entirely server-computed (starterDeckGrants,
+// pureEconomy.js) from a server-side decklist copy, never from anything
+// the client sends. The transaction's own starterDeckChosen check (must be
+// exactly null, not absent and not already a string) is the real
+// enforcement of "choose once, permanently" -- the client-side mandatory
+// screen (ui.js) is UX only.
+exports.chooseStarterDeck = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const deckKey = (request.data || {}).deckKey;
+  if (VALID_DECK_KEYS.indexOf(deckKey) === -1) {
+    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const grants = starterDeckGrants(deckKey, CARD_CATALOG.base);
+
+  const newCollection = await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? snap.data() : {};
+    if (data.starterDeckChosen !== null) {
+      throw new HttpsError('failed-precondition', 'Ya elegiste tu mazo inicial.');
+    }
+    const updatedCollection = Object.assign({}, data.collection);
+    Object.keys(grants).forEach(function (key) {
+      updatedCollection[key] = (updatedCollection[key] || 0) + grants[key];
+    });
+    tx.update(userRef, {
+      collection: updatedCollection,
+      starterDeckChosen: deckKey,
+      activeDeck: deckKey
+    });
+    return updatedCollection;
+  });
+
+  return { collection: newCollection };
 });
 
 // Saves (creates or overwrites) one of the player's up to 4 custom-deck
@@ -997,7 +1055,21 @@ const PRECON_DECK_KEYS_LIST = ['overgrowth', 'blackout', 'zap', 'brushfire'];
 // Throws if deckId isn't usable -- either a real precon key, or
 // 'custom:<slot>' where the caller actually has a saved deck in that slot.
 async function validateDeckId(uid, deckId) {
-  if (PRECON_DECK_KEYS_LIST.indexOf(deckId) !== -1) { return; }
+  if (PRECON_DECK_KEYS_LIST.indexOf(deckId) !== -1) {
+    // Same starter-deck lock updateActiveDeck (above) already enforces for
+    // local play -- mirrored here so "Duelo en Vivo" can't be used as a
+    // bypass. Three-state-correct on purpose: starterDeckChosen absent
+    // (grandfathered account) or null (no choice made yet -- shouldn't
+    // reach a PvP room anyway since the mandatory screen gates the menu,
+    // but defense-in-depth) is falsy and never blocks; only a real,
+    // different, already-chosen deckKey string blocks.
+    const userSnap = await admin.firestore().collection('users').doc(uid).get();
+    const uData = userSnap.data() || {};
+    if (uData.starterDeckChosen && uData.starterDeckChosen !== deckId) {
+      throw new HttpsError('invalid-argument', 'Ya elegiste tu mazo inicial -- no puedes usar otro precon en Duelo en Vivo.');
+    }
+    return;
+  }
   const m = /^custom:(.+)$/.exec(deckId || '');
   if (!m || CUSTOM_DECK_SLOTS.indexOf(m[1]) === -1) {
     throw new HttpsError('invalid-argument', 'Mazo inválido.');
