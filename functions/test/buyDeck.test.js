@@ -74,6 +74,46 @@ async function main() {
   assert.deepStrictEqual(rebuyRes.data.ownedPrecons.sort(), ['blackout', 'overgrowth'], 'ownedPrecons is unchanged by a repeat purchase');
   console.log('PASS: buyDeck is idempotent -- buying an already-owned deck again does not charge or error');
 
+  // --- Regression: chooseStarterDeck must MERGE into ownedPrecons, not
+  // overwrite it. buyDeck has no dependency on starterDeckChosen -- a
+  // player can own coins (e.g. via createStarsInvoice, a real-money path
+  // with no starterDeckChosen gate) and call buyDeck successfully while
+  // starterDeckChosen is still null. If they then call chooseStarterDeck
+  // for a DIFFERENT deck, ownedPrecons must retain the earlier purchase,
+  // not silently drop it (which would let a subsequent buyDeck call for
+  // that same deck double-charge for cards the player already owns).
+  const acct2 = await createAccount({ username: 'BuyDeckTester2', email: 'buydecktester2@example.com', password: 'password123' });
+  const uid2 = acct2.data.uid;
+  await signInWithEmailAndPassword(auth, 'buydecktester2@example.com', 'password123');
+
+  const testEnv2 = await initializeTestEnvironment({ projectId: 'demo-test', firestore: { host: '127.0.0.1', port: 8080 } });
+  await testEnv2.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().collection('users').doc(uid2).update({ coins: 5000 });
+  });
+  await testEnv2.cleanup();
+
+  // Buy a precon BEFORE ever choosing a starter deck (starterDeckChosen
+  // is still null here -- mirrors a player who topped up Orbes via
+  // createStarsInvoice, which has no starterDeckChosen gate).
+  const preStarterBuy = await buyDeck({ deckKey: 'blackout' });
+  assert.deepStrictEqual(preStarterBuy.data.ownedPrecons, ['blackout'], 'buyDeck works even before starterDeckChosen is set');
+  const coinsAfterFirstBuy = preStarterBuy.data.coins;
+  assert.strictEqual(coinsAfterFirstBuy, 5000 - 1500, 'the pre-starter purchase charged exactly 1500');
+
+  // Now choose a DIFFERENT deck as the starter -- ownedPrecons must merge
+  // (['blackout', 'overgrowth']), not overwrite to just ['overgrowth'].
+  await chooseStarterDeck({ deckKey: 'overgrowth' });
+  const uid2DocRef = doc(db, 'users', uid2);
+  const afterStarterSnap = await getDoc(uid2DocRef);
+  assert.deepStrictEqual(afterStarterSnap.data().ownedPrecons.sort(), ['blackout', 'overgrowth'], 'chooseStarterDeck merges into ownedPrecons additively -- it must not erase a deck bought earlier');
+  console.log('PASS: chooseStarterDeck merges ownedPrecons instead of overwriting it');
+
+  // Re-buying the already-owned deck must NOT charge a second time.
+  const rebuyAfterStarter = await buyDeck({ deckKey: 'blackout' });
+  assert.strictEqual(rebuyAfterStarter.data.coins, coinsAfterFirstBuy, 'buying an already-owned deck again after chooseStarterDeck does not double-charge (coin balance unchanged)');
+  assert.deepStrictEqual(rebuyAfterStarter.data.ownedPrecons.sort(), ['blackout', 'overgrowth'], 'ownedPrecons is still both decks after the repeat purchase');
+  console.log('PASS: no double-charge for a deck bought before chooseStarterDeck ran -- the reviewer-found exploit is fixed');
+
   // --- Invalid deckKey ---
   try {
     await buyDeck({ deckKey: 'not-a-real-deck' });

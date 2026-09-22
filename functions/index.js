@@ -412,11 +412,13 @@ exports.chooseStarterDeck = onCall(async (request) => {
     Object.keys(grants).forEach(function (key) {
       updatedCollection[key] = (updatedCollection[key] || 0) + grants[key];
     });
+    const owned = Array.isArray(data.ownedPrecons) ? data.ownedPrecons : [];
+    const newOwnedPrecons = owned.indexOf(deckKey) === -1 ? owned.concat([deckKey]) : owned;
     tx.update(userRef, {
       collection: updatedCollection,
       starterDeckChosen: deckKey,
       activeDeck: deckKey,
-      ownedPrecons: [deckKey]
+      ownedPrecons: newOwnedPrecons
     });
     return updatedCollection;
   });
