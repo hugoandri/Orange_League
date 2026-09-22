@@ -114,6 +114,7 @@ exports.createAccount = onCall(async (request) => {
     coins: 150,
     collection: {},
     starterDeckChosen: null,
+    ownedPrecons: [],
     createdAt: FieldValue.serverTimestamp()
   });
   try {
@@ -164,7 +165,8 @@ async function fetchEconomyConfig() {
   return {
     boosterCosts: Object.assign({ base: 100, jungle: 100, fossil: 100 }, data.boosterCosts || {}),
     protectorCosts: Object.assign({}, data.protectorCosts || {}),
-    starsPackages: Object.assign({}, STARS_PACKAGES, data.starsPackages || {})
+    starsPackages: Object.assign({}, STARS_PACKAGES, data.starsPackages || {}),
+    deckCosts: Object.assign({ overgrowth: 1500, blackout: 1500, zap: 1500, brushfire: 1500 }, data.deckCosts || {})
   };
 }
 
@@ -341,20 +343,27 @@ exports.updateActiveDeck = onCall(async (request) => {
   const uid = request.auth.uid;
 
   // Once starterDeckChosen is a real deckKey (not null, not absent), the
-  // player may only ever have THAT precon as their active deck -- switching
-  // to any of the other 3 unpicked precons is blocked here, the real
-  // enforcement point (the Decks screen's own click handler, ui.js, is UX
-  // only and could be bypassed by calling this function directly). A
-  // grandfathered account (starterDeckChosen absent/undefined) is
-  // completely unaffected -- the check below only ever fires when the
-  // field is a non-null string that differs from the requested deckKey.
+  // player may only ever have an OWNED precon (starter choice plus any
+  // buyDeck purchases, tracked in ownedPrecons) as their active deck --
+  // switching to any unowned precon is blocked here, the real enforcement
+  // point (the Decks screen's own click handler, ui.js, is UX only and
+  // could be bypassed by calling this function directly). An account that
+  // predates ownedPrecons (chose a starter deck before that field existed)
+  // falls back to treating starterDeckChosen alone as its owned set, so it
+  // isn't locked out of the one deck it actually owns. A grandfathered
+  // account that never chose a starter deck at all (starterDeckChosen
+  // absent/undefined) is completely unaffected -- the check below only
+  // ever fires when starterDeckChosen is a non-null string.
   if (VALID_DECK_KEYS.indexOf(deckKey) !== -1) {
     const userRef = admin.firestore().collection('users').doc(uid);
     await admin.firestore().runTransaction(async (tx) => {
       const snap = await tx.get(userRef);
       const uData = snap.exists ? snap.data() : {};
-      if (uData.starterDeckChosen && uData.starterDeckChosen !== deckKey) {
-        throw new HttpsError('failed-precondition', 'Ya elegiste tu mazo inicial -- no puedes cambiarte a otro precon.');
+      const owned = Array.isArray(uData.ownedPrecons)
+        ? uData.ownedPrecons
+        : (uData.starterDeckChosen ? [uData.starterDeckChosen] : []);
+      if (uData.starterDeckChosen && owned.indexOf(deckKey) === -1) {
+        throw new HttpsError('failed-precondition', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
       }
       tx.set(userRef, { activeDeck: deckKey }, { merge: true });
     });
@@ -410,15 +419,72 @@ exports.chooseStarterDeck = onCall(async (request) => {
     Object.keys(grants).forEach(function (key) {
       updatedCollection[key] = (updatedCollection[key] || 0) + grants[key];
     });
+    const owned = Array.isArray(data.ownedPrecons) ? data.ownedPrecons : [];
+    const newOwnedPrecons = owned.indexOf(deckKey) === -1 ? owned.concat([deckKey]) : owned;
     tx.update(userRef, {
       collection: updatedCollection,
       starterDeckChosen: deckKey,
-      activeDeck: deckKey
+      activeDeck: deckKey,
+      ownedPrecons: newOwnedPrecons
     });
     return updatedCollection;
   });
 
   return { collection: newCollection };
+});
+
+// A precon a player already owns (via the free starter choice OR a
+// previous purchase here) can never be bought again -- mirrors
+// buyCardBack's exact idempotent shape (silent success, no charge, no
+// error) rather than throwing, so a stale "COMPRAR" button or a double-
+// click can never double-charge. The actual card grant reuses
+// starterDeckGrants verbatim (the same server-side-only computation
+// chooseStarterDeck already relies on) -- buying a deck grants EXACTLY
+// what choosing it as your starter deck would have.
+exports.buyDeck = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
+  }
+  const deckKey = (request.data || {}).deckKey;
+  if (VALID_DECK_KEYS.indexOf(deckKey) === -1) {
+    throw new HttpsError('invalid-argument', 'Mazo inválido.');
+  }
+
+  const userRef = admin.firestore().collection('users').doc(request.auth.uid);
+  const ecoConfig = await fetchEconomyConfig();
+  const cost = (ecoConfig.deckCosts && typeof ecoConfig.deckCosts[deckKey] === 'number')
+    ? ecoConfig.deckCosts[deckKey]
+    : 1500;
+  const grants = starterDeckGrants(deckKey, CARD_CATALOG.base);
+
+  return admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? snap.data() : null;
+    if (!data) {
+      throw new HttpsError('failed-precondition', 'Cuenta no encontrada.');
+    }
+    const owned = Array.isArray(data.ownedPrecons)
+      ? data.ownedPrecons
+      : (data.starterDeckChosen ? [data.starterDeckChosen] : []);
+    if (owned.indexOf(deckKey) !== -1) {
+      return { collection: data.collection || {}, ownedPrecons: owned, coins: data.coins };
+    }
+    if (data.coins < cost) {
+      throw new HttpsError('failed-precondition', 'No tienes suficientes Orbes.');
+    }
+    const updatedCollection = Object.assign({}, data.collection);
+    Object.keys(grants).forEach(function (key) {
+      updatedCollection[key] = (updatedCollection[key] || 0) + grants[key];
+    });
+    const newOwnedPrecons = owned.concat([deckKey]);
+    const newCoins = data.coins - cost;
+    tx.update(userRef, {
+      coins: newCoins,
+      collection: updatedCollection,
+      ownedPrecons: newOwnedPrecons
+    });
+    return { collection: updatedCollection, ownedPrecons: newOwnedPrecons, coins: newCoins };
+  });
 });
 
 // Saves (creates or overwrites) one of the player's up to 4 custom-deck
@@ -1062,11 +1128,16 @@ async function validateDeckId(uid, deckId) {
     // (grandfathered account) or null (no choice made yet -- shouldn't
     // reach a PvP room anyway since the mandatory screen gates the menu,
     // but defense-in-depth) is falsy and never blocks; only a real,
-    // different, already-chosen deckKey string blocks.
+    // already-chosen starterDeckChosen paired with a deckId that isn't in
+    // the account's owned set (ownedPrecons, falling back to just
+    // [starterDeckChosen] for accounts that predate that field) blocks.
     const userSnap = await admin.firestore().collection('users').doc(uid).get();
     const uData = userSnap.data() || {};
-    if (uData.starterDeckChosen && uData.starterDeckChosen !== deckId) {
-      throw new HttpsError('invalid-argument', 'Ya elegiste tu mazo inicial -- no puedes usar otro precon en Duelo en Vivo.');
+    const owned = Array.isArray(uData.ownedPrecons)
+      ? uData.ownedPrecons
+      : (uData.starterDeckChosen ? [uData.starterDeckChosen] : []);
+    if (uData.starterDeckChosen && owned.indexOf(deckId) === -1) {
+      throw new HttpsError('invalid-argument', 'No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
     }
     return;
   }

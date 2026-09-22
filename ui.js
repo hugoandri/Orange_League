@@ -3392,9 +3392,11 @@ function showShopTab(tab) {
   });
   document.getElementById('shopPacksPanel').classList.toggle('hidden', tab !== 'packs');
   document.getElementById('shopProtectorsPanel').classList.toggle('hidden', tab !== 'protectores');
+  document.getElementById('shopDecksPanel').classList.toggle('hidden', tab !== 'mazos');
   var orbesPanel = document.getElementById('shopOrbesPanel');
   if (orbesPanel) { orbesPanel.classList.toggle('hidden', tab !== 'orbes'); }
   if (tab === 'protectores') { renderProtectorsGrid(); }
+  if (tab === 'mazos') { renderShopDecksGrid(); }
   if (tab === 'orbes') { renderOrbesShopGrid(); }
 }
 
@@ -3420,6 +3422,13 @@ function getProtectorCost(id) {
   }
   var opt = CARD_BACK_OPTIONS.filter(function (o) { return o.id === id; })[0];
   return (opt && opt.cost) ? opt.cost : 75;
+}
+
+function getDeckCost(deckKey) {
+  if (globalEconomyConfig && globalEconomyConfig.deckCosts && typeof globalEconomyConfig.deckCosts[deckKey] === 'number') {
+    return globalEconomyConfig.deckCosts[deckKey];
+  }
+  return 1500;
 }
 
 function getStarsShopPackages() {
@@ -3609,6 +3618,57 @@ function renderProtectorsGrid() {
         })
         .catch(function (err) {
           alert(err.message || 'No se pudo comprar el protector.');
+          btn.disabled = false;
+          btn.textContent = 'COMPRAR';
+        });
+    });
+  });
+}
+
+// Mazos: additional preconstructed decks bought with real coins (Cloud
+// Function, see buyDeckCloud) -- mirrors renderProtectorsGrid's exact
+// structure (per-item owned-vs-buyable footer, disable-on-click,
+// re-render-on-success, error-and-re-enable-on-failure).
+function renderShopDecksGrid() {
+  var grid = document.getElementById('shopDecksGrid');
+  if (!grid || !econState) { return; }
+
+  var owned = econState.ownedPrecons || [];
+  grid.innerHTML = PRECON_DECK_KEYS.map(function (key) {
+    var art = PRECON_DECK_ART[key] || {};
+    var isOwned = owned.indexOf(key) !== -1;
+    var cost = getDeckCost(key);
+    var footer = isOwned
+      ? '<span class="shell-shop-card-owned-label">EN TU COLECCIÓN</span>'
+      : '<span class="shell-shop-card-price">' + pixelCoinHtml('oro', 3) + pixelDigitsHtml(cost, 'oro', 3) + '</span>' +
+        '<button type="button" class="shell-shop-card-btn" data-buy-deck="' + key + '">COMPRAR</button>';
+    return '<div class="shell-shop-card' + (isOwned ? ' shell-shop-card-owned' : '') + '">' +
+      '<div class="shell-deck-card-art"><img src="' + art.img + '" alt="' + escapeHtml(DECK_DISPLAY_NAME[key] || key) + '"></div>' +
+      '<div class="shell-shop-card-text">' +
+        '<div class="shell-shop-card-name">' + escapeHtml((DECK_DISPLAY_NAME[key] || key).toUpperCase()) + '</div>' +
+        '<div class="shell-shop-card-desc">' + escapeHtml(art.types || '') + '</div>' +
+      '</div>' +
+      '<div class="shell-shop-card-footer">' + footer + '</div>' +
+    '</div>';
+  }).join('');
+
+  grid.querySelectorAll('[data-buy-deck]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var deckKey = btn.getAttribute('data-buy-deck');
+      btn.disabled = true;
+      btn.textContent = 'COMPRANDO...';
+      buyDeckCloud(deckKey)
+        .then(function (res) {
+          if (econState) {
+            econState.collection = res.collection;
+            econState.ownedPrecons = res.ownedPrecons;
+            econState.coins = res.coins;
+          }
+          renderShopDecksGrid();
+          renderCoinCount();
+        })
+        .catch(function (err) {
+          alert(err.message || 'No se pudo comprar el mazo.');
           btn.disabled = false;
           btn.textContent = 'COMPRAR';
         });
@@ -4307,6 +4367,7 @@ function wireStarterDeckScreen() {
           econState.collection = res.collection;
           econState.starterDeckChosen = deckKey;
           econState.activeDeck = deckKey;
+          econState.ownedPrecons = [deckKey];
         }
         yesBtn.disabled = false;
         document.getElementById('starterDeckConfirmModal').classList.add('hidden');
@@ -4803,12 +4864,18 @@ function renderPvpDeckPicker(containerId, onPicked) {
   // Same starter-deck lock the Decks screen's own click handler and the
   // server (validateDeckId, functions/index.js) already enforce -- once
   // starterDeckChosen is a real, chosen deckKey (not null/undefined), the
-  // player can only ever bring THAT one precon into a PVP room, so don't
-  // even offer the other 3. A grandfathered account (starterDeckChosen
-  // absent) or the theoretical not-yet-chosen edge case (null) is falsy
-  // here and sees all 4 precons exactly as before -- zero behavior change.
-  var lockedPrecon = (econState && econState.starterDeckChosen) || null;
-  var preconKeys = lockedPrecon ? [lockedPrecon] : PRECON_DECK_KEYS;
+  // player can only ever bring an OWNED precon (econState.ownedPrecons --
+  // the starter choice plus any buyDeck purchases) into a PVP room, so
+  // unowned precons aren't offered. econState.ownedPrecons already falls
+  // back to [starterDeckChosen] (see initEconomyListener, economy.js) for
+  // accounts that predate the ownedPrecons field, so they still see the
+  // one precon they actually own instead of none. A grandfathered account
+  // (starterDeckChosen absent) or the theoretical not-yet-chosen edge case
+  // (null) is falsy here and sees all 4 precons exactly as before -- zero
+  // behavior change.
+  var chosen = (econState && econState.starterDeckChosen) || null;
+  var owned = (econState && econState.ownedPrecons) || [];
+  var preconKeys = chosen ? PRECON_DECK_KEYS.filter(function (key) { return owned.indexOf(key) !== -1; }) : PRECON_DECK_KEYS;
   var options = preconKeys.map(function (key) {
     var art = PRECON_DECK_ART[key] || {};
     return { id: key, label: DECK_DISPLAY_NAME[key] || key, img: art.img, stripe: art.stripe || '', types: art.types || '' };
@@ -6332,14 +6399,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!DECKLISTS[elDeckKey]) { return; }
     el.addEventListener('click', function () {
       // Once a starter deck is chosen (a real deckKey, not null/undefined),
-      // the other 3 precons stay visible but can't become the active deck
-      // -- the real enforcement is server-side (updateActiveDeck's own
-      // lock, functions/index.js); this is just UX so the player isn't
-      // confused by a click that would silently fail on Guardar.
+      // any precon the player doesn't own (not in econState.ownedPrecons --
+      // the starter choice plus any buyDeck purchases) stays visible but
+      // can't become the active deck -- the real enforcement is server-side
+      // (updateActiveDeck's own lock, functions/index.js); this is just UX
+      // so the player isn't confused by a click that would silently fail on
+      // Guardar. econState.ownedPrecons already falls back to
+      // [starterDeckChosen] for accounts that predate that field, so they
+      // aren't locked out of the one deck they actually own.
       var chosen = econState && econState.starterDeckChosen;
-      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && elDeckKey !== chosen;
+      var owned = (econState && econState.ownedPrecons) || [];
+      var isLockedPrecon = chosen && PRECON_DECK_KEYS.indexOf(elDeckKey) !== -1 && owned.indexOf(elDeckKey) === -1;
       if (isLockedPrecon) {
-        showTargetHintModal('Ya elegiste tu mazo inicial -- este precon está bloqueado.');
+        showTargetHintModal('No eres dueño de ese mazo -- cómpralo en la Tienda o elige el que ya tienes.');
         return;
       }
       selectDeckCard(elDeckKey);
