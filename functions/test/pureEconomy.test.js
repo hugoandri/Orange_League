@@ -7,9 +7,9 @@ console.log('PASS: BOOSTER_COST is 100');
 assert.strictEqual(PROTECTOR_COST, 75, 'a protector costs 75 coins');
 console.log('PASS: PROTECTOR_COST is 75');
 
-assert.strictEqual(PROTECTOR_IDS.length, 17, 'there are 17 real protectors for sale');
+assert.strictEqual(PROTECTOR_IDS.length, 16, 'there are 16 real protectors for sale');
 assert.strictEqual(new Set(PROTECTOR_IDS).size, PROTECTOR_IDS.length, 'no duplicate protector ids');
-console.log('PASS: PROTECTOR_IDS has 17 unique ids');
+console.log('PASS: PROTECTOR_IDS has 16 unique ids');
 
 assert.strictEqual(computeMatchReward('win'), 75, 'a win pays 75 coins');
 console.log('PASS: win reward is 75');

@@ -20,7 +20,6 @@ var PROTECTOR_IDS = [
   'protector_messi',
   'protector_ronaldo',
   'protector_pikachu_sorprendido',
-  'protector_six_seven',
   'protector_trollface',
   'protector_fuuuu',
   'protector_remielle'
