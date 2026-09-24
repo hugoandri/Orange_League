@@ -243,6 +243,11 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
    *behind* it, invisible, until closing the booster modal revealed it.
    One level higher guarantees it always wins regardless of DOM order. */
 #cardModal{z-index:220;}
+/* Same reasoning as #cardModal above: the booster-pack "abrir" button opens
+   this confirm step without closing #boosterSelectModal behind it, and at
+   the shared z-index:210 that modal sits later in the markup, so it painted
+   over the confirm dialog instead of the other way around. */
+#shopPurchaseConfirmModal{z-index:220;}
 .card-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);}
 
 /* ===================== AUTH SCREEN ===================== */
