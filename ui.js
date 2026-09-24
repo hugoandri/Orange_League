@@ -3454,6 +3454,18 @@ function hideShopPurchaseConfirm() {
   shopPurchaseConfirmAction = null;
 }
 
+// Full-screen blocking spinner covering the SÍ-to-resolved gap of any Shop
+// purchase (see index.html's comment on the element) -- shown right after
+// SÍ, COMPRAR and hidden by each purchase action itself once its Cloud
+// Function call settles (openBoosterAndPurchase, and the protector/deck
+// buy handlers below).
+function showShopPurchaseProcessing() {
+  document.getElementById('shopPurchaseProcessingOverlay').classList.remove('hidden');
+}
+function hideShopPurchaseProcessing() {
+  document.getElementById('shopPurchaseProcessingOverlay').classList.add('hidden');
+}
+
 // Builds the card grid -- called once per screen-open (showShopScreen), not
 // on every economy update (see updateShopBalance above).
 function renderShopScreen() {
@@ -3632,10 +3644,12 @@ function renderProtectorsGrid() {
         btn.textContent = 'COMPRANDO...';
         buyCardBackCloud(id)
           .then(function () {
+            hideShopPurchaseProcessing();
             renderProtectorsGrid();
             renderCardBackPicker();
           })
           .catch(function (err) {
+            hideShopPurchaseProcessing();
             alert(err.message || 'No se pudo comprar el protector.');
             btn.disabled = false;
             btn.textContent = 'COMPRAR';
@@ -3687,10 +3701,12 @@ function renderShopDecksGrid() {
               econState.ownedPrecons = res.ownedPrecons;
               econState.coins = res.coins;
             }
+            hideShopPurchaseProcessing();
             renderShopDecksGrid();
             renderCoinCount();
           })
           .catch(function (err) {
+            hideShopPurchaseProcessing();
             alert(err.message || 'No se pudo comprar el mazo.');
             btn.disabled = false;
             btn.textContent = 'COMPRAR';
@@ -4060,10 +4076,12 @@ function openBoosterAndPurchase() {
   document.getElementById('boosterOpenBtn').disabled = true;
   openBoosterCloud(setKey)
     .then(function (cards) {
+      hideShopPurchaseProcessing();
       closeBoosterSelectModal();
       showBoosterResult(cards, setKey);
     })
     .catch(function (err) {
+      hideShopPurchaseProcessing();
       alert(err.message || 'No se pudo abrir el pack.');
       document.getElementById('boosterOpenBtn').disabled = false;
     });
@@ -6866,7 +6884,10 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('shopPurchaseConfirmYes').addEventListener('click', function () {
     var action = shopPurchaseConfirmAction;
     hideShopPurchaseConfirm();
-    if (action) { action(); }
+    if (action) {
+      showShopPurchaseProcessing();
+      action();
+    }
   });
   document.getElementById('shopPurchaseConfirmNo').addEventListener('click', function () {
     hideShopPurchaseConfirm();

@@ -49,6 +49,14 @@
        (same pattern as #appLoadingOverlay above) in case it never does. -->
   <div id="accountVerifyingOverlay" class="shell-full-overlay hidden"><div class="shell-loading-spinner"></div><div class="shell-loading-text">VERIFICANDO CUENTA…</div></div>
 
+  <!-- Shown the instant the player confirms any Shop purchase (pack, mazo,
+       protector) until the Cloud Function call resolves -- without this the
+       booster-select/shop screen sat there fully clickable while the charge
+       was in flight, letting a second click double-fire the purchase.
+       Hidden by hideShopPurchaseProcessing() (ui.js) on both success and
+       failure. -->
+  <div id="shopPurchaseProcessingOverlay" class="shell-full-overlay hidden"><div class="shell-loading-spinner"></div><div class="shell-loading-text">PROCESANDO TU COMPRA…</div></div>
+
   <!-- ===== AUTH (login / crear cuenta / olvidé mi contraseña) ===== -->
   <div id="authScreen">
     <div class="shell-viewport">
