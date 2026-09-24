@@ -6,6 +6,13 @@ function createWindow() {
     width: 1400,
     height: 900,
     title: 'Orange League',
+    // Without this, macOS only uses the window's first click to bring it to
+    // the foreground -- it does NOT reach the web content, so a user who
+    // opens the app and immediately clicks a field (e.g. the signup form)
+    // then types gets nothing: that first click never actually focused the
+    // input. Needed on every launch since a freshly opened window is never
+    // already focused.
+    acceptsFirstMouse: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
