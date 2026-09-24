@@ -5,5 +5,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 // desktop app's UI (ui.js/auth-ui.js) gets to tell it's running in Electron
 // and to ask the main process to quit.
 contextBridge.exposeInMainWorld('electronAPI', {
-  quitApp: function () { ipcRenderer.send('quit-app'); }
+  quitApp: function () { ipcRenderer.send('quit-app'); },
+  checkForUpdates: function () { ipcRenderer.send('check-for-updates'); },
+  installUpdate: function () { ipcRenderer.send('install-update'); },
+  onUpdateStatus: function (callback) {
+    ipcRenderer.on('update-status', function (event, data) { callback(data); });
+  }
 });

@@ -228,6 +228,7 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
 #deckBuilderVersionModal{z-index:210;}
 #targetHintModal{z-index:210;}
 #deckSearchModal{z-index:210;}
+#updateConfirmModal{z-index:210;}
 #choicePickerGrid button{
   background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:6px;
   padding:10px 16px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;

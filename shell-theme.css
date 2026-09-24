@@ -236,7 +236,24 @@
   background:linear-gradient(180deg,rgba(11,10,9,0),rgba(11,10,9,.9) 40%);
   border-top:1px solid rgba(255,255,255,.06);
 }
+.shell-version-group{display:flex;align-items:center;gap:12px;}
 .shell-version{font-size:11px;letter-spacing:.16em;color:#6d6155;}
+.shell-update-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;padding:0;cursor:pointer;font-size:15px;
+  border:1px solid #0b0907;border-radius:50%;color:#a49785;
+  background:linear-gradient(180deg,#332e27,#201c18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 2px 0 #100e0b;
+  transition:all .15s ease;
+}
+.shell-update-btn:hover{color:#8dff62;filter:brightness(1.25);}
+.shell-update-btn:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
+.shell-update-btn.hidden{display:none;}
+/* Spinning while "checking"/"downloading" -- see auth-ui.js's setUpdateBtnState. */
+.shell-update-btn.checking i,.shell-update-btn.downloading i{animation:shell-update-spin 1s linear infinite;}
+@keyframes shell-update-spin{to{transform:rotate(360deg);}}
+.shell-update-status{font-size:11px;letter-spacing:.1em;color:#8dff62;}
+.shell-update-status.hidden{display:none;}
 .shell-types{display:flex;align-items:center;gap:18px;}
 .shell-type-badge{
   width:52px;height:52px;border-radius:50%;padding:3px;cursor:default;transition:transform .12s;

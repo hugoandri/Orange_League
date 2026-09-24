@@ -257,7 +257,16 @@
           </a>
 
           <div class="shell-bottombar">
-            <div class="shell-version">VERSIÓN DE SALIDA V1.0 · UID: <span id="menuUserUid">--</span></div>
+            <div class="shell-version-group">
+              <div class="shell-version">VERSIÓN DE SALIDA V1.0 · UID: <span id="menuUserUid">--</span></div>
+              <!-- Desktop (Electron) app only -- checks GitHub Releases for a
+                   newer build via electron-updater; hidden by default and
+                   revealed by auth-ui.js when window.electronAPI is present. -->
+              <button type="button" class="shell-update-btn hidden" id="menuUpdateBtn" title="Buscar actualizaciones">
+                <i class="ph-duotone ph-arrow-circle-down"></i>
+              </button>
+              <span class="shell-update-status hidden" id="menuUpdateStatus"></span>
+            </div>
             <div class="shell-types">
               <div class="shell-type-badge" title="Planta"><img src="Tipos/planta.png" alt=""></div>
               <div class="shell-type-badge" title="Fuego"><img src="Tipos/fuego.png" alt=""></div>
@@ -956,6 +965,18 @@
       <div class="shell-modal-actions">
         <button type="button" id="shopPurchaseConfirmYes" class="shell-modal-btn shell-modal-btn-primary">SÍ, COMPRAR</button>
         <button type="button" id="shopPurchaseConfirmNo" class="shell-modal-btn">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="updateConfirmModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card">
+      <p class="shell-modal-title">ACTUALIZACIÓN LISTA</p>
+      <p class="shell-modal-text">Se descargó una nueva versión. ¿Reiniciar ahora para instalarla?</p>
+      <div class="shell-modal-actions">
+        <button type="button" id="updateConfirmYes" class="shell-modal-btn shell-modal-btn-primary">REINICIAR Y ACTUALIZAR</button>
+        <button type="button" id="updateConfirmNo" class="shell-modal-btn">MÁS TARDE</button>
       </div>
     </div>
   </div>

@@ -173,6 +173,60 @@
       document.getElementById('menuQuitBtn').addEventListener('click', function () {
         window.electronAPI.quitApp();
       });
+
+      // ── Check for updates (electron-updater, see electron/main.js) ──
+      var updateBtn = document.getElementById('menuUpdateBtn');
+      var updateStatusEl = document.getElementById('menuUpdateStatus');
+      var updateStatusHideTimeout = null;
+
+      function setUpdateStatusText(text, autoHideMs) {
+        clearTimeout(updateStatusHideTimeout);
+        updateStatusEl.textContent = text;
+        updateStatusEl.classList.toggle('hidden', !text);
+        if (text && autoHideMs) {
+          updateStatusHideTimeout = setTimeout(function () {
+            updateStatusEl.classList.add('hidden');
+          }, autoHideMs);
+        }
+      }
+
+      updateBtn.classList.remove('hidden');
+      updateBtn.addEventListener('click', function () {
+        updateBtn.classList.add('checking');
+        setUpdateStatusText('Buscando actualizaciones…');
+        window.electronAPI.checkForUpdates();
+      });
+
+      window.electronAPI.onUpdateStatus(function (data) {
+        if (data.status === 'checking') {
+          updateBtn.classList.add('checking');
+          setUpdateStatusText('Buscando actualizaciones…');
+        } else if (data.status === 'available') {
+          updateBtn.classList.remove('checking');
+          updateBtn.classList.add('downloading');
+          setUpdateStatusText('Descargando actualización ' + (data.version || '') + '…');
+        } else if (data.status === 'downloading') {
+          updateBtn.classList.add('downloading');
+          setUpdateStatusText('Descargando… ' + Math.round(data.percent || 0) + '%');
+        } else if (data.status === 'downloaded') {
+          updateBtn.classList.remove('checking', 'downloading');
+          setUpdateStatusText('');
+          document.getElementById('updateConfirmModal').classList.remove('hidden');
+        } else if (data.status === 'not-available') {
+          updateBtn.classList.remove('checking', 'downloading');
+          setUpdateStatusText('Ya tenés la última versión.', 4000);
+        } else if (data.status === 'error') {
+          updateBtn.classList.remove('checking', 'downloading');
+          setUpdateStatusText('No se pudo buscar actualizaciones.', 5000);
+        }
+      });
+
+      document.getElementById('updateConfirmYes').addEventListener('click', function () {
+        window.electronAPI.installUpdate();
+      });
+      document.getElementById('updateConfirmNo').addEventListener('click', function () {
+        document.getElementById('updateConfirmModal').classList.add('hidden');
+      });
     }
 
     // ── Profile widget + edit modal ──────────────────────────────────

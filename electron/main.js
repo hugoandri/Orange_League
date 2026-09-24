@@ -1,5 +1,38 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
+
+// Only quitAndInstall() runs automatically -- the user must confirm first
+// (see 'install-update' below and the renderer's updateConfirmModal), so a
+// download finishing must never install itself just because the app quits
+// in the meantime.
+autoUpdater.autoInstallOnAppQuit = false;
+
+let mainWindow = null;
+
+function sendUpdateStatus(status, extra) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', Object.assign({ status: status }, extra || {}));
+  }
+}
+
+autoUpdater.on('checking-for-update', function () { sendUpdateStatus('checking'); });
+autoUpdater.on('update-available', function (info) { sendUpdateStatus('available', { version: info.version }); });
+autoUpdater.on('update-not-available', function () { sendUpdateStatus('not-available'); });
+autoUpdater.on('download-progress', function (progress) { sendUpdateStatus('downloading', { percent: progress.percent }); });
+autoUpdater.on('update-downloaded', function () { sendUpdateStatus('downloaded'); });
+autoUpdater.on('error', function (err) {
+  sendUpdateStatus('error', { message: (err && err.message) || 'Error desconocido' });
+});
+
+ipcMain.on('check-for-updates', function () {
+  autoUpdater.checkForUpdates().catch(function (err) {
+    sendUpdateStatus('error', { message: (err && err.message) || 'Error desconocido' });
+  });
+});
+// Only reached after the user confirms in updateConfirmModal -- quits and
+// replaces the app with the already-downloaded version.
+ipcMain.on('install-update', function () { autoUpdater.quitAndInstall(); });
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -19,6 +52,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     }
   });
+  mainWindow = win;
+  win.on('closed', function () { mainWindow = null; });
   win.loadFile(path.join(__dirname, '..', 'index.html'));
 
   // Real-money purchase links (Telegram/Discord/Orbes-with-Stars) use
