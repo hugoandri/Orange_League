@@ -99,18 +99,36 @@ function energyTypeHelpsAttacks(instance, energyType) {
   });
 }
 
+// The most Energy any single one of instance's own attacks could ever need
+// -- once attachedEnergy reaches this, more of any type is pure surplus for
+// this specific Pokémon (real reported bug: the CPU kept stacking energy
+// onto its Active well past what any of its attacks could use -- 9 attached
+// while the Bench sat empty -- instead of spreading it to Pokémon that
+// still needed some).
+function attackMaxEnergyNeeded(instance) {
+  var stats = CARD_STATS[instance.name];
+  return (stats.attacks || []).reduce(function (max, a) { return Math.max(max, a.cost.length); }, 0);
+}
+
 // Easy: always attaches to the Active, exactly as before difficulty tiers
 // existed, regardless of whether the type actually helps it.
-// Hard: always reasons about it -- if the Active can't actually use this
-// energy type for any of its attacks but a Bench Pokémon can, attaches it
-// there instead, both building toward a real attacker for later (after a
-// retreat, or once the Active is knocked out) and not wasting the turn's
-// one attach on a type that does nothing for whoever's out front right now.
-// Normal reasons about it too, but only about half the time (rolled off
+// Normal/Hard: never attaches a type NOBODY on the board (Active or Bench)
+// could ever use for any attack -- real reported bug: e.g. Grass Energy
+// landing on a Staryu, whose only attack (Slap) is pure Water, for no
+// reason at all. Attaching Energy is optional, not mandatory, so holding a
+// genuinely useless card for a more useful future draw always beats
+// dumping it somewhere it can never help (true regardless of the
+// smart-redirect dice roll below -- this isn't "being extra strategic", it's
+// avoiding a flatly senseless move).
+// Hard: additionally always redirects to a Bench Pokémon that still needs
+// this type once the Active already has enough Energy for its own priciest
+// attack (no point overstacking one attacker while the Bench starves), and
+// whenever the Active can't use the type at all but a Bench Pokémon can.
+// Normal does that same redirect, but only about half the time (rolled off
 // state.rng(), same deterministic source as coin flips/shuffles) -- the
-// rest of the time it just attaches to the Active like Easy, regardless of
-// type fit. Per the user: Normal shouldn't be *consistently* this
-// strategic, just occasionally get it right.
+// rest of the time it attaches to the Active like Easy, as long as the
+// Active can use the type at all. Per the user: Normal shouldn't be
+// *consistently* this strategic, just occasionally get it right.
 function aiTryAttachEnergy(state, playerId, difficulty) {
   var p = state.players[playerId];
   if (!p.active || p.energyAttachedThisTurn) { return false; }
@@ -118,10 +136,17 @@ function aiTryAttachEnergy(state, playerId, difficulty) {
   if (!handCard) { return false; }
   var energyType = ENERGY_TYPE_BY_CARD_NAME[handCard.name];
   var target = p.active;
-  var actsSmart = difficulty === 'hard' || (difficulty === 'normal' && state.rng() < 0.5);
-  if (actsSmart && !energyTypeHelpsAttacks(p.active, energyType)) {
-    var benchMatch = p.bench.find(function (b) { return b && energyTypeHelpsAttacks(b, energyType); });
-    if (benchMatch) { target = benchMatch; }
+  if (difficulty !== 'easy') {
+    var activeHelped = energyTypeHelpsAttacks(p.active, energyType);
+    var benchCandidates = p.bench.filter(function (b) { return b && energyTypeHelpsAttacks(b, energyType); });
+    if (!activeHelped && benchCandidates.length === 0) { return false; }
+    var actsSmart = difficulty === 'hard' || (difficulty === 'normal' && state.rng() < 0.5);
+    if (actsSmart && benchCandidates.length > 0) {
+      var activeMaxedOut = p.active.attachedEnergy.length >= attackMaxEnergyNeeded(p.active);
+      if (!activeHelped || activeMaxedOut) {
+        target = benchCandidates.find(function (b) { return b.attachedEnergy.length < attackMaxEnergyNeeded(b); }) || benchCandidates[0];
+      }
+    }
   }
   if (!canAttachEnergy(state, playerId, handCard.id, target.id)) { return false; }
   var targetName = target.name;

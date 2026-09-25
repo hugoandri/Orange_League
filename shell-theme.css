@@ -262,7 +262,8 @@
   white-space:nowrap;font-size:11px;letter-spacing:.1em;color:#8dff62;
 }
 .shell-update-status.hidden{display:none;}
-.shell-types{display:flex;align-items:center;gap:18px;}
+/* Nudged right of its natural space-between slot -- real reported request. */
+.shell-types{display:flex;align-items:center;gap:18px;margin-left:28px;}
 .shell-type-badge{
   width:52px;height:52px;border-radius:50%;padding:3px;cursor:default;transition:transform .12s;
   background:linear-gradient(180deg,#413a31,#231f1a);border:1px solid #0b0907;
@@ -331,6 +332,10 @@
 .shell-logout:hover{color:#efe9dd;filter:brightness(1.25);}
 .shell-logout:focus-visible{box-shadow:inset 0 0 0 2px #8dff62;}
 .shell-logout.hidden{display:none;}
+/* Keeps CERRAR SESIÓN and SALIR (Electron-only) sitting right next to each
+   other as one .shell-bottombar flex item, instead of two separate items
+   the bar's own space-between layout would otherwise push apart. */
+.shell-logout-group{display:flex;align-items:center;gap:12px;}
 
 /* ===== Shared full-page header (Tienda now; Mazos/Colección/Configuración
    reuse this exact recipe in later phases) ===== */

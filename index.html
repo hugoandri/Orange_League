@@ -284,11 +284,17 @@
               <div class="shell-type-badge" title="Lucha"><img src="Tipos/lucha.png" alt=""></div>
               <div class="shell-type-badge" title="Incoloro"><img src="Tipos/incoloro.png" alt=""></div>
             </div>
-            <button type="button" class="shell-logout" id="menuLogoutBtn">CERRAR SESIÓN</button>
-            <!-- Desktop (Electron) app only -- quits the whole app instead of
-                 just signing out; hidden by default and revealed by ui.js
-                 when window.electronAPI is present (see electron/preload.js). -->
-            <button type="button" class="shell-logout hidden" id="menuQuitBtn">SALIR</button>
+            <!-- Grouped together (not two separate .shell-bottombar flex
+                 items) so CERRAR SESIÓN sits right next to SALIR instead of
+                 being pushed apart by the bar's own space-between layout --
+                 real reported issue once SALIR (Electron-only) is visible. -->
+            <div class="shell-logout-group">
+              <button type="button" class="shell-logout" id="menuLogoutBtn">CERRAR SESIÓN</button>
+              <!-- Desktop (Electron) app only -- quits the whole app instead of
+                   just signing out; hidden by default and revealed by ui.js
+                   when window.electronAPI is present (see electron/preload.js). -->
+              <button type="button" class="shell-logout hidden" id="menuQuitBtn">SALIR</button>
+            </div>
           </div>
         </div>
       </div>
@@ -646,6 +652,21 @@
     </div>
   </div>
 
+  <!-- Lass (Señorita): "you and your opponent show your hands" -- both hands
+       revealed side by side, read-only, before their Trainer cards get
+       shuffled back into each deck (see TRAINER_EFFECTS['Lass'],
+       card-effects.js). openLassRevealModal (ui.js) fills the two grids. -->
+  <div id="lassRevealModal" class="card-modal hidden">
+    <div class="card-modal-backdrop"></div>
+    <div class="shell-modal-card shell-discard-pile-card">
+      <p class="shell-modal-title" id="lassRevealPlayerTitle">TU MANO</p>
+      <div id="lassRevealPlayerGrid" class="shell-discard-pile-grid"></div>
+      <p class="shell-modal-title" id="lassRevealCpuTitle">MANO DEL RIVAL</p>
+      <div id="lassRevealCpuGrid" class="shell-discard-pile-grid"></div>
+      <button type="button" id="lassRevealClose" class="shell-modal-btn shell-modal-btn-primary">CONTINUAR</button>
+    </div>
+  </div>
+
   <div id="discardPileModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-discard-pile-card">
@@ -658,7 +679,7 @@
   <div id="deckSearchModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-discard-pile-card">
-      <p class="shell-modal-title">BUSCA UNA CARTA EN TU MAZO</p>
+      <p class="shell-modal-title" id="deckSearchTitle">BUSCA UNA CARTA EN TU MAZO</p>
       <div id="deckSearchGrid" class="shell-discard-pile-grid"></div>
       <button type="button" id="deckSearchCancel" class="shell-modal-btn">CANCELAR</button>
     </div>

@@ -285,13 +285,7 @@ function makeFreshInstance(id, name, turnCounter) {
     // Pidgeotto's Mirror Move: {amount, turn} -- the real damage this
     // instance took from an attack, recorded in dealDamage, so Mirror Move
     // can replay it the following turn.
-    lastDamageTaken: null,
-    // Charizard's Energy Burn (Pokémon Power): while true, every Energy
-    // attached to this instance counts as Fire for canPayCost -- checked
-    // there instead of the static attachedEnergy array. Cleared at the end
-    // of the OWNER's own turn (endTurn's sweep), matching "for the rest of
-    // the turn".
-    energyBurnActive: false
+    lastDamageTaken: null
   };
 }
 
@@ -398,10 +392,17 @@ function evolve(state, playerId, handId, targetInstanceId) {
 }
 
 function canPayCost(instance, cost) {
-  // Charizard's Energy Burn (Pokémon Power): every attached Energy counts
-  // as Fire for the rest of the turn -- Charizard's only real attack (Fire
-  // Spin) is the sole thing this could ever matter for.
-  var attached = instance.energyBurnActive ? instance.attachedEnergy.map(function () { return 'Fire'; }) : instance.attachedEnergy.slice();
+  // Charizard's Energy Burn (Pokémon Power): passive per explicit user
+  // request (see usablePokemonPowers' own comment) -- every attached Energy
+  // always counts as Fire while Charizard is in play, unless Asleep/
+  // Confused/Paralyzed blocks the Power the same way it would a button
+  // press. Charizard's only real attack (Fire Spin) is the sole thing this
+  // could ever matter for.
+  var energyBurnActive = instance.name === 'Charizard' &&
+    instance.statusConditions.indexOf('Asleep') === -1 &&
+    instance.statusConditions.indexOf('Confused') === -1 &&
+    instance.statusConditions.indexOf('Paralyzed') === -1;
+  var attached = energyBurnActive ? instance.attachedEnergy.map(function () { return 'Fire'; }) : instance.attachedEnergy.slice();
   var colorlessNeeded = 0;
   var needed = {};
   cost.forEach(function (c) {
@@ -479,11 +480,10 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   var p = state.players[playerId];
   var cost = CARD_STATS[p.active.name].retreatCost;
   var indices = energyIndices || p.active.attachedEnergy.map(function (_, i) { return i; }).slice(0, cost);
-  // Splice from the highest index down so earlier removals don't shift the
-  // indices of the ones still to come.
-  var discardedEnergy = indices.slice().sort(function (a, b) { return b - a; })
-    .map(function (i) { return p.active.attachedEnergy.splice(i, 1)[0]; });
-  discardedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
+  // removeEnergyCardsAt pulls in a Double Colorless Energy's other half too
+  // (it's one physical card, not two) -- see that function's own comment.
+  var discardedCards = removeEnergyCardsAt(p.active.attachedEnergy, indices);
+  discardedCards.forEach(function (card) { p.discard.push(card); });
   var idx = p.bench.findIndex(function (b) { return b && b.id === benchInstanceId; });
   var incoming = p.bench[idx];
   // Real reported bug: the log line used to build its message AFTER
@@ -789,6 +789,44 @@ function discardedEnergyCard(energyType) {
   return { id: 'discarded-energy-' + Date.now() + '-' + Math.random(), name: energyType + ' Energy' };
 }
 
+// Double Colorless Energy attaches as two 'Colorless' attachedEnergy entries
+// for one physical card (see attachEnergy) -- every "discard energy card(s)"
+// effect (retreat cost, Energy Removal, Super Potion, Fire Spin, Hyper Beam,
+// ...) must treat a chosen Colorless slot together with whatever OTHER
+// Colorless slot is still attached as ONE inseparable physical card: both
+// get removed together and land in the discard pile as a single 'Double
+// Colorless Energy' card, never as two separate 'Colorless Energy' cards.
+// This can discard more energy than the caller's own `indices` strictly
+// asked for (e.g. a cost of 1 paid by touching one half of an attached
+// Double Colorless still sends both halves to discard) -- that matches the
+// real card text: you can't split a single physical card across two
+// payments. Returns the real discard-pile card objects for whatever was
+// actually removed.
+function removeEnergyCardsAt(attachedEnergy, indices) {
+  var toRemove = {};
+  (indices || []).forEach(function (i) { toRemove[i] = true; });
+  (indices || []).forEach(function (i) {
+    if (attachedEnergy[i] !== 'Colorless') { return; }
+    for (var j = 0; j < attachedEnergy.length; j++) {
+      if (!toRemove[j] && attachedEnergy[j] === 'Colorless') { toRemove[j] = true; return; }
+    }
+  });
+  var sortedIdx = Object.keys(toRemove).map(Number).sort(function (a, b) { return b - a; });
+  var removedTypes = sortedIdx.map(function (i) { return attachedEnergy[i]; });
+  sortedIdx.forEach(function (i) { attachedEnergy.splice(i, 1); });
+  var cards = [];
+  var colorlessCount = 0;
+  removedTypes.forEach(function (t) { if (t === 'Colorless') { colorlessCount++; } else { cards.push(discardedEnergyCard(t)); } });
+  while (colorlessCount >= 2) {
+    cards.push({ id: 'discarded-energy-' + Date.now() + '-' + Math.random(), name: 'Double Colorless Energy' });
+    colorlessCount -= 2;
+  }
+  // Shouldn't normally happen (Colorless only ever attaches in pairs) but
+  // covers a stray leftover half gracefully rather than losing the card.
+  if (colorlessCount === 1) { cards.push(discardedEnergyCard('Colorless')); }
+  return cards;
+}
+
 function knockOutIfNeeded(state, ownerId, instance) {
   var stats = CARD_STATS[instance.name];
   if (instance.damage < stats.hp) { return; }
@@ -816,7 +854,22 @@ function knockOutIfNeeded(state, ownerId, instance) {
     var koIdx = owner.bench.findIndex(function (b) { return b && b.id === instance.id; });
     if (koIdx !== -1) { owner.bench[koIdx] = null; }
   }
-  owner.discard.push({ id: instance.id, name: instance.name });
+  // A Knocked Out Pokémon that evolved discards its WHOLE stack -- the
+  // Basic and every evolution card it passed through, each a real separate
+  // physical card, not just the current top form. evolve() only ever
+  // renames this same instance (see its own comment), so the chain is
+  // reconstructed here via CARD_STATS' evolvesFrom links rather than
+  // tracked on the instance itself.
+  var evolutionChain = [];
+  var chainName = instance.name;
+  while (chainName) {
+    evolutionChain.unshift(chainName);
+    chainName = CARD_STATS[chainName] && CARD_STATS[chainName].evolvesFrom;
+  }
+  evolutionChain.forEach(function (name, i) {
+    var isTopForm = i === evolutionChain.length - 1;
+    owner.discard.push(isTopForm ? { id: instance.id, name: name } : discardedEvolutionCard(name));
+  });
   instance.attachedEnergy.forEach(function (energyType) { owner.discard.push(discardedEnergyCard(energyType)); });
   var attackerPlayer = state.players[attackerId];
   // Clefairy Doll: "doesn't count as a Knocked Out Pokémon" -- everything
@@ -959,7 +1012,13 @@ function usablePokemonPowers(state, playerId) {
   if (state.activePlayerId !== playerId) { return []; }
   return allInstances(p).filter(function (instance) {
     var power = CARD_STATS[instance.name] && CARD_STATS[instance.name].pokemonPower;
-    if (!power || power.name === 'Strikes Back') { return false; }
+    // Energy Burn (Charizard): passive by explicit user request -- unlike
+    // the real printed text (an activatable "as often as you like" power),
+    // this simulator always treats Charizard's attached Energy as Fire the
+    // instant it's in play, no button, same no-button treatment as
+    // Strikes Back above. See canPayCost's own comment for where this
+    // actually takes effect.
+    if (!power || power.name === 'Strikes Back' || power.name === 'Energy Burn') { return false; }
     if (typeof POKEMON_POWER_EFFECTS === 'undefined' || !POKEMON_POWER_EFFECTS[power.name]) { return false; }
     if (instance === p.active && (hasStatus(instance, 'Asleep') || hasStatus(instance, 'Confused') || hasStatus(instance, 'Paralyzed'))) { return false; }
     return true;
@@ -970,7 +1029,9 @@ function usablePokemonPowers(state, playerId) {
 // each POKEMON_POWER_EFFECTS entry, card-effects.js) -- e.g.
 // {fromInstanceId, toInstanceId} for Damage Swap/Energy Trans,
 // {handEnergyId, targetInstanceId} for Rain Dance, {chosenType,
-// targetInstanceId} for Buzzap, or nothing at all for Energy Burn.
+// targetInstanceId} for Buzzap. Energy Burn has no entry here at all now --
+// it's passive (see usablePokemonPowers/canPayCost) -- so calling this with
+// its name always falls through to the "aún no está implementado" reason.
 function usePokemonPower(state, playerId, ownerInstanceId, params) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede usar' }; }
   var p = state.players[playerId];
@@ -1269,10 +1330,6 @@ function endTurn(state) {
   // leave a stale +10ATK badge on a Benched Pokémon forever.
   allInstances(state.players[justFinished]).forEach(function (instance) {
     instance.plusPowerAttached = false;
-    // Energy Burn (Charizard's Pokémon Power): "for the rest of the turn"
-    // -- always cleared at the end of its OWNER's own turn, same sweep as
-    // PlusPower above.
-    instance.energyBurnActive = false;
   });
   // Shields (Onix's Harden, Squirtle/Wartortle's Withdraw, Defender's
   // reduceFlat, ...) used to only ever get cleared reactively, inside
@@ -1462,7 +1519,7 @@ if (typeof module !== 'undefined') {
     findInstance, opponentOf, translatePlayer, translateCardName,
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
     evolutionTimingAllowed, makeFreshInstance, shuffle,
-    discardedEnergyCard, discardedEvolutionCard, allInstances,
+    discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt,
     // Real reported bug found while testing the Energy Retrieval fix
     // above: card-effects.js's own Energy Retrieval effect references this
     // as a bare identifier too (same pattern as the block above) -- never

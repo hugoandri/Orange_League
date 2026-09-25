@@ -37,7 +37,7 @@ const {
   findInstance, opponentOf, translatePlayer, translateCardName,
   logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
   evolutionTimingAllowed, makeFreshInstance, shuffle,
-  discardedEnergyCard, discardedEvolutionCard, allInstances,
+  discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt,
   // Same story, one task later: card-effects.js's ATTACK_EFFECTS entries
   // (invoked for real for the first time by removing runAction's old
   // "(Fase 2)" guard on the 'attack' case) call these rules-engine.js
@@ -72,6 +72,7 @@ globalThis.shuffle = shuffle;
 globalThis.discardedEnergyCard = discardedEnergyCard;
 globalThis.discardedEvolutionCard = discardedEvolutionCard;
 globalThis.allInstances = allInstances;
+globalThis.removeEnergyCardsAt = removeEnergyCardsAt;
 globalThis.dealDamage = dealDamage;
 globalThis.coinFlip = coinFlip;
 globalThis.addStatus = addStatus;

@@ -42,13 +42,9 @@ POKEMON_POWER_EFFECTS['Rain Dance'] = function (state, playerId, owner, params) 
   return { legal: true };
 };
 
-// No target -- self-only. See canPayCost (rules-engine.js) for where the
-// energyBurnActive flag it sets actually takes effect.
-POKEMON_POWER_EFFECTS['Energy Burn'] = function (state, playerId, owner) {
-  owner.energyBurnActive = true;
-  logEvent(state, translatePlayer(playerId) + ' usa Energy Burn (Charizard)', playerId);
-  return { legal: true };
-};
+// Energy Burn (Charizard) is passive now -- no POKEMON_POWER_EFFECTS entry,
+// no button (see usablePokemonPowers' exclusion and canPayCost, both in
+// rules-engine.js).
 
 // params: {fromInstanceId, toInstanceId} -- same shape as Damage Swap,
 // just moving a Grass Energy card instead of a damage counter.
@@ -123,8 +119,8 @@ TRAINER_EFFECTS['Super Potion'] = function (state, playerId, handId, targetInsta
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
-  var removedEnergy = target.attachedEnergy.splice(energyIndex || 0, 1);
-  removedEnergy.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
+  var removedCards = removeEnergyCardsAt(target.attachedEnergy, [energyIndex || 0]);
+  removedCards.forEach(function (card) { p.discard.push(card); });
   target.damage = Math.max(0, target.damage - 40);
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Potion') + ' en ' + target.name, playerId);
   return { legal: true };
@@ -215,8 +211,8 @@ TRAINER_EFFECTS['Energy Removal'] = function (state, playerId, handId, opponentI
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   var removeIdx = (typeof energyIndex === 'number' && energyIndex >= 0 && energyIndex < target.attachedEnergy.length) ? energyIndex : 0;
-  var removedEnergy = target.attachedEnergy.splice(removeIdx, 1);
-  removedEnergy.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
+  var removedCards = removeEnergyCardsAt(target.attachedEnergy, [removeIdx]);
+  removedCards.forEach(function (card) { op.discard.push(card); });
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };
 };
@@ -240,22 +236,19 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
   var card = p.hand.splice(idx, 1)[0];
   p.discard.push(card);
   var ownIdx = (typeof ownEnergyIndex === 'number' && ownEnergyIndex >= 0 && ownEnergyIndex < own.attachedEnergy.length) ? ownEnergyIndex : 0;
-  var ownRemoved = own.attachedEnergy.splice(ownIdx, 1);
-  ownRemoved.forEach(function (energyType) { p.discard.push(discardedEnergyCard(energyType)); });
+  var ownRemovedCards = removeEnergyCardsAt(own.attachedEnergy, [ownIdx]);
+  ownRemovedCards.forEach(function (card) { p.discard.push(card); });
 
-  var oppRemoved = [];
+  var oppIndices;
   if (Array.isArray(opponentEnergyIndices) && opponentEnergyIndices.length > 0) {
-    var sortedIndices = opponentEnergyIndices.slice().sort(function (a, b) { return b - a; });
-    sortedIndices.forEach(function (oppIdx) {
-      if (typeof oppIdx === 'number' && oppIdx >= 0 && oppIdx < target.attachedEnergy.length) {
-        var rem = target.attachedEnergy.splice(oppIdx, 1);
-        if (rem.length) { oppRemoved.push(rem[0]); }
-      }
+    oppIndices = opponentEnergyIndices.filter(function (oppIdx) {
+      return typeof oppIdx === 'number' && oppIdx >= 0 && oppIdx < target.attachedEnergy.length;
     });
   } else {
-    oppRemoved = target.attachedEnergy.splice(0, Math.min(2, target.attachedEnergy.length));
+    oppIndices = target.attachedEnergy.map(function (_, i) { return i; }).slice(0, 2);
   }
-  oppRemoved.forEach(function (energyType) { op.discard.push(discardedEnergyCard(energyType)); });
+  var oppRemovedCards = removeEnergyCardsAt(target.attachedEnergy, oppIndices);
+  oppRemovedCards.forEach(function (card) { op.discard.push(card); });
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Super Energy Removal') + ' en ' + target.name, playerId);
   return { legal: true };
 };
@@ -566,6 +559,8 @@ TRAINER_EFFECTS['Full Heal'] = function (state, playerId, handId) {
   if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
   var p = state.players[playerId];
   if (!p.active) { return { legal: false, reason: 'no tienes Pokémon Activo' }; }
+  var hasCurableStatus = p.active.statusConditions.some(function (s) { return s !== 'Burned'; });
+  if (!hasCurableStatus) { return { legal: false, reason: 'tu Pokémon Activo no tiene ningún estado alterado que curar' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
   var card = p.hand.splice(idx, 1)[0];
@@ -1107,17 +1102,19 @@ function highestDamageAttack(defenderName) {
   }, null);
 }
 
-// Shared by Whirlwind (Pidgey/Pidgeotto): "your opponent chooses 1 of
-// their Benched Pokémon and switches it with the Defending Pokémon" -- the
-// choice belongs to the DEFENDING side, not the attacker, so a full
-// pending-choice UI would be needed to let the CPU or player make it
-// mid-opponent-attack. Auto-picks the first available Bench slot instead
-// (documented simplification), same swap-in-place mechanics as
-// Switch/Gust of Wind/Lure above.
-function forceOpponentSwitch(state, playerId) {
+// Shared by Whirlwind (Pidgey/Pidgeotto). Real card text has the DEFENDING
+// side choose, but per explicit user request this simulator instead lets
+// the ATTACKING player pick which of the rival's Benched Pokémon comes in
+// -- same targetInstanceId mechanic as Ninetales' Lure above (see ui.js's
+// Whirlwind-specific target-selection handling). targetInstanceId
+// (optional): falls back to the first available Bench slot when omitted,
+// e.g. for ai.js's CPU usage, which doesn't bother choosing.
+function forceOpponentSwitch(state, playerId, targetInstanceId) {
   if (!playerId) { return; }
   var op = state.players[opponentOf(playerId)];
-  var idx = op.bench.findIndex(function (b) { return b; });
+  var idx = targetInstanceId
+    ? op.bench.findIndex(function (b) { return b && b.id === targetInstanceId; })
+    : op.bench.findIndex(function (b) { return b; });
   if (idx === -1) { return; }
   var incoming = op.bench[idx];
   op.bench[idx] = null;
@@ -1132,15 +1129,17 @@ function forceOpponentSwitch(state, playerId) {
 }
 
 // Shared by Whirlpool (Poliwrath) and Hyper Beam (Dragonair): "if the
-// Defending Pokémon has any Energy attached, choose 1 and discard it" --
-// same simplification as Energy Removal's own opponent-side choice
-// (TRAINER_EFFECTS above): always discards index 0 rather than modeling
-// "which specific energy".
-function discardOneDefenderEnergy(state, defender, playerId) {
+// Defending Pokémon has any Energy attached, choose 1 and discard it".
+// energyIndex (optional): which of the defender's attachedEnergy indices
+// the attacking player chose (see ui.js's energy-discard modal, wired the
+// same way as Energy Removal's opponent-side choice). Defaults to index 0
+// for callers that don't care (ai.js's CPU usage).
+function discardOneDefenderEnergy(state, defender, playerId, energyIndex) {
   if (!defender.attachedEnergy.length) { return; }
-  var removed = defender.attachedEnergy.splice(0, 1);
+  var idx = (typeof energyIndex === 'number' && energyIndex >= 0 && energyIndex < defender.attachedEnergy.length) ? energyIndex : 0;
   var op = state.players[opponentOf(playerId)];
-  removed.forEach(function (t) { op.discard.push(discardedEnergyCard(t)); });
+  var removedCards = removeEnergyCardsAt(defender.attachedEnergy, [idx]);
+  removedCards.forEach(function (card) { op.discard.push(card); });
 }
 
 ATTACK_EFFECTS['Alakazam'] = {
@@ -1168,10 +1167,17 @@ ATTACK_EFFECTS['Chansey'] = {
 ATTACK_EFFECTS['Charizard'] = {
   // "Discard 2 Energy cards attached to Charizard in order to use this
   // attack" -- no type restriction on which 2, unlike Fire-specific
-  // discard costs (Ember/Flamethrower above).
-  'Fire Spin': function (state, attacker, defender) {
+  // discard costs (Ember/Flamethrower above). energyIndices (optional,
+  // passed through the shared targetInstanceId slot -- see ui.js's
+  // energy-discard modal): which 2 of Charizard's attachedEnergy indices
+  // the player chose. Defaults to the first 2 for callers that don't care
+  // (ai.js's CPU usage).
+  'Fire Spin': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     if (attacker.attachedEnergy.length < 2) { return; }
-    attacker.attachedEnergy.splice(0, 2);
+    var indices = Array.isArray(targetInstanceId) ? targetInstanceId : [0, 1];
+    var p = state.players[playerId];
+    var removedCards = removeEnergyCardsAt(attacker.attachedEnergy, indices);
+    removedCards.forEach(function (card) { p.discard.push(card); });
     dealDamage(state, attacker, defender, 100);
   }
 };
@@ -1267,9 +1273,9 @@ ATTACK_EFFECTS['Poliwrath'] = {
   'Water Gun': function (state, attacker, defender) {
     dealDamage(state, attacker, defender, 30 + extraEnergyBonus(attacker, 'Water', 2, 2));
   },
-  'Whirlpool': function (state, attacker, defender, atkDef, playerId) {
+  'Whirlpool': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     dealDamage(state, attacker, defender, 40);
-    discardOneDefenderEnergy(state, defender, playerId);
+    discardOneDefenderEnergy(state, defender, playerId, targetInstanceId);
   }
 };
 
@@ -1292,10 +1298,11 @@ ATTACK_EFFECTS['Zapdos'] = {
     if (coinFlip(state) === 'T') { attacker.damage += 30; }
   },
   'Thunderbolt': function (state, attacker, defender, atkDef, playerId) {
-    var removed = attacker.attachedEnergy.splice(0, attacker.attachedEnergy.length);
+    var allIndices = attacker.attachedEnergy.map(function (_, i) { return i; });
+    var removedCards = removeEnergyCardsAt(attacker.attachedEnergy, allIndices);
     if (playerId) {
       var p = state.players[playerId];
-      removed.forEach(function (t) { p.discard.push(discardedEnergyCard(t)); });
+      removedCards.forEach(function (card) { p.discard.push(card); });
     }
     dealDamage(state, attacker, defender, 100);
   }
@@ -1310,9 +1317,9 @@ ATTACK_EFFECTS['Dragonair'] = {
     if (heads === 0) { state.attackMissed = true; }
     dealDamage(state, attacker, defender, 30 * heads);
   },
-  'Hyper Beam': function (state, attacker, defender, atkDef, playerId) {
+  'Hyper Beam': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     dealDamage(state, attacker, defender, 20);
-    discardOneDefenderEnergy(state, defender, playerId);
+    discardOneDefenderEnergy(state, defender, playerId, targetInstanceId);
   }
 };
 
@@ -1353,9 +1360,9 @@ ATTACK_EFFECTS['Electrode'] = {
 };
 
 ATTACK_EFFECTS['Pidgeotto'] = {
-  'Whirlwind': function (state, attacker, defender, atkDef, playerId) {
+  'Whirlwind': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     dealDamage(state, attacker, defender, 20);
-    forceOpponentSwitch(state, playerId);
+    forceOpponentSwitch(state, playerId, targetInstanceId);
   },
   // "If Pidgeotto was attacked last turn, do the final result of that
   // attack on Pidgeotto to the Defending Pokémon" -- replays the flat
@@ -1483,9 +1490,9 @@ ATTACK_EFFECTS['Metapod'] = {
 };
 
 ATTACK_EFFECTS['Pidgey'] = {
-  'Whirlwind': function (state, attacker, defender, atkDef, playerId) {
+  'Whirlwind': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     dealDamage(state, attacker, defender, 10);
-    forceOpponentSwitch(state, playerId);
+    forceOpponentSwitch(state, playerId, targetInstanceId);
   }
 };
 

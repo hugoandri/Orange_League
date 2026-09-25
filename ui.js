@@ -720,6 +720,18 @@ function showCardInViewer(name, instanceId) {
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
           return;
         }
+        // Whirlwind (Pidgey/Pidgeotto): per explicit user request, the
+        // ATTACKING player picks which rival Bench Pokémon comes in (real
+        // card text has the defender choose -- see forceOpponentSwitch's
+        // own comment) -- same target-selection flow as Lure just above.
+        // Only armed when the rival actually has a Bench to choose from;
+        // otherwise falls through to a normal, targetless attack (matches
+        // the engine's own no-op-if-no-bench behavior).
+        if (atkName === 'Whirlwind' && gameState.players.cpu.bench.some(function (b) { return b; })) {
+          pendingAttackNeedingTarget = atkName;
+          showTargetHintModal('Elige un Pokémon de la Banca del Rival');
+          return;
+        }
         if (atkName === 'Metronome') {
           var op = gameState.players[opponentOf('player')];
           var defender = op && op.active;
@@ -750,6 +762,43 @@ function showCardInViewer(name, instanceId) {
             return;
           } else if (rivalAttacks.length === 1) {
             submitOrApplyMetronome(rivalAttacks[0].name);
+            return;
+          }
+        }
+        // Fire Spin (Charizard): "Discard 2 Energy cards attached to
+        // Charizard" -- which 2 is the player's choice, same energy-discard
+        // modal pattern as Super Potion/Energy Removal (see card-effects.js's
+        // 'Fire Spin' entry).
+        if (atkName === 'Fire Spin') {
+          var fireSpinSelf = gameState.players.player.active;
+          if (fireSpinSelf && fireSpinSelf.attachedEnergy.length >= 2) {
+            openEnergyDiscardModal(fireSpinSelf.attachedEnergy.slice(), 2, function (indices) {
+              if (pvpMode) {
+                pvpAttackEndedMyTurn = true;
+                submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Fire Spin', targetInstanceId: indices })
+                  .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+                return;
+              }
+              executePlayerAttack('Fire Spin', indices);
+            });
+            return;
+          }
+        }
+        // Whirlpool (Poliwrath) / Hyper Beam (Dragonair): "choose 1 Energy
+        // card attached to the Defending Pokémon and discard it" -- same
+        // choice-of-which-energy pattern, targeting the rival's Active.
+        if (atkName === 'Whirlpool' || atkName === 'Hyper Beam') {
+          var rivalActiveForDiscard = gameState.players[opponentOf('player')].active;
+          if (rivalActiveForDiscard && rivalActiveForDiscard.attachedEnergy.length > 0) {
+            openEnergyDiscardModal(rivalActiveForDiscard.attachedEnergy.slice(), 1, function (indices) {
+              if (pvpMode) {
+                pvpAttackEndedMyTurn = true;
+                submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName, targetInstanceId: indices[0] })
+                  .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+                return;
+              }
+              executePlayerAttack(atkName, indices[0]);
+            });
             return;
           }
         }
@@ -1155,14 +1204,39 @@ function closeDiscardPileModal() {
   document.getElementById('discardPileModal').classList.add('hidden');
 }
 
+// Lass: shows both hands, read-only, right before their Trainer cards get
+// shuffled back into each deck -- playerHand/cpuHand must be captured BEFORE
+// TRAINER_EFFECTS['Lass'] runs (it mutates both hands), same real timing as
+// the printed card text ("show your hands" happens first).
+function handRevealGridHtml(cards) {
+  return cards.map(function (card) {
+    var url = CARD_IMAGE_BY_NAME[card.name];
+    if (!url) { return ''; }
+    return '<div class="shell-discard-pile-card-item">' +
+      '<div class="shell-discard-pile-card-art"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy"></div>' +
+      '<span>' + escapeHtml(translateCardName(card.name)) + '</span></div>';
+  }).join('');
+}
+function openLassRevealModal(playerHand, cpuHand) {
+  document.getElementById('lassRevealPlayerTitle').textContent = 'TU MANO (' + playerHand.length + ')';
+  document.getElementById('lassRevealPlayerGrid').innerHTML = handRevealGridHtml(playerHand);
+  document.getElementById('lassRevealCpuTitle').textContent = 'MANO DEL RIVAL (' + cpuHand.length + ')';
+  document.getElementById('lassRevealCpuGrid').innerHTML = handRevealGridHtml(cpuHand);
+  document.getElementById('lassRevealModal').classList.remove('hidden');
+}
+function closeLassRevealModal() {
+  document.getElementById('lassRevealModal').classList.add('hidden');
+}
+
 // Computer Search: shows the player's live deck in order (not deduplicated
 // by name -- if a card is duplicated in the deck it appears again, each
 // with its own image, per user request) as a scrollable clickable grid,
 // same layout as the discard pile modal above. onPick(deckCardId) fires
 // once, then the modal closes itself.
 var deckSearchOnPick = null;
-function openDeckSearchModal(deckCards, onPick) {
+function openDeckSearchModal(deckCards, onPick, title) {
   deckSearchOnPick = onPick;
+  document.getElementById('deckSearchTitle').textContent = title || 'BUSCA UNA CARTA EN TU MAZO';
   var grid = document.getElementById('deckSearchGrid');
   grid.innerHTML = deckCards.map(function (card) {
     var url = CARD_IMAGE_BY_NAME[card.name];
@@ -2415,7 +2489,16 @@ function wireBoardButtons() {
         var isNoTargetTrainer = handCard.name === 'Bill' || handCard.name === 'Professor Oak' || handCard.name === 'Lass' ||
           handCard.name === 'Impostor Professor Oak' || handCard.name === 'Full Heal' || handCard.name === 'Pokémon Center';
         showHandCardMenu(btn, 'USAR', function () {
-          if (isNoTargetTrainer) {
+          if (handCard.name === 'Lass' && !pvpMode) {
+            // Real card text: "you and your opponent show your hands" --
+            // captured BEFORE the effect runs (it shuffles every Trainer
+            // card in both hands back into each deck), so the reveal shows
+            // what was actually in each hand at the moment Lass was played.
+            var playerHandBeforeLass = p.hand.slice();
+            var cpuHandBeforeLass = gameState.players.cpu.hand.slice();
+            applyOrSubmitTrainerEffect('Lass', handId, []);
+            openLassRevealModal(playerHandBeforeLass, cpuHandBeforeLass);
+          } else if (isNoTargetTrainer) {
             applyOrSubmitTrainerEffect(handCard.name, handId, []);
           } else if (handCard.name === 'Computer Search') {
             // Two steps, neither of which is a board-click target: first
@@ -2539,7 +2622,7 @@ function wireBoardButtons() {
             }
             openDeckSearchModal(opBasicsInDiscard, function (opponentDiscardCardId) {
               applyOrSubmitTrainerEffect('Pokémon Flute', handId, [opponentDiscardCardId]);
-            });
+            }, 'BUSCA UNA CARTA EN EL DESCARTE RIVAL');
           } else if (handCard.name === 'Revive') {
             var basicsInOwnDiscard = p.discard.filter(function (c) { return isBasicPokemon(c.name); });
             if (basicsInOwnDiscard.length === 0) {
@@ -2757,24 +2840,14 @@ function wireBoardButtons() {
   }
 
   // Kicks off the specific target-gathering flow for one Pokémon's Power.
-  // Energy Burn needs no target at all (resolves immediately); the other 3
-  // activatable Powers need 1-2 more clicks (a board Pokémon and/or a hand
-  // Energy card and/or a chosen type) before usePokemonPower() actually
-  // runs -- see the board-card click handler below for how each step
-  // resolves once pendingPowerActivation is set.
+  // Energy Burn is passive now (no button, never reaches here -- see
+  // usablePokemonPowers' own comment); the remaining 4 activatable Powers
+  // need 1-2 more clicks (a board Pokémon and/or a hand Energy card and/or
+  // a chosen type) before usePokemonPower() actually runs -- see the
+  // board-card click handler below for how each step resolves once
+  // pendingPowerActivation is set.
   function startPowerFlow(instance) {
     var powerName = CARD_STATS[instance.name].pokemonPower.name;
-    if (powerName === 'Energy Burn') {
-      if (pvpMode) {
-        submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: instance.id, params: {} })
-          .catch(function (err) { alert(err.message || 'No se pudo usar el Poder.'); });
-        return;
-      }
-      var result = usePokemonPower(gameState, 'player', instance.id, {});
-      if (result && !result.legal) { logEvent(gameState, result.reason, 'player'); }
-      renderBoard();
-      return;
-    }
     if (powerName === 'Damage Swap' || powerName === 'Energy Trans') {
       pendingPowerActivation = { ownerId: instance.id, powerName: powerName, step: 'from' };
       showTargetHintModal(powerName === 'Damage Swap' ? 'Elige el Pokémon con el daño a mover' : 'Elige el Pokémon con la Energía Planta a mover');
@@ -2890,6 +2963,23 @@ function wireBoardButtons() {
           return;
         }
         executePlayerAttack('Lure', instanceId);
+        return;
+      }
+      if (pendingAttackNeedingTarget === 'Whirlwind') {
+        var onCpuBenchForWhirlwind = gameState.players.cpu.bench.some(function (b) { return b && b.id === instanceId; });
+        if (!onCpuBenchForWhirlwind) {
+          logEvent(gameState, 'Elige un Pokémon de la Banca del Rival', 'player');
+          renderBoard();
+          return;
+        }
+        pendingAttackNeedingTarget = null;
+        if (pvpMode) {
+          pvpAttackEndedMyTurn = true;
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Whirlwind', targetInstanceId: instanceId })
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
+        executePlayerAttack('Whirlwind', instanceId);
         return;
       }
       if (pendingPowerActivation) {
@@ -6661,6 +6751,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
+
+  document.getElementById('lassRevealClose').addEventListener('click', closeLassRevealModal);
 
   document.getElementById('collectionVersionsClose').addEventListener('click', closeCollectionVersionsModal);
   document.querySelector('#collectionVersionsModal .card-modal-backdrop').addEventListener('click', closeCollectionVersionsModal);

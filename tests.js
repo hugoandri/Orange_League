@@ -1712,6 +1712,48 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Hard keeps it on the Active when the Active can actually use it', p.active.attachedEnergy, ['Water']);
 })();
 
+(function testAiTryAttachEnergyHoldsCardWhenNobodyOnBoardCanUseIt() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'nu_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  // Real reported bug: Grass Energy landing on a Staryu (Active), whose
+  // only attack (Slap) is pure Water -- and the Bench Machop (pure
+  // Fighting) can't use it either. Nobody on the board benefits at all, so
+  // Normal/Hard must hold the card instead of dumping it somewhere useless.
+  ['normal', 'hard'].forEach(function (difficulty) {
+    var state = createGame(function () { return 0.9; });
+    state.activePlayerId = 'cpu';
+    var p = state.players.cpu;
+    p.active = mk('Staryu');
+    p.bench = [mk('Machop'), null, null, null, null];
+    p.hand = [{ id: 'ge1', name: 'Grass Energy' }];
+    checkTrue(difficulty + ' does not attach a type nobody on the board can use', !aiTryAttachEnergy(state, 'cpu', difficulty));
+    check(difficulty + ' leaves the card in hand', p.hand.length, 1);
+    check(difficulty + " leaves the Active's energy untouched", p.active.attachedEnergy, []);
+  });
+})();
+
+(function testAiTryAttachEnergyRedirectsOnceActiveHasEnoughForItsAttacks() {
+  var mk = function (name, extra) {
+    return Object.assign({ id: 'mx_' + name + Math.random(), name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }, extra || {});
+  };
+  // Real reported bug: the CPU kept stacking Energy onto its Active well
+  // past what any of its attacks could ever use (9 attached, Bench empty).
+  // Staryu's only attack (Slap) needs just 1 Water -- once it already has
+  // that, Hard should send further Water to a Bench Pokémon that still
+  // needs it instead of overstacking the Active.
+  var state = createGame(function () { return 0.42; });
+  state.activePlayerId = 'cpu';
+  var p = state.players.cpu;
+  p.active = mk('Staryu', { attachedEnergy: ['Water'] });
+  var bench = mk('Staryu');
+  p.bench = [bench, null, null, null, null];
+  p.hand = [{ id: 'we3', name: 'Water Energy' }];
+  checkTrue('Hard attaches energy', aiTryAttachEnergy(state, 'cpu', 'hard'));
+  check('Hard does not overstack the already-satisfied Active', p.active.attachedEnergy, ['Water']);
+  check('Hard sends the surplus to the Bench Pokémon that still needs it', bench.attachedEnergy, ['Water']);
+})();
+
 (function testCpuTakeTurnAcceptsAllDifficulties() {
   ['easy', 'normal', 'hard'].forEach(function (difficulty) {
     var state = createGame(function () { return 0.37; });
@@ -2674,20 +2716,24 @@ function mkPokemon(id, name, overrides) {
   check('the card stays in hand', p.hand.length, 1);
 })();
 
-(function testEnergyBurnMakesAllAttachedEnergyCountAsFireForCost() {
+(function testEnergyBurnIsPassiveAndAlwaysCountsAttachedEnergyAsFire() {
   var state = createGame(function () { return 0.99; });
   state.activePlayerId = 'player';
   var p = state.players.player;
   p.active = mkPokemon('cz1', 'Charizard', { attachedEnergy: ['Water', 'Lightning', 'Grass', 'Psychic'] });
 
-  checkTrue('Fire Spin is illegal before Energy Burn (no real Fire attached)', !canAttack(state, 'player', 'Fire Spin'));
+  // Passive per explicit user request -- no button, no per-turn activation:
+  // Charizard's Energy Burn is just always on.
+  checkTrue('Fire Spin is legal immediately -- Energy Burn is passive now', canAttack(state, 'player', 'Fire Spin'));
+  checkTrue('No HABILIDAD button for Energy Burn (excluded from usablePokemonPowers)',
+    usablePokemonPowers(state, 'player').every(function (i) { return i.id !== 'cz1'; }));
 
   var result = usePokemonPower(state, 'player', 'cz1', {});
-  checkTrue('Energy Burn is legal (self-only, no target)', result.legal);
-  checkTrue('Fire Spin becomes legal once Energy Burn is active', canAttack(state, 'player', 'Fire Spin'));
+  checkTrue('Manually invoking it is rejected -- no POKEMON_POWER_EFFECTS entry exists anymore', !result.legal);
 
   endTurn(state);
-  checkTrue('Energy Burn clears at the end of the turn it was used', !p.active.energyBurnActive);
+  endTurn(state);
+  checkTrue('Fire Spin stays legal turn after turn -- never needs re-activating', canAttack(state, 'player', 'Fire Spin'));
 })();
 
 (function testEnergyTransMovesOneGrassEnergyBetweenOwnPokemon() {
