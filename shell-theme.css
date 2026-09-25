@@ -236,7 +236,12 @@
   background:linear-gradient(180deg,rgba(11,10,9,0),rgba(11,10,9,.9) 40%);
   border-top:1px solid rgba(255,255,255,.06);
 }
-.shell-version-group{display:flex;align-items:center;gap:12px;}
+/* position:relative so #menuUpdateStatus (below) can be taken out of flow --
+   its text length varies ("Buscando actualizaciones…" vs "Ya tenés la
+   última versión.") and, left in normal flow, growing/shrinking it pushed
+   everything else in .shell-bottombar (energy badges, CERRAR SESIÓN) left
+   and right as the player checked for updates. */
+.shell-version-group{display:flex;align-items:center;gap:12px;position:relative;}
 .shell-version{font-size:11px;letter-spacing:.16em;color:#6d6155;}
 .shell-update-btn{
   display:inline-flex;align-items:center;justify-content:center;
@@ -252,7 +257,10 @@
 /* Spinning while "checking"/"downloading" -- see auth-ui.js's setUpdateBtnState. */
 .shell-update-btn.checking i,.shell-update-btn.downloading i{animation:shell-update-spin 1s linear infinite;}
 @keyframes shell-update-spin{to{transform:rotate(360deg);}}
-.shell-update-status{font-size:11px;letter-spacing:.1em;color:#8dff62;}
+.shell-update-status{
+  position:absolute;left:100%;top:50%;margin-left:12px;transform:translateY(-50%);
+  white-space:nowrap;font-size:11px;letter-spacing:.1em;color:#8dff62;
+}
 .shell-update-status.hidden{display:none;}
 .shell-types{display:flex;align-items:center;gap:18px;}
 .shell-type-badge{
