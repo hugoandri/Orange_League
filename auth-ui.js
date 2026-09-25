@@ -211,6 +211,16 @@
         } else if (data.status === 'downloaded') {
           updateBtn.classList.remove('checking', 'downloading');
           setUpdateStatusText('');
+          // Mac builds aren't signed with a paid Developer ID, so Squirrel.Mac
+          // rejects the downloaded update's signature and quitAndInstall()
+          // just silently does nothing -- no quit, no error event, nothing
+          // for the player to see. Rather than show a "reiniciar" button
+          // that quietly fails, point them at the DMG to install by hand.
+          var isMacUnsigned = window.electronAPI.platform === 'darwin';
+          document.getElementById('updateConfirmText').textContent = isMacUnsigned
+            ? 'Hay una actualización nueva, pero esta versión de Mac no está firmada y no puede instalarse sola. Abrí la página de descargas e instalá el DMG a mano.'
+            : 'Se descargó una nueva versión. ¿Reiniciar ahora para instalarla?';
+          document.getElementById('updateConfirmYes').textContent = isMacUnsigned ? 'ABRIR DESCARGA' : 'REINICIAR Y ACTUALIZAR';
           document.getElementById('updateConfirmModal').classList.remove('hidden');
         } else if (data.status === 'not-available') {
           updateBtn.classList.remove('checking', 'downloading');
@@ -222,7 +232,12 @@
       });
 
       document.getElementById('updateConfirmYes').addEventListener('click', function () {
-        window.electronAPI.installUpdate();
+        document.getElementById('updateConfirmModal').classList.add('hidden');
+        if (window.electronAPI.platform === 'darwin') {
+          window.electronAPI.openReleasesPage();
+        } else {
+          window.electronAPI.installUpdate();
+        }
       });
       document.getElementById('updateConfirmNo').addEventListener('click', function () {
         document.getElementById('updateConfirmModal').classList.add('hidden');

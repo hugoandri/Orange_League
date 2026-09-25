@@ -10,5 +10,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: function () { ipcRenderer.send('install-update'); },
   onUpdateStatus: function (callback) {
     ipcRenderer.on('update-status', function (event, data) { callback(data); });
-  }
+  },
+  // Mac builds aren't code-signed with a paid Developer ID, so Squirrel.Mac's
+  // signature check on the downloaded update silently fails -- quitAndInstall
+  // never quits the app and there's no JS-visible error to react to (see
+  // electron/main.js). Renderer uses this to show a manual-install fallback
+  // (open the Releases page) instead of a "reiniciar" button that does
+  // nothing on Mac.
+  platform: process.platform,
+  openReleasesPage: function () { ipcRenderer.send('open-releases-page'); }
 });
