@@ -1307,7 +1307,12 @@ exports.getActiveMatch = onCall(async (request) => {
 });
 
 // ===== TELEGRAM STARS PAYMENTS =====
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8922530812:AAFJeIUrTlRPEiMIDLtSyoHCURwX5bDyyVQ';
+// No literal fallback (unlike PARTY_INTERNAL_SECRET above) -- nothing here
+// runs under the emulator/tests, so there's no local-dev case to support.
+// A deploy missing this env var gets `null`, which Telegram's API rejects;
+// the callers below (createStarsInvoice etc.) already surface that as a
+// normal HttpsError since they check resData.ok on every call.
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || null;
 
 const STARS_PACKAGES = {
   orbes_100: {
