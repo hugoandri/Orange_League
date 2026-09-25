@@ -4,7 +4,7 @@
 // invoker's own shell env (`TELEGRAM_BOT_TOKEN=... node set-telegram-webhook.js`),
 // never a literal in source.
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://telegramwebhook-vdtw4dcfdq-uc.a.run.app';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://telegramwebhook-tlp7bpmkua-uc.a.run.app';
 
 async function main() {
   if (!BOT_TOKEN) {
