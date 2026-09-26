@@ -14,11 +14,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Mac builds aren't code-signed with a paid Developer ID, so Squirrel.Mac's
   // signature check on the downloaded update silently fails -- quitAndInstall
   // never quits the app and there's no JS-visible error to react to (see
-  // electron/main.js). Renderer uses this to show a manual-install fallback
-  // (open the Releases page) instead of a "reiniciar" button that does
-  // nothing on Mac.
+  // electron/main.js). Renderer uses this to skip the update-check network
+  // call entirely on Mac and just say up front that it isn't supported there
+  // (see auth-ui.js), instead of running a check that could only ever end in
+  // a "reiniciar" button that silently does nothing.
   platform: process.platform,
-  openReleasesPage: function () { ipcRenderer.send('open-releases-page'); },
   // Real reported bug: the footer's version label was a hand-typed literal
   // in index.html ("V1.0") that never actually matched the shipped build.
   // A first attempt at this fix used require('../package.json') right here,

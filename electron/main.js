@@ -31,14 +31,10 @@ ipcMain.on('check-for-updates', function () {
   });
 });
 // Only reached after the user confirms in updateConfirmModal -- quits and
-// replaces the app with the already-downloaded version.
+// replaces the app with the already-downloaded version. The renderer never
+// even calls check-for-updates on Mac (see preload.js's comment), so this
+// only ever fires on Windows/Linux, where it genuinely works.
 ipcMain.on('install-update', function () { autoUpdater.quitAndInstall(); });
-// Mac fallback when the app can't self-install (see preload.js's comment) --
-// opens the release the update-checker already found, so the player can grab
-// the DMG by hand instead of the app silently doing nothing.
-ipcMain.on('open-releases-page', function () {
-  shell.openExternal('https://github.com/hugoandri/Orange_League/releases/latest');
-});
 
 function createWindow() {
   const win = new BrowserWindow({
