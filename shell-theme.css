@@ -1783,6 +1783,11 @@
   border:1px solid #0b0907;padding:8px;cursor:pointer;width:80px;text-align:center;
   background:linear-gradient(180deg,#15130f,#1d1a15);box-shadow:inset 0 3px 8px rgba(0,0,0,.8);
   font-size:10px;letter-spacing:.04em;color:#a49785;
+  /* Real <button> elements (openChoicePickerModal's options) don't inherit
+     font-family from an ancestor by default like a <div> already does --
+     harmless no-op for this class's other, div-based callers (the
+     energy-discard/hand-discard/energy-retrieval/pokédex modals). */
+  font-family:inherit;
 }
 .shell-energy-discard-option img{width:100%;display:block;margin-bottom:6px;}
 .shell-energy-discard-option:hover{filter:brightness(1.2);}

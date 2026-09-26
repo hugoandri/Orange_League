@@ -1098,13 +1098,26 @@ ATTACK_EFFECTS['Charmander'] = {
 
 // Shared by every "X damage plus 10 more for each energy of TYPE attached
 // but not used to pay the cost (extra energy after the Nth doesn't count)"
-// attack (Blastoise/Poliwrath/Poliwag's Water Gun & Hydro Pump): counts the
-// attacker's attached energy of that type, subtracts however many the
-// printed cost itself requires, and caps the remainder at capExtra before
-// converting to a 10-per-extra bonus.
-function extraEnergyBonus(attacker, energyType, costCount, capExtra) {
+// attack (Blastoise/Poliwrath/Poliwag's Water Gun & Hydro Pump). Takes the
+// real printed cost array (not just a flat typed-slot count) since a mixed
+// cost's Colorless slot(s) can ALSO be paid by energyType when nothing else
+// is attached to cover them -- real reported bug: Poliwrath's Water Gun
+// (cost ["Water","Water","Colorless"]) with exactly 3 Water attached and
+// nothing else counted the 3rd Water as "extra" and awarded a +10 bonus,
+// even though that 3rd Water was the ONLY thing available to pay the
+// Colorless slot -- genuinely 0 Water left over, not 1. Always resolves in
+// the player's own favor (fills Colorless slots with non-energyType energy
+// first, only reaching into energyType's own leftover if nothing else is
+// available), matching how a real player would actually choose to pay.
+function extraEnergyBonus(attacker, energyType, cost, capExtra) {
+  var typedNeeded = cost.filter(function (c) { return c === energyType; }).length;
+  var colorlessNeeded = cost.filter(function (c) { return c === 'Colorless'; }).length;
   var total = attacker.attachedEnergy.filter(function (t) { return t === energyType; }).length;
-  var unused = Math.max(0, total - costCount);
+  var otherCount = attacker.attachedEnergy.length - total;
+  var leftoverAfterTyped = Math.max(0, total - typedNeeded);
+  var colorlessStillNeeded = Math.max(0, colorlessNeeded - otherCount);
+  var usedForColorless = Math.min(leftoverAfterTyped, colorlessStillNeeded);
+  var unused = leftoverAfterTyped - usedForColorless;
   return 10 * Math.min(unused, capExtra);
 }
 
@@ -1171,8 +1184,8 @@ ATTACK_EFFECTS['Alakazam'] = {
 };
 
 ATTACK_EFFECTS['Blastoise'] = {
-  'Hydro Pump': function (state, attacker, defender) {
-    dealDamage(state, attacker, defender, 40 + extraEnergyBonus(attacker, 'Water', 3, 2));
+  'Hydro Pump': function (state, attacker, defender, atkDef) {
+    dealDamage(state, attacker, defender, 40 + extraEnergyBonus(attacker, 'Water', atkDef.cost, 2));
   }
 };
 
@@ -1316,8 +1329,8 @@ ATTACK_EFFECTS['Nidoking'] = {
 };
 
 ATTACK_EFFECTS['Poliwrath'] = {
-  'Water Gun': function (state, attacker, defender) {
-    dealDamage(state, attacker, defender, 30 + extraEnergyBonus(attacker, 'Water', 2, 2));
+  'Water Gun': function (state, attacker, defender, atkDef) {
+    dealDamage(state, attacker, defender, 30 + extraEnergyBonus(attacker, 'Water', atkDef.cost, 2));
   },
   'Whirlpool': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
     dealDamage(state, attacker, defender, 40);
@@ -1552,8 +1565,8 @@ ATTACK_EFFECTS['Pidgey'] = {
 };
 
 ATTACK_EFFECTS['Poliwag'] = {
-  'Water Gun': function (state, attacker, defender) {
-    dealDamage(state, attacker, defender, 10 + extraEnergyBonus(attacker, 'Water', 1, 2));
+  'Water Gun': function (state, attacker, defender, atkDef) {
+    dealDamage(state, attacker, defender, 10 + extraEnergyBonus(attacker, 'Water', atkDef.cost, 2));
   }
 };
 

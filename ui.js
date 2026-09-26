@@ -1341,8 +1341,19 @@ function openChoicePickerModal(promptText, options, onPick) {
   choicePickerOnPick = onPick;
   document.getElementById('choicePickerPrompt').textContent = promptText;
   var grid = document.getElementById('choicePickerGrid');
+  // Real reported bug: this used .shell-discard-pile-card-item (built for
+  // .shell-discard-pile-grid's CSS Grid, which caps each cell's own column
+  // width) but choicePickerGrid is actually .shell-energy-discard-grid, a
+  // plain flex-wrap row with no such per-column cap -- so every image (raw
+  // type icons at ~162x162, or full Pokémon card art for the Power picker)
+  // rendered at its full natural size with nothing to shrink it, blowing
+  // the whole modal out to cover most of the screen. .shell-energy-discard-
+  // option is the class every OTHER caller of this same grid already uses
+  // (energyDiscardModal/handDiscardModal/energyRetrievalModal/pokedexModal)
+  // -- a real fixed 80px square -- so this now matches their size exactly,
+  // per explicit user request ("misma medida que los modales de habilidades").
   grid.innerHTML = options.map(function (opt) {
-    return '<button type="button" class="shell-discard-pile-card-item" data-choice-id="' + escapeHtml(opt.id) + '">' +
+    return '<button type="button" class="shell-energy-discard-option" data-choice-id="' + escapeHtml(opt.id) + '">' +
       (opt.imgUrl ? '<img src="' + opt.imgUrl + '" alt="" loading="lazy">' : '') +
       '<span>' + escapeHtml(opt.label) + '</span></button>';
   }).join('');

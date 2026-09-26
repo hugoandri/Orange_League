@@ -2566,6 +2566,39 @@ function mkPokemon(id, name, overrides) {
   check('Hydro Pump caps its bonus at +20 (2 extra Water) even with 3 extra attached', cpu.active.damage, 60);
 })();
 
+// Real reported bug: Poliwrath's Water Gun (cost ["Water","Water","Colorless"])
+// treated any Water beyond the printed cost's 2 typed slots as "extra" for
+// bonus purposes, ignoring that the cost's own Colorless slot can ALSO be
+// paid by Water when nothing else is attached to cover it -- with exactly
+// 3 Water and nothing else, that 3rd Water is the ONLY thing available to
+// pay the Colorless slot, so genuinely 0 Water is left over, not 1.
+(function testPoliwrathWaterGunDoesNotCountColorlessPaidByWaterAsExtra() {
+  var exactState = createGame(function () { return 0.99; });
+  exactState.activePlayerId = 'player';
+  exactState.players.player.active = mkPokemon('pr1', 'Poliwrath', { attachedEnergy: ['Water', 'Water', 'Water'] });
+  exactState.players.cpu.active = mkPokemon('m1', 'Chansey', {});
+  attack(exactState, 'player', 'Water Gun');
+  check('exactly 3 Water (the real minimum for this cost) deals only the base 30, no bonus', exactState.players.cpu.active.damage, 30);
+
+  // A 4th Water IS genuinely extra now -- 2 pay the typed cost, 1 pays the
+  // Colorless slot (nothing else available), 1 left over for bonus.
+  var oneExtraState = createGame(function () { return 0.99; });
+  oneExtraState.activePlayerId = 'player';
+  oneExtraState.players.player.active = mkPokemon('pr2', 'Poliwrath', { attachedEnergy: ['Water', 'Water', 'Water', 'Water'] });
+  oneExtraState.players.cpu.active = mkPokemon('m2', 'Chansey', {});
+  attack(oneExtraState, 'player', 'Water Gun');
+  check('4 Water gives exactly +10 (1 genuinely extra beyond the 3 the cost consumes)', oneExtraState.players.cpu.active.damage, 40);
+
+  // A non-Water energy pays the Colorless slot instead, so a 3rd Water is
+  // genuinely extra here (the player would always prefer this assignment).
+  var withOtherState = createGame(function () { return 0.99; });
+  withOtherState.activePlayerId = 'player';
+  withOtherState.players.player.active = mkPokemon('pr3', 'Poliwrath', { attachedEnergy: ['Water', 'Water', 'Water', 'Fire'] });
+  withOtherState.players.cpu.active = mkPokemon('m3', 'Chansey', {});
+  attack(withOtherState, 'player', 'Water Gun');
+  check('Fire pays the Colorless slot, leaving the 3rd Water genuinely extra (+10)', withOtherState.players.cpu.active.damage, 40);
+})();
+
 (function testAmnesiaLocksHighestDamageAttackForExactlyOneTurn() {
   var state = createGame(function () { return 0.99; });
   state.activePlayerId = 'player';

@@ -228,12 +228,16 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
 #deckBuilderVersionModal{z-index:210;}
 #deckSearchModal{z-index:210;}
 #updateConfirmModal{z-index:210;}
-#choicePickerGrid button{
-  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);border-radius:6px;
-  padding:10px 16px;color:#fff;font-family:inherit;font-size:13px;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;gap:6px;min-width:140px;transition:all .15s ease;
-}
-#choicePickerGrid button:hover{background:rgba(255,255,255,0.2);border-color:#e8c46a;}
+/* Real reported bug: this legacy rule (higher specificity than the
+   .shell-energy-discard-option class ui.js's openChoicePickerModal now
+   uses, see shell-theme.css) forced every choicePickerModal button to
+   min-width:140px with generous padding, regardless of that class's own
+   80px sizing -- combined with the unconstrained ~162px type-icon images
+   this modal shows (Buzzap's/Porygon's Conversion type choice), the whole
+   modal rendered far larger than every other "pick one option" modal in
+   the game. Removed so .shell-energy-discard-option's own sizing (already
+   used by the energy-discard/hand-discard/energy-retrieval/pokédex modals)
+   applies here too, per explicit user request to match that same size. */
 /* #cardModal is a "zoom on top of whatever's already open" utility -- it
    gets triggered from several other modals that stay open behind it
    (booster result, discard pile, etc.), not just bare screens. At the same
