@@ -469,17 +469,26 @@ function canRetreat(state, playerId, benchInstanceId) {
   var bench = p.bench.find(function (b) { return b && b.id === benchInstanceId; });
   if (!bench) { return false; }
   var cost = CARD_STATS[p.active.name].retreatCost;
-  return p.active.attachedEnergy.length >= cost;
+  // Per explicit user ruling: Retreat Cost counts physical Energy CARDS, not
+  // energy amount -- a single Double Colorless Energy (2 Colorless from 1
+  // card) only ever counts as 1 card here, same as every other discard-count
+  // effect (see groupEnergyIntoCards' own comment).
+  return groupEnergyIntoCards(p.active.attachedEnergy).length >= cost;
 }
 
 // energyIndices (optional): specific attachedEnergy indices the player chose
-// to pay the retreat cost with (see ui.js's energy-discard modal). Falls
-// back to the first `cost` many when omitted, e.g. for the AI (ai.js) and
-// tests, which don't care which specific energy is discarded.
+// to pay the retreat cost with (see ui.js's energy-discard modal, which
+// picks whole CARDS -- see groupEnergyIntoCards). Falls back to the first
+// `cost` many CARDS when omitted, e.g. for the AI (ai.js) and tests, which
+// don't care which specific energy is discarded.
 function retreat(state, playerId, benchInstanceId, energyIndices) {
   var p = state.players[playerId];
   var cost = CARD_STATS[p.active.name].retreatCost;
-  var indices = energyIndices || p.active.attachedEnergy.map(function (_, i) { return i; }).slice(0, cost);
+  var indices = energyIndices;
+  if (!indices) {
+    indices = [];
+    groupEnergyIntoCards(p.active.attachedEnergy).slice(0, cost).forEach(function (g) { indices = indices.concat(g.indices); });
+  }
   // removeEnergyCardsAt pulls in a Double Colorless Energy's other half too
   // (it's one physical card, not two) -- see that function's own comment.
   var discardedCards = removeEnergyCardsAt(p.active.attachedEnergy, indices);
@@ -827,6 +836,40 @@ function removeEnergyCardsAt(attachedEnergy, indices) {
   return cards;
 }
 
+// Groups a flat attachedEnergy array (of energy-TYPE strings) into the
+// actual physical CARDS it represents -- every 'Colorless' pair is one
+// Double Colorless Energy card (see attachEnergy), everything else is its
+// own single-slot card. Per explicit user ruling: a Double Colorless Energy
+// counts as 2 Colorless when PAYING a cost (attack cost, Retreat Cost --
+// see canPayCost/canRetreat), but always counts as exactly 1 CARD wherever
+// a rule instead counts cards -- "discard 2 Energy cards" (Fire Spin),
+// "choose 1 Energy card and discard it" (Energy Removal, Super Energy
+// Removal, Whirlpool/Hyper Beam, Super Potion), and Retreat Cost itself
+// (discarding *cards* equal to the cost, not energy amount). Each group's
+// `indices` are its raw attachedEnergy slot(s); `name` is the real
+// discard-pile card name.
+function groupEnergyIntoCards(attachedEnergy) {
+  var groups = [];
+  var used = {};
+  attachedEnergy.forEach(function (type, i) {
+    if (used[i]) { return; }
+    if (type === 'Colorless') {
+      var pairIdx = -1;
+      for (var j = i + 1; j < attachedEnergy.length; j++) {
+        if (!used[j] && attachedEnergy[j] === 'Colorless') { pairIdx = j; break; }
+      }
+      if (pairIdx !== -1) {
+        used[i] = true; used[pairIdx] = true;
+        groups.push({ indices: [i, pairIdx], name: 'Double Colorless Energy' });
+        return;
+      }
+    }
+    used[i] = true;
+    groups.push({ indices: [i], name: type + ' Energy' });
+  });
+  return groups;
+}
+
 function knockOutIfNeeded(state, ownerId, instance) {
   var stats = CARD_STATS[instance.name];
   if (instance.damage < stats.hp) { return; }
@@ -1126,7 +1169,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: true, selfDamage: 0
+          newStatuses: [], severePoison: false, missed: true, selfDamage: 0, shielded: false
         };
       }
       endThisTurn();
@@ -1152,7 +1195,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage
+          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage, shielded: false
         };
       }
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
@@ -1174,6 +1217,12 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // "MISS" overlay (see ui.js's showAttackOverlay) instead of no overlay at
   // all -- a stale true from a PREVIOUS attack() call must never leak in.
   state.attackMissed = false;
+  // Same pattern, for an attack whose only effect is a coin-flip shield
+  // (Scrunch, Withdraw): heads sets this so the overlay can show a "PRCT"
+  // (protected) badge instead of silently doing nothing visible -- tails
+  // still goes through state.attackMissed above for a "MISS" badge, real
+  // reported request (previously neither outcome showed anything at all).
+  state.attackShielded = false;
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
@@ -1194,7 +1243,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // itself only ever displayed that defender damage -- the attacker's own
   // recoil was invisible there, only readable in the text log.
   var selfDamageDealt = attacker.damage - beforeAttackerDamage;
-  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0) {
+  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0 || state.attackShielded) {
     // Drives the ~1s "both cards in the foreground, damage number (and any
     // new Special Condition) on the defender" animation (see
     // showAttackOverlay, ui.js) -- damageDealt is already the real final
@@ -1212,7 +1261,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
     state.lastAttackResult = {
       attackerName: attacker.name, defenderName: defender.name, damage: damageDealt,
       newStatuses: newStatuses, severePoison: !!defender.severePoison, missed: !!state.attackMissed,
-      selfDamage: selfDamageDealt
+      selfDamage: selfDamageDealt, shielded: !!state.attackShielded
     };
   }
 
@@ -1519,7 +1568,7 @@ if (typeof module !== 'undefined') {
     findInstance, opponentOf, translatePlayer, translateCardName,
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
     evolutionTimingAllowed, makeFreshInstance, shuffle,
-    discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt,
+    discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt, groupEnergyIntoCards,
     // Real reported bug found while testing the Energy Retrieval fix
     // above: card-effects.js's own Energy Retrieval effect references this
     // as a bare identifier too (same pattern as the block above) -- never

@@ -512,14 +512,16 @@
 
   <div id="turnFlashOverlay" class="shell-turn-flash hidden"></div>
 
-  <div id="targetHintModal" class="card-modal hidden">
-    <div class="card-modal-backdrop"></div>
-    <div class="shell-modal-card">
-      <p class="shell-modal-text" id="targetHintText"></p>
-      <div class="shell-modal-actions">
-        <button type="button" id="targetHintOkBtn" class="shell-modal-btn">OK</button>
-      </div>
-    </div>
+  <!-- Real reported bug: this used to be a real .card-modal with a full-
+       screen blocking backdrop, so the player's actual target click (the
+       one this hint is guiding them toward) always landed on the backdrop
+       first and just dismissed it -- the REAL click never reached the board
+       card underneath, silently requiring a second click every time. Now a
+       non-blocking floating banner (pointer-events:none, same "informational,
+       not a real choice" tier as .shell-trainer-played) -- see
+       showTargetHintModal/closeTargetHintModal, ui.js. -->
+  <div id="targetHintModal" class="shell-target-hint hidden">
+    <p id="targetHintText"></p>
   </div>
 
   <div id="surrenderModal" class="card-modal hidden">
@@ -814,14 +816,18 @@
                   <div class="shell-config-speed-option" data-difficulty="hard">DIFÍCIL</div>
                 </div>
               </div>
-              <div class="shell-config-panel-disabled">
-                <div class="shell-config-toggle-row">
-                  <div class="shell-config-toggle-text">
-                    <span class="shell-config-toggle-label">ANIMACIONES DE ATAQUE</span>
-                    <span class="shell-config-toggle-note">DESACTIVAR ACELERA LOS TURNOS</span>
-                  </div>
-                  <div class="shell-config-toggle-track on"><div class="shell-config-toggle-knob"></div></div>
+              <!-- Real toggle (not in .shell-config-panel-disabled below --
+                   it actually works): gates the 10-min-per-player clock that
+                   only ever applied to vs-CPU duels (see startGameClock,
+                   ui.js). OFF means a CPU duel has no time limit at all. -->
+              <div class="shell-config-toggle-row" id="cpuDuelTimerToggleRow">
+                <div class="shell-config-toggle-text">
+                  <span class="shell-config-toggle-label">UTILIZAR TIMER VS CPU</span>
+                  <span class="shell-config-toggle-note">10 MIN POR JUGADOR EN DUELOS VS CPU</span>
                 </div>
+                <div class="shell-config-toggle-track on" id="cpuDuelTimerToggle"><div class="shell-config-toggle-knob"></div></div>
+              </div>
+              <div class="shell-config-panel-disabled">
                 <div class="shell-config-toggle-row">
                   <div class="shell-config-toggle-text">
                     <span class="shell-config-toggle-label">PASAR TURNO AUTOMÁTICO</span>

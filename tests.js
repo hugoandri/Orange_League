@@ -259,6 +259,31 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   check('Onix went to bench with only 0 energy left (3 discarded)', state.players[pid].bench[0].attachedEnergy.length, 0);
 })();
 
+(function testRetreatCostCountsCardsNotEnergyAmount() {
+  // Per explicit user ruling: Retreat Cost (like every other "discard N
+  // Energy card(s)" effect) counts physical CARDS, not energy amount -- a
+  // single Double Colorless Energy (2 Colorless from 1 card) must NOT
+  // satisfy a Retreat Cost of 2 by itself, even though it provides enough
+  // raw energy. Jynx has Retreat Cost 2.
+  var state = createGame(function () { return 0.42; });
+  var pid = 'player';
+  state.activePlayerId = pid;
+  var p = state.players[pid];
+  p.active = { id: 'j1', name: 'Jynx', attachedEnergy: ['Colorless', 'Colorless'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [{ id: 'b1', name: 'Machop', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false }];
+  checkTrue('a single Double Colorless Energy (1 card) does not satisfy a Retreat Cost of 2', !canRetreat(state, pid, 'b1'));
+
+  // Add a second real card (any type) -- now 2 physical cards are attached,
+  // satisfying the cost, but the Double Colorless still can't be split: all
+  // 3 Energy get discarded together.
+  p.active.attachedEnergy.push('Water');
+  checkTrue('a Double Colorless plus one more card (2 cards total) satisfies the cost', canRetreat(state, pid, 'b1'));
+  retreat(state, pid, 'b1');
+  var benchedJynx = state.players[pid].bench.filter(function (b) { return b.id === 'j1'; })[0];
+  check('all 3 Energy discarded -- the Double Colorless could not be split', benchedJynx.attachedEnergy.length, 0);
+  check('discard pile got the Double Colorless as ONE card plus the Water', p.discard.length, 2);
+})();
+
 (function testStatusConditionsClearedOnLeavingActive() {
   var state = createGame(function () { return 0.42; });
   var pid = 'player';
@@ -856,6 +881,43 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   ATTACK_EFFECTS['Bulbasaur']['Leech Seed'](state, bulbasaur, target7);
   check('Leech Seed deals 20 to the defender', target7.damage, 20);
   check('Leech Seed heals 10 off Bulbasaur when damage lands', bulbasaur.damage, 10);
+
+  // Real reported bug: Chansey's Double-edge only ever applied its 80
+  // self-damage and never actually hit the Defending Pokemon (printed
+  // damage is 80, "does 80 damage to itself" is an ADDITIONAL effect).
+  var chansey = mkP('Chansey'); var target8 = mkP('Machop');
+  ATTACK_EFFECTS['Chansey']['Double-edge'](state, chansey, target8);
+  check('Double-edge deals 80 to the defender', target8.damage, 80);
+  check('Double-edge deals 80 to Chansey itself too', chansey.damage, 80);
+
+  // Real reported bug: Scrunch's heads outcome silently set a shield with
+  // no visible confirmation -- now flags state.attackShielded (see attack()'s
+  // own comment) so the overlay can show "PRCT".
+  state.attackShielded = false;
+  var chansey2 = mkP('Chansey');
+  ATTACK_EFFECTS['Chansey']['Scrunch'](state, chansey2, null);
+  check('Scrunch sets a preventAll shield on heads', chansey2.shield && chansey2.shield.type, 'preventAll');
+  checkTrue('Scrunch flags attackShielded on heads', state.attackShielded);
+})();
+
+(function testScrunchAndWithdrawMissOnTails() {
+  // Real reported bug: tails on these 0-damage coin-flip shield attacks did
+  // nothing visible at all -- now flags state.attackMissed so the overlay
+  // shows "MISS", same pattern as every other coin-flip attack.
+  var state = createGame(function () { return 0.99; }); // always tails
+  var mkP = function (name) {
+    return { id: 'z_' + name, name: name, attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  };
+  var chansey = mkP('Chansey');
+  ATTACK_EFFECTS['Chansey']['Scrunch'](state, chansey, null);
+  check('Scrunch does not set a shield on tails', chansey.shield, null);
+  checkTrue('Scrunch flags attackMissed on tails', state.attackMissed);
+
+  var squirtle = mkP('Squirtle');
+  state.attackMissed = false;
+  ATTACK_EFFECTS['Squirtle']['Withdraw'](state, squirtle, null);
+  check('Withdraw does not set a shield on tails', squirtle.shield, null);
+  checkTrue('Withdraw flags attackMissed on tails', state.attackMissed);
 })();
 
 (function testBlackoutAttackEffects() {
@@ -2233,7 +2295,7 @@ function mkPokemon(id, name, overrides) {
   plainState.players.player.active = mkPokemon('m1', 'Machop', {});
   plainState.players.cpu.active = mkPokemon('c1', 'Machop', {});
   attack(plainState, 'player', 'Low Kick');
-  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false, missed: false, selfDamage: 0 });
+  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false, missed: false, selfDamage: 0, shielded: false });
 
   var plusPowerState = createGame(function () { return 0.99; });
   plusPowerState.activePlayerId = 'player';

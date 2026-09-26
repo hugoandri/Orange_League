@@ -1512,6 +1512,20 @@
    instead of reading the same as every other line. */
 .shell-board-log-body .log-line-turn-end{font-size:15px;font-weight:700;letter-spacing:.03em;padding-top:2px;}
 
+/* ===== Target-selection hint banner (see showTargetHintModal, ui.js) =====
+   Non-blocking (pointer-events:none), same "informational, not a real
+   choice" tier as .shell-trainer-played below -- real reported bug: this
+   used to be a real blocking modal, so the player's actual target click
+   always landed on its backdrop first and got silently eaten. */
+.shell-target-hint{
+  position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:250;
+  pointer-events:none;padding:10px 22px;border-radius:8px;
+  background:rgba(11,10,9,.88);border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 6px 20px rgba(0,0,0,.5);
+}
+.shell-target-hint.hidden{display:none;}
+.shell-target-hint p{margin:0;font-size:13px;line-height:1.4;color:#efe9dd;text-align:center;white-space:nowrap;}
+
 /* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */
 /* Not a .card-modal -- deliberately non-blocking (pointer-events:none) and
    above everything (z-index:300, same tier as #authScreen) since it's a
@@ -1557,6 +1571,13 @@
 .shell-attack-overlay-damage.shell-attack-overlay-miss{
   color:#cfd6e6;font-size:34px;
   text-shadow:0 0 10px rgba(0,0,0,.9),0 0 26px rgba(190,200,220,.6),2px 2px 0 #000;
+}
+/* A coin-flip shield attack that actually landed (Chansey's Scrunch,
+   Squirtle/Wartortle's Withdraw -- see showAttackOverlay, ui.js) -- green
+   like the attacker's own glow, so it reads as "this worked", not damage. */
+.shell-attack-overlay-damage.shell-attack-overlay-shield{
+  color:#8dff62;font-size:34px;
+  text-shadow:0 0 10px rgba(0,0,0,.9),0 0 26px rgba(141,255,98,.6),2px 2px 0 #000;
 }
 /* Recoil the attacker did to itself (Confusion's self-hit, or a normal
    attack's own recoil like Thunder Jolt/Take Down/Selfdestruct) -- same

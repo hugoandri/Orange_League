@@ -245,7 +245,10 @@ TRAINER_EFFECTS['Super Energy Removal'] = function (state, playerId, handId, own
       return typeof oppIdx === 'number' && oppIdx >= 0 && oppIdx < target.attachedEnergy.length;
     });
   } else {
-    oppIndices = target.attachedEnergy.map(function (_, i) { return i; }).slice(0, 2);
+    // Defaults to the first 2 CARDS, not raw slots (see groupEnergyIntoCards'
+    // own comment) -- a Double Colorless Energy is still just 1 card here.
+    oppIndices = [];
+    groupEnergyIntoCards(target.attachedEnergy).slice(0, 2).forEach(function (g) { oppIndices = oppIndices.concat(g.indices); });
   }
   var oppRemovedCards = removeEnergyCardsAt(target.attachedEnergy, oppIndices);
   oppRemovedCards.forEach(function (card) { op.discard.push(card); });
@@ -838,14 +841,27 @@ ATTACK_EFFECTS['Squirtle'] = {
     dealDamage(state, attacker, defender, 10);
     if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
   },
+  // Same fix as Chansey's Scrunch, real reported bug there too: neither
+  // outcome ever showed anything -- see attack()'s own comment on
+  // state.attackShielded.
   'Withdraw': function (state, attacker) {
-    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+    if (coinFlip(state) === 'H') {
+      attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
+      state.attackShielded = true;
+    } else {
+      state.attackMissed = true;
+    }
   }
 };
 
 ATTACK_EFFECTS['Wartortle'] = {
   'Withdraw': function (state, attacker) {
-    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+    if (coinFlip(state) === 'H') {
+      attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
+      state.attackShielded = true;
+    } else {
+      state.attackMissed = true;
+    }
   },
   'Bite': function (state, attacker, defender) { dealDamage(state, attacker, defender, 40); }
 };
@@ -1156,25 +1172,46 @@ ATTACK_EFFECTS['Blastoise'] = {
 };
 
 ATTACK_EFFECTS['Chansey'] = {
+  // Real reported bug: neither outcome of this coin flip ever showed
+  // anything -- heads silently set the shield with no visible confirmation
+  // it worked, tails did nothing at all. Now heads flags state.attackShielded
+  // (shows a "PRCT" badge, see attack()'s own comment) and tails flags
+  // state.attackMissed (shows "MISS"), same pattern as every other 0-damage
+  // coin-flip attack (Sing, Sleeping Gas, ...).
   'Scrunch': function (state, attacker) {
-    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+    if (coinFlip(state) === 'H') {
+      attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
+      state.attackShielded = true;
+    } else {
+      state.attackMissed = true;
+    }
   },
-  // "Chansey does 80 damage to itself" -- no damage to the defender at
-  // all; the existing generic self-KO check in attack() picks this up.
-  'Double-edge': function (state, attacker) { attacker.damage += 80; }
+  // Real reported bug: this only ever applied the 80 self-damage and never
+  // actually hit the Defending Pokémon at all -- printed damage is 80 (see
+  // CARD_STATS), and "Chansey does 80 damage to itself" is an ADDITIONAL
+  // effect on top of that, not a replacement for it (same pattern as
+  // Machoke's Submission: dealDamage to the defender, then self-damage).
+  'Double-edge': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 80);
+    attacker.damage += 80;
+  }
 };
 
 ATTACK_EFFECTS['Charizard'] = {
   // "Discard 2 Energy cards attached to Charizard in order to use this
-  // attack" -- no type restriction on which 2, unlike Fire-specific
-  // discard costs (Ember/Flamethrower above). energyIndices (optional,
-  // passed through the shared targetInstanceId slot -- see ui.js's
-  // energy-discard modal): which 2 of Charizard's attachedEnergy indices
-  // the player chose. Defaults to the first 2 for callers that don't care
-  // (ai.js's CPU usage).
+  // attack" -- a real CARD count (see groupEnergyIntoCards' own comment):
+  // a single Double Colorless Energy never satisfies this alone, no matter
+  // how much Energy it provides. No type restriction on which 2, unlike
+  // Fire-specific discard costs (Ember/Flamethrower above). energyIndices
+  // (optional, passed through the shared targetInstanceId slot -- see
+  // ui.js's energy-discard modal, which picks whole cards): which 2 of
+  // Charizard's attachedEnergy indices the player chose. Defaults to the
+  // first 2 CARDS for callers that don't care (ai.js's CPU usage).
   'Fire Spin': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
-    if (attacker.attachedEnergy.length < 2) { return; }
-    var indices = Array.isArray(targetInstanceId) ? targetInstanceId : [0, 1];
+    var cardGroups = groupEnergyIntoCards(attacker.attachedEnergy);
+    if (cardGroups.length < 2) { return; }
+    var indices = Array.isArray(targetInstanceId) ? targetInstanceId : [];
+    if (!indices.length) { cardGroups.slice(0, 2).forEach(function (g) { indices = indices.concat(g.indices); }); }
     var p = state.players[playerId];
     var removedCards = removeEnergyCardsAt(attacker.attachedEnergy, indices);
     removedCards.forEach(function (card) { p.discard.push(card); });

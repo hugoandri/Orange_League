@@ -689,7 +689,17 @@ function showCardInViewer(name, instanceId) {
     var discardBtnHtml = canVoluntaryDiscard
       ? '<div class="shell-board-viewer-attacks"><button type="button" class="shell-board-viewer-attack actionable" id="voluntaryDiscardBtn">DESCARTAR</button></div>'
       : '';
-    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + viewerTrioHtml(stats);
+    // Real reported bug: Clefairy Doll (and any other card like it) is a
+    // Trainer that plays and counts as a Pokémon (supertype:'Pokémon' in
+    // CARD_STATS, needed for real gameplay -- evolve/attach/attack logic all
+    // check that field), so it always took THIS branch of the viewer, which
+    // never showed a Trainer's own rules text (translateTrainerText, only
+    // called in the else branch below) -- it has no attacks/Power to show
+    // instead, so its explanation was completely missing.
+    var pokemonAsTrainerText = translateTrainerText(name);
+    var pokemonAsTrainerHtml = pokemonAsTrainerText
+      ? '<div class="shell-board-viewer-note">' + escapeHtml(pokemonAsTrainerText) + '</div>' : '';
+    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + pokemonAsTrainerHtml + viewerTrioHtml(stats);
   } else {
     // Trainer/Energy cards: the title stays in its real printed (English)
     // name here -- unlike the deck list/hand label, which do translate it
@@ -1015,12 +1025,15 @@ function showAttackOverlay(result, onDone) {
   attackerImg.alt = result.attackerName;
   defenderImg.src = defenderUrl;
   defenderImg.alt = result.defenderName;
-  // "MISS" for an attack whose own coin flip whiffed entirely (see
-  // rules-engine.js's attack()/state.attackMissed); otherwise no damage
-  // number for a 0-damage, status-only attack (Sing/Hypnosis) -- "-0" would
-  // just be noise when nothing was actually knocked off.
-  dmgEl.textContent = result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : '');
+  // "PRCT" for a coin-flip shield attack that actually landed (Chansey's
+  // Scrunch, Squirtle/Wartortle's Withdraw -- see rules-engine.js's
+  // attack()/state.attackShielded); "MISS" for one whose own coin flip
+  // whiffed entirely (state.attackMissed); otherwise no damage number for a
+  // 0-damage, status-only attack (Sing/Hypnosis) -- "-0" would just be noise
+  // when nothing was actually knocked off.
+  dmgEl.textContent = result.shielded ? 'PRCT' : (result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : ''));
   dmgEl.classList.toggle('shell-attack-overlay-miss', !!result.missed);
+  dmgEl.classList.toggle('shell-attack-overlay-shield', !!result.shielded);
   // Recoil the attack dealt to itself (Confusion's self-hit, or a normal
   // attack's own recoil like Thunder Jolt/Take Down/Selfdestruct) -- shown
   // on the attacker's own card so it isn't silently missing from the
@@ -1421,18 +1434,6 @@ function renderEnergyRetrievalModal() {
   });
 }
 
-// Reverse of rules-engine.js's ENERGY_TYPE_BY_CARD_NAME -- attachedEnergy
-// stores just the type ('Water'), but the discard-choice modal needs the
-// real card name to look up its illustration.
-var ENERGY_CARD_NAME_BY_TYPE = {
-  Grass: 'Grass Energy', Fire: 'Fire Energy', Water: 'Water Energy',
-  Lightning: 'Lightning Energy', Psychic: 'Psychic Energy', Fighting: 'Fighting Energy',
-  // 'Colorless' only ever appears in attachedEnergy via Double Colorless
-  // Energy (every basic Energy card's own type is one of the 6 above) --
-  // safe to map unconditionally.
-  Colorless: 'Double Colorless Energy'
-};
-
 // Which side of the board the player must click next for a given armed
 // Trainer -- shown via showTargetHintModal right when the card is armed,
 // so the player isn't left guessing which side to click (e.g. Gust of Wind
@@ -1461,13 +1462,25 @@ function closeTargetHintModal() {
   document.getElementById('targetHintModal').classList.add('hidden');
 }
 
-// Holds the in-progress choice while the energy-discard modal is open:
-// which energy types are offered, how many must be picked, and what to do
-// with the chosen indices once confirmed. null when the modal is closed.
+// Holds the in-progress choice while the energy-discard modal is open: the
+// physical-card groups on offer (see rules-engine.js's groupEnergyIntoCards
+// -- a Double Colorless Energy is always exactly 1 group even though it
+// holds 2 attachedEnergy slots), how many CARDS must be picked, and what to
+// do with the chosen groups' flattened slot indices once confirmed. null
+// when the modal is closed.
 var energyDiscardState = null;
 
+// energyTypes: the raw attachedEnergy array (slot-index order matters --
+// it's regrouped into physical cards here). count: how many CARDS to pick,
+// per explicit user ruling -- a Double Colorless Energy never counts as 2
+// toward this, whether it's an attack's "discard N Energy cards" effect or
+// Retreat Cost itself. onConfirm receives the flattened raw attachedEnergy
+// indices for whichever cards were chosen (unchanged shape from before this
+// grouping existed, so every caller -- retreat, Super Potion, Energy
+// Removal, Super Energy Removal, Fire Spin, Whirlpool/Hyper Beam -- needs
+// no changes of its own).
 function openEnergyDiscardModal(energyTypes, count, onConfirm) {
-  energyDiscardState = { energyTypes: energyTypes, count: count, selected: [], onConfirm: onConfirm };
+  energyDiscardState = { groups: groupEnergyIntoCards(energyTypes), count: count, selected: [], onConfirm: onConfirm };
   renderEnergyDiscardModal();
   document.getElementById('energyDiscardModal').classList.remove('hidden');
 }
@@ -1480,23 +1493,22 @@ function closeEnergyDiscardModal() {
 function renderEnergyDiscardModal() {
   var s = energyDiscardState;
   document.getElementById('energyDiscardPrompt').textContent =
-    'Elige ' + s.count + (s.count === 1 ? ' energía para descartar' : ' energías para descartar') +
+    'Elige ' + s.count + (s.count === 1 ? ' carta de energía para descartar' : ' cartas de energía para descartar') +
     ' (' + s.selected.length + '/' + s.count + ')';
   var grid = document.getElementById('energyDiscardGrid');
-  grid.innerHTML = s.energyTypes.map(function (type, i) {
-    var cardName = ENERGY_CARD_NAME_BY_TYPE[type] || type;
-    var selected = s.selected.indexOf(i) !== -1;
-    return '<div class="shell-energy-discard-option' + (selected ? ' selected' : '') + '" data-energy-index="' + i + '">' +
-      cardImageTag(cardName, '') + '<span>' + escapeHtml(translateCardName(cardName)) + '</span></div>';
+  grid.innerHTML = s.groups.map(function (group, gi) {
+    var selected = s.selected.indexOf(gi) !== -1;
+    return '<div class="shell-energy-discard-option' + (selected ? ' selected' : '') + '" data-energy-group="' + gi + '">' +
+      cardImageTag(group.name, '') + '<span>' + escapeHtml(translateCardName(group.name)) + '</span></div>';
   }).join('');
   grid.querySelectorAll('.shell-energy-discard-option').forEach(function (el) {
     el.addEventListener('click', function () {
-      var i = parseInt(el.getAttribute('data-energy-index'), 10);
-      var pos = s.selected.indexOf(i);
+      var gi = parseInt(el.getAttribute('data-energy-group'), 10);
+      var pos = s.selected.indexOf(gi);
       if (pos !== -1) {
         s.selected.splice(pos, 1);
       } else if (s.selected.length < s.count) {
-        s.selected.push(i);
+        s.selected.push(gi);
       }
       renderEnergyDiscardModal();
     });
@@ -1973,6 +1985,13 @@ function renderBoard() {
   // render triggered by something else (e.g. the CPU's turn) can't leave it
   // open and pointing at a card that may no longer even be in hand.
   hideHandCardMenu();
+  // Same reasoning for the (now non-blocking, see index.html's own comment)
+  // target-selection hint banner: every multi-step flow that shows it
+  // deliberately avoids calling renderBoard() between its own steps (so this
+  // never fires mid-flow), meaning any render that DOES happen means either
+  // the flow just completed or something else took over -- either way, a
+  // stale "Elige..." hint shouldn't linger on screen.
+  closeTargetHintModal();
 
   var pActive = (revealAnimationInProgress && visualActivePokemon && visualActivePokemon.player)
     ? visualActivePokemon.player
@@ -3373,6 +3392,15 @@ function renderClocks() {
   if (!s || s.phase !== 'playing' || !s.activePlayerId) { return; }
   var myEl = document.getElementById('sideClock-player');
   var cpuEl = document.getElementById('sideClock-cpu');
+  // "UTILIZAR TIMER VS CPU" (Configuración) off, local play only -- PVP
+  // always keeps its own server-side clock regardless of this setting (see
+  // startGameClock's own comment). Plain text instead of the pixel-digit
+  // renderer (renderClockDisplay), which only knows digits/colon.
+  if (!pvpMode && !isCpuDuelTimerEnabled()) {
+    if (myEl) { myEl.textContent = 'SIN LÍMITE'; myEl.classList.remove('low'); }
+    if (cpuEl) { cpuEl.textContent = 'SIN LÍMITE'; cpuEl.classList.remove('low'); }
+    return;
+  }
   if (myEl) { renderClockDisplay(myEl, s.players.player.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
   if (cpuEl) { renderClockDisplay(cpuEl, s.players.cpu.timeBankMs, false, SIDE_CLOCK_BLOCK_PX); }
 }
@@ -3396,6 +3424,13 @@ function tickGameClock() {
 
 function startGameClock() {
   stopGameClock();
+  // "UTILIZAR TIMER VS CPU" (Configuración): local play only -- PVP always
+  // runs its own clock (tickPvpClocks) no matter what this setting says,
+  // since it's a real match against another person, not just a CPU duel
+  // convenience timer. Skipping the interval entirely means timeBankMs
+  // never drains, so getWinner()'s own timeout check never fires either --
+  // a genuinely untimed duel, not just a hidden clock.
+  if (!pvpMode && !isCpuDuelTimerEnabled()) { renderClocks(); return; }
   clockLastTickAt = Date.now();
   clockIntervalId = setInterval(tickGameClock, CLOCK_TICK_MS);
   renderClocks();
@@ -6086,6 +6121,21 @@ function renderCpuDifficultyControl() {
     el.classList.toggle('active', el.getAttribute('data-difficulty') === current);
   });
 }
+
+// "UTILIZAR TIMER VS CPU" (Configuración): gates the 10-min-per-player
+// clock (DEFAULT_TIME_BANK_MS, rules-engine.js) that only ever applied to
+// local vs-CPU duels, never PVP (which always runs its own server-side
+// clock regardless of this setting -- see startGameClock's own comment).
+// Defaults to on (today's existing behavior) when never set.
+function isCpuDuelTimerEnabled() {
+  try { return localStorage.getItem('tcg_cpu_duel_timer') !== 'off'; } catch (e) { return true; }
+}
+function setCpuDuelTimerEnabled(enabled) {
+  try { localStorage.setItem('tcg_cpu_duel_timer', enabled ? 'on' : 'off'); } catch (e) {}
+}
+function renderCpuDuelTimerToggle() {
+  document.getElementById('cpuDuelTimerToggle').classList.toggle('on', isCpuDuelTimerEnabled());
+}
 // A random delay within the difficulty's range, so the CPU doesn't "think"
 // for a suspiciously identical amount of time every single turn.
 function cpuThinkDelayMs(difficulty) {
@@ -6234,6 +6284,7 @@ function showConfigScreen(returnTo) {
   document.getElementById('configModeSelect').value = document.fullscreenElement ? 'fullscreen' : 'window';
   document.getElementById('configDuelMusicSelect').value = getDuelMusicKey();
   renderCpuDifficultyControl();
+  renderCpuDuelTimerToggle();
   var musicPct = getMusicVolume();
   var musicSlider = document.getElementById('configMusicSlider');
   musicSlider.querySelector('[data-slider-fill]').style.width = musicPct + '%';
@@ -6714,6 +6765,10 @@ document.addEventListener('DOMContentLoaded', function () {
       renderCpuDifficultyControl();
     });
   });
+  document.getElementById('cpuDuelTimerToggle').addEventListener('click', function () {
+    setCpuDuelTimerEnabled(!isCpuDuelTimerEnabled());
+    renderCpuDuelTimerToggle();
+  });
   document.getElementById('configDuelMusicSelect').addEventListener('change', function () {
     setDuelMusicKey(this.value);
     stopDuelMusicPreview();
@@ -6826,9 +6881,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch(function (err) { alert(err.message || 'No se pudo rendir.'); });
   });
 
-  document.getElementById('targetHintOkBtn').addEventListener('click', closeTargetHintModal);
-  document.querySelector('#targetHintModal .card-modal-backdrop').addEventListener('click', closeTargetHintModal);
-
   document.getElementById('deckSearchCancel').addEventListener('click', closeDeckSearchModal);
   document.querySelector('#deckSearchModal .card-modal-backdrop').addEventListener('click', closeDeckSearchModal);
 
@@ -6851,7 +6903,8 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('energyDiscardConfirm').addEventListener('click', function () {
     var s = energyDiscardState;
     if (!s || s.selected.length !== s.count) { return; }
-    var indices = s.selected.slice();
+    var indices = [];
+    s.selected.forEach(function (gi) { indices = indices.concat(s.groups[gi].indices); });
     var onConfirm = s.onConfirm;
     closeEnergyDiscardModal();
     onConfirm(indices);
