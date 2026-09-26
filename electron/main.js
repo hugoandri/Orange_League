@@ -83,6 +83,11 @@ function createWindow() {
 // app, distinct from the game's own "CERRAR SESIÓN" which just signs out.
 ipcMain.on('quit-app', () => { app.quit(); });
 
+// Footer version label (see electron/preload.js's own comment for why this
+// is a synchronous IPC round-trip rather than requiring package.json
+// directly in the sandboxed preload context).
+ipcMain.on('get-app-version', (event) => { event.returnValue = app.getVersion(); });
+
 app.whenReady().then(() => {
   createWindow();
 

@@ -20,11 +20,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   openReleasesPage: function () { ipcRenderer.send('open-releases-page'); },
   // Real reported bug: the footer's version label was a hand-typed literal
-  // in index.html ("V1.0") that never actually matched the shipped build
-  // (1.0.4 at the time this was fixed) -- confusing enough that the user
-  // couldn't tell whether an update had actually landed. Read straight from
-  // package.json (the same file electron-builder itself reads to name/tag
-  // every release) instead of a string someone has to remember to update by
-  // hand each release.
-  appVersion: require('../package.json').version
+  // in index.html ("V1.0") that never actually matched the shipped build.
+  // A first attempt at this fix used require('../package.json') right here,
+  // which broke EVERYTHING in this file, not just the version -- Electron's
+  // sandboxed preload context (the default since nodeIntegration:false,
+  // electron/main.js) only allows requiring built-in modules like 'electron'
+  // itself, not arbitrary app files; that require() threw while this object
+  // literal was still being built, before contextBridge.exposeInMainWorld
+  // below ever ran, so window.electronAPI came out fully undefined --
+  // quitApp/checkForUpdates/appVersion all silently gone at once. Reading
+  // the version from the main process (which has full Node access) over
+  // the same synchronous-IPC pattern real world, sandboxed preloads use
+  // avoids that entirely.
+  appVersion: ipcRenderer.sendSync('get-app-version')
 });
