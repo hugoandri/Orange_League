@@ -892,12 +892,17 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
 
   // Real reported bug: Scrunch's heads outcome silently set a shield with
   // no visible confirmation -- now flags state.attackShielded (see attack()'s
-  // own comment) so the overlay can show "PRCT".
+  // own comment) so the overlay can show "PRCT". attackSelfEffect flags that
+  // this badge belongs on Chansey's OWN card, not the (nonexistent here)
+  // defender's -- real reported follow-up bug: it first landed on the
+  // Defending Pokémon's card instead.
   state.attackShielded = false;
+  state.attackSelfEffect = false;
   var chansey2 = mkP('Chansey');
   ATTACK_EFFECTS['Chansey']['Scrunch'](state, chansey2, null);
   check('Scrunch sets a preventAll shield on heads', chansey2.shield && chansey2.shield.type, 'preventAll');
   checkTrue('Scrunch flags attackShielded on heads', state.attackShielded);
+  checkTrue('Scrunch flags attackSelfEffect so the badge shows on Chansey, not the defender', state.attackSelfEffect);
 })();
 
 (function testScrunchAndWithdrawMissOnTails() {
@@ -912,12 +917,15 @@ function checkTrue(description, actual) { check(description, !!actual, true); }
   ATTACK_EFFECTS['Chansey']['Scrunch'](state, chansey, null);
   check('Scrunch does not set a shield on tails', chansey.shield, null);
   checkTrue('Scrunch flags attackMissed on tails', state.attackMissed);
+  checkTrue('Scrunch flags attackSelfEffect on tails too', state.attackSelfEffect);
 
   var squirtle = mkP('Squirtle');
   state.attackMissed = false;
+  state.attackSelfEffect = false;
   ATTACK_EFFECTS['Squirtle']['Withdraw'](state, squirtle, null);
   check('Withdraw does not set a shield on tails', squirtle.shield, null);
   checkTrue('Withdraw flags attackMissed on tails', state.attackMissed);
+  checkTrue('Withdraw flags attackSelfEffect on tails too', state.attackSelfEffect);
 })();
 
 (function testBlackoutAttackEffects() {
@@ -2295,7 +2303,7 @@ function mkPokemon(id, name, overrides) {
   plainState.players.player.active = mkPokemon('m1', 'Machop', {});
   plainState.players.cpu.active = mkPokemon('c1', 'Machop', {});
   attack(plainState, 'player', 'Low Kick');
-  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false, missed: false, selfDamage: 0, shielded: false });
+  check('lastAttackResult records the attacker/defender names and the real damage', plainState.lastAttackResult, { attackerName: 'Machop', defenderName: 'Machop', damage: 20, newStatuses: [], severePoison: false, missed: false, selfDamage: 0, shielded: false, selfEffect: false });
 
   var plusPowerState = createGame(function () { return 0.99; });
   plusPowerState.activePlayerId = 'player';
@@ -2447,6 +2455,36 @@ function mkPokemon(id, name, overrides) {
   attack(thunderJoltState, 'player', 'Thunder Jolt');
   check('Thunder Jolt still deals its real 30 damage to the defender', thunderJoltState.lastAttackResult.damage, 30);
   check('Thunder Jolt\'s own tails recoil shows up as selfDamage too', thunderJoltState.lastAttackResult.selfDamage, 10);
+})();
+
+// Real reported follow-up bug: Chansey's Scrunch and Squirtle/Wartortle's
+// Withdraw are pure self-buff coin flips that never touch the Defending
+// Pokémon at all -- but their PRCT/MISS badge was landing on the DEFENDER's
+// card in the overlay anyway (same slot Sand-attack's real "missed the
+// opponent" MISS uses). lastAttackResult.selfEffect (see rules-engine.js's
+// attack() and card-effects.js's Scrunch/Withdraw) tells ui.js's
+// showAttackOverlay to route that badge onto the ATTACKER's own card
+// instead, through the full real attack() path (not just the isolated
+// ATTACK_EFFECTS unit tests above).
+(function testScrunchSelfEffectFlowsThroughRealAttackCall() {
+  var headsState = createGame(function () { return 0.01; }); // heads
+  headsState.activePlayerId = 'player';
+  headsState.players.player.active = mkPokemon('ch1', 'Chansey', { attachedEnergy: ['Colorless', 'Colorless'] });
+  headsState.players.cpu.active = mkPokemon('m1', 'Machop', {});
+  attack(headsState, 'player', 'Scrunch');
+  checkTrue('Scrunch through attack() flags selfEffect', headsState.lastAttackResult.selfEffect);
+  checkTrue('Scrunch through attack() flags shielded on heads', headsState.lastAttackResult.shielded);
+  check('the Defending Pokémon takes no damage from Scrunch', headsState.lastAttackResult.damage, 0);
+  check('Chansey itself still shows 0 damage (Scrunch does not hurt its own user)', headsState.players.player.active.damage, 0);
+
+  var tailsState = createGame(function () { return 0.99; }); // tails
+  tailsState.activePlayerId = 'player';
+  tailsState.players.player.active = mkPokemon('ch2', 'Chansey', { attachedEnergy: ['Colorless', 'Colorless'] });
+  tailsState.players.cpu.active = mkPokemon('m2', 'Machop', {});
+  attack(tailsState, 'player', 'Scrunch');
+  checkTrue('Scrunch through attack() flags selfEffect on tails too', tailsState.lastAttackResult.selfEffect);
+  checkTrue('Scrunch through attack() flags missed on tails', tailsState.lastAttackResult.missed);
+  check('the Defending Pokémon takes no damage from Scrunch on tails either', tailsState.lastAttackResult.damage, 0);
 })();
 
 // Real reported bug: retreat()'s own log line built its message AFTER

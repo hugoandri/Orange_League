@@ -1169,7 +1169,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: true, selfDamage: 0, shielded: false
+          newStatuses: [], severePoison: false, missed: true, selfDamage: 0, shielded: false, selfEffect: false
         };
       }
       endThisTurn();
@@ -1195,7 +1195,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage, shielded: false
+          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage, shielded: false, selfEffect: false
         };
       }
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
@@ -1223,6 +1223,14 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // still goes through state.attackMissed above for a "MISS" badge, real
   // reported request (previously neither outcome showed anything at all).
   state.attackShielded = false;
+  // Real reported bug: Scrunch/Withdraw's own PRCT/MISS badge (above) landed
+  // on the DEFENDER's card in the overlay (the same slot Sand-attack's own
+  // real "missed the opponent" MISS uses) -- wrong for these two, since
+  // neither ever targets or touches the Defending Pokémon at all, it's a
+  // pure self-buff attempt. ATTACK_EFFECTS entries for exactly those two
+  // set this (unconditionally, both outcomes) so ui.js's showAttackOverlay
+  // can route the badge onto the ATTACKER's own card instead.
+  state.attackSelfEffect = false;
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
@@ -1261,7 +1269,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
     state.lastAttackResult = {
       attackerName: attacker.name, defenderName: defender.name, damage: damageDealt,
       newStatuses: newStatuses, severePoison: !!defender.severePoison, missed: !!state.attackMissed,
-      selfDamage: selfDamageDealt, shielded: !!state.attackShielded
+      selfDamage: selfDamageDealt, shielded: !!state.attackShielded, selfEffect: !!state.attackSelfEffect
     };
   }
 

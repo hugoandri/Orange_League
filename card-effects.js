@@ -843,8 +843,12 @@ ATTACK_EFFECTS['Squirtle'] = {
   },
   // Same fix as Chansey's Scrunch, real reported bug there too: neither
   // outcome ever showed anything -- see attack()'s own comment on
-  // state.attackShielded.
+  // state.attackShielded. attackSelfEffect (set unconditionally, both
+  // outcomes) tells ui.js's showAttackOverlay to put that PRCT/MISS badge
+  // on THIS Pokémon's own card, not the Defending Pokémon's -- Withdraw
+  // never targets or touches the defender at all.
   'Withdraw': function (state, attacker) {
+    state.attackSelfEffect = true;
     if (coinFlip(state) === 'H') {
       attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
       state.attackShielded = true;
@@ -856,6 +860,7 @@ ATTACK_EFFECTS['Squirtle'] = {
 
 ATTACK_EFFECTS['Wartortle'] = {
   'Withdraw': function (state, attacker) {
+    state.attackSelfEffect = true;
     if (coinFlip(state) === 'H') {
       attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
       state.attackShielded = true;
@@ -1177,8 +1182,12 @@ ATTACK_EFFECTS['Chansey'] = {
   // it worked, tails did nothing at all. Now heads flags state.attackShielded
   // (shows a "PRCT" badge, see attack()'s own comment) and tails flags
   // state.attackMissed (shows "MISS"), same pattern as every other 0-damage
-  // coin-flip attack (Sing, Sleeping Gas, ...).
+  // coin-flip attack (Sing, Sleeping Gas, ...). attackSelfEffect (set
+  // unconditionally, both outcomes) tells ui.js's showAttackOverlay to put
+  // that badge on CHANSEY's own card, not the Defending Pokémon's --
+  // Scrunch never targets or touches the defender at all.
   'Scrunch': function (state, attacker) {
+    state.attackSelfEffect = true;
     if (coinFlip(state) === 'H') {
       attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' };
       state.attackShielded = true;

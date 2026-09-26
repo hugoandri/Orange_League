@@ -512,16 +512,21 @@
 
   <div id="turnFlashOverlay" class="shell-turn-flash hidden"></div>
 
-  <!-- Real reported bug: this used to be a real .card-modal with a full-
-       screen blocking backdrop, so the player's actual target click (the
-       one this hint is guiding them toward) always landed on the backdrop
-       first and just dismissed it -- the REAL click never reached the board
-       card underneath, silently requiring a second click every time. Now a
-       non-blocking floating banner (pointer-events:none, same "informational,
-       not a real choice" tier as .shell-trainer-played) -- see
-       showTargetHintModal/closeTargetHintModal, ui.js. -->
+  <!-- Real reported bug (round 1): this used to be a real .card-modal with
+       a full-screen blocking backdrop, so the player's actual target click
+       (the one this hint is guiding them toward) always landed on the
+       backdrop first and just dismissed it -- the REAL click never reached
+       the board card underneath, silently requiring a second click every
+       time. Real reported bug (round 2): the first fix visually downgraded
+       this to a small top-of-screen banner instead of the same centered
+       .shell-modal-card plate every other in-game prompt uses. This is that
+       same plate/text markup, centered the same way -- see
+       shell-theme.css's own comment for why it's still non-blocking despite
+       looking identical to a real modal. -->
   <div id="targetHintModal" class="shell-target-hint hidden">
-    <p id="targetHintText"></p>
+    <div class="shell-modal-card">
+      <p class="shell-modal-text" id="targetHintText"></p>
+    </div>
   </div>
 
   <div id="surrenderModal" class="card-modal hidden">

@@ -1030,16 +1030,26 @@ function showAttackOverlay(result, onDone) {
   // attack()/state.attackShielded); "MISS" for one whose own coin flip
   // whiffed entirely (state.attackMissed); otherwise no damage number for a
   // 0-damage, status-only attack (Sing/Hypnosis) -- "-0" would just be noise
-  // when nothing was actually knocked off.
-  dmgEl.textContent = result.shielded ? 'PRCT' : (result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : ''));
-  dmgEl.classList.toggle('shell-attack-overlay-miss', !!result.missed);
-  dmgEl.classList.toggle('shell-attack-overlay-shield', !!result.shielded);
+  // when nothing was actually knocked off. Real reported bug: Scrunch/
+  // Withdraw's PRCT/MISS badge was landing on the DEFENDING Pokémon's card
+  // -- wrong, since neither attack ever targets or touches the defender at
+  // all (pure self-buff). result.selfEffect (set by those two specifically,
+  // see card-effects.js) routes the badge onto the ATTACKER's own card
+  // (selfDmgEl) instead, leaving the defender's own damage badge blank.
+  var selfEffectBadge = result.selfEffect && (result.shielded || result.missed);
+  dmgEl.textContent = selfEffectBadge ? '' : (result.shielded ? 'PRCT' : (result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : '')));
+  dmgEl.classList.toggle('shell-attack-overlay-miss', !!result.missed && !selfEffectBadge);
+  dmgEl.classList.toggle('shell-attack-overlay-shield', !!result.shielded && !selfEffectBadge);
   // Recoil the attack dealt to itself (Confusion's self-hit, or a normal
   // attack's own recoil like Thunder Jolt/Take Down/Selfdestruct) -- shown
   // on the attacker's own card so it isn't silently missing from the
   // overlay just because it never touched the Defending Pokémon (see
-  // rules-engine.js's attack()/selfDamage).
-  selfDmgEl.textContent = result.selfDamage > 0 ? '-' + result.selfDamage : '';
+  // rules-engine.js's attack()/selfDamage). Doubles as the PRCT/MISS slot
+  // for Scrunch/Withdraw's own self-effect badge (selfEffectBadge above) --
+  // the two never coexist since neither attack deals real self-damage.
+  selfDmgEl.textContent = selfEffectBadge ? (result.shielded ? 'PRCT' : 'MISS') : (result.selfDamage > 0 ? '-' + result.selfDamage : '');
+  selfDmgEl.classList.toggle('shell-attack-overlay-miss', selfEffectBadge && !!result.missed);
+  selfDmgEl.classList.toggle('shell-attack-overlay-shield', selfEffectBadge && !!result.shielded);
   statusEl.innerHTML = (result.newStatuses || []).map(function (s) {
     var badgeKey = (s === 'Poisoned' && result.severePoison) ? 'SeverePoison' : s;
     return pixelStatusBadgeHtml(badgeKey, 3);

@@ -1512,19 +1512,26 @@
    instead of reading the same as every other line. */
 .shell-board-log-body .log-line-turn-end{font-size:15px;font-weight:700;letter-spacing:.03em;padding-top:2px;}
 
-/* ===== Target-selection hint banner (see showTargetHintModal, ui.js) =====
-   Non-blocking (pointer-events:none), same "informational, not a real
-   choice" tier as .shell-trainer-played below -- real reported bug: this
-   used to be a real blocking modal, so the player's actual target click
-   always landed on its backdrop first and got silently eaten. */
+/* ===== Target-selection hint (see showTargetHintModal, ui.js) =====
+   Real reported bug (round 1): this used to be a real .card-modal with a
+   full-screen blocking backdrop, so the player's actual target click always
+   landed on the backdrop first and got silently eaten -- fixed by making it
+   non-blocking (pointer-events:none on the outer wrapper, same tier as
+   .shell-trainer-played below). Real reported bug (round 2): the FIRST fix
+   for that shrank it down to a small top-of-screen banner, breaking visual
+   consistency with every other in-game prompt (energy-discard, choice-
+   picker, ...), which all use the centered .shell-modal-card plate. This
+   version renders that exact same card, centered the same way, just without
+   ever intercepting clicks -- the pointer-events:none has to live on this
+   OUTER centering wrapper (not just the inner card) since a wrapper that
+   fills the viewport would otherwise sit on top of the board regardless of
+   its own background. */
 .shell-target-hint{
-  position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:250;
-  pointer-events:none;padding:10px 22px;border-radius:8px;
-  background:rgba(11,10,9,.88);border:1px solid rgba(255,255,255,.12);
-  box-shadow:0 6px 20px rgba(0,0,0,.5);
+  position:fixed;inset:0;z-index:250;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
 }
 .shell-target-hint.hidden{display:none;}
-.shell-target-hint p{margin:0;font-size:13px;line-height:1.4;color:#efe9dd;text-align:center;white-space:nowrap;}
+.shell-target-hint p{margin:0;}
 
 /* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */
 /* Not a .card-modal -- deliberately non-blocking (pointer-events:none) and
