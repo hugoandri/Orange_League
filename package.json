@@ -1,6 +1,6 @@
 {
   "name": "orange-league-tcg-simulador",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "private": true,
   "description": "Orange League Pokémon TCG Simulator — desktop app",
   "main": "electron/main.js",
