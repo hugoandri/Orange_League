@@ -18,5 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // (open the Releases page) instead of a "reiniciar" button that does
   // nothing on Mac.
   platform: process.platform,
-  openReleasesPage: function () { ipcRenderer.send('open-releases-page'); }
+  openReleasesPage: function () { ipcRenderer.send('open-releases-page'); },
+  // Real reported bug: the footer's version label was a hand-typed literal
+  // in index.html ("V1.0") that never actually matched the shipped build
+  // (1.0.4 at the time this was fixed) -- confusing enough that the user
+  // couldn't tell whether an update had actually landed. Read straight from
+  // package.json (the same file electron-builder itself reads to name/tag
+  // every release) instead of a string someone has to remember to update by
+  // hand each release.
+  appVersion: require('../package.json').version
 });

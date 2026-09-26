@@ -174,6 +174,14 @@
         window.electronAPI.quitApp();
       });
 
+      // Real reported bug: this footer label was a hand-typed "V1.0" that
+      // never actually matched the shipped build -- confusing enough the
+      // user couldn't tell an update had landed. Read the real version
+      // straight from package.json (see electron/preload.js) instead.
+      if (window.electronAPI.appVersion) {
+        document.getElementById('menuAppVersion').textContent = 'V' + window.electronAPI.appVersion;
+      }
+
       // ── Check for updates (electron-updater, see electron/main.js) ──
       var updateBtn = document.getElementById('menuUpdateBtn');
       var updateStatusEl = document.getElementById('menuUpdateStatus');
