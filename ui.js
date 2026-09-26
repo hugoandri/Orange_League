@@ -526,9 +526,17 @@ function isHoloInMatch(ownerId, cardName) {
 // Real weakness/resistance/retreat-cost trio (data-cards.js), shown under
 // the attacks panel in the card viewer -- weaknesses/resistances are only
 // ever a single entry for these cards, matching the real Base Set prints.
-function viewerTrioHtml(stats) {
-  var weakness = stats.weaknesses && stats.weaknesses[0];
-  var resistance = stats.resistances && stats.resistances[0];
+// instance (optional): when given, Porygon's Conversion 1 (weaknessOverride,
+// set on whichever Pokémon it targeted) / Conversion 2 (resistanceOverride,
+// set on Porygon itself) take priority over the printed stat -- same
+// override dealDamage itself already reads (rules-engine.js) -- so the
+// viewer reflects what actually applies in combat, not just what's printed
+// on the card. Real reported request: this used to only ever show the
+// printed stat, so using either Conversion attack had no visible effect
+// here at all.
+function viewerTrioHtml(stats, instance) {
+  var weakness = (instance && instance.weaknessOverride) || (stats.weaknesses && stats.weaknesses[0]);
+  var resistance = (instance && instance.resistanceOverride) || (stats.resistances && stats.resistances[0]);
   var retreatCost = stats.retreatCost || 0;
   var weaknessHtml = (weakness && ENERGY_CARD_TYPE_ICON[weakness.type])
     ? '<img src="Tipos/' + ENERGY_CARD_TYPE_ICON[weakness.type] + '.png" alt="">'
@@ -699,7 +707,7 @@ function showCardInViewer(name, instanceId) {
     var pokemonAsTrainerText = translateTrainerText(name);
     var pokemonAsTrainerHtml = pokemonAsTrainerText
       ? '<div class="shell-board-viewer-note">' + escapeHtml(pokemonAsTrainerText) + '</div>' : '';
-    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + pokemonAsTrainerHtml + viewerTrioHtml(stats);
+    bodyHtml = identityHtml + viewerPowerHtml(name) + viewerAttacksHtml(name, actionableState) + discardBtnHtml + statusHtml + pokemonAsTrainerHtml + viewerTrioHtml(stats, instance);
   } else {
     // Trainer/Energy cards: the title stays in its real printed (English)
     // name here -- unlike the deck list/hand label, which do translate it
@@ -811,6 +819,31 @@ function showCardInViewer(name, instanceId) {
             });
             return;
           }
+        }
+        // Porygon's Conversion 1/2: "a type of your choice other than
+        // Colorless" -- same choicePickerModal type-choice pattern as
+        // Buzzap's own energy-type choice, just without Colorless as an
+        // option (see card-effects.js's CONVERSION_VALID_TYPES). Conversion
+        // 1 changes the Defending Pokémon's Weakness; Conversion 2 changes
+        // Porygon's OWN Resistance -- both apply immediately, no further
+        // click needed once a type is picked.
+        if (atkName === 'Conversion 1' || atkName === 'Conversion 2') {
+          var conversionTypeOptions = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting'].map(function (t) {
+            return { id: t, label: BUZZAP_TYPE_NAME_ES[t], imgUrl: 'Tipos/' + ENERGY_CARD_TYPE_ICON[t] + '.png' };
+          });
+          var conversionPrompt = atkName === 'Conversion 1'
+            ? 'Elige el nuevo tipo de Debilidad del Pokémon Defensor:'
+            : 'Elige el nuevo tipo de Resistencia de Porygon:';
+          openChoicePickerModal(conversionPrompt, conversionTypeOptions, function (chosenType) {
+            if (pvpMode) {
+              pvpAttackEndedMyTurn = true;
+              submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName, targetInstanceId: chosenType })
+                .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+              return;
+            }
+            executePlayerAttack(atkName, chosenType);
+          });
+          return;
         }
         if (pvpMode) {
           // Armed BEFORE the call, not after it resolves -- attack() ends
@@ -2942,6 +2975,16 @@ function wireBoardButtons() {
       showCardInViewer(el.getAttribute('data-card-name'), instanceId);
       if (retreatMode) {
         retreatMode = false;
+        // Real reported bug: the "Elige un Pokémon de la Banca" hint (shown
+        // when Retirar was clicked) never closed here -- it only ever got
+        // dismissed by a later renderBoard() call, which the retreat-cost>0
+        // path below doesn't reach until the energy-discard modal's own
+        // onConfirm actually fires. In the meantime the stale hint sat on
+        // screen overlapping that energy-discard modal. This block always
+        // either finishes the flow or abandons it outright (never re-arms
+        // retreatMode to retry, unlike Lure/Whirlwind's own invalid-target
+        // loop below), so closing it unconditionally here is always correct.
+        closeTargetHintModal();
         if (canRetreat(gameState, 'player', instanceId)) {
           var activePokemon = gameState.players.player.active;
           var retreatCostNow = CARD_STATS[activePokemon.name].retreatCost;
@@ -3121,6 +3164,10 @@ function wireBoardButtons() {
         // Which energy to discard is the player's choice -- pick it in the
         // modal, then apply the effect with that specific index (see
         // TRAINER_EFFECTS['Super Potion']'s optional energyIndex param).
+        // Real reported bug (same class as retreat's own fix above): the
+        // "Elige uno de tus Pokémon" hint armed when Super Potion was
+        // selected never closed here, overlapping this energy-discard modal.
+        closeTargetHintModal();
         var superPotionHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(superPotionTarget.attachedEnergy.slice(), 1, function (indices) {
@@ -3131,7 +3178,8 @@ function wireBoardButtons() {
         // Real card text: "Choose 1 Energy card attached to 1 of your
         // opponent's Pokémon" -- same choice-of-which-energy pattern as
         // Super Potion above, just targeting the rival's Pokémon instead
-        // of the player's own.
+        // of the player's own. Same stale-hint fix as Super Potion above.
+        closeTargetHintModal();
         var energyRemovalHandId = selectedHandId;
         selectedHandId = null;
         openEnergyDiscardModal(energyRemovalTarget.attachedEnergy.slice(), 1, function (indices) {
@@ -3177,6 +3225,9 @@ function wireBoardButtons() {
 
         var countToDiscard = Math.min(2, cpuTarget.attachedEnergy.length);
         if (cpuTarget.attachedEnergy.length >= 2) {
+          // Same stale-hint fix as Super Potion/Energy Removal above -- the
+          // "Elige un Pokémon del Rival" hint from step 1 was still showing.
+          closeTargetHintModal();
           openEnergyDiscardModal(cpuTarget.attachedEnergy.slice(), countToDiscard, function (indices) {
             applyOrSubmitTrainerEffect('Super Energy Removal', pendingRemoval.handId, [pendingRemoval.ownInstanceId, instanceId, pendingRemoval.ownEnergyIndex, indices]);
           });
@@ -3322,8 +3373,21 @@ var clockLastTickAt = null;
 // while the player was still reviewing the board, before they'd even
 // clicked to hand the turn over.
 var cpuTurnInProgress = false;
+// Real reported bug: cpuTakeTurn() (ai.js) always ends the CPU's own turn
+// engine-side before returning -- gameState.activePlayerId is already back
+// to 'player' the instant it runs, well before the visual reveal (Trainer-
+// play toasts, then the attack overlay -- see cpuTurnRevealInProgress) has
+// actually finished playing out on screen. This function used to only
+// check cpuTurnInProgress (the CPU's own "thinking" delay, BEFORE
+// cpuTakeTurn runs), so during that whole reveal window it fell back to the
+// raw (already 'player') activePlayerId and kept draining the PLAYER's own
+// time bank -- while the header (renderBoard, same two flags, same
+// priority order) still correctly said "TURNO CPU". Checking both flags
+// here, in the same order renderBoard checks them, keeps the clock and the
+// header always agreeing about whose turn it visually is.
 function currentClockOwner() {
-  return (gameState.activePlayerId === 'cpu' && !cpuTurnInProgress) ? 'player' : gameState.activePlayerId;
+  if (cpuTurnInProgress || cpuTurnRevealInProgress) { return 'cpu'; }
+  return gameState.activePlayerId === 'cpu' ? 'player' : gameState.activePlayerId;
 }
 
 function formatClockMs(ms) {

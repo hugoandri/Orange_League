@@ -2724,6 +2724,41 @@ function mkPokemon(id, name, overrides) {
   check('Conversion 2 overrides Porygon\'s own Resistance', p.active.resistanceOverride && p.active.resistanceOverride.type, 'Grass');
 })();
 
+// Real reported request: both Conversion attacks always applied a fixed,
+// hardcoded type (Fighting/Grass) instead of letting the player actually
+// choose -- see ui.js's own type-picker modal (same pattern as Buzzap's
+// energy-type choice), which submits the real choice through the same
+// targetInstanceId slot Fire Spin's energy indices already use.
+(function testConversion1AndConversion2HonorTheRealPlayerChoice() {
+  var state = createGame(function () { return 0.99; });
+  state.activePlayerId = 'player';
+  var p = state.players.player;
+  var cpu = state.players.cpu;
+  p.active = mkPokemon('pr2', 'Porygon', {});
+  cpu.active = mkPokemon('c2', 'Machop', {});
+  attack(state, 'player', 'Conversion 1', 'Water');
+  check('Conversion 1 honors a real chosen type instead of the Fighting default', cpu.active.weaknessOverride && cpu.active.weaknessOverride.type, 'Water');
+
+  var state2 = createGame(function () { return 0.99; });
+  state2.activePlayerId = 'player';
+  var p2 = state2.players.player;
+  p2.active = mkPokemon('pr3', 'Porygon', {});
+  state2.players.cpu.active = mkPokemon('c3', 'Machop', {});
+  attack(state2, 'player', 'Conversion 2', 'Fire');
+  check('Conversion 2 honors a real chosen type instead of the Grass default', p2.active.resistanceOverride && p2.active.resistanceOverride.type, 'Fire');
+
+  // Colorless is explicitly disallowed by the real printed text ("other
+  // than Colorless") -- an invalid/absent choice falls back to the same
+  // documented default rather than ever setting Colorless.
+  var state3 = createGame(function () { return 0.99; });
+  state3.activePlayerId = 'player';
+  var p3 = state3.players.player;
+  p3.active = mkPokemon('pr4', 'Porygon', {});
+  state3.players.cpu.active = mkPokemon('c4', 'Machop', {});
+  attack(state3, 'player', 'Conversion 1', 'Colorless');
+  check('Conversion 1 rejects Colorless and falls back to the default', state3.players.cpu.active.weaknessOverride && state3.players.cpu.active.weaknessOverride.type, 'Fighting');
+})();
+
 (function testThunderpunchBranchesBonusOrSelfDamage() {
   var headsState = createGame(function () { return 0.01; });
   headsState.activePlayerId = 'player';

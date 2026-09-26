@@ -1471,19 +1471,28 @@ ATTACK_EFFECTS['Poliwhirl'] = {
   }
 };
 
+// Every non-Colorless type -- both Conversion attacks below reject
+// Colorless per their own printed text ("a type of your choice other than
+// Colorless"), same list ui.js's own type-picker modal offers.
+var CONVERSION_VALID_TYPES = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting'];
+
 ATTACK_EFFECTS['Porygon'] = {
-  // Both Conversion attacks let the player pick any non-Colorless type of
-  // their choice; a dedicated type-picker UI for this one rarely-played
-  // card isn't worth it (same call already made this session for
-  // Metronome/Amnesia's opponent-attack choice) -- each auto-picks a
-  // fixed, always-valid type instead.
-  'Conversion 1': function (state, attacker, defender) {
+  // chosenType (passed through the shared targetInstanceId slot -- see
+  // ui.js's type-picker modal, same pattern as Fire Spin's energy indices):
+  // the type the player picked for the Defending Pokémon's new Weakness.
+  // Defaults to Fighting for callers that don't care (ai.js's CPU usage).
+  'Conversion 1': function (state, attacker, defender, atkDef, playerId, chosenType) {
     var defStats = CARD_STATS[defender.name];
     var hasWeakness = (defStats && defStats.weaknesses && defStats.weaknesses.length) || defender.weaknessOverride;
-    if (hasWeakness) { defender.weaknessOverride = { type: 'Fighting', value: '×2' }; }
+    if (!hasWeakness) { return; }
+    var type = CONVERSION_VALID_TYPES.indexOf(chosenType) !== -1 ? chosenType : 'Fighting';
+    defender.weaknessOverride = { type: type, value: '×2' };
   },
-  'Conversion 2': function (state, attacker) {
-    attacker.resistanceOverride = { type: 'Grass', value: '-30' };
+  // chosenType: the type the player picked for Porygon's own new
+  // Resistance. Defaults to Grass for callers that don't care.
+  'Conversion 2': function (state, attacker, defender, atkDef, playerId, chosenType) {
+    var type = CONVERSION_VALID_TYPES.indexOf(chosenType) !== -1 ? chosenType : 'Grass';
+    attacker.resistanceOverride = { type: type, value: '-30' };
   }
 };
 
