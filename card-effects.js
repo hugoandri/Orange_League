@@ -1622,6 +1622,7 @@ ATTACK_EFFECTS['Clefable'] = {
   'Minimize': function (state, attacker) {
     attacker.shield = { untilTurn: state.turnCounter + 1, type: 'reduceFlat', reduceAmount: 20 };
     state.attackSelfEffect = true;
+    state.attackCustomBadge = '+20def';
     logEvent(state, attacker.name + ' usa Minimize (-20 daño en el próximo turno)');
   }
 };
@@ -1678,6 +1679,8 @@ ATTACK_EFFECTS['Jolteon'] = {
 ATTACK_EFFECTS['Kangaskhan'] = {
   'Fetch': function (state, attacker, defender, atkDef, playerId) {
     drawCard(state, playerId, 1);
+    state.attackSelfEffect = true;
+    state.attackCustomBadge = 'Draw 1';
     logEvent(state, attacker.name + ' usa Fetch y roba 1 carta', playerId);
   },
   'Comet Punch': function (state, attacker, defender) {
@@ -1749,6 +1752,7 @@ ATTACK_EFFECTS['Scyther'] = {
   'Swords Dance': function (state, attacker, defender, atkDef, playerId) {
     attacker.swordsDanceTurn = state.turnCounter + 2;
     state.attackSelfEffect = true;
+    state.attackCustomBadge = 'atkx2';
     logEvent(state, attacker.name + ' prepara Swords Dance para el próximo turno', playerId);
   },
   'Slash': function (state, attacker, defender) {

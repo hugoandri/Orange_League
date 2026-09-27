@@ -3382,6 +3382,9 @@ function mkPokemon(id, name, overrides) {
   attack(state, 'player', 'Minimize');
   checkTrue('Clefable has reduceFlat shield after Minimize', p.active.shield && p.active.shield.type === 'reduceFlat');
   check('Minimize shield reduces by 20', p.active.shield.reduceAmount, 20);
+  checkTrue('Minimize sets lastAttackResult', !!state.lastAttackResult);
+  check('Minimize badge is +20def', state.lastAttackResult.customBadge, '+20def');
+  checkTrue('Minimize flags selfEffect', state.lastAttackResult.selfEffect);
 
   // CPU turn: attack already incremented turnCounter from 3 to 4
   dealDamage(state, op.active, p.active, 20);
@@ -3448,6 +3451,35 @@ function mkPokemon(id, name, overrides) {
   ATTACK_EFFECTS['Scyther']['Slash'](state, p.active, op.active);
   check('Slash on turn 5 does 60 damage (total 90)', op.active.damage, 90);
   check('swordsDanceTurn is consumed', p.active.swordsDanceTurn, null);
+})();
+
+(function testScytherSwordsDanceAttackOverlay() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('sc1', 'Scyther', { damage: 0 });
+  op.active = mkPokemon('ch1', 'Chansey', { damage: 0 });
+  state.activePlayerId = 'player';
+  attack(state, 'player', 'Swords Dance');
+  checkTrue('Swords Dance sets lastAttackResult', !!state.lastAttackResult);
+  check('Swords Dance badge is atkx2', state.lastAttackResult.customBadge, 'atkx2');
+  checkTrue('Swords Dance flags selfEffect', state.lastAttackResult.selfEffect);
+})();
+
+(function testKangaskhanFetchAttackOverlay() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('k1', 'Kangaskhan', { damage: 0 });
+  op.active = mkPokemon('ch1', 'Chansey', { damage: 0 });
+  p.deck = [{ id: 'd1', name: 'Machop' }, { id: 'd2', name: 'Pikachu' }];
+  var handBefore = p.hand.length;
+  state.activePlayerId = 'player';
+  attack(state, 'player', 'Fetch');
+  check('Fetch draws 1 card', p.hand.length, handBefore + 1);
+  checkTrue('Fetch sets lastAttackResult', !!state.lastAttackResult);
+  check('Fetch badge is Draw 1', state.lastAttackResult.customBadge, 'Draw 1');
+  checkTrue('Fetch flags selfEffect', state.lastAttackResult.selfEffect);
 })();
 
 (function testSnorlaxThickSkinned() {

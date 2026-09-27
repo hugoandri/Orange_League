@@ -1272,6 +1272,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // set this (unconditionally, both outcomes) so ui.js's showAttackOverlay
   // can route the badge onto the ATTACKER's own card instead.
   state.attackSelfEffect = false;
+  state.attackCustomBadge = null;
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
@@ -1292,7 +1293,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // itself only ever displayed that defender damage -- the attacker's own
   // recoil was invisible there, only readable in the text log.
   var selfDamageDealt = attacker.damage - beforeAttackerDamage;
-  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0 || state.attackShielded) {
+  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0 || state.attackShielded || state.attackCustomBadge) {
     // Drives the ~1s "both cards in the foreground, damage number (and any
     // new Special Condition) on the defender" animation (see
     // showAttackOverlay, ui.js) -- damageDealt is already the real final
@@ -1312,6 +1313,9 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       newStatuses: newStatuses, severePoison: !!defender.severePoison, missed: !!state.attackMissed,
       selfDamage: selfDamageDealt, shielded: !!state.attackShielded, selfEffect: !!state.attackSelfEffect
     };
+    if (state.attackCustomBadge) {
+      state.lastAttackResult.customBadge = state.attackCustomBadge;
+    }
   }
 
   if (defender) { knockOutIfNeeded(state, opId, defender); }

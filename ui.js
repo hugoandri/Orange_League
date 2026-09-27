@@ -769,14 +769,19 @@ function showCardInViewer(name, instanceId) {
           }
           if (rivalAttacks.length > 1) {
             var options = rivalAttacks.map(function (atk) {
-              var dmgText = (atk.damage && atk.damage !== '0') ? ' (' + atk.damage + ' daño)' : '';
               var nameEs = (typeof translateAttackName === 'function') ? translateAttackName(atk.name) : atk.name;
+              var costHtml = (atk.cost || []).map(function (c) {
+                var icon = ENERGY_CARD_TYPE_ICON[c];
+                return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
+              }).join('');
               return {
                 id: atk.name,
-                label: nameEs.toUpperCase() + dmgText
+                label: nameEs.toUpperCase(),
+                costHtml: costHtml,
+                damage: (atk.damage && atk.damage !== '0') ? atk.damage : ''
               };
             });
-            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, submitOrApplyMetronome);
+            openChoicePickerModal('Elige 1 de los ataques de ' + (defender.name || 'rival') + ' para copiar con Metrónomo:', options, submitOrApplyMetronome, 'list');
             return;
           } else if (rivalAttacks.length === 1) {
             submitOrApplyMetronome(rivalAttacks[0].name);
@@ -1071,7 +1076,7 @@ function showAttackOverlay(result, onDone) {
   // all (pure self-buff). result.selfEffect (set by those two specifically,
   // see card-effects.js) routes the badge onto the ATTACKER's own card
   // (selfDmgEl) instead, leaving the defender's own damage badge blank.
-  var selfEffectBadge = result.selfEffect && (result.shielded || result.missed);
+  var selfEffectBadge = result.selfEffect && (result.shielded || result.missed || !!result.customBadge);
   dmgEl.textContent = selfEffectBadge ? '' : (result.shielded ? 'PRCT' : (result.missed ? 'MISS' : (result.damage > 0 ? '-' + result.damage : '')));
   dmgEl.classList.toggle('shell-attack-overlay-miss', !!result.missed && !selfEffectBadge);
   dmgEl.classList.toggle('shell-attack-overlay-shield', !!result.shielded && !selfEffectBadge);
@@ -1079,12 +1084,13 @@ function showAttackOverlay(result, onDone) {
   // attack's own recoil like Thunder Jolt/Take Down/Selfdestruct) -- shown
   // on the attacker's own card so it isn't silently missing from the
   // overlay just because it never touched the Defending Pokémon (see
-  // rules-engine.js's attack()/selfDamage). Doubles as the PRCT/MISS slot
-  // for Scrunch/Withdraw's own self-effect badge (selfEffectBadge above) --
+  // rules-engine.js's attack()/selfDamage). Doubles as the PRCT/MISS/buff slot
+  // for Scrunch/Withdraw/Minimize/Swords Dance/Fetch (selfEffectBadge above) --
   // the two never coexist since neither attack deals real self-damage.
-  selfDmgEl.textContent = selfEffectBadge ? (result.shielded ? 'PRCT' : 'MISS') : (result.selfDamage > 0 ? '-' + result.selfDamage : '');
+  selfDmgEl.textContent = selfEffectBadge ? (result.customBadge || (result.shielded ? 'PRCT' : 'MISS')) : (result.selfDamage > 0 ? '-' + result.selfDamage : '');
   selfDmgEl.classList.toggle('shell-attack-overlay-miss', selfEffectBadge && !!result.missed);
-  selfDmgEl.classList.toggle('shell-attack-overlay-shield', selfEffectBadge && !!result.shielded);
+  selfDmgEl.classList.toggle('shell-attack-overlay-shield', selfEffectBadge && !!result.shielded && !result.customBadge);
+  selfDmgEl.classList.toggle('shell-attack-overlay-buff', selfEffectBadge && !!result.customBadge);
   statusEl.innerHTML = (result.newStatuses || []).map(function (s) {
     var badgeKey = (s === 'Poisoned' && result.severePoison) ? 'SeverePoison' : s;
     return pixelStatusBadgeHtml(badgeKey, 3);
@@ -1341,26 +1347,29 @@ function closeDeckSearchModal() {
 // flow below for both picking WHICH eligible Pokémon's Power to activate
 // (2+ candidates) and Buzzap's energy-type choice.
 var choicePickerOnPick = null;
-function openChoicePickerModal(promptText, options, onPick) {
+function openChoicePickerModal(promptText, options, onPick, layoutMode) {
   choicePickerOnPick = onPick;
   document.getElementById('choicePickerPrompt').textContent = promptText;
   var grid = document.getElementById('choicePickerGrid');
-  // Real reported bug: this used .shell-discard-pile-card-item (built for
-  // .shell-discard-pile-grid's CSS Grid, which caps each cell's own column
-  // width) but choicePickerGrid is actually .shell-energy-discard-grid, a
-  // plain flex-wrap row with no such per-column cap -- so every image (raw
-  // type icons at ~162x162, or full Pokémon card art for the Power picker)
-  // rendered at its full natural size with nothing to shrink it, blowing
-  // the whole modal out to cover most of the screen. .shell-energy-discard-
-  // option is the class every OTHER caller of this same grid already uses
-  // (energyDiscardModal/handDiscardModal/energyRetrievalModal/pokedexModal)
-  // -- a real fixed 80px square -- so this now matches their size exactly,
-  // per explicit user request ("misma medida que los modales de habilidades").
-  grid.innerHTML = options.map(function (opt) {
-    return '<button type="button" class="shell-energy-discard-option" data-choice-id="' + escapeHtml(opt.id) + '">' +
-      (opt.imgUrl ? '<img src="' + opt.imgUrl + '" alt="" loading="lazy">' : '') +
-      '<span>' + escapeHtml(opt.label) + '</span></button>';
-  }).join('');
+  var isList = layoutMode === 'list';
+  grid.className = isList ? 'shell-choice-picker-list' : 'shell-energy-discard-grid';
+  if (isList) {
+    grid.innerHTML = options.map(function (opt) {
+      return '<button type="button" class="shell-choice-picker-row-btn" data-choice-id="' + escapeHtml(opt.id) + '">' +
+        '<div class="shell-choice-row-left">' +
+          (opt.costHtml ? '<div class="shell-choice-row-cost">' + opt.costHtml + '</div>' : '') +
+          '<span class="shell-choice-row-name">' + escapeHtml(opt.label) + '</span>' +
+        '</div>' +
+        (opt.damage ? '<span class="shell-choice-row-dmg">' + escapeHtml(opt.damage) + '</span>' : '') +
+      '</button>';
+    }).join('');
+  } else {
+    grid.innerHTML = options.map(function (opt) {
+      return '<button type="button" class="shell-energy-discard-option" data-choice-id="' + escapeHtml(opt.id) + '">' +
+        (opt.imgUrl ? '<img src="' + opt.imgUrl + '" alt="" loading="lazy">' : '') +
+        '<span>' + escapeHtml(opt.label) + '</span></button>';
+    }).join('');
+  }
   grid.querySelectorAll('[data-choice-id]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var id = btn.getAttribute('data-choice-id');
