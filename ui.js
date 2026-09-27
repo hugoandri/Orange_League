@@ -7276,12 +7276,9 @@ document.addEventListener('DOMContentLoaded', function () {
     el.innerHTML = pixelCoinHtml('oro', 2);
   });
 
-  // Menu buttons
-  var trainersModalSource = 'menuPlay';
-
   // Menu buttons: JUGAR (DUELO CONTRA LA CPU) -> Abre el selector de rivales/entrenadores
   document.getElementById('menuPlay').addEventListener('click', function () {
-    openPvpTrainersModal('menuPlay');
+    openPvpTrainersModal();
   });
   var menuPvpBtn = document.getElementById('menuPvp');
   if (menuPvpBtn) {
@@ -7298,23 +7295,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  var pvpTrainerBattleBtn = document.getElementById('pvpTrainerBattleBtn');
-  if (pvpTrainerBattleBtn) {
-    pvpTrainerBattleBtn.addEventListener('click', function () {
-      document.getElementById('pvpModal').classList.add('hidden');
-      openPvpTrainersModal('pvp');
-    });
-  }
-
   function closePvpTrainersModal() {
     var modal = document.getElementById('pvpTrainersModal');
     if (modal) { modal.classList.add('hidden'); }
-    if (trainersModalSource === 'pvp') {
-      var pvpModal = document.getElementById('pvpModal');
-      if (pvpModal) { pvpModal.classList.remove('hidden'); }
-    } else {
-      playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
-    }
+    playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
   }
 
   var pvpTrainersModalClose = document.getElementById('pvpTrainersModalClose');
@@ -7336,20 +7320,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function openPvpTrainersModal(source) {
-    trainersModalSource = source || 'menuPlay';
+  function openPvpTrainersModal() {
     var modal = document.getElementById('pvpTrainersModal');
     if (!modal) { return; }
 
     var titleEl = document.getElementById('pvpTrainersTitle');
     var subEl = document.getElementById('pvpTrainersSub');
     if (titleEl) {
-      titleEl.textContent = (trainersModalSource === 'pvp') ? 'DESAFIAR ENTRENADORES' : 'SELECCIONAR RIVAL (DUELO CPU)';
+      titleEl.textContent = 'SELECCIONAR RIVAL';
     }
     if (subEl) {
-      subEl.textContent = (trainersModalSource === 'pvp')
-        ? 'Elige a un duelista legendario para poner a prueba tus habilidades.'
-        : 'Elige al entrenador contra el que deseas batallar en duelo.';
+      subEl.textContent = 'Elige al entrenador contra el que deseas batallar en duelo.';
     }
 
     playScreenMusic('Songs/PVP_MUSIC_MATCHMAKING.mp3');
