@@ -619,16 +619,16 @@
   </div>
 
   <!-- SECCIÓN: LABORATORIO DE EFECTOS DE SONIDO -->
-  <div class="control-panel" style="margin-top: 24px; max-width: 600px;">
+  <div class="control-panel" style="margin-top: 24px; max-width: 640px;">
     <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 14px;">
-      <div class="header-badge" style="margin-bottom: 6px;">★ CATÁLOGO DE SFX INTERACTIVO ★</div>
-      <h2 style="font-family:'Pixelify Sans'; font-size:22px; color:#fff; margin-bottom: 4px;">Efectos de Sonido para el Juego</h2>
-      <p style="font-size:12px; color:#9e9384;">Haz clic en cada botón para escuchar las diferentes opciones y estilos en tiempo real.</p>
+      <div class="header-badge" style="margin-bottom: 6px;">★ CATÁLOGO DE SFX INTERACTIVO AMPLIADO ★</div>
+      <h2 style="font-family:'Pixelify Sans'; font-size:24px; color:#fff; margin-bottom: 4px;">Laboratorio de Efectos de Sonido</h2>
+      <p style="font-size:12px; color:#9e9384;">Haz clic en cada botón para escuchar las opciones sintetizadas en tiempo real.</p>
     </div>
 
     <!-- 1. Ataque & Impacto -->
-    <div style="margin-bottom: 16px;">
-      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--red-accent); margin-bottom: 8px;">⚔️ 1. ATAQUE / IMPACTO / GOLPE</div>
+    <div style="margin-bottom: 18px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--red-accent); margin-bottom: 8px;">⚔️ 1. ATAQUE / IMPACTO / GOLPE (10 OPCIONES)</div>
       <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
         <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackHit()">
           💥 Impacto Normal (Tackle)
@@ -640,55 +640,115 @@
           💣 Golpe Pesado (+40 DMG)
         </button>
         <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackSpecial()">
-          ⚡ Ataque Especial / Rayo
+          ⚡ Rayo / Ataque Especial
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackSlap()">
+          👋 Cachetada (Slap / Comet Punch)
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackFire()">
+          🔥 Fuego / Explosión
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackWater()">
+          💧 Agua / Burbujas
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackPsychic()">
+          🌀 Psíquico / Confusión
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackShield()">
+          🛡️ Bloqueo / Escudo Metálico
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackRetroGB()">
+          👾 Retro Game Boy (1998 Fiel)
         </button>
       </div>
     </div>
 
     <!-- 2. Click en Menú -->
-    <div style="margin-bottom: 16px;">
-      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--gold); margin-bottom: 8px;">🔘 2. CLICK EN EL MENÚ (UI / BOTONES)</div>
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickClassic()">
+    <div style="margin-bottom: 18px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--gold); margin-bottom: 8px;">🔘 2. CLICK EN EL MENÚ (UI / BOTONES) (8 OPCIONES)</div>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickClassic()">
           🎮 8-Bit Bip (Game Boy)
         </button>
-        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickPop()">
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickPop()">
           🫧 Pop Suave (Moderno)
         </button>
-        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickTick()">
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickTick()">
           ⏱️ Tick Preciso (Arcade)
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickPokedex()">
+          📱 Chirp Pokédex Digital
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickWaterDrop()">
+          💧 Gota de Agua Cristalina
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickMechanical()">
+          ⌨️ Tecla Mecánica (Clack)
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickSwitch()">
+          🕹️ Bip Nintendo Switch
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:11px; padding:10px;" onclick="playMenuClickCoin()">
+          🪙 Moneda Arcade Retro
         </button>
       </div>
     </div>
 
     <!-- 3. Click en Tablero -->
-    <div style="margin-bottom: 16px;">
-      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--green-accent); margin-bottom: 8px;">🃏 3. CLICK EN TABLERO (CARTAS / BANCA / ENERGÍA)</div>
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardCardPlay()">
+    <div style="margin-bottom: 18px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--green-accent); margin-bottom: 8px;">🃏 3. CLICK EN TABLERO (JUGADAS / CARTAS) (8 OPCIONES)</div>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardCardPlay()">
           🎴 Jugar Carta (Snap Tap)
         </button>
-        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardEnergyAttach()">
-          ✨ Unir Energía (Chime)
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardEnergyAttach()">
+          ✨ Unir Energía (Chime Cristal)
         </button>
-        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardSelect()">
-          🎯 Seleccionar Pokémon
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardSelect()">
+          🎯 Seleccionar Pokémon (Lock)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardCardDraw()">
+          🃏 Robar Carta del Mazo (Swoop)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardEvolution()">
+          🌟 Evolución Pokémon (Jingle)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardRetreat()">
+          🔴 Retirar Pokémon (Poké Ball)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardPotion()">
+          🧪 Usar Poción / Spray Curativo
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:11px; padding:10px;" onclick="playBoardFeltTap()">
+          🟩 Tapete de Neopreno (Torneo)
         </button>
       </div>
     </div>
 
     <!-- 4. Cambio de Turno -->
     <div>
-      <div style="font-family:'Silkscreen'; font-size:12px; color:#74b9ff; margin-bottom: 8px;">🔄 4. CAMBIO DE TURNO (TURN FLASH)</div>
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnMine()">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:#74b9ff; margin-bottom: 8px;">🔄 4. CAMBIO DE TURNO (TURN FLASH) (7 OPCIONES)</div>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnMine()">
           🌟 ¡Tu Turno! (Triunfal)
         </button>
-        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnRival()">
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnRival()">
           ⚠️ Turno Rival (Alerta)
         </button>
-        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnSwoosh()">
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnSwoosh()">
           💨 Swoosh de Pantalla
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnBoxingBell()">
+          🔔 Campana Torneo Liga Naranja
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnGong()">
+          ⛩️ Gong Oriental Místico
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px;" onclick="playTurnChimeRPG()">
+          ✨ Chime Mágico 16-Bit SNES
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:11px; padding:10px; grid-column: 1 / -1;" onclick="playTurnHeartbeat()">
+          💓 Latido de Tensión (Heartbeat Duelo)
         </button>
       </div>
     </div>
@@ -1065,6 +1125,328 @@
     initAudio();
     if (!audioCtx) return;
     playNoiseBurst(0.22, 0.28, 1400, 'bandpass', true);
+  }
+
+  // --- NUEVAS OPCIONES DE ATAQUE ---
+  function playAttackSlap() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(850, t);
+    osc.frequency.exponentialRampToValueAtTime(110, t + 0.045);
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.05);
+    playNoiseBurst(0.035, 0.3, 1600);
+  }
+
+  function playAttackFire() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.28);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.3);
+    playNoiseBurst(0.25, 0.42, 1200, 'bandpass', true);
+  }
+
+  function playAttackWater() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(680, t + 0.06);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.14);
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.15);
+  }
+
+  function playAttackPsychic() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, t);
+    osc.frequency.setValueAtTime(440, t + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(880, t + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.22);
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.setValueAtTime(32, t);
+    lfoGain.gain.setValueAtTime(60, t);
+    lfo.connect(osc.frequency);
+    lfo.start(t); lfo.stop(t + 0.25);
+    gain.gain.setValueAtTime(0.26, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.25);
+  }
+
+  function playAttackShield() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(800, t + 0.25);
+    gain.gain.setValueAtTime(0.32, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.28);
+
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(2400, t);
+    gain2.gain.setValueAtTime(0.18, t);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.start(t); osc2.stop(t + 0.15);
+  }
+
+  function playAttackRetroGB() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+    gain.gain.setValueAtTime(0.24, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.13);
+    playNoiseBurst(0.08, 0.3, 800);
+  }
+
+  // --- NUEVAS OPCIONES DE MENÚ ---
+  function playMenuClickPokedex() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const notes = [1318.51, 1760.00];
+    notes.forEach((f, i) => {
+      const st = t + (i * 0.025);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, st);
+      gain.gain.setValueAtTime(0.15, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.035);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(st); osc.stop(st + 0.035);
+    });
+  }
+
+  function playMenuClickWaterDrop() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(450, t);
+    osc.frequency.exponentialRampToValueAtTime(1350, t + 0.035);
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.06);
+  }
+
+  function playMenuClickMechanical() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(120, t + 0.02);
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.025);
+    playNoiseBurst(0.02, 0.22, 2800);
+  }
+
+  function playMenuClickSwitch() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(783.99, t);
+    gain.gain.setValueAtTime(0.16, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.03);
+  }
+
+  function playMenuClickCoin() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'square';
+    osc1.frequency.setValueAtTime(987.77, t);
+    gain1.gain.setValueAtTime(0.12, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    osc1.connect(gain1); gain1.connect(audioCtx.destination);
+    osc1.start(t); osc1.stop(t + 0.04);
+
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(1318.51, t + 0.04);
+    gain2.gain.setValueAtTime(0.16, t + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc2.connect(gain2); gain2.connect(audioCtx.destination);
+    osc2.start(t + 0.04); osc2.stop(t + 0.16);
+  }
+
+  // --- NUEVAS OPCIONES DE TABLERO ---
+  function playBoardCardDraw() {
+    initAudio(); if (!audioCtx) return;
+    playNoiseBurst(0.08, 0.25, 1600, 'bandpass', true);
+  }
+
+  function playBoardEvolution() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const notes = [349.23, 440.00, 523.25, 698.46];
+    notes.forEach((f, i) => {
+      const st = t + (i * 0.07);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, st);
+      gain.gain.setValueAtTime(0.2, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(st); osc.stop(st + 0.2);
+    });
+  }
+
+  function playBoardRetreat() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(1400, t + 0.16);
+    gain.gain.setValueAtTime(0.22, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.18);
+  }
+
+  function playBoardPotion() {
+    initAudio(); if (!audioCtx) return;
+    playNoiseBurst(0.05, 0.2, 2400);
+    setTimeout(() => { playNoiseBurst(0.06, 0.22, 2800); }, 65);
+    setTimeout(() => {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+    }, 120);
+  }
+
+  function playBoardFeltTap() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.08);
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.09);
+  }
+
+  // --- NUEVAS OPCIONES DE CAMBIO DE TURNO ---
+  function playTurnBoxingBell() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const f1 = 920; const f2 = 1840;
+    [f1, f2].forEach((freq, idx) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(idx === 0 ? 0.35 : 0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t); osc.stop(t + 0.7);
+    });
+  }
+
+  function playTurnGong() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(95, t + 0.9);
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t + 0.95);
+    playNoiseBurst(0.18, 0.25, 600);
+  }
+
+  function playTurnChimeRPG() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const notes = [659.25, 783.99, 987.77, 1318.51];
+    notes.forEach((f, i) => {
+      const st = t + (i * 0.05);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, st);
+      gain.gain.setValueAtTime(0.18, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.3);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(st); osc.stop(st + 0.3);
+    });
+  }
+
+  function playTurnHeartbeat() {
+    initAudio(); if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [0, 0.12].forEach((offset, idx) => {
+      const st = t + offset;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(idx === 0 ? 65 : 55, st);
+      osc.frequency.exponentialRampToValueAtTime(30, st + 0.09);
+      gain.gain.setValueAtTime(0.5, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.1);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(st); osc.stop(st + 0.1);
+    });
   }
 
   // Configuración de velocidades
