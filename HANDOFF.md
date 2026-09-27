@@ -44,6 +44,23 @@ ui.js                  Everything else: rendering, DOM wiring, modals,
                        animations, PVP client glue. Largest file by far.
 auth-ui.js              Login/signup, profile, and the Electron-only menu
                        wiring (SALIR button, update checker, version label).
+admin.html             Standalone admin panel (own page, not part of the
+                       game's own screen-toggling in index.html) — serves at
+                       the /admin route (see firebase.json's rewrites).
+                       Gated client-side by a hardcoded ADMIN_UID check on
+                       firebase.auth().onAuthStateChanged, but every actual
+                       mutation is re-checked server-side (functions/
+                       index.js also hardcodes the same ADMIN_UID and
+                       rejects any other request.auth.uid) -- the client
+                       check is just UX, not the real security boundary.
+                       Manages: novedades (news items shown in-game),
+                       users list, rare-card pull odds per set, custom
+                       booster packs, gift/redeem codes, and shop pricing
+                       (packs, card-back protectors, Telegram-Stars orb
+                       bundles) -- all via httpsCallable Cloud Functions
+                       (publishNews/listUsers/setRareOdds/saveCustomPack/
+                       saveGiftCode/setEconomyConfig etc.), never direct
+                       Firestore writes from the browser.
 tests.js / run-tests.js Plain console.assert-style tests for the engine
                        (rules-engine.js/card-effects.js/ai.js). Run with
                        `node run-tests.js`. tests.html runs the same file
