@@ -20,6 +20,7 @@
       "design_handoff_shell_juego_final/**",
       "README.md",
       "PROGRESS.md",
+      "HANDOFF.md",
       "tests.html",
       "tests.js",
       "run-tests.js",
