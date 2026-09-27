@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokémon TCG - Adaptaciones en Guitarra: Win & Lost Originales</title>
+  <title>Pokémon TCG - Selector de Sonidos: Edición 16-Bit & Piano</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,6 +16,7 @@
       --text: #e6edf8;
       --text-dim: #8b9bb4;
       --gold: #ffd23f;
+      --gold-glow: rgba(255, 210, 63, 0.4);
       --cyan: #00e5ff;
       --cyan-glow: rgba(0, 229, 255, 0.35);
       --green: #2ecc71;
@@ -23,8 +24,7 @@
       --red: #ff3366;
       --red-glow: rgba(255, 51, 102, 0.4);
       --purple: #c084fc;
-      --orange: #ff9f43;
-      --orange-glow: rgba(255, 159, 67, 0.4);
+      --purple-glow: rgba(192, 132, 252, 0.4);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,9 +32,9 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(ellipse at 15% 0%, rgba(255, 159, 67, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 85% 0%, rgba(255, 51, 102, 0.10) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 100%, rgba(0, 229, 255, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 15% 0%, rgba(0, 229, 255, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 0%, rgba(192, 132, 252, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(255, 210, 63, 0.06) 0%, transparent 60%),
         repeating-linear-gradient(rgba(255,255,255,0.015) 0 1px, transparent 1px 32px),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 32px);
       color: var(--text);
@@ -58,9 +58,9 @@
       display: inline-block;
       font-family: 'Silkscreen', monospace;
       font-size: 11px;
-      color: var(--orange);
-      background: rgba(255, 159, 67, 0.12);
-      border: 1px solid rgba(255, 159, 67, 0.4);
+      color: var(--cyan);
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.4);
       padding: 4px 14px;
       border-radius: 999px;
       letter-spacing: 2px;
@@ -71,7 +71,7 @@
       font-family: 'Pixelify Sans', cursive, sans-serif;
       font-size: 38px;
       letter-spacing: 1px;
-      background: linear-gradient(135deg, #ffffff 0%, var(--orange) 45%, var(--red) 100%);
+      background: linear-gradient(135deg, #ffffff 0%, var(--cyan) 45%, var(--purple) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 10px;
@@ -160,10 +160,10 @@
       border-bottom: 2px solid;
     }
     .section-victory .section-title-wrap {
-      border-color: rgba(255, 159, 67, 0.4);
+      border-color: rgba(0, 229, 255, 0.4);
     }
     .section-defeat .section-title-wrap {
-      border-color: rgba(255, 51, 102, 0.4);
+      border-color: rgba(192, 132, 252, 0.4);
     }
     .section-title {
       font-family: 'Pixelify Sans', sans-serif;
@@ -172,8 +172,8 @@
       align-items: center;
       gap: 10px;
     }
-    .section-victory .section-title { color: var(--orange); text-shadow: 0 0 15px var(--orange-glow); }
-    .section-defeat .section-title { color: var(--red); text-shadow: 0 0 15px var(--red-glow); }
+    .section-victory .section-title { color: var(--cyan); text-shadow: 0 0 15px var(--cyan-glow); }
+    .section-defeat .section-title { color: var(--purple); text-shadow: 0 0 15px var(--purple-glow); }
 
     .section-badge {
       font-family: 'Silkscreen', monospace;
@@ -208,14 +208,14 @@
     }
 
     .sound-card.selected.victory-card {
-      border-color: var(--orange);
-      background: linear-gradient(135deg, rgba(255, 159, 67, 0.14) 0%, rgba(18, 26, 43, 0.95) 100%);
-      box-shadow: 0 0 24px var(--orange-glow);
+      border-color: var(--cyan);
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(18, 26, 43, 0.95) 100%);
+      box-shadow: 0 0 24px var(--cyan-glow);
     }
     .sound-card.selected.defeat-card {
-      border-color: var(--red);
-      background: linear-gradient(135deg, rgba(255, 51, 102, 0.12) 0%, rgba(18, 26, 43, 0.95) 100%);
-      box-shadow: 0 0 24px var(--red-glow);
+      border-color: var(--purple);
+      background: linear-gradient(135deg, rgba(192, 132, 252, 0.14) 0%, rgba(18, 26, 43, 0.95) 100%);
+      box-shadow: 0 0 24px var(--purple-glow);
     }
 
     .card-top {
@@ -239,30 +239,25 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
-    .tag-rock {
-      background: rgba(255, 159, 67, 0.2);
-      color: var(--orange);
-      border: 1px solid rgba(255, 159, 67, 0.45);
+    .tag-snes {
+      background: rgba(0, 229, 255, 0.18);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, 0.45);
     }
-    .tag-twin {
-      background: rgba(255, 210, 63, 0.2);
+    .tag-gba {
+      background: rgba(255, 210, 63, 0.18);
       color: var(--gold);
       border: 1px solid rgba(255, 210, 63, 0.45);
     }
-    .tag-acoustic {
-      background: rgba(46, 204, 113, 0.2);
+    .tag-piano {
+      background: rgba(46, 204, 113, 0.18);
       color: var(--green);
       border: 1px solid rgba(46, 204, 113, 0.45);
     }
-    .tag-metal {
+    .tag-musicbox {
       background: rgba(192, 132, 252, 0.2);
       color: var(--purple);
       border: 1px solid rgba(192, 132, 252, 0.45);
-    }
-    .tag-blues {
-      background: rgba(0, 229, 255, 0.2);
-      color: var(--cyan);
-      border: 1px solid rgba(0, 229, 255, 0.45);
     }
 
     .duration-tag {
@@ -316,24 +311,24 @@
       color: #fff;
     }
     .victory-card .play-btn {
-      background: linear-gradient(135deg, rgba(255, 159, 67, 0.25), rgba(255, 107, 107, 0.15));
-      color: var(--orange);
-      border: 1px solid rgba(255, 159, 67, 0.5);
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(46, 204, 113, 0.15));
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, 0.5);
     }
     .victory-card .play-btn:hover {
-      background: var(--orange);
+      background: var(--cyan);
       color: #07090e;
-      box-shadow: 0 0 16px var(--orange-glow);
+      box-shadow: 0 0 16px var(--cyan-glow);
     }
     .defeat-card .play-btn {
-      background: linear-gradient(135deg, rgba(255, 51, 102, 0.25), rgba(220, 20, 60, 0.15));
-      color: var(--red);
-      border: 1px solid rgba(255, 51, 102, 0.5);
+      background: linear-gradient(135deg, rgba(192, 132, 252, 0.25), rgba(255, 51, 102, 0.15));
+      color: var(--purple);
+      border: 1px solid rgba(192, 132, 252, 0.5);
     }
     .defeat-card .play-btn:hover {
-      background: var(--red);
+      background: var(--purple);
       color: #07090e;
-      box-shadow: 0 0 16px var(--red-glow);
+      box-shadow: 0 0 16px var(--purple-glow);
     }
 
     .play-btn.playing {
@@ -376,8 +371,8 @@
       0% { height: 4px; }
       100% { height: 20px; }
     }
-    .victory-card .wave-bar { background: var(--orange); }
-    .defeat-card .wave-bar { background: var(--red); }
+    .victory-card .wave-bar { background: var(--cyan); }
+    .defeat-card .wave-bar { background: var(--purple); }
 
     /* Selection pill */
     .select-pill {
@@ -397,14 +392,14 @@
       font-weight: 700;
     }
     .sound-card.selected.victory-card .select-pill {
-      background: rgba(255, 159, 67, 0.25);
-      border-color: var(--orange);
-      color: var(--orange);
+      background: rgba(0, 229, 255, 0.2);
+      border-color: var(--cyan);
+      color: var(--cyan);
     }
     .sound-card.selected.defeat-card .select-pill {
-      background: rgba(255, 51, 102, 0.2);
-      border-color: var(--red);
-      color: var(--red);
+      background: rgba(192, 132, 252, 0.2);
+      border-color: var(--purple);
+      color: var(--purple);
     }
 
     /* Fixed bottom floating bar */
@@ -452,14 +447,14 @@
       font-weight: 600;
     }
     .summary-win {
-      background: rgba(255, 159, 67, 0.18);
-      border: 1px solid var(--orange);
-      color: var(--orange);
+      background: rgba(0, 229, 255, 0.18);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
     }
     .summary-loss {
-      background: rgba(255, 51, 102, 0.15);
-      border: 1px solid var(--red);
-      color: var(--red);
+      background: rgba(192, 132, 252, 0.18);
+      border: 1px solid var(--purple);
+      color: var(--purple);
     }
 
     .bottom-actions {
@@ -482,12 +477,12 @@
       text-decoration: none;
     }
     .btn-copy {
-      background: var(--cyan);
+      background: var(--gold);
       color: #07090e;
-      box-shadow: 0 0 16px var(--cyan-glow);
+      box-shadow: 0 0 16px var(--gold-glow);
     }
     .btn-copy:hover {
-      background: #66f0ff;
+      background: #ffe066;
       transform: translateY(-2px);
     }
     .btn-back {
@@ -529,10 +524,10 @@
 
   <div class="container">
     <header>
-      <div class="header-badge">🎸 Edición Exclusiva: Adaptaciones en Guitarra</div>
-      <h1>WIN & LOST ORIGINALES EN GUITARRA</h1>
+      <div class="header-badge">✨ Edición 16-Bit: SNES, GBA & Piano</div>
+      <h1>16-BIT & PIANO STUDIO: 06 WIN! Y 08 LOST...</h1>
       <p class="header-sub">
-        Adaptaciones nota por nota de las canciones originales de <strong>Pokémon TCG (06 Win! y 08 Lost...)</strong> interpretadas íntegramente con <strong>guitarras</strong> (rock con overdrive, guitarras gemelas J-Rock, acústica fingerstyle, blues y clean chorus).
+        Las canciones originales interpretadas con <strong>sonido cálido de 16 bits</strong> (Super Nintendo / GBA), <strong>campanas de cristal</strong>, <strong>flauta</strong> y <strong>piano acústico</strong>. Cero estridencia, melódico, acogedor y muy Pokémon.
       </p>
 
       <div class="master-controls">
@@ -547,24 +542,24 @@
       <!-- COLUMNA VICTORIA -->
       <section class="section-victory">
         <div class="section-title-wrap">
-          <h2 class="section-title">⚡ 06 WIN! (EN GUITARRA)</h2>
-          <span class="section-badge">5 ESTILOS</span>
+          <h2 class="section-title">🏆 VICTORIA 16-BIT & PIANO</h2>
+          <span class="section-badge">4 ESTILOS</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Win 1: Rock Eléctrico -->
+          <!-- Win 1: SNES Campanas & Marimba -->
           <div class="sound-card victory-card selected" id="card-win-1" onclick="selectSound('win', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-rock">Rock Eléctrico Lead</span>
-                <span class="duration-tag">⏱ ~5.2s</span>
+                <span class="tech-tag tag-snes">SNES SPC700 Reverb</span>
+                <span class="duration-tag">⏱ ~5.4s</span>
               </div>
               <div class="select-pill" id="pill-win-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. Rock Eléctrico: Lead Solo & Power Chords</h3>
+            <h3 class="card-title">1. 16-bit SNES: Campanas de Cristal & Marimba</h3>
             <p class="card-desc">
-              La melodía exacta de <strong>06 Win!</strong> interpretada como solo de guitarra eléctrica con distorsión rock crujiente, sustain y vibrato, respaldada por rítmica de power chords en La mayor y Re mayor.
+              La melodía original de <strong>06 Win!</strong> tocada con marimba cálida de 16 bits, celesta brillante y cuerdas suaves con el mítico eco del chip SPC700 de Super Nintendo. Muy alegre, dulce y mágico.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-1" onclick="togglePlay('win', 1)">
@@ -580,18 +575,18 @@
             </div>
           </div>
 
-          <!-- Win 2: Guitarras Gemelas J-Rock -->
+          <!-- Win 2: GBA Piano & Strings -->
           <div class="sound-card victory-card" id="card-win-2" onclick="selectSound('win', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-twin">Twin Lead J-Rock</span>
-                <span class="duration-tag">⏱ ~5.2s</span>
+                <span class="tech-tag tag-gba">GBA Pokémon Gym</span>
+                <span class="duration-tag">⏱ ~5.4s</span>
               </div>
               <div class="select-pill" id="pill-win-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. Guitarras Gemelas: Armonía J-Rock en Terceras</h3>
+            <h3 class="card-title">2. 16-bit GBA: Piano & Strings de Gimnasio Pokémon</h3>
             <p class="card-desc">
-              Dos guitarras eléctricas armonizadas en terceras estéreo tocando la melodía de <strong>06 Win!</strong> al unísono, estilo anime de combate Pokémon. Súper brillante, melódico y triunfal.
+              Estilo Game Boy Advance (Pokémon Rubí/Zafiro): piano nítido y cuerdas orquestales de 16 bits interpretando la fanfarria de victoria con dinamismo y orgullo.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-2" onclick="togglePlay('win', 2)">
@@ -607,18 +602,18 @@
             </div>
           </div>
 
-          <!-- Win 3: Guitarra Acústica Fingerstyle -->
+          <!-- Win 3: Piano Acústico de Cola & Celesta -->
           <div class="sound-card victory-card" id="card-win-3" onclick="selectSound('win', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-acoustic">Acústica Fingerstyle</span>
-                <span class="duration-tag">⏱ ~5.0s</span>
+                <span class="tech-tag tag-piano">Piano de Cola & Celesta</span>
+                <span class="duration-tag">⏱ ~5.4s</span>
               </div>
               <div class="select-pill" id="pill-win-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">3. Guitarra Acústica: Punteo Rítmico Brillante</h3>
+            <h3 class="card-title">3. Piano Acústico de Cola & Celesta</h3>
             <p class="card-desc">
-              La melodía original de <strong>06 Win!</strong> punteada nota por nota en guitarra acústica con cuerdas de bronce y rasgueos rítmicos abiertos de fondo. Limpio, orgánico y festivo.
+              Estilo juego de cartas moderno (como <em>Hearthstone</em> o <em>Pokémon TCG Pocket</em>): piano de cola cálido y destello de celesta sobre la melodía de <strong>06 Win!</strong>. Fino, distinguido y relajante.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-3" onclick="togglePlay('win', 3)">
@@ -634,48 +629,21 @@
             </div>
           </div>
 
-          <!-- Win 4: Heavy Metal Chug -->
+          <!-- Win 4: Music Box Celesta -->
           <div class="sound-card victory-card" id="card-win-4" onclick="selectSound('win', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-metal">Heavy Metal Chug</span>
+                <span class="tech-tag tag-musicbox">Caja de Música 16-Bit</span>
                 <span class="duration-tag">⏱ ~5.2s</span>
               </div>
               <div class="select-pill" id="pill-win-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Heavy Metal: Afinación Grave & Ataque Cortante</h3>
+            <h3 class="card-title">4. Caja de Música Mágica 16-bit</h3>
             <p class="card-desc">
-              La melodía original con guitarras de 7 cuerdas en afinación grave (Drop A), distorsión pesada y palm-muting potente para un impacto contundente.
+              Como una cajita de música antigua de ensueño que reproduce la melodía de victoria con campanas agudas cristalinas y reverberación etérea. Muy dulce.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-4" onclick="togglePlay('win', 4)">
-                <span>▶ ESCUCHAR</span>
-              </button>
-              <div class="wave-bars">
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Win 5: Clean Stratocaster Chorus -->
-          <div class="sound-card victory-card" id="card-win-5" onclick="selectSound('win', 5)">
-            <div class="card-top">
-              <div class="card-meta">
-                <span class="tech-tag tag-blues">Stratocaster Chorus</span>
-                <span class="duration-tag">⏱ ~5.0s</span>
-              </div>
-              <div class="select-pill" id="pill-win-5">○ ELEGIR</div>
-            </div>
-            <h3 class="card-title">5. Clean Stratocaster: Chorus Groove & Pop</h3>
-            <p class="card-desc">
-              Tono limpio cristalino con chorus espacial y compresión suave, interpretando la melodía de <strong>06 Win!</strong> con un toque fresco, ligero y moderno.
-            </p>
-            <div class="card-controls" onclick="event.stopPropagation();">
-              <button class="play-btn" id="btn-win-5" onclick="togglePlay('win', 5)">
                 <span>▶ ESCUCHAR</span>
               </button>
               <div class="wave-bars">
@@ -694,24 +662,24 @@
       <!-- COLUMNA DERROTA -->
       <section class="section-defeat">
         <div class="section-title-wrap">
-          <h2 class="section-title">🥀 08 LOST... (EN GUITARRA)</h2>
-          <span class="section-badge">5 ESTILOS</span>
+          <h2 class="section-title">🥀 DERROTA 16-BIT & PIANO</h2>
+          <span class="section-badge">4 ESTILOS</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Loss 1: Acústica Solitaria -->
+          <!-- Loss 1: Flauta Melancólica SNES -->
           <div class="sound-card defeat-card selected" id="card-loss-1" onclick="selectSound('loss', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-acoustic">Acústica Fingerstyle</span>
-                <span class="duration-tag">⏱ ~6.8s</span>
+                <span class="tech-tag tag-snes">Flauta SNES SPC700</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. Guitarra Acústica Solitaria: Punteo Íntimo</h3>
+            <h3 class="card-title">1. 16-bit SNES: Flauta Melancólica & Cuerdas</h3>
             <p class="card-desc">
-              La melodía exacta de <strong>08 Lost...</strong> [Fa → Do → Sib → Mib → Sib → Lab → Reb → Lab → Sol → Do] punteada suavemente en guitarra acústica con cuerdas frotadas y silencios emotivos.
+              La melodía de <strong>08 Lost...</strong> tocada con flauta de madera suave y pads de cuerdas de 16 bits con eco espacioso al estilo <em>Chrono Trigger / Final Fantasy</em>. Emotiva, dulce y respetuosa.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-1" onclick="togglePlay('loss', 1)">
@@ -727,18 +695,18 @@
             </div>
           </div>
 
-          <!-- Loss 2: Blues Stratocaster -->
+          <!-- Loss 2: GBA Piano -->
           <div class="sound-card defeat-card" id="card-loss-2" onclick="selectSound('loss', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-blues">Blues Stratocaster</span>
-                <span class="duration-tag">⏱ ~6.8s</span>
+                <span class="tech-tag tag-gba">GBA Pueblo Lavanda</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. Blues Eléctrico: Sad Strat & Spring Reverb</h3>
+            <h3 class="card-title">2. 16-bit GBA: Piano Eléctrico & Resignación</h3>
             <p class="card-desc">
-              Tono limpio cálido de pastilla de mástil con reverb profundo de amplificador a válvulas. Toca la melodía de <strong>08 Lost...</strong> con sutiles vibratos y una resignación conmovedora.
+              Piano de 16 bits cálido y suave estilo Game Boy Advance, desgranando los acordes melancólicos de <strong>08 Lost...</strong> con calidez reconfortante.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-2" onclick="togglePlay('loss', 2)">
@@ -754,18 +722,18 @@
             </div>
           </div>
 
-          <!-- Loss 3: Lo-Fi Chill -->
+          <!-- Loss 3: Piano Acústico Solitario -->
           <div class="sound-card defeat-card" id="card-loss-3" onclick="selectSound('loss', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-rock">Lo-Fi Tape & Chorus</span>
-                <span class="duration-tag">⏱ ~6.8s</span>
+                <span class="tech-tag tag-piano">Piano Solo Elegía</span>
+                <span class="duration-tag">⏱ ~7.2s</span>
               </div>
               <div class="select-pill" id="pill-loss-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">3. Lo-Fi Chill Guitar: Calidez Nostálgica</h3>
+            <h3 class="card-title">3. Piano Acústico Solitario (Elegía de Salón)</h3>
             <p class="card-desc">
-              La melodía original de derrota con chorus analógico, textura de cinta vinilo y acordes menores suaves de fondo. Melancólica y relajante.
+              Interpretación a piano solo con pedal de sustain y pulsación suave. Nostálgica, madura y poética; acompaña la derrota con empatía y elegancia.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-3" onclick="togglePlay('loss', 3)">
@@ -781,48 +749,21 @@
             </div>
           </div>
 
-          <!-- Loss 4: Balada Rock Triste -->
+          <!-- Loss 4: Music Box Celesta -->
           <div class="sound-card defeat-card" id="card-loss-4" onclick="selectSound('loss', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-metal">Balada Rock Emotiva</span>
-                <span class="duration-tag">⏱ ~6.8s</span>
+                <span class="tech-tag tag-musicbox">Caja de Música Nostálgica</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Balada Rock: Lead Lento con Overdrive Suave</h3>
+            <h3 class="card-title">4. Caja de Música Nostálgica 16-bit</h3>
             <p class="card-desc">
-              Estilo solo de balada rock lento: notas largas y cantadas con overdrive cálido, sustain prolongado y acordes menores solemnes de fondo.
+              Sonido suave de campanas de caja de música que se apaga lentamente en la distancia tras la partida. Pura nostalgia.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-4" onclick="togglePlay('loss', 4)">
-                <span>▶ ESCUCHAR</span>
-              </button>
-              <div class="wave-bars">
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Loss 5: Dúo Acústico + Bajo -->
-          <div class="sound-card defeat-card" id="card-loss-5" onclick="selectSound('loss', 5)">
-            <div class="card-top">
-              <div class="card-meta">
-                <span class="tech-tag tag-acoustic">Dúo Acústico & Bajo</span>
-                <span class="duration-tag">⏱ ~6.8s</span>
-              </div>
-              <div class="select-pill" id="pill-loss-5">○ ELEGIR</div>
-            </div>
-            <h3 class="card-title">5. Dúo Acústico: Registro Alto & Bajo Acústico</h3>
-            <p class="card-desc">
-              La melodía de <strong>08 Lost...</strong> en notas agudas cristalinas de guitarra acústica, acompañada de notas graves de bajo acústico que marcan la armonía triste original.
-            </p>
-            <div class="card-controls" onclick="event.stopPropagation();">
-              <button class="play-btn" id="btn-loss-5" onclick="togglePlay('loss', 5)">
                 <span>▶ ESCUCHAR</span>
               </button>
               <div class="wave-bars">
@@ -846,8 +787,8 @@
     <div class="bottom-inner">
       <div class="summary-box">
         <span class="summary-label">Tu Selección:</span>
-        <span class="summary-tag summary-win" id="summaryWinText">⚡ Victoria: 1. Rock Eléctrico: Lead Solo & Power Chords</span>
-        <span class="summary-tag summary-loss" id="summaryLossText">🥀 Derrota: 1. Guitarra Acústica Solitaria: Punteo Íntimo</span>
+        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: 1. 16-bit SNES: Campanas & Marimba</span>
+        <span class="summary-tag summary-loss" id="summaryLossText">🥀 Derrota: 1. 16-bit SNES: Flauta & Cuerdas</span>
       </div>
       <div class="bottom-actions">
         <button class="action-btn btn-copy" onclick="copySelection()">
@@ -860,18 +801,16 @@
     </div>
   </div>
 
-  <!-- Audio elements para las adaptaciones en guitarra -->
-  <audio id="audio-win-1" src="Songs/TCG_Win_Guitar_Rock.mp3" preload="auto"></audio>
-  <audio id="audio-win-2" src="Songs/TCG_Win_Guitar_Twin_Lead.mp3" preload="auto"></audio>
-  <audio id="audio-win-3" src="Songs/TCG_Win_Guitar_Acoustic.mp3" preload="auto"></audio>
-  <audio id="audio-win-4" src="Songs/TCG_Win_Guitar_Metal.mp3" preload="auto"></audio>
-  <audio id="audio-win-5" src="Songs/TCG_Win_Guitar_Clean_Chorus.mp3" preload="auto"></audio>
+  <!-- Audio elements para las pistas 16-bit -->
+  <audio id="audio-win-1" src="Songs/TCG_Win_16Bit_SNES_Bells.mp3" preload="auto"></audio>
+  <audio id="audio-win-2" src="Songs/TCG_Win_16Bit_GBA_Piano.mp3" preload="auto"></audio>
+  <audio id="audio-win-3" src="Songs/TCG_Win_Piano_Celesta.mp3" preload="auto"></audio>
+  <audio id="audio-win-4" src="Songs/TCG_Win_16Bit_Music_Box.mp3" preload="auto"></audio>
 
-  <audio id="audio-loss-1" src="Songs/TCG_Loss_Guitar_Acoustic.mp3" preload="auto"></audio>
-  <audio id="audio-loss-2" src="Songs/TCG_Loss_Guitar_Blues.mp3" preload="auto"></audio>
-  <audio id="audio-loss-3" src="Songs/TCG_Loss_Guitar_Lofi.mp3" preload="auto"></audio>
-  <audio id="audio-loss-4" src="Songs/TCG_Loss_Guitar_Ballad.mp3" preload="auto"></audio>
-  <audio id="audio-loss-5" src="Songs/TCG_Loss_Guitar_Acoustic_Duo.mp3" preload="auto"></audio>
+  <audio id="audio-loss-1" src="Songs/TCG_Loss_16Bit_SNES_Flute.mp3" preload="auto"></audio>
+  <audio id="audio-loss-2" src="Songs/TCG_Loss_16Bit_GBA_Piano.mp3" preload="auto"></audio>
+  <audio id="audio-loss-3" src="Songs/TCG_Loss_Piano_Solo.mp3" preload="auto"></audio>
+  <audio id="audio-loss-4" src="Songs/TCG_Loss_16Bit_Music_Box.mp3" preload="auto"></audio>
 
   <script>
     var currentlyPlaying = null;
@@ -880,18 +819,16 @@
 
     var titles = {
       win: {
-        1: "1. Rock Eléctrico: Lead Solo & Power Chords (06 Win!)",
-        2: "2. Guitarras Gemelas: Armonía J-Rock en Terceras (06 Win!)",
-        3: "3. Guitarra Acústica: Punteo Rítmico Brillante (06 Win!)",
-        4: "4. Heavy Metal: Afinación Grave & Ataque Cortante (06 Win!)",
-        5: "5. Clean Stratocaster: Chorus Groove & Pop (06 Win!)"
+        1: "1. 16-bit SNES: Campanas de Cristal & Marimba (06 Win!)",
+        2: "2. 16-bit GBA: Piano & Strings de Gimnasio Pokémon (06 Win!)",
+        3: "3. Piano Acústico de Cola & Celesta (06 Win!)",
+        4: "4. Caja de Música Mágica 16-bit (06 Win!)"
       },
       loss: {
-        1: "1. Guitarra Acústica Solitaria: Punteo Íntimo (08 Lost...)",
-        2: "2. Blues Eléctrico: Sad Strat & Spring Reverb (08 Lost...)",
-        3: "3. Lo-Fi Chill Guitar: Calidez Nostálgica (08 Lost...)",
-        4: "4. Balada Rock: Lead Lento con Overdrive Suave (08 Lost...)",
-        5: "5. Dúo Acústico: Registro Alto & Bajo Acústico (08 Lost...)"
+        1: "1. 16-bit SNES: Flauta Melancólica & Cuerdas (08 Lost...)",
+        2: "2. 16-bit GBA: Piano Eléctrico & Resignación (08 Lost...)",
+        3: "3. Piano Acústico Solitario - Elegía (08 Lost...)",
+        4: "4. Caja de Música Nostálgica 16-bit (08 Lost...)"
       }
     };
 
@@ -906,8 +843,8 @@
       document.getElementById('masterVolumeVal').textContent = val + '%';
       var vol = val / 100;
       var audioIds = [
-        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4', 'audio-win-5',
-        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4', 'audio-loss-5'
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4'
       ];
       audioIds.forEach(function(id) {
         var el = document.getElementById(id);
@@ -928,8 +865,8 @@
         currentlyPlaying = null;
       }
       var audioIds = [
-        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4', 'audio-win-5',
-        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4', 'audio-loss-5'
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4'
       ];
       audioIds.forEach(function(id) {
         var el = document.getElementById(id);
@@ -947,7 +884,7 @@
         return;
       }
       stopAllPlaying();
-      playGuitarOption(type, id);
+      play16BitOption(type, id);
     }
 
     function markButtonPlaying(type, id) {
@@ -960,7 +897,7 @@
       }
     }
 
-    function playGuitarOption(type, id) {
+    function play16BitOption(type, id) {
       var vol = getMasterVolume();
       markButtonPlaying(type, id);
 
@@ -981,16 +918,16 @@
     function selectSound(type, id) {
       if (type === 'win') {
         selectedWin = id;
-        for (var i = 1; i <= 5; i++) {
+        for (var i = 1; i <= 4; i++) {
           var c = document.getElementById('card-win-' + i);
           var p = document.getElementById('pill-win-' + i);
           if (c) c.classList.toggle('selected', i === id);
           if (p) p.textContent = (i === id) ? '● SELECCIONADO' : '○ ELEGIR';
         }
-        document.getElementById('summaryWinText').textContent = '⚡ Victoria: ' + titles.win[id];
+        document.getElementById('summaryWinText').textContent = '🏆 Victoria: ' + titles.win[id];
       } else {
         selectedLoss = id;
-        for (var j = 1; j <= 5; j++) {
+        for (var j = 1; j <= 4; j++) {
           var cL = document.getElementById('card-loss-' + j);
           var pL = document.getElementById('pill-loss-' + j);
           if (cL) cL.classList.toggle('selected', j === id);
@@ -1001,9 +938,9 @@
     }
 
     function copySelection() {
-      var text = "Hola! He probado las adaptaciones en guitarra de los temas originales y elijo:\n" +
-                 "- Victoria (06 Win! en guitarra): " + titles.win[selectedWin] + "\n" +
-                 "- Derrota (08 Lost... en guitarra): " + titles.loss[selectedLoss];
+      var text = "Hola! He probado las opciones en 16-bit / Piano y elijo:\n" +
+                 "- Victoria (06 Win!): " + titles.win[selectedWin] + "\n" +
+                 "- Derrota (08 Lost...): " + titles.loss[selectedLoss];
       
       navigator.clipboard.writeText(text).then(function() {
         showToast("✓ ¡Selección copiada al portapapeles!");
