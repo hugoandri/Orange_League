@@ -47,7 +47,7 @@ const PARTY_INTERNAL_SECRET = process.env.PARTY_INTERNAL_SECRET ||
 // for all 3 sets, since those ARE real purchasable/collectible packs) so
 // neither a promo nor a Jungle/Fossil copy can ever count toward deck
 // ownership, even from a hand-crafted request.
-const DECK_LEGAL_SET_KEYS = ['base'];
+const DECK_LEGAL_SET_KEYS = ['base', 'jungle'];
 const DECK_LEGAL_CARD_CATALOG = {};
 DECK_LEGAL_SET_KEYS.forEach((k) => { DECK_LEGAL_CARD_CATALOG[k] = CARD_CATALOG[k]; });
 

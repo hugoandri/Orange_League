@@ -24,5 +24,10 @@ module.exports = {
   "Nidorino": "Nidoran ♂", "Poliwhirl": "Poliwag", "Porygon": null,
   "Raticate": "Rattata", "Seel": null, "Caterpie": null, "Diglett": null,
   "Doduo": null, "Koffing": null, "Metapod": "Caterpie", "Pidgey": null,
-  "Poliwag": null, "Ponyta": null, "Rattata": null, "Voltorb": null
+  "Poliwag": null, "Ponyta": null, "Rattata": null, "Voltorb": null,
+  "Clefable": "Clefairy", "Electrode (Jungle)": "Voltorb", "Flareon": "Eevee",
+  "Jolteon": "Eevee", "Kangaskhan": null, "Mr. Mime": null, "Nidoqueen": "Nidorina",
+  "Pidgeot": "Pidgeotto", "Pinsir": null, "Scyther": null, "Snorlax": null,
+  "Vaporeon": "Eevee", "Venomoth": "Venonat", "Victreebel": "Weepinbell",
+  "Vileplume": "Gloom", "Wigglytuff": "Jigglypuff"
 };

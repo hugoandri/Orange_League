@@ -4656,7 +4656,7 @@ var DECK_BUILDER_BASIC_ENERGY = ['Grass Energy', 'Fire Energy', 'Water Energy', 
 // server-side equivalent (saveCustomDeck) -- kept as a literal list here
 // too rather than a shared constant, same as every other CARD_SET_KEYS-
 // adjacent literal in this file (see CARD_SET_KEYS's own comment).
-var DECK_LEGAL_SET_KEYS = ['base'];
+var DECK_LEGAL_SET_KEYS = ['base', 'jungle'];
 
 // {cardName: totalOwnedCount}, aggregated across every deck-legal set/tier
 // -- deck-building rules are name-based, not print-based (see

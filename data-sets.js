@@ -724,7 +724,7 @@ const CARD_CATALOG = {
       "img": "Cartas/base2/1_hires.png"
     },
     {
-      "n": "Electrode",
+      "n": "Electrode (Jungle)",
       "num": "2",
       "st": "Pokémon",
       "r": "Rare Holo",
@@ -836,7 +836,7 @@ const CARD_CATALOG = {
       "img": "Cartas/base2/17_hires.png"
     },
     {
-      "n": "Electrode",
+      "n": "Electrode (Jungle)",
       "num": "18",
       "st": "Pokémon",
       "r": "Rare",
@@ -1130,7 +1130,7 @@ const CARD_CATALOG = {
       "img": "Cartas/base2/59_hires.png"
     },
     {
-      "n": "Pikachu",
+      "n": "Pikachu (Jungle)",
       "num": "60",
       "st": "Pokémon",
       "r": "Common",

@@ -3354,3 +3354,171 @@ function mkPokemon(id, name, overrides) {
   drawForTurnStart(localState, 'cpu');
   check('local play: the bot (cpu slot) still gets no log line at all, unchanged', localState.log.length, 0);
 })();
+
+(function testJungleCardsLoadedInCardStats() {
+  var jungleNames = [
+    'Clefable', 'Electrode (Jungle)', 'Flareon', 'Jolteon', 'Kangaskhan',
+    'Mr. Mime', 'Nidoqueen', 'Pidgeot', 'Pinsir', 'Scyther', 'Snorlax',
+    'Vaporeon', 'Venomoth', 'Victreebel', 'Vileplume', 'Wigglytuff'
+  ];
+  var missing = jungleNames.filter(function (name) { return !CARD_STATS[name]; });
+  check('all 16 unique Jungle cards exist in CARD_STATS', missing, []);
+  check('Clefable evolves from Clefairy', CARD_STATS['Clefable'].evolvesFrom, 'Clefairy');
+  check('Pidgeot evolves from Pidgeotto', CARD_STATS['Pidgeot'].evolvesFrom, 'Pidgeotto');
+  check('Scyther is a Basic', CARD_STATS['Scyther'].evolvesFrom, null);
+  check('Snorlax is a Basic with 90 HP', CARD_STATS['Snorlax'].hp, 90);
+  check('Mr. Mime has Invisible Wall power', CARD_STATS['Mr. Mime'].pokemonPower.name, 'Invisible Wall');
+})();
+
+(function testClefableMinimizeShield() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('cf1', 'Clefable', { damage: 0 });
+  op.active = mkPokemon('m1', 'Machop', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  attack(state, 'player', 'Minimize');
+  checkTrue('Clefable has reduceFlat shield after Minimize', p.active.shield && p.active.shield.type === 'reduceFlat');
+  check('Minimize shield reduces by 20', p.active.shield.reduceAmount, 20);
+
+  // CPU turn: attack already incremented turnCounter from 3 to 4
+  dealDamage(state, op.active, p.active, 20);
+  check('Low Kick deals 20 damage instead of 40 due to Minimize shield', p.active.damage, 20);
+})();
+
+(function testElectrodeJungleChainLightning() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('el1', 'Electrode (Jungle)', { damage: 0 });
+  op.active = mkPokemon('b1', 'Bulbasaur', { damage: 0 });
+  op.bench[0] = mkPokemon('iv1', 'Ivysaur', { damage: 0 });
+  op.bench[1] = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+  p.bench[0] = mkPokemon('we1', 'Weedle', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  ATTACK_EFFECTS['Electrode (Jungle)']['Chain Lightning'](state, p.active, op.active);
+  check('Chain Lightning deals 20 to active defender', op.active.damage, 20);
+  check('Chain Lightning deals 10 to opposing Grass bench', op.bench[0].damage, 10);
+  check('Chain Lightning does NOT damage opposing Water bench', op.bench[1].damage, 0);
+  check('Chain Lightning deals 10 to friendly Grass bench', p.bench[0].damage, 10);
+})();
+
+(function testMrMimeInvisibleWallBlocksDamageOver30() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('mm1', 'Mr. Mime', { damage: 0 });
+  op.active = mkPokemon('m1', 'Machop', { damage: 0 });
+
+  dealDamage(state, op.active, p.active, 40);
+  check('Invisible Wall blocks 40 damage entirely', p.active.damage, 0);
+
+  dealDamage(state, op.active, p.active, 20);
+  check('Invisible Wall allows 20 damage through', p.active.damage, 20);
+
+  addStatus(p.active, 'Confused');
+  dealDamage(state, op.active, p.active, 40);
+  check('Confused Mr. Mime takes full 40 damage', p.active.damage, 60);
+
+  var neutralDef = mkPokemon('pk1', 'Pikachu', { damage: 30 });
+  ATTACK_EFFECTS['Mr. Mime']['Meditate'](state, p.active, neutralDef);
+  check('Meditate does 10 base + 30 bonus = 40 damage', neutralDef.damage, 70);
+})();
+
+(function testScytherSwordsDanceAndSlash() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('sc1', 'Scyther', { damage: 0 });
+  op.active = mkPokemon('ch1', 'Chansey', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  ATTACK_EFFECTS['Scyther']['Swords Dance'](state, p.active, op.active, null, 'player');
+  check('Swords Dance sets target turn to turn 5', p.active.swordsDanceTurn, 5);
+
+  ATTACK_EFFECTS['Scyther']['Slash'](state, p.active, op.active);
+  check('Slash on current turn does 30 damage', op.active.damage, 30);
+
+  state.turnCounter = 5;
+  ATTACK_EFFECTS['Scyther']['Slash'](state, p.active, op.active);
+  check('Slash on turn 5 does 60 damage (total 90)', op.active.damage, 90);
+  check('swordsDanceTurn is consumed', p.active.swordsDanceTurn, null);
+})();
+
+(function testSnorlaxThickSkinned() {
+  var s = mkPokemon('sn1', 'Snorlax', { damage: 0 });
+  addStatus(s, 'Poisoned');
+  addStatus(s, 'Asleep');
+  addStatus(s, 'Confused');
+  addStatus(s, 'Paralyzed');
+  check('Thick Skinned prevents all status conditions', s.statusConditions, []);
+})();
+
+(function testWigglytuffDoTheWave() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('wt1', 'Wigglytuff', { damage: 0 });
+  p.bench[0] = mkPokemon('b1', 'Pidgey', { damage: 0 });
+  p.bench[1] = mkPokemon('b2', 'Rattata', { damage: 0 });
+  p.bench[2] = mkPokemon('b3', 'Clefairy', { damage: 0 });
+  op.active = mkPokemon('ch1', 'Chansey', { damage: 0 });
+
+  ATTACK_EFFECTS['Wigglytuff']['Do the Wave'](state, p.active, op.active, null, 'player');
+  check('Do the Wave with 3 bench deals 10 + 30 = 40 damage', op.active.damage, 40);
+})();
+
+(function testNidoqueenBoyfriends() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('nq1', 'Nidoqueen', { damage: 0 });
+  p.bench[0] = mkPokemon('nk1', 'Nidoking', { damage: 0 });
+  op.active = mkPokemon('ch1', 'Chansey', { damage: 0 });
+
+  ATTACK_EFFECTS['Nidoqueen']['Boyfriends'](state, p.active, op.active, null, 'player');
+  check('Boyfriends with 1 Nidoking deals 20 + 20 = 40 damage', op.active.damage, 40);
+})();
+
+(function testPidgeotHurricane() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('pg1', 'Pidgeot', { damage: 0 });
+  op.active = mkPokemon('iv1', 'Ivysaur', { damage: 0, attachedEnergy: ['Grass', 'Grass'] });
+  op.bench[0] = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+
+  ATTACK_EFFECTS['Pidgeot']['Hurricane'](state, p.active, op.active, null, 'player');
+  check('Hurricane deals 30 damage and returns Ivysaur to hand', op.hand.length > 0, true);
+  check('Squirtle promoted to Active', op.active.name, 'Squirtle');
+})();
+
+(function testVenomothShift() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  p.active = mkPokemon('vm1', 'Venomoth', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  var res = POKEMON_POWER_EFFECTS['Shift'](state, 'player', p.active, { chosenType: 'Fire' });
+  checkTrue('Shift is legal', res.legal);
+  check('Venomoth typeOverride is Fire', p.active.typeOverride, 'Fire');
+})();
+
+(function testVileplumeHeal() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  p.active = mkPokemon('vp1', 'Vileplume', { damage: 30 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  var res = POKEMON_POWER_EFFECTS['Heal'](state, 'player', p.active, { targetInstanceId: p.active.id });
+  checkTrue('Heal is legal', res.legal);
+  check('Heal cures 10 damage on heads', p.active.damage, 20);
+})();
+

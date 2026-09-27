@@ -1423,6 +1423,134 @@ const CARD_STATS = {
       { "name": "Tackle", "cost": ["Colorless"], "convertedEnergyCost": 1, "damage": "10", "text": "" }
     ],
     "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Clefable": {
+    "supertype": "Pokémon", "hp": 70, "types": ["Colorless"], "evolvesFrom": "Clefairy",
+    "attacks": [
+      { "name": "Metronome", "cost": ["Colorless"], "convertedEnergyCost": 1, "damage": "", "text": "Choose 1 of the Defending Pokémon's attacks. Metronome copies that attack except for its Energy costs and anything else required in order to use that attack, such as discarding Energy cards. (No matter what type the Defending Pokémon is, Clefable's type is still Colorless.)" },
+      { "name": "Minimize", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "", "text": "All damage done by attacks to Clefable during your opponent's next turn is reduced by 20 (after applying Weakness and Resistance)." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [{ "type": "Psychic", "value": "-30" }], "retreatCost": 2
+  },
+  "Electrode (Jungle)": {
+    "supertype": "Pokémon", "hp": 90, "types": ["Lightning"], "evolvesFrom": "Voltorb",
+    "attacks": [
+      { "name": "Tackle", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "20", "text": "" },
+      { "name": "Chain Lightning", "cost": ["Lightning", "Lightning", "Lightning"], "convertedEnergyCost": 3, "damage": "20", "text": "If the Defending Pokémon isn't Colorless, this attack does 10 damage to each Benched Pokémon of the same type as the Defending Pokémon (including your own)." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Flareon": {
+    "supertype": "Pokémon", "hp": 70, "types": ["Fire"], "evolvesFrom": "Eevee",
+    "attacks": [
+      { "name": "Quick Attack", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "10+", "text": "Flip a coin. If heads, this attack does 10 damage plus 20 more damage; if tails, this attack does 10 damage." },
+      { "name": "Flamethrower", "cost": ["Fire", "Fire", "Colorless", "Colorless"], "convertedEnergyCost": 4, "damage": "60", "text": "Discard 1 Fire Energy card attached to Flareon in order to use this attack." }
+    ],
+    "weaknesses": [{ "type": "Water", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Jolteon": {
+    "supertype": "Pokémon", "hp": 70, "types": ["Lightning"], "evolvesFrom": "Eevee",
+    "attacks": [
+      { "name": "Quick Attack", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "10+", "text": "Flip a coin. If heads, this attack does 10 damage plus 20 more damage; if tails, this attack does 10 damage." },
+      { "name": "Pin Missile", "cost": ["Lightning", "Lightning", "Colorless"], "convertedEnergyCost": 3, "damage": "20×", "text": "Flip 4 coins. This attack does 20 damage times the number of heads." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Kangaskhan": {
+    "supertype": "Pokémon", "hp": 90, "types": ["Colorless"], "evolvesFrom": null,
+    "attacks": [
+      { "name": "Fetch", "cost": ["Colorless"], "convertedEnergyCost": 1, "damage": "", "text": "Draw a card." },
+      { "name": "Comet Punch", "cost": ["Colorless", "Colorless", "Colorless", "Colorless"], "convertedEnergyCost": 4, "damage": "20×", "text": "Flip 4 coins. This attack does 20 damage times the number of heads." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [{ "type": "Psychic", "value": "-30" }], "retreatCost": 3
+  },
+  "Mr. Mime": {
+    "supertype": "Pokémon", "hp": 40, "types": ["Psychic"], "evolvesFrom": null,
+    "pokemonPower": { "name": "Invisible Wall", "text": "Whenever an attack (including your own) does 30 or more damage to Mr. Mime (after applying Weakness and Resistance), prevent that damage. (Any other effects of attacks still happen.) This power can't be used if Mr. Mime is Asleep, Confused, or Paralyzed." },
+    "attacks": [
+      { "name": "Meditate", "cost": ["Psychic", "Colorless"], "convertedEnergyCost": 2, "damage": "10+", "text": "Does 10 damage plus 10 more damage for each damage counter on the Defending Pokémon." }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Nidoqueen": {
+    "supertype": "Pokémon", "hp": 90, "types": ["Grass"], "evolvesFrom": "Nidorina",
+    "attacks": [
+      { "name": "Boyfriends", "cost": ["Grass", "Colorless"], "convertedEnergyCost": 2, "damage": "20+", "text": "Does 20 damage plus 20 more damage for each Nidoking you have in play." },
+      { "name": "Mega Punch", "cost": ["Grass", "Grass", "Colorless", "Colorless"], "convertedEnergyCost": 4, "damage": "50", "text": "" }
+    ],
+    "weaknesses": [{ "type": "Psychic", "value": "×2" }], "resistances": [], "retreatCost": 3
+  },
+  "Pidgeot": {
+    "supertype": "Pokémon", "hp": 80, "types": ["Colorless"], "evolvesFrom": "Pidgeotto",
+    "attacks": [
+      { "name": "Wing Attack", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "20", "text": "" },
+      { "name": "Hurricane", "cost": ["Colorless", "Colorless", "Colorless"], "convertedEnergyCost": 3, "damage": "30", "text": "Unless this attack Knocks Out the Defending Pokémon, return the Defending Pokémon and all cards attached to it to your opponent's hand." }
+    ],
+    "weaknesses": [{ "type": "Lightning", "value": "×2" }], "resistances": [{ "type": "Fighting", "value": "-30" }], "retreatCost": 0
+  },
+  "Pinsir": {
+    "supertype": "Pokémon", "hp": 60, "types": ["Grass"], "evolvesFrom": null,
+    "attacks": [
+      { "name": "Irongrip", "cost": ["Grass", "Grass"], "convertedEnergyCost": 2, "damage": "20", "text": "Flip a coin. If heads, the Defending Pokémon is now Paralyzed." },
+      { "name": "Guillotine", "cost": ["Grass", "Grass", "Colorless", "Colorless"], "convertedEnergyCost": 4, "damage": "50", "text": "" }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Scyther": {
+    "supertype": "Pokémon", "hp": 70, "types": ["Grass"], "evolvesFrom": null,
+    "attacks": [
+      { "name": "Swords Dance", "cost": ["Grass"], "convertedEnergyCost": 1, "damage": "", "text": "During your next turn, Scyther's Slash attack's base damage is 60 instead of 30." },
+      { "name": "Slash", "cost": ["Colorless", "Colorless", "Colorless"], "convertedEnergyCost": 3, "damage": "30", "text": "" }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }], "resistances": [{ "type": "Fighting", "value": "-30" }], "retreatCost": 0
+  },
+  "Snorlax": {
+    "supertype": "Pokémon", "hp": 90, "types": ["Colorless"], "evolvesFrom": null, "immuneToStatus": true,
+    "pokemonPower": { "name": "Thick Skinned", "text": "Snorlax can't become Asleep, Confused, Paralyzed, or Poisoned. This power can't be used if Snorlax is already Asleep, Confused, or Paralyzed." },
+    "attacks": [
+      { "name": "Body Slam", "cost": ["Colorless", "Colorless", "Colorless", "Colorless"], "convertedEnergyCost": 4, "damage": "30", "text": "Flip a coin. If heads, the Defending Pokémon is now Paralyzed." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [{ "type": "Psychic", "value": "-30" }], "retreatCost": 4
+  },
+  "Vaporeon": {
+    "supertype": "Pokémon", "hp": 80, "types": ["Water"], "evolvesFrom": "Eevee",
+    "attacks": [
+      { "name": "Quick Attack", "cost": ["Colorless", "Colorless"], "convertedEnergyCost": 2, "damage": "10+", "text": "Flip a coin. If heads, this attack does 10 damage plus 20 more damage; if tails, this attack does 10 damage." },
+      { "name": "Water Gun", "cost": ["Water", "Water", "Colorless"], "convertedEnergyCost": 3, "damage": "30+", "text": "Does 30 damage plus 10 more damage for each Water Energy attached to Vaporeon but not used to pay for this attack's Energy cost. Extra Water Energy after the 2nd doesn't count." }
+    ],
+    "weaknesses": [{ "type": "Lightning", "value": "×2" }], "resistances": [], "retreatCost": 1
+  },
+  "Venomoth": {
+    "supertype": "Pokémon", "hp": 70, "types": ["Grass"], "evolvesFrom": "Venonat",
+    "pokemonPower": { "name": "Shift", "text": "Once during your turn (before your attack), you may change the type of Venomoth to the type of any other Pokémon in play other than Colorless. This power can't be used if Venomoth is Asleep, Confused, or Paralyzed." },
+    "attacks": [
+      { "name": "Venom Powder", "cost": ["Grass", "Grass"], "convertedEnergyCost": 2, "damage": "10", "text": "Flip a coin. If heads, the Defending Pokémon is now Confused and Poisoned." }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }], "resistances": [{ "type": "Fighting", "value": "-30" }], "retreatCost": 0
+  },
+  "Victreebel": {
+    "supertype": "Pokémon", "hp": 80, "types": ["Grass"], "evolvesFrom": "Weepinbell",
+    "attacks": [
+      { "name": "Lure", "cost": ["Grass"], "convertedEnergyCost": 1, "damage": "", "text": "If your opponent has any Benched Pokémon, choose 1 of them and switch it with his or her Active Pokémon." },
+      { "name": "Acid", "cost": ["Grass", "Grass"], "convertedEnergyCost": 2, "damage": "20", "text": "Flip a coin. If heads, the Defending Pokémon can't retreat during your next turn." }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }], "resistances": [], "retreatCost": 2
+  },
+  "Vileplume": {
+    "supertype": "Pokémon", "hp": 80, "types": ["Grass"], "evolvesFrom": "Gloom",
+    "pokemonPower": { "name": "Heal", "text": "Once during your turn (before your attack), you may flip a coin. If heads, remove 1 damage counter from 1 of your Pokémon. This power can't be used if Vileplume is Asleep, Confused, or Paralyzed." },
+    "attacks": [
+      { "name": "Petal Dance", "cost": ["Grass", "Grass", "Grass"], "convertedEnergyCost": 3, "damage": "40×", "text": "Flip 3 coins. This attack does 40 damage times the number of heads. Vileplume is now Confused (after doing damage)." }
+    ],
+    "weaknesses": [{ "type": "Fire", "value": "×2" }], "resistances": [], "retreatCost": 2
+  },
+  "Wigglytuff": {
+    "supertype": "Pokémon", "hp": 80, "types": ["Colorless"], "evolvesFrom": "Jigglypuff",
+    "attacks": [
+      { "name": "Lullaby", "cost": ["Colorless"], "convertedEnergyCost": 1, "damage": "", "text": "The Defending Pokémon is now Asleep." },
+      { "name": "Do the Wave", "cost": ["Colorless", "Colorless", "Colorless"], "convertedEnergyCost": 3, "damage": "10+", "text": "Does 10 damage plus 10 more damage for each of your Benched Pokémon." }
+    ],
+    "weaknesses": [{ "type": "Fighting", "value": "×2" }], "resistances": [{ "type": "Psychic", "value": "-30" }], "retreatCost": 2
   }
 };
 

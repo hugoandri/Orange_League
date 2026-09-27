@@ -466,6 +466,7 @@ function canRetreat(state, playerId, benchInstanceId) {
   // like Diglett/Doduo/Rattata's real retreatCost:0, which stays freely
   // retreatable.
   if (CARD_STATS[p.active.name].cantRetreat) { return false; }
+  if (p.active.cantRetreatUntilTurn && p.active.cantRetreatUntilTurn >= state.turnCounter) { return false; }
   var bench = p.bench.find(function (b) { return b && b.id === benchInstanceId; });
   if (!bench) { return false; }
   var cost = CARD_STATS[p.active.name].retreatCost;
@@ -522,9 +523,11 @@ function hasStatus(instance, status) { return instance.statusConditions.indexOf(
 var EXCLUSIVE_STATUSES = ['Asleep', 'Confused', 'Paralyzed'];
 
 function addStatus(instance, status) {
-  // Clefairy Doll: "can't be Asleep, Confused, Paralyzed, or Poisoned" --
-  // the only real card in this immune-to-status category.
-  if (CARD_STATS[instance.name] && CARD_STATS[instance.name].immuneToStatus) { return; }
+  // Clefairy Doll & Snorlax (Thick Skinned): immune to Special Conditions.
+  if (CARD_STATS[instance.name] && CARD_STATS[instance.name].immuneToStatus) {
+    var isBlocked = hasStatus(instance, 'Asleep') || hasStatus(instance, 'Confused') || hasStatus(instance, 'Paralyzed');
+    if (!isBlocked) { return; }
+  }
   if (EXCLUSIVE_STATUSES.indexOf(status) !== -1) {
     instance.statusConditions = instance.statusConditions.filter(function (s) { return EXCLUSIVE_STATUSES.indexOf(s) === -1; });
   }
@@ -589,7 +592,13 @@ var ATTACK_NAME_ES = {
   'Conversion 1': 'Conversión 1', 'Conversion 2': 'Conversión 2', 'Super Fang': 'Supercolmillo',
   'Headbutt': 'Cabezazo', 'String Shot': 'Lanza Hilo', 'Dig': 'Cavar', 'Mud Slap': 'Bofetón Lodo',
   'Fury Attack': 'Ataque Furia', 'Foul Gas': 'Gas Fétido', 'Stun Spore': 'Paralizador',
-  'Smash Kick': 'Patada Certera', 'Flame Tail': 'Cola Llama'
+  'Smash Kick': 'Patada Certera', 'Flame Tail': 'Cola Llama',
+  'Minimize': 'Reducción', 'Chain Lightning': 'Rayo en Cadena', 'Quick Attack': 'Ataque Rápido',
+  'Pin Missile': 'Misil Aguja', 'Fetch': 'Buscar', 'Comet Punch': 'Puño Cometa',
+  'Boyfriends': 'Novios', 'Mega Punch': 'Megapuño', 'Wing Attack': 'Ataque Ala',
+  'Hurricane': 'Huracán', 'Irongrip': 'Agarre Férreo', 'Guillotine': 'Guillotina',
+  'Swords Dance': 'Danza Espada', 'Body Slam': 'Golpe Cuerpo', 'Venom Powder': 'Polvo Venenoso',
+  'Acid': 'Ácido', 'Petal Dance': 'Danza Pétalo', 'Lullaby': 'Canción de Cuna', 'Do the Wave': 'Hacer la Ola'
 };
 function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
 
@@ -721,7 +730,9 @@ function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 var POWER_NAME_ES = {
   'Damage Swap': 'Transferir Daño', 'Rain Dance': 'Danza de Lluvia',
   'Energy Burn': 'Quemar Energía', 'Strikes Back': 'Contraataque',
-  'Energy Trans': 'Transferir Energía', 'Buzzap': 'Buzzap'
+  'Energy Trans': 'Transferir Energía', 'Buzzap': 'Buzzap',
+  'Invisible Wall': 'Muro Invisible', 'Thick Skinned': 'Piel Gruesa',
+  'Shift': 'Mutación', 'Heal': 'Curación'
 };
 function translatePowerName(name) { return POWER_NAME_ES[name] || name; }
 
@@ -731,7 +742,11 @@ var POWER_TEXT_ES = {
   'Energy Burn': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes convertir toda la Energía adjunta a Charizard en Energía Fuego por el resto del turno. No se puede usar si Charizard está Dormido, Confundido o Paralizado.',
   'Strikes Back': 'Cada vez que el ataque de tu rival dañe a Machamp (incluso si es noqueado), este poder inflige 10 de daño al Pokémon atacante. (No se aplican Debilidad ni Resistencia.) No se puede usar si Machamp ya estaba Dormido, Confundido o Paralizado cuando fue atacado.',
   'Energy Trans': 'Tantas veces como quieras durante tu turno (antes de tu ataque), puedes tomar 1 carta de Energía Planta adjunta a uno de tus Pokémon y adjuntarla a otro distinto. No se puede usar si Venusaur está Dormido, Confundido o Paralizado.',
-  'Buzzap': 'En cualquier momento durante tu turno (antes de tu ataque), puedes noquear a Electrode y adjuntarlo a otro de tus Pokémon. Si lo haces, elige un tipo de Energía: Electrode pasa a ser una carta de Energía (en vez de un Pokémon) que provee 2 de ese tipo. No se puede usar si Electrode está Dormido, Confundido o Paralizado.'
+  'Buzzap': 'En cualquier momento durante tu turno (antes de tu ataque), puedes noquear a Electrode y adjuntarlo a otro de tus Pokémon. Si lo haces, elige un tipo de Energía: Electrode pasa a ser una carta de Energía (en vez de un Pokémon) que provee 2 de ese tipo. No se puede usar si Electrode está Dormido, Confundido o Paralizado.',
+  'Invisible Wall': 'Siempre que un ataque inflija 30 o más de daño a Mr. Mime (tras aplicar Debilidad y Resistencia), evita ese daño. No se puede usar si Mr. Mime está Dormido, Confundido o Paralizado.',
+  'Thick Skinned': 'Snorlax no puede quedar Dormido, Confundido, Paralizado ni Envenenado. No se puede usar si Snorlax ya estaba Dormido, Confundido o Paralizado.',
+  'Shift': 'Una vez durante tu turno (antes de tu ataque), puedes cambiar el tipo de Venomoth al tipo de cualquier otro Pokémon en juego que no sea Incoloro. No se puede usar si Venomoth está Dormido, Confundido o Paralizado.',
+  'Heal': 'Una vez durante tu turno (antes de tu ataque), puedes lanzar una moneda. Si es cara, quita 1 ficha de daño de uno de tus Pokémon. No se puede usar si Vileplume está Dormido, Confundido o Paralizado.'
 };
 function translatePowerText(name) { return POWER_TEXT_ES[name] || ''; }
 
@@ -743,7 +758,7 @@ function dealDamage(state, attacker, defender, baseDamage) {
   if (baseDamage <= 0) { return 0; }
   var dmg = baseDamage;
   var defStats = CARD_STATS[defender.name];
-  var atkTypes = CARD_STATS[attacker.name].types || [];
+  var atkTypes = attacker.typeOverride ? [attacker.typeOverride] : (CARD_STATS[attacker.name].types || []);
   // Porygon's Conversion 1/2 can override either side's printed Weakness/
   // Resistance with a chosen type -- checked first, falling back to the
   // real card data when no override is set.
@@ -775,6 +790,15 @@ function dealDamage(state, attacker, defender, baseDamage) {
         // rest of its window, not just the first one -- unlike preventAll,
         // this never consumes/clears itself early.
         dmg = Math.max(0, dmg - defender.shield.reduceAmount);
+      }
+    }
+  }
+  var defenderPower = CARD_STATS[defender.name] && CARD_STATS[defender.name].pokemonPower;
+  if (defenderPower && defenderPower.name === 'Invisible Wall') {
+    if (!hasStatus(defender, 'Asleep') && !hasStatus(defender, 'Confused') && !hasStatus(defender, 'Paralyzed')) {
+      if (dmg >= 30) {
+        dmg = 0;
+        logEvent(state, 'Invisible Wall previene el daño a ' + defender.name);
       }
     }
   }
@@ -1061,7 +1085,7 @@ function usablePokemonPowers(state, playerId) {
     // instant it's in play, no button, same no-button treatment as
     // Strikes Back above. See canPayCost's own comment for where this
     // actually takes effect.
-    if (!power || power.name === 'Strikes Back' || power.name === 'Energy Burn') { return false; }
+    if (!power || power.name === 'Strikes Back' || power.name === 'Energy Burn' || power.name === 'Invisible Wall' || power.name === 'Thick Skinned') { return false; }
     if (typeof POKEMON_POWER_EFFECTS === 'undefined' || !POKEMON_POWER_EFFECTS[power.name]) { return false; }
     if (instance === p.active && (hasStatus(instance, 'Asleep') || hasStatus(instance, 'Confused') || hasStatus(instance, 'Paralyzed'))) { return false; }
     return true;
@@ -1387,6 +1411,7 @@ function endTurn(state) {
   // leave a stale +10ATK badge on a Benched Pokémon forever.
   allInstances(state.players[justFinished]).forEach(function (instance) {
     instance.plusPowerAttached = false;
+    instance.typeOverride = null;
   });
   // Shields (Onix's Harden, Squirtle/Wartortle's Withdraw, Defender's
   // reduceFlat, ...) used to only ever get cleared reactively, inside
@@ -1411,6 +1436,7 @@ function endTurn(state) {
       // retreat, since the real card ties the lock to the specific
       // Pokémon and attack, not to "whichever Pokémon is currently Active".
       if (instance.tempLockedAttack && instance.tempLockedAttack.untilTurn <= state.turnCounter) { instance.tempLockedAttack = null; }
+      if (instance.cantRetreatUntilTurn && instance.cantRetreatUntilTurn <= state.turnCounter) { instance.cantRetreatUntilTurn = null; }
     });
   });
 

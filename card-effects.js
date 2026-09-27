@@ -80,6 +80,37 @@ POKEMON_POWER_EFFECTS['Buzzap'] = function (state, playerId, owner, params) {
   return { legal: true };
 };
 
+POKEMON_POWER_EFFECTS['Shift'] = function (state, playerId, owner, params) {
+  if (owner.shiftTurn === state.turnCounter) {
+    return { legal: false, reason: 'Ya usaste Shift en este turno' };
+  }
+  var validTypes = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting'];
+  if (validTypes.indexOf(params.chosenType) === -1) {
+    return { legal: false, reason: 'Elige un tipo válido (distinto de Incoloro)' };
+  }
+  owner.typeOverride = params.chosenType;
+  owner.shiftTurn = state.turnCounter;
+  logEvent(state, translatePlayer(playerId) + ' usa Shift (Venomoth) y cambia su tipo a ' + params.chosenType, playerId);
+  return { legal: true };
+};
+
+POKEMON_POWER_EFFECTS['Heal'] = function (state, playerId, owner, params) {
+  if (owner.healTurn === state.turnCounter) {
+    return { legal: false, reason: 'Ya usaste Heal en este turno' };
+  }
+  var p = state.players[playerId];
+  var target = findInstance(p, params.targetInstanceId);
+  if (!target) { return { legal: false, reason: 'Elige uno de tus Pokémon' }; }
+  owner.healTurn = state.turnCounter;
+  if (coinFlip(state) === 'H') {
+    target.damage = Math.max(0, target.damage - 10);
+    logEvent(state, translatePlayer(playerId) + ' usa Heal (Vileplume) y cura 10 de daño a ' + target.name, playerId);
+  } else {
+    logEvent(state, translatePlayer(playerId) + ' usa Heal (Vileplume) pero la moneda sale Sello', playerId);
+  }
+  return { legal: true };
+};
+
 var TRAINER_EFFECTS = {};
 
 TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
@@ -1578,6 +1609,217 @@ ATTACK_EFFECTS["Farfetch'd"] = {
     if (coinFlip(state) === 'H') { dealDamage(state, attacker, defender, 30); } else { state.attackMissed = true; }
   },
   'Pot Smash': function (state, attacker, defender) { dealDamage(state, attacker, defender, 30); }
+};
+
+// --- Jungle Set Attacks (#1-16 Holo / #17-32 Non-Holo) ---
+
+ATTACK_EFFECTS['Clefable'] = {
+  'Metronome': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    if (ATTACK_EFFECTS['Clefairy'] && ATTACK_EFFECTS['Clefairy']['Metronome']) {
+      ATTACK_EFFECTS['Clefairy']['Metronome'](state, attacker, defender, atkDef, playerId, targetInstanceId);
+    }
+  },
+  'Minimize': function (state, attacker) {
+    attacker.shield = { untilTurn: state.turnCounter + 1, type: 'reduceFlat', reduceAmount: 20 };
+    state.attackSelfEffect = true;
+    logEvent(state, attacker.name + ' usa Minimize (-20 daño en el próximo turno)');
+  }
+};
+
+ATTACK_EFFECTS['Electrode (Jungle)'] = {
+  'Chain Lightning': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    var defStats = CARD_STATS[defender.name];
+    var defTypes = (defStats && defStats.types) || [];
+    if (defTypes.indexOf('Colorless') === -1) {
+      ['player', 'cpu'].forEach(function (pid) {
+        state.players[pid].bench.forEach(function (b) {
+          if (!b) return;
+          var bStats = CARD_STATS[b.name];
+          var bTypes = (bStats && bStats.types) || [];
+          if (bTypes.some(function (t) { return defTypes.indexOf(t) !== -1; })) {
+            b.damage += 10;
+            logEvent(state, 'Chain Lightning daña a ' + b.name + ' en la banca por 10');
+          }
+        });
+      });
+    }
+  }
+};
+
+ATTACK_EFFECTS['Flareon'] = {
+  'Quick Attack': function (state, attacker, defender) {
+    var bonus = coinFlip(state) === 'H' ? 20 : 0;
+    dealDamage(state, attacker, defender, 10 + bonus);
+  },
+  'Flamethrower': function (state, attacker, defender, atkDef, playerId) {
+    var idx = attacker.attachedEnergy.indexOf('Fire');
+    if (idx !== -1) {
+      attacker.attachedEnergy.splice(idx, 1);
+      if (playerId) { state.players[playerId].discard.push(discardedEnergyCard('Fire')); }
+    }
+    dealDamage(state, attacker, defender, 60);
+  }
+};
+
+ATTACK_EFFECTS['Jolteon'] = {
+  'Quick Attack': function (state, attacker, defender) {
+    var bonus = coinFlip(state) === 'H' ? 20 : 0;
+    dealDamage(state, attacker, defender, 10 + bonus);
+  },
+  'Pin Missile': function (state, attacker, defender) {
+    var heads = 0;
+    for (var i = 0; i < 4; i++) { if (coinFlip(state) === 'H') heads++; }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 20 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Kangaskhan'] = {
+  'Fetch': function (state, attacker, defender, atkDef, playerId) {
+    drawCard(state, playerId, 1);
+    logEvent(state, attacker.name + ' usa Fetch y roba 1 carta', playerId);
+  },
+  'Comet Punch': function (state, attacker, defender) {
+    var heads = 0;
+    for (var i = 0; i < 4; i++) { if (coinFlip(state) === 'H') heads++; }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 20 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Mr. Mime'] = {
+  'Meditate': function (state, attacker, defender) {
+    var bonus = (defender.damage || 0);
+    dealDamage(state, attacker, defender, 10 + bonus);
+  }
+};
+
+ATTACK_EFFECTS['Nidoqueen'] = {
+  'Boyfriends': function (state, attacker, defender, atkDef, playerId) {
+    var p = state.players[playerId];
+    var nidoCount = (p.active && p.active.name === 'Nidoking' ? 1 : 0);
+    p.bench.forEach(function (b) { if (b && b.name === 'Nidoking') nidoCount++; });
+    dealDamage(state, attacker, defender, 20 + 20 * nidoCount);
+  }
+};
+
+ATTACK_EFFECTS['Pidgeot'] = {
+  'Hurricane': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 30);
+    var defStats = CARD_STATS[defender.name];
+    if (defStats && defender.damage < defStats.hp) {
+      var opId = opponentOf(playerId);
+      var op = state.players[opId];
+      defender.attachedEnergy.forEach(function (t) {
+        op.hand.push({ id: 'return-energy-' + Date.now() + '-' + Math.random(), name: t + ' Energy' });
+      });
+      var chain = [];
+      var walk = defender.name;
+      while (walk) {
+        chain.unshift(walk);
+        walk = CARD_STATS[walk] && CARD_STATS[walk].evolvesFrom;
+      }
+      chain.forEach(function (name) {
+        op.hand.push({ id: 'return-card-' + Date.now() + '-' + Math.random(), name: name });
+      });
+      op.active = null;
+      if (benchCount(op) > 0) {
+        if (state.humanControlled && state.humanControlled[opId]) {
+          state.pendingActiveChoice = opId;
+        } else {
+          var bIdx = op.bench.findIndex(function (b) { return b; });
+          op.active = op.bench[bIdx];
+          op.bench[bIdx] = null;
+        }
+      }
+      logEvent(state, 'Hurricane devuelve a ' + defender.name + ' y sus cartas adjuntas a la mano', opId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Pinsir'] = {
+  'Irongrip': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Scyther'] = {
+  'Swords Dance': function (state, attacker, defender, atkDef, playerId) {
+    attacker.swordsDanceTurn = state.turnCounter + 2;
+    state.attackSelfEffect = true;
+    logEvent(state, attacker.name + ' prepara Swords Dance para el próximo turno', playerId);
+  },
+  'Slash': function (state, attacker, defender) {
+    var dmg = 30;
+    if (attacker.swordsDanceTurn === state.turnCounter) {
+      dmg = 60;
+      attacker.swordsDanceTurn = null;
+    }
+    dealDamage(state, attacker, defender, dmg);
+  }
+};
+
+ATTACK_EFFECTS['Snorlax'] = {
+  'Body Slam': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  }
+};
+
+ATTACK_EFFECTS['Vaporeon'] = {
+  'Quick Attack': function (state, attacker, defender) {
+    var bonus = coinFlip(state) === 'H' ? 20 : 0;
+    dealDamage(state, attacker, defender, 10 + bonus);
+  },
+  'Water Gun': function (state, attacker, defender, atkDef) {
+    dealDamage(state, attacker, defender, 30 + extraEnergyBonus(attacker, 'Water', atkDef.cost, 2));
+  }
+};
+
+ATTACK_EFFECTS['Venomoth'] = {
+  'Venom Powder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') {
+      addStatus(defender, 'Confused');
+      addStatus(defender, 'Poisoned');
+    }
+  }
+};
+
+ATTACK_EFFECTS['Victreebel'] = {
+  'Lure': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    forceOpponentSwitch(state, playerId, targetInstanceId);
+  },
+  'Acid': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') {
+      defender.cantRetreatUntilTurn = state.turnCounter + 2;
+      logEvent(state, defender.name + ' no puede retirarse durante el próximo turno', playerId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Vileplume'] = {
+  'Petal Dance': function (state, attacker, defender) {
+    var heads = 0;
+    for (var i = 0; i < 3; i++) { if (coinFlip(state) === 'H') heads++; }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 40 * heads);
+    addStatus(attacker, 'Confused');
+  }
+};
+
+ATTACK_EFFECTS['Wigglytuff'] = {
+  'Lullaby': function (state, attacker, defender) {
+    addStatus(defender, 'Asleep');
+  },
+  'Do the Wave': function (state, attacker, defender, atkDef, playerId) {
+    var p = state.players[playerId];
+    var bCount = p.bench.filter(function (b) { return !!b; }).length;
+    dealDamage(state, attacker, defender, 10 + 10 * bCount);
+  }
 };
 
 if (typeof module !== 'undefined') {
