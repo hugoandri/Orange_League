@@ -6,6 +6,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
+    "serve": "python3 -m http.server 8000",
     "dist": "electron-builder"
   },
   "dependencies": {
