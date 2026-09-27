@@ -1246,6 +1246,31 @@ function playSfxTurnMine() {
   } catch (e) {}
 }
 
+// 5. CAMBIO DE TURNO: Turno del Rival
+function playSfxTurnRival() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  try {
+    var t = ctx.currentTime;
+    var notes = [587.33, 440.00, 349.23, 293.66]; // D5, A4, F4, D4 (descendente D menor / alerta)
+    notes.forEach(function (freq, idx) {
+      var startTime = t + (idx * 0.065);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.20, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.15);
+    });
+  } catch (e) {}
+}
+
 // Global delegated click handler for UI & Board SFX
 if (typeof document !== 'undefined') {
   document.addEventListener('click', function (e) {
@@ -1687,6 +1712,8 @@ function showTurnFlash(text, colorClass, onDone) {
   positionTurnFlash(el);
   if (colorClass === 'mine' || text === 'TU TURNO') {
     playSfxTurnMine();
+  } else {
+    playSfxTurnRival();
   }
   turnFlashHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
