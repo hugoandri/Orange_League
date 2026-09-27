@@ -580,8 +580,8 @@ function viewerPowerHtml(name) {
   var power = stats && stats.pokemonPower;
   if (!power) { return ''; }
   var nameEs = translatePowerName(power.name);
-  var textEs = translatePowerText(power.name);
-  return '<div class="shell-board-viewer-attacks"><div class="shell-board-viewer-attacks-header">PODER POKÉMON</div>' +
+  var textEs = translatePowerText(power.name) || power.text || '';
+  return '<div class="shell-board-viewer-attacks"><div class="shell-board-viewer-attacks-header">HABILIDAD / PODER POKÉMON</div>' +
     '<div class="shell-board-viewer-attack">' +
       '<div class="shell-board-viewer-attack-body">' +
         '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +
@@ -603,7 +603,7 @@ function viewerAttacksHtml(name, actionableState) {
       return icon ? '<img src="Tipos/' + icon + '.png" alt="">' : '';
     }).join('');
     var nameEs = translateAttackName(atk.name);
-    var textEs = translateAttackText(name, atk.name);
+    var textEs = translateAttackText(name, atk.name) || atk.text || '';
     var body = '<div class="shell-board-viewer-attack-cost">' + costHtml + '</div>' +
       '<div class="shell-board-viewer-attack-body">' +
         '<div class="shell-board-viewer-attack-name">' + escapeHtml(nameEs) + '</div>' +

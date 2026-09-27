@@ -677,7 +677,24 @@ var ATTACK_TEXT_ES = {
   'Stun Spore': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
   'Hydro Pump': 'Hace 40 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.',
   'Poliwag|Water Gun': 'Hace 10 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. No puedes sumar más de 20 de daño de esta forma.',
-  'Poliwrath|Water Gun': 'Hace 30 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.'
+  'Poliwrath|Water Gun': 'Hace 30 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.',
+  'Minimize': 'Todo el daño hecho por ataques a Clefable durante el próximo turno de tu rival se reduce en 20 (tras aplicar Debilidad y Resistencia).',
+  'Chain Lightning': 'Si el Pokémon Defensor no es Incoloro, este ataque hace 10 de daño a cada Pokémon de la Banca (tuyo y de tu rival) del mismo tipo que el Pokémon Defensor (no se aplica Debilidad ni Resistencia a la Banca).',
+  'Quick Attack': 'Lanza una moneda. Si es cara, este ataque hace 10 de daño más 20 de daño adicional; si es cruz, este ataque hace 10 de daño.',
+  'Pin Missile': 'Lanza 4 monedas. Este ataque hace 20 de daño por cada cara.',
+  'Fetch': 'Roba 1 carta.',
+  'Comet Punch': 'Lanza 4 monedas. Este ataque hace 20 de daño por cada cara.',
+  'Boyfriends': 'Hace 20 de daño más 20 de daño adicional por cada Nidoking que tengas en juego.',
+  'Hurricane': 'A menos que este ataque noquee al Pokémon Defensor, devuelve al Pokémon Defensor y todas las cartas adjuntas a él a la mano de tu rival.',
+  'Irongrip': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Swords Dance': 'Durante tu próximo turno, el daño base del ataque Corte de Scyther es 60 en vez de 30.',
+  'Body Slam': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Vaporeon|Water Gun': 'Hace 30 de daño más 10 de daño adicional por cada Energía Agua adjunta a este Pokémon que no se haya usado para pagar el costo del ataque. La Energía Agua extra después de la 2ª no cuenta.',
+  'Venom Powder': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Confundido y Envenenado.',
+  'Acid': 'Lanza una moneda. Si es cara, el Pokémon Defensor no puede retirarse durante el próximo turno de tu rival.',
+  'Petal Dance': 'Lanza 3 monedas. Este ataque hace 40 de daño por cada cara. Vileplume queda Confundido (tras hacer el daño).',
+  'Lullaby': 'El Pokémon Defensor queda Dormido.',
+  'Do the Wave': 'Hace 10 de daño más 10 de daño adicional por cada Pokémon en tu Banca.'
 };
 function translateAttackText(pokemonName, attackName) {
   var key = pokemonName + '|' + attackName;
