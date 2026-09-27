@@ -111,6 +111,47 @@ POKEMON_POWER_EFFECTS['Heal'] = function (state, playerId, owner, params) {
   return { legal: true };
 };
 
+POKEMON_POWER_EFFECTS['Peek'] = function (state, playerId, owner, params) {
+  if (owner.peekTurn === state.turnCounter) {
+    return { legal: false, reason: 'Ya usaste Peek en este turno' };
+  }
+  var p = state.players[playerId];
+  var op = state.players[opponentOf(playerId)];
+  var peekResult = null;
+  var target = (params && params.target) || 'ownDeckTop';
+
+  if (target === 'ownDeckTop') {
+    if (!p.deck || p.deck.length === 0) { return { legal: false, reason: 'Tu mazo está vacío' }; }
+    peekResult = { target: 'ownDeckTop', card: p.deck[0] };
+    logEvent(state, translatePlayer(playerId) + ' usa Peek para mirar la carta superior de su propio mazo', playerId);
+  } else if (target === 'opDeckTop') {
+    if (!op.deck || op.deck.length === 0) { return { legal: false, reason: 'El mazo rival está vacío' }; }
+    peekResult = { target: 'opDeckTop', card: op.deck[0] };
+    logEvent(state, translatePlayer(playerId) + ' usa Peek para mirar la carta superior del mazo rival', playerId);
+  } else if (target === 'opHandRandom') {
+    if (!op.hand || op.hand.length === 0) { return { legal: false, reason: 'La mano rival está vacía' }; }
+    var rIdx = Math.floor(state.rng() * op.hand.length);
+    peekResult = { target: 'opHandRandom', card: op.hand[rIdx] };
+    logEvent(state, translatePlayer(playerId) + ' usa Peek para mirar una carta de la mano rival', playerId);
+  } else if (target === 'ownPrize') {
+    var pIdx = (params && typeof params.prizeIndex === 'number') ? params.prizeIndex : 0;
+    if (!p.prizes || p.prizes.length === 0 || !p.prizes[pIdx]) { return { legal: false, reason: 'Premio no válido' }; }
+    peekResult = { target: 'ownPrize', prizeIndex: pIdx, card: p.prizes[pIdx] };
+    logEvent(state, translatePlayer(playerId) + ' usa Peek para mirar una de sus cartas de Premio', playerId);
+  } else if (target === 'opPrize') {
+    var pIdx = (params && typeof params.prizeIndex === 'number') ? params.prizeIndex : 0;
+    if (!op.prizes || op.prizes.length === 0 || !op.prizes[pIdx]) { return { legal: false, reason: 'Premio rival no válido' }; }
+    peekResult = { target: 'opPrize', prizeIndex: pIdx, card: op.prizes[pIdx] };
+    logEvent(state, translatePlayer(playerId) + ' usa Peek para mirar una carta de Premio del rival', playerId);
+  } else {
+    return { legal: false, reason: 'Objetivo de Peek no válido' };
+  }
+
+  owner.peekTurn = state.turnCounter;
+  state.lastPeek = { playerId: playerId, result: peekResult };
+  return { legal: true, peekResult: peekResult };
+};
+
 var TRAINER_EFFECTS = {};
 
 TRAINER_EFFECTS['Bill'] = function (state, playerId, handId) {
@@ -721,6 +762,43 @@ TRAINER_EFFECTS['Revive'] = function (state, playerId, handId, discardCardId) {
   p.bench[emptyIdx] = instance;
   logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Revive') + ' y regresa a ' + translateCardName(found.name), playerId);
   return { legal: true };
+};
+
+TRAINER_EFFECTS['Poké Ball'] = function (state, playerId, handId, deckCardId) {
+  if (state.activePlayerId !== playerId) { return { legal: false, reason: 'No se puede jugar' }; }
+  var p = state.players[playerId];
+  var idx = p.hand.findIndex(function (c) { return c.id === handId; });
+  if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }
+
+  var flip = (deckCardId === 'FAIL_TAILS') ? 'T' : (deckCardId ? 'H' : coinFlip(state));
+  var card = p.hand.splice(idx, 1)[0];
+  p.discard.push(card);
+
+  if (flip === 'T') {
+    logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Poké Ball') + ' pero la moneda salió Sello', playerId);
+    return { legal: true, coinFlip: 'T' };
+  }
+
+  // Coin was Heads
+  if (!deckCardId || deckCardId === 'AUTO') {
+    var anyPoke = p.deck.find(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+    if (anyPoke) { deckCardId = anyPoke.id; }
+  }
+
+  if (deckCardId && deckCardId !== 'FAIL_TAILS' && deckCardId !== 'AUTO') {
+    var dIdx = p.deck.findIndex(function (c) { return c.id === deckCardId; });
+    if (dIdx !== -1) {
+      var found = p.deck.splice(dIdx, 1)[0];
+      p.hand.push(found);
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Poké Ball') + ' (Cara) y busca a ' + translateCardName(found.name), playerId);
+      return { legal: true, coinFlip: 'H', targetName: found.name };
+    }
+  }
+
+  p.deck = shuffle(p.deck, state.rng);
+  logEvent(state, translatePlayer(playerId) + ' usa ' + translateCardName('Poké Ball') + ' (Cara) pero no encontró Pokémon en el mazo', playerId);
+  return { legal: true, coinFlip: 'H' };
 };
 
 // Queues every successful Trainer play on state (name + who played it) so
@@ -1823,6 +1901,434 @@ ATTACK_EFFECTS['Wigglytuff'] = {
     var p = state.players[playerId];
     var bCount = p.bench.filter(function (b) { return !!b; }).length;
     dealDamage(state, attacker, defender, 10 + 10 * bCount);
+  }
+};
+
+ATTACK_EFFECTS['Butterfree'] = {
+  'Whirlwind': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    dealDamage(state, attacker, defender, 20);
+    forceOpponentSwitch(state, playerId, targetInstanceId);
+  },
+  'Mega Drain': function (state, attacker, defender) {
+    var beforeDmg = defender.damage;
+    dealDamage(state, attacker, defender, 40);
+    var dealt = defender.damage - beforeDmg;
+    if (dealt > 0) {
+      var heal = Math.ceil(dealt / 20) * 10;
+      attacker.damage = Math.max(0, attacker.damage - heal);
+      logEvent(state, attacker.name + ' recupera ' + heal + ' PS con Mega Drain');
+    }
+  }
+};
+
+ATTACK_EFFECTS['Dodrio'] = {
+  'Rage': function (state, attacker, defender) {
+    var counters = Math.floor((attacker.damage || 0) / 10);
+    dealDamage(state, attacker, defender, 10 + 10 * counters);
+  }
+};
+
+ATTACK_EFFECTS['Exeggutor'] = {
+  'Teleport': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var p = state.players[playerId];
+    var bIdx = targetInstanceId
+      ? p.bench.findIndex(function (b) { return b && b.id === targetInstanceId; })
+      : p.bench.findIndex(function (b) { return b; });
+    if (bIdx === -1) {
+      logEvent(state, 'No hay Pokémon en la Banca para cambiar con Teleport', playerId);
+      return;
+    }
+    var incoming = p.bench[bIdx];
+    p.bench[bIdx] = null;
+    p.active.statusConditions = [];
+    p.active.severePoison = false;
+    p.active.shield = null;
+    p.active.missChanceUntilTurn = null;
+    p.active.cantAttackUntilTurn = null;
+    p.active.cantRetreatUntilTurn = null;
+    p.bench[bIdx] = p.active;
+    p.active = incoming;
+    logEvent(state, translatePlayer(playerId) + ' usa Teleport y cambia a Exeggutor por ' + translateCardName(incoming.name), playerId);
+  },
+  'Big Eggsplosion': function (state, attacker, defender) {
+    var energyCount = (attacker.attachedEnergy || []).length;
+    var heads = 0;
+    for (var i = 0; i < energyCount; i++) {
+      if (coinFlip(state) === 'H') heads++;
+    }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 20 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Fearow'] = {
+  'Agility': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  }
+};
+
+ATTACK_EFFECTS['Gloom'] = {
+  'Poisonpowder': function (state, attacker, defender) {
+    addStatus(defender, 'Poisoned');
+  },
+  'Foul Odor': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    addStatus(defender, 'Confused');
+    addStatus(attacker, 'Confused');
+  }
+};
+
+ATTACK_EFFECTS['Lickitung'] = {
+  'Tongue Wrap': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Supersonic': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') {
+      addStatus(defender, 'Confused');
+    } else {
+      state.attackMissed = true;
+    }
+  }
+};
+
+ATTACK_EFFECTS['Marowak'] = {
+  'Bonemerang': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') heads++;
+    if (coinFlip(state) === 'H') heads++;
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  },
+  'Call for Friend': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var p = state.players[playerId];
+    var emptyBenchIdx = p.bench.findIndex(function (b) { return !b; });
+    if (emptyBenchIdx === -1) {
+      logEvent(state, 'La Banca está llena -- Call for Friend no tiene efecto', playerId);
+      return;
+    }
+    var cardIdx = -1;
+    if (targetInstanceId) {
+      cardIdx = p.deck.findIndex(function (c) { return c.id === targetInstanceId; });
+    }
+    if (cardIdx === -1) {
+      cardIdx = p.deck.findIndex(function (c) {
+        var cs = CARD_STATS[c.name];
+        return cs && cs.supertype === 'Pokémon' && cs.subtype === 'Basic' && (cs.types || []).indexOf('Fighting') !== -1;
+      });
+    }
+    if (cardIdx !== -1) {
+      var card = p.deck.splice(cardIdx, 1)[0];
+      var instance = createPokemonInstance(card.name);
+      p.bench[emptyBenchIdx] = instance;
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Friend y pone a ' + translateCardName(card.name) + ' en la Banca', playerId);
+    } else {
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Friend pero no encontró Pokémon de tipo Lucha en el mazo', playerId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Nidorina'] = {
+  'Supersonic': function (state, attacker, defender) {
+    if (coinFlip(state) === 'H') {
+      addStatus(defender, 'Confused');
+    } else {
+      state.attackMissed = true;
+    }
+  },
+  'Double Kick': function (state, attacker, defender) {
+    var heads = 0;
+    if (coinFlip(state) === 'H') heads++;
+    if (coinFlip(state) === 'H') heads++;
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 30 * heads);
+  }
+};
+
+ATTACK_EFFECTS['Parasect'] = {
+  'Spore': function (state, attacker, defender) {
+    addStatus(defender, 'Asleep');
+  }
+};
+
+ATTACK_EFFECTS['Persian'] = {
+  'Pounce': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 20);
+    attacker.shield = { untilTurn: state.turnCounter + 1, type: 'reduceFlat', reduceAmount: 10 };
+  }
+};
+
+ATTACK_EFFECTS['Primeape'] = {
+  'Fury Swipes': function (state, attacker, defender) {
+    var heads = 0;
+    for (var i = 0; i < 3; i++) { if (coinFlip(state) === 'H') heads++; }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 20 * heads);
+  },
+  'Tantrum': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 40);
+    if (coinFlip(state) === 'T') {
+      addStatus(attacker, 'Confused');
+    }
+  }
+};
+
+ATTACK_EFFECTS['Rapidash'] = {
+  'Stomp': function (state, attacker, defender) {
+    var bonus = (coinFlip(state) === 'H' ? 10 : 0);
+    dealDamage(state, attacker, defender, 20 + bonus);
+  },
+  'Agility': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 30);
+    if (coinFlip(state) === 'H') { attacker.shield = { untilTurn: state.turnCounter + 1, type: 'preventAll' }; }
+  }
+};
+
+ATTACK_EFFECTS['Rhydon'] = {
+  'Ram': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    dealDamage(state, attacker, defender, 50);
+    attacker.damage += 20;
+    forceOpponentSwitch(state, playerId, targetInstanceId);
+  }
+};
+
+ATTACK_EFFECTS['Tauros'] = {
+  'Stomp': function (state, attacker, defender) {
+    var bonus = (coinFlip(state) === 'H' ? 10 : 0);
+    dealDamage(state, attacker, defender, 20 + bonus);
+  },
+  'Rampage': function (state, attacker, defender) {
+    var counters = Math.floor((attacker.damage || 0) / 10);
+    dealDamage(state, attacker, defender, 20 + 10 * counters);
+    addStatus(attacker, 'Confused');
+  }
+};
+
+ATTACK_EFFECTS['Weepinbell'] = {
+  'Poisonpowder': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    addStatus(defender, 'Poisoned');
+  }
+};
+
+ATTACK_EFFECTS['Bellsprout'] = {
+  'Call for Family': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var p = state.players[playerId];
+    var emptyBenchIdx = p.bench.findIndex(function (b) { return !b; });
+    if (emptyBenchIdx === -1) {
+      logEvent(state, 'La Banca está llena -- Call for Family no tiene efecto', playerId);
+      return;
+    }
+    var cardIdx = -1;
+    if (targetInstanceId) {
+      cardIdx = p.deck.findIndex(function (c) { return c.id === targetInstanceId; });
+    }
+    if (cardIdx === -1) {
+      cardIdx = p.deck.findIndex(function (c) { return c.name === 'Bellsprout'; });
+    }
+    if (cardIdx !== -1) {
+      var card = p.deck.splice(cardIdx, 1)[0];
+      var instance = createPokemonInstance(card.name);
+      p.bench[emptyBenchIdx] = instance;
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Family y pone a Bellsprout en la Banca', playerId);
+    } else {
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Family pero no encontró a Bellsprout en el mazo', playerId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Cubone'] = {
+  'Snivel': function (state, attacker) {
+    attacker.shield = { untilTurn: state.turnCounter + 1, type: 'reduceFlat', reduceAmount: 20 };
+    state.attackSelfEffect = true;
+    state.attackCustomBadge = '+20def';
+    logEvent(state, attacker.name + ' usa Snivel (-20 daño en el próximo turno)');
+  },
+  'Rage': function (state, attacker, defender) {
+    var counters = Math.floor((attacker.damage || 0) / 10);
+    dealDamage(state, attacker, defender, 10 + 10 * counters);
+  }
+};
+
+ATTACK_EFFECTS['Eevee'] = {
+  'Tail Wag': function (state, attacker, defender) {
+    state.attackSelfEffect = true;
+    if (coinFlip(state) === 'H') {
+      defender.cantAttackUntilTurn = state.turnCounter + 1;
+      state.attackShielded = true;
+      logEvent(state, defender.name + ' no puede atacar a ' + attacker.name + ' en el próximo turno');
+    } else {
+      state.attackMissed = true;
+    }
+  },
+  'Quick Attack': function (state, attacker, defender) {
+    var bonus = (coinFlip(state) === 'H' ? 20 : 0);
+    dealDamage(state, attacker, defender, 10 + bonus);
+  }
+};
+
+ATTACK_EFFECTS['Exeggcute'] = {
+  'Hypnosis': function (state, attacker, defender) {
+    addStatus(defender, 'Asleep');
+  },
+  'Leech Seed': function (state, attacker, defender) {
+    var beforeDmg = defender.damage;
+    dealDamage(state, attacker, defender, 20);
+    if (defender.damage > beforeDmg) {
+      attacker.damage = Math.max(0, attacker.damage - 10);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Jigglypuff'] = {
+  'Lullaby': function (state, attacker, defender) {
+    addStatus(defender, 'Asleep');
+  }
+};
+
+ATTACK_EFFECTS['Meowth'] = {
+  'Pay Day': function (state, attacker, defender, atkDef, playerId) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') {
+      var p = state.players[playerId];
+      if (p.deck.length > 0) {
+        var card = p.deck.shift();
+        p.hand.push(card);
+        logEvent(state, translatePlayer(playerId) + ' roba 1 carta con Pay Day', playerId);
+      }
+    }
+  }
+};
+
+ATTACK_EFFECTS['Nidoran ♀'] = {
+  'Fury Swipes': function (state, attacker, defender) {
+    var heads = 0;
+    for (var i = 0; i < 3; i++) { if (coinFlip(state) === 'H') heads++; }
+    if (heads === 0) { state.attackMissed = true; }
+    dealDamage(state, attacker, defender, 10 * heads);
+  },
+  'Call for Family': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var p = state.players[playerId];
+    var emptyBenchIdx = p.bench.findIndex(function (b) { return !b; });
+    if (emptyBenchIdx === -1) {
+      logEvent(state, 'La Banca está llena -- Call for Family no tiene efecto', playerId);
+      return;
+    }
+    var cardIdx = -1;
+    if (targetInstanceId) {
+      cardIdx = p.deck.findIndex(function (c) { return c.id === targetInstanceId; });
+    }
+    if (cardIdx === -1) {
+      cardIdx = p.deck.findIndex(function (c) { return c.name === 'Nidoran ♀' || c.name === 'Nidoran ♂'; });
+    }
+    if (cardIdx !== -1) {
+      var card = p.deck.splice(cardIdx, 1)[0];
+      var instance = createPokemonInstance(card.name);
+      p.bench[emptyBenchIdx] = instance;
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Family y pone a ' + translateCardName(card.name) + ' en la Banca', playerId);
+    } else {
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Call for Family pero no encontró a Nidoran en el mazo', playerId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Oddish'] = {
+  'Stun Spore': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Sprout': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    var p = state.players[playerId];
+    var emptyBenchIdx = p.bench.findIndex(function (b) { return !b; });
+    if (emptyBenchIdx === -1) {
+      logEvent(state, 'La Banca está llena -- Sprout no tiene efecto', playerId);
+      return;
+    }
+    var cardIdx = -1;
+    if (targetInstanceId) {
+      cardIdx = p.deck.findIndex(function (c) { return c.id === targetInstanceId; });
+    }
+    if (cardIdx === -1) {
+      cardIdx = p.deck.findIndex(function (c) { return c.name === 'Oddish'; });
+    }
+    if (cardIdx !== -1) {
+      var card = p.deck.splice(cardIdx, 1)[0];
+      var instance = createPokemonInstance(card.name);
+      p.bench[emptyBenchIdx] = instance;
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Sprout y pone a Oddish en la Banca', playerId);
+    } else {
+      p.deck = shuffle(p.deck, state.rng);
+      logEvent(state, translatePlayer(playerId) + ' usa Sprout pero no encontró a Oddish en el mazo', playerId);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Paras'] = {
+  'Spore': function (state, attacker, defender) {
+    addStatus(defender, 'Asleep');
+  }
+};
+
+ATTACK_EFFECTS['Pikachu (Jungle)'] = {
+  'Spark': function (state, attacker, defender, atkDef, playerId, targetInstanceId) {
+    dealDamage(state, attacker, defender, 20);
+    var op = state.players[opponentOf(playerId)];
+    var benchTarget = null;
+    if (targetInstanceId) {
+      benchTarget = op.bench.find(function (b) { return b && b.id === targetInstanceId; });
+    }
+    if (!benchTarget) {
+      benchTarget = op.bench.find(function (b) { return !!b; });
+    }
+    if (benchTarget) {
+      benchTarget.damage += 10;
+      logEvent(state, 'Spark hace 10 de daño a ' + benchTarget.name + ' en la Banca');
+      knockOutIfNeeded(state, opponentOf(playerId), benchTarget);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Rhyhorn'] = {
+  'Leer': function (state, attacker, defender) {
+    state.attackSelfEffect = true;
+    if (coinFlip(state) === 'H') {
+      defender.cantAttackUntilTurn = state.turnCounter + 1;
+      state.attackShielded = true;
+      logEvent(state, defender.name + ' no puede atacar a ' + attacker.name + ' en el próximo turno');
+    } else {
+      state.attackMissed = true;
+    }
+  }
+};
+
+ATTACK_EFFECTS['Spearow'] = {
+  'Mirror Move': function (state, attacker, defender) {
+    if (attacker.lastDamageTaken && attacker.lastDamageTaken.turn === state.turnCounter - 1) {
+      dealDamage(state, attacker, defender, attacker.lastDamageTaken.amount);
+    }
+  }
+};
+
+ATTACK_EFFECTS['Venonat'] = {
+  'Stun Spore': function (state, attacker, defender) {
+    dealDamage(state, attacker, defender, 10);
+    if (coinFlip(state) === 'H') { addStatus(defender, 'Paralyzed'); }
+  },
+  'Leech Life': function (state, attacker, defender) {
+    var beforeDmg = defender.damage;
+    dealDamage(state, attacker, defender, 10);
+    var dealt = defender.damage - beforeDmg;
+    if (dealt > 0) {
+      attacker.damage = Math.max(0, attacker.damage - dealt);
+    }
   }
 };
 

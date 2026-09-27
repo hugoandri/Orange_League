@@ -456,6 +456,21 @@ function attachEnergy(state, playerId, handId, targetInstanceId) {
   logEvent(state, translatePlayer(playerId) + ' pone ' + translateCardName(card.name) + ' en ' + target.name, playerId);
 }
 
+function getRetreatCost(state, playerId) {
+  var p = state.players[playerId];
+  if (!p || !p.active || !CARD_STATS[p.active.name]) { return 0; }
+  var cost = CARD_STATS[p.active.name].retreatCost || 0;
+  var allP = [p.active].concat(p.bench.filter(Boolean));
+  allP.forEach(function (pk) {
+    if (CARD_STATS[pk.name] && CARD_STATS[pk.name].pokemonPower && CARD_STATS[pk.name].pokemonPower.name === 'Retreat Aid') {
+      if (!hasStatus(pk, 'Asleep') && !hasStatus(pk, 'Confused') && !hasStatus(pk, 'Paralyzed')) {
+        cost = Math.max(0, cost - 1);
+      }
+    }
+  });
+  return cost;
+}
+
 function canRetreat(state, playerId, benchInstanceId) {
   if (state.activePlayerId !== playerId) { return false; }
   var p = state.players[playerId];
@@ -469,7 +484,7 @@ function canRetreat(state, playerId, benchInstanceId) {
   if (p.active.cantRetreatUntilTurn && p.active.cantRetreatUntilTurn >= state.turnCounter) { return false; }
   var bench = p.bench.find(function (b) { return b && b.id === benchInstanceId; });
   if (!bench) { return false; }
-  var cost = CARD_STATS[p.active.name].retreatCost;
+  var cost = getRetreatCost(state, playerId);
   // Per explicit user ruling: Retreat Cost counts physical Energy CARDS, not
   // energy amount -- a single Double Colorless Energy (2 Colorless from 1
   // card) only ever counts as 1 card here, same as every other discard-count
@@ -484,7 +499,7 @@ function canRetreat(state, playerId, benchInstanceId) {
 // don't care which specific energy is discarded.
 function retreat(state, playerId, benchInstanceId, energyIndices) {
   var p = state.players[playerId];
-  var cost = CARD_STATS[p.active.name].retreatCost;
+  var cost = getRetreatCost(state, playerId);
   var indices = energyIndices;
   if (!indices) {
     indices = [];
@@ -508,6 +523,8 @@ function retreat(state, playerId, benchInstanceId, energyIndices) {
   p.active.severePoison = false;
   p.active.shield = null;
   p.active.missChanceUntilTurn = null;
+  p.active.cantAttackUntilTurn = null;
+  p.active.cantRetreatUntilTurn = null;
   // The retreating Pokémon takes over the exact slot the incoming one is
   // leaving (a straight swap) rather than being pushed to the end -- every
   // other Bench Pokémon's position is untouched.
@@ -559,7 +576,7 @@ var TRAINER_NAME_ES = {
   'Pokémon Breeder': 'Criador Pokémon', 'Pokémon Trader': 'Intercambiador Pokémon',
   'Scoop Up': 'Recogida', 'Full Heal': 'Cura Total', 'Maintenance': 'Mantenimiento',
   'Pokémon Center': 'Centro Pokémon', 'Pokémon Flute': 'Flauta Pokémon',
-  'Pokédex': 'Pokédex', 'Revive': 'Revivir'
+  'Pokédex': 'Pokédex', 'Revive': 'Revivir', 'Poké Ball': 'Poké Ball'
 };
 function translateCardName(name) { return TRAINER_NAME_ES[name] || name; }
 
@@ -598,7 +615,16 @@ var ATTACK_NAME_ES = {
   'Boyfriends': 'Novios', 'Mega Punch': 'Megapuño', 'Wing Attack': 'Ataque Ala',
   'Hurricane': 'Huracán', 'Irongrip': 'Agarre Férreo', 'Guillotine': 'Guillotina',
   'Swords Dance': 'Danza Espada', 'Body Slam': 'Golpe Cuerpo', 'Venom Powder': 'Polvo Venenoso',
-  'Acid': 'Ácido', 'Petal Dance': 'Danza Pétalo', 'Lullaby': 'Canción de Cuna', 'Do the Wave': 'Hacer la Ola'
+  'Acid': 'Ácido', 'Petal Dance': 'Danza Pétalo', 'Lullaby': 'Canción de Cuna', 'Do the Wave': 'Hacer la Ola',
+  'Mega Drain': 'Megaagotar', 'Rage': 'Furia', 'Teleport': 'Teletransporte',
+  'Big Eggsplosion': 'Gran Explosión de Huevos', 'Drill Peck': 'Pico Taladro',
+  'Foul Odor': 'Olor Fétido', 'Tongue Wrap': 'Lengüetazo', 'Bonemerang': 'Huesomerang',
+  'Call for Friend': 'Llamar a un Amigo', 'Spore': 'Espora', 'Pounce': 'Abalanzarse',
+  'Fury Swipes': 'Golpes Furia', 'Tantrum': 'Pataleta', 'Stomp': 'Pisotón',
+  'Horn Attack': 'Ataque Cuerno', 'Ram': 'Embestida', 'Waterfall': 'Cascada',
+  'Rampage': 'Frenesí', 'Call for Family': 'Llamar a la Familia',
+  'Snivel': 'Lloriqueo', 'Tail Wag': 'Látigo', 'Sprout': 'Brote',
+  'Spark': 'Chispa', 'Leer': 'Malicioso', 'Peck': 'Picotazo', 'Leech Life': 'Chupavidas'
 };
 function translateAttackName(name) { return ATTACK_NAME_ES[name] || name; }
 
@@ -694,7 +720,37 @@ var ATTACK_TEXT_ES = {
   'Acid': 'Lanza una moneda. Si es cara, el Pokémon Defensor no puede retirarse durante el próximo turno de tu rival.',
   'Petal Dance': 'Lanza 3 monedas. Este ataque hace 40 de daño por cada cara. Vileplume queda Confundido (tras hacer el daño).',
   'Lullaby': 'El Pokémon Defensor queda Dormido.',
-  'Do the Wave': 'Hace 10 de daño más 10 de daño adicional por cada Pokémon en tu Banca.'
+  'Do the Wave': 'Hace 10 de daño más 10 de daño adicional por cada Pokémon en tu Banca.',
+  'Poisonpowder': 'El Pokémon Defensor queda Envenenado.',
+  'Supersonic': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Confundido.',
+  'Spore': 'El Pokémon Defensor queda Dormido.',
+  'Hypnosis': 'El Pokémon Defensor queda Dormido.',
+  'Teleport': 'Cambia este Pokémon con 1 de tus Pokémon de la Banca.',
+  'Big Eggsplosion': 'Lanza una moneda por cada Energía adjunta a Exeggutor. Este ataque hace 20 de daño por cada cara.',
+  'Foul Odor': 'Tanto el Pokémon Defensor como este Pokémon quedan Confundidos (tras hacer el daño).',
+  'Tongue Wrap': 'Lanza una moneda. Si es cara, el Pokémon Defensor queda Paralizado.',
+  'Bonemerang': 'Lanza 2 monedas. Este ataque hace 30 de daño por cada cara.',
+  'Call for Friend': 'Elige 1 carta de Pokémon de tipo Lucha de tu mazo y ponla en tu Banca. Luego, baraja tu mazo. (No puedes usar este ataque si tu Banca está llena.)',
+  'Pounce': 'Si el Pokémon Defensor ataca a este Pokémon durante el próximo turno de tu rival, cualquier daño infligido a este Pokémon por ese ataque se reduce en 10 (después de aplicar Debilidad y Resistencia).',
+  'Tantrum': 'Lanza una moneda. Si es cruz, este Pokémon queda Confundido (tras hacer el daño).',
+  'Stomp': 'Lanza una moneda. Si es cara, este ataque hace 20 de daño más 10 de daño adicional; si es cruz, este ataque hace 20 de daño.',
+  'Ram': 'Este Pokémon se hace 20 de daño a sí mismo. Si tu rival tiene algún Pokémon en la Banca, tu rival elige 1 y lo intercambia con el Pokémon Defensor.',
+  'Snivel': 'Si el Pokémon Defensor ataca a este Pokémon durante el próximo turno de tu rival, cualquier daño infligido a este Pokémon por ese ataque se reduce en 20 (después de aplicar Debilidad y Resistencia).',
+  'Tail Wag': 'Lanza una moneda. Si es cara, el Pokémon Defensor no puede atacar a este Pokémon durante el próximo turno de tu rival.',
+  'Leech Seed': 'A menos que todo el daño de este ataque sea prevenido, restaura 10 PS a este Pokémon.',
+  'Pay Day': 'Lanza una moneda. Si es cara, roba 1 carta.',
+  'Sprout': 'Busca en tu mazo una carta de Oddish de Pokémon Básico y ponla en tu Banca. Luego, baraja tu mazo. (No puedes usar este ataque si tu Banca está llena.)',
+  'Spark': 'Si tu rival tiene algún Pokémon en la Banca, elige 1 de ellos y este ataque le hace 10 de daño (no se aplica Debilidad ni Resistencia a la Banca).',
+  'Leer': 'Lanza una moneda. Si es cara, el Pokémon Defensor no puede atacar a este Pokémon durante el próximo turno de tu rival.',
+  'Leech Life': 'Restaura a este Pokémon una cantidad de PS igual al daño infligido al Pokémon Defensor.',
+  'Mega Drain': 'Restaura a este Pokémon una cantidad de PS igual a la mitad del daño infligido al Pokémon Defensor (redondeado hacia arriba a la decena más cercana).',
+  'Primeape|Fury Swipes': 'Lanza 3 monedas. Este ataque hace 20 de daño por cada cara.',
+  'Nidoran ♀|Fury Swipes': 'Lanza 3 monedas. Este ataque hace 10 de daño por cada cara.',
+  'Dodrio|Rage': 'Hace 10 de daño más 10 de daño adicional por cada ficha de daño en Dodrio.',
+  'Cubone|Rage': 'Hace 10 de daño más 10 de daño adicional por cada ficha de daño en Cubone.',
+  'Tauros|Rampage': 'Hace 20 de daño más 10 de daño adicional por cada ficha de daño en Tauros. Tauros queda Confundido (tras hacer el daño).',
+  'Bellsprout|Call for Family': 'Busca en tu mazo una carta de Bellsprout de Pokémon Básico y ponla en tu Banca. Luego, baraja tu mazo. (No puedes usar este ataque si tu Banca está llena.)',
+  'Nidoran ♀|Call for Family': 'Busca en tu mazo una carta de Nidoran ♀ o Nidoran ♂ de Pokémon Básico y ponla en tu Banca. Luego, baraja tu mazo. (No puedes usar este ataque si tu Banca está llena.)'
 };
 function translateAttackText(pokemonName, attackName) {
   var key = pokemonName + '|' + attackName;
@@ -734,7 +790,8 @@ var TRAINER_TEXT_ES = {
   'Pokémon Center': 'Quita todas las fichas de daño de tus Pokémon que tengan daño y luego descarta toda la Energía adjunta a esos Pokémon.',
   'Pokémon Flute': 'Elige 1 carta de Pokémon Básico del descarte de tu rival y ponla en su Banca. (No puedes jugar esta carta si la Banca rival está llena.)',
   'Pokédex': 'Mira hasta 5 cartas de la parte superior de tu mazo y reordénalas como quieras.',
-  'Revive': 'Pon 1 carta de Pokémon Básico de tu descarte en tu Banca. Ponle fichas de daño equivalentes a la mitad de sus PS (redondeado hacia abajo a la decena más cercana). (No puedes jugar esta carta si tu Banca está llena.)'
+  'Revive': 'Pon 1 carta de Pokémon Básico de tu descarte en tu Banca. Ponle fichas de daño equivalentes a la mitad de sus PS (redondeado hacia abajo a la decena más cercana). (No puedes jugar esta carta si tu Banca está llena.)',
+  'Poké Ball': 'Lanza una moneda. Si es cara, busca en tu mazo una carta de Pokémon Básico o de Evolución, muéstrasela a tu rival y ponla en tu mano. Luego, baraja tu mazo.'
 };
 function translateTrainerText(name) { return TRAINER_TEXT_ES[name] || ''; }
 
@@ -749,7 +806,8 @@ var POWER_NAME_ES = {
   'Energy Burn': 'Quemar Energía', 'Strikes Back': 'Contraataque',
   'Energy Trans': 'Transferir Energía', 'Buzzap': 'Buzzap',
   'Invisible Wall': 'Muro Invisible', 'Thick Skinned': 'Piel Gruesa',
-  'Shift': 'Mutación', 'Heal': 'Curación'
+  'Shift': 'Mutación', 'Heal': 'Curación',
+  'Retreat Aid': 'Ayuda de Huida', 'Peek': 'Espiar'
 };
 function translatePowerName(name) { return POWER_NAME_ES[name] || name; }
 
@@ -763,7 +821,9 @@ var POWER_TEXT_ES = {
   'Invisible Wall': 'Siempre que un ataque inflija 30 o más de daño a Mr. Mime (tras aplicar Debilidad y Resistencia), evita ese daño. No se puede usar si Mr. Mime está Dormido, Confundido o Paralizado.',
   'Thick Skinned': 'Snorlax no puede quedar Dormido, Confundido, Paralizado ni Envenenado. No se puede usar si Snorlax ya estaba Dormido, Confundido o Paralizado.',
   'Shift': 'Una vez durante tu turno (antes de tu ataque), puedes cambiar el tipo de Venomoth al tipo de cualquier otro Pokémon en juego que no sea Incoloro. No se puede usar si Venomoth está Dormido, Confundido o Paralizado.',
-  'Heal': 'Una vez durante tu turno (antes de tu ataque), puedes lanzar una moneda. Si es cara, quita 1 ficha de daño de uno de tus Pokémon. No se puede usar si Vileplume está Dormido, Confundido o Paralizado.'
+  'Heal': 'Una vez durante tu turno (antes de tu ataque), puedes lanzar una moneda. Si es cara, quita 1 ficha de daño de uno de tus Pokémon. No se puede usar si Vileplume está Dormido, Confundido o Paralizado.',
+  'Retreat Aid': 'Mientras Dodrio esté en juego, el Costo de Retirada de tu Pokémon Activo se reduce en 1 Incoloro. No se puede usar si Dodrio está Dormido, Confundido o Paralizado.',
+  'Peek': 'Una vez durante tu turno (antes de tu ataque), puedes mirar una de las siguientes opciones: la carta superior del mazo de cualquiera de los jugadores, una carta aleatoria de la mano de tu rival, o una de las cartas de Premio de cualquiera de los jugadores. No se puede usar si Mankey está Dormido, Confundido o Paralizado.'
 };
 function translatePowerText(name) { return POWER_TEXT_ES[name] || ''; }
 
@@ -1070,6 +1130,7 @@ function canAttack(state, playerId, attackName) {
   // drawForTurnStart -- they draw on turn 1 too).
   if (state.activePlayerId !== playerId || !p.active) { return false; }
   if (hasStatus(p.active, 'Asleep') || hasStatus(p.active, 'Paralyzed')) { return false; }
+  if (p.active.cantAttackUntilTurn && p.active.cantAttackUntilTurn >= state.turnCounter) { return false; }
   if (p.active.lockedAttacks.indexOf(attackName) !== -1) { return false; }
   if (p.active.tempLockedAttack && p.active.tempLockedAttack.name === attackName) { return false; }
   var stats = CARD_STATS[p.active.name];
@@ -1102,8 +1163,11 @@ function usablePokemonPowers(state, playerId) {
     // instant it's in play, no button, same no-button treatment as
     // Strikes Back above. See canPayCost's own comment for where this
     // actually takes effect.
-    if (!power || power.name === 'Strikes Back' || power.name === 'Energy Burn' || power.name === 'Invisible Wall' || power.name === 'Thick Skinned') { return false; }
+    if (!power || power.name === 'Strikes Back' || power.name === 'Energy Burn' || power.name === 'Invisible Wall' || power.name === 'Thick Skinned' || power.name === 'Retreat Aid') { return false; }
     if (typeof POKEMON_POWER_EFFECTS === 'undefined' || !POKEMON_POWER_EFFECTS[power.name]) { return false; }
+    if (power.name === 'Shift' && instance.shiftTurn === state.turnCounter) { return false; }
+    if (power.name === 'Heal' && instance.healTurn === state.turnCounter) { return false; }
+    if (power.name === 'Peek' && instance.peekTurn === state.turnCounter) { return false; }
     if (instance === p.active && (hasStatus(instance, 'Asleep') || hasStatus(instance, 'Confused') || hasStatus(instance, 'Paralyzed'))) { return false; }
     return true;
   });
@@ -1458,6 +1522,7 @@ function endTurn(state) {
       // Pokémon and attack, not to "whichever Pokémon is currently Active".
       if (instance.tempLockedAttack && instance.tempLockedAttack.untilTurn <= state.turnCounter) { instance.tempLockedAttack = null; }
       if (instance.cantRetreatUntilTurn && instance.cantRetreatUntilTurn <= state.turnCounter) { instance.cantRetreatUntilTurn = null; }
+      if (instance.cantAttackUntilTurn && instance.cantAttackUntilTurn <= state.turnCounter) { instance.cantAttackUntilTurn = null; }
     });
   });
 

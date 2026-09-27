@@ -29,5 +29,14 @@ module.exports = {
   "Jolteon": "Eevee", "Kangaskhan": null, "Mr. Mime": null, "Nidoqueen": "Nidorina",
   "Pidgeot": "Pidgeotto", "Pinsir": null, "Scyther": null, "Snorlax": null,
   "Vaporeon": "Eevee", "Venomoth": "Venonat", "Victreebel": "Weepinbell",
-  "Vileplume": "Gloom", "Wigglytuff": "Jigglypuff"
+  "Vileplume": "Gloom", "Wigglytuff": "Jigglypuff",
+  "Butterfree": "Metapod", "Dodrio": "Doduo", "Exeggutor": "Exeggcute",
+  "Fearow": "Spearow", "Gloom": "Oddish", "Lickitung": null, "Marowak": "Cubone",
+  "Nidorina": "Nidoran ♀", "Parasect": "Paras", "Persian": "Meowth",
+  "Primeape": "Mankey", "Rapidash": "Ponyta", "Rhydon": "Rhyhorn",
+  "Seaking": "Goldeen", "Tauros": null, "Weepinbell": "Bellsprout",
+  "Bellsprout": null, "Cubone": null, "Eevee": null, "Exeggcute": null,
+  "Goldeen": null, "Jigglypuff": null, "Mankey": null, "Meowth": null,
+  "Nidoran ♀": null, "Oddish": null, "Paras": null, "Pikachu (Jungle)": null,
+  "Rhyhorn": null, "Spearow": null, "Venonat": null
 };

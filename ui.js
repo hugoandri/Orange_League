@@ -745,9 +745,61 @@ function showCardInViewer(name, instanceId) {
         // Only armed when the rival actually has a Bench to choose from;
         // otherwise falls through to a normal, targetless attack (matches
         // the engine's own no-op-if-no-bench behavior).
-        if (atkName === 'Whirlwind' && gameState.players.cpu.bench.some(function (b) { return b; })) {
+        if ((atkName === 'Whirlwind' || atkName === 'Ram') && gameState.players.cpu.bench.some(function (b) { return b; })) {
           pendingAttackNeedingTarget = atkName;
           showTargetHintModal('Elige un Pokémon de la Banca del Rival');
+          return;
+        }
+        if (atkName === 'Spark' && gameState.players.cpu.bench.some(function (b) { return b; })) {
+          pendingAttackNeedingTarget = 'Spark';
+          showTargetHintModal('Elige un Pokémon de la Banca del Rival para recibir 10 de daño');
+          return;
+        }
+        if (atkName === 'Teleport' && gameState.players.player.bench.some(function (b) { return b; })) {
+          pendingAttackNeedingTarget = 'Teleport';
+          showTargetHintModal('Elige un Pokémon de tu Banca para cambiar');
+          return;
+        }
+        if (atkName === 'Call for Family' || atkName === 'Call for Friend' || atkName === 'Sprout') {
+          var pDeckSearch = gameState.players.player;
+          var hasEmptyBench = pDeckSearch.bench.some(function (b) { return !b; });
+          if (!hasEmptyBench) {
+            logEvent(gameState, 'Tu Banca está llena', 'player');
+            renderBoard();
+            return;
+          }
+          (pvpMode ? peekOwnDeckCloud() : Promise.resolve(pDeckSearch.deck.slice())).then(function (deckCards) {
+            var matching = deckCards.filter(function (c) {
+              var cs = CARD_STATS[c.name];
+              if (!cs || cs.supertype !== 'Pokémon' || cs.subtype !== 'Basic') return false;
+              if (atkName === 'Call for Friend') return (cs.types || []).indexOf('Fighting') !== -1;
+              if (atkName === 'Sprout') return c.name === 'Oddish';
+              if (atkName === 'Call for Family') {
+                if (pDeckSearch.active && pDeckSearch.active.name === 'Bellsprout') return c.name === 'Bellsprout';
+                return c.name === 'Nidoran ♀' || c.name === 'Nidoran ♂';
+              }
+              return false;
+            });
+            if (matching.length === 0) {
+              if (pvpMode) {
+                pvpAttackEndedMyTurn = true;
+                submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName })
+                  .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+                return;
+              }
+              executePlayerAttack(atkName);
+            } else {
+              openDeckSearchModal(matching, function (chosenDeckCardId) {
+                if (pvpMode) {
+                  pvpAttackEndedMyTurn = true;
+                  submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: atkName, targetInstanceId: chosenDeckCardId })
+                    .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+                  return;
+                }
+                executePlayerAttack(atkName, chosenDeckCardId);
+              }, 'ELIGE UN POKÉMON PARA PONER EN TU BANCA');
+            }
+          }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
           return;
         }
         if (atkName === 'Metronome') {
@@ -2728,6 +2780,22 @@ function wireBoardButtons() {
                 applyOrSubmitTrainerEffect('Pokédex', handId, [orderedIds]);
               });
             }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
+          } else if (handCard.name === 'Poké Ball') {
+            var flip = coinFlip(gameState);
+            if (flip === 'T') {
+              applyOrSubmitTrainerEffect('Poké Ball', handId, ['FAIL_TAILS']);
+            } else {
+              (pvpMode ? peekOwnDeckCloud() : Promise.resolve(p.deck.slice())).then(function (deckCards) {
+                var pokemonInDeck = deckCards.filter(function (c) { return CARD_STATS[c.name] && CARD_STATS[c.name].supertype === 'Pokémon'; });
+                if (pokemonInDeck.length === 0) {
+                  applyOrSubmitTrainerEffect('Poké Ball', handId, []);
+                } else {
+                  openDeckSearchModal(pokemonInDeck, function (deckCardId) {
+                    applyOrSubmitTrainerEffect('Poké Ball', handId, [deckCardId]);
+                  }, 'BUSCA UN POKÉMON EN TU MAZO');
+                }
+              }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
+            }
           } else {
             selectedHandId = handId;
             btn.classList.add('armed');
@@ -2967,6 +3035,48 @@ function wireBoardButtons() {
       });
       return;
     }
+    if (powerName === 'Shift') {
+      var shiftOptions = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting'].map(function (t) {
+        return { id: t, label: BUZZAP_TYPE_NAME_ES[t], imgUrl: 'Tipos/' + ENERGY_CARD_TYPE_ICON[t] + '.png' };
+      });
+      openChoicePickerModal('Elige un nuevo tipo para Venomoth', shiftOptions, function (chosenType) {
+        if (pvpMode) {
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'usePokemonPower', ownerInstanceId: instance.id, params: { chosenType: chosenType } })
+            .catch(function (err) { alert(err.message || 'No se pudo usar Shift.'); });
+          return;
+        }
+        usePokemonPower(gameState, 'player', instance.id, { chosenType: chosenType });
+        renderBoard();
+      });
+      return;
+    }
+    if (powerName === 'Heal') {
+      pendingPowerActivation = { ownerId: instance.id, powerName: 'Heal' };
+      showTargetHintModal('Elige uno de tus Pokémon para curar 10 de daño');
+      return;
+    }
+    if (powerName === 'Peek') {
+      var peekOptions = [
+        { id: 'ownDeckTop', label: 'Parte superior de tu mazo' },
+        { id: 'opDeckTop', label: 'Parte superior del mazo rival' },
+        { id: 'opHandRandom', label: 'Carta aleatoria de la mano rival' },
+        { id: 'ownPrize', label: 'Una carta de tus Premios' },
+        { id: 'opPrize', label: 'Una carta de Premios del rival' }
+      ];
+      openChoicePickerModal('Elige qué mirar con Espiar (Peek):', peekOptions, function (chosenTarget) {
+        if (pvpMode) {
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'usePokemonPower', ownerInstanceId: instance.id, params: { target: chosenTarget } })
+            .catch(function (err) { alert(err.message || 'No se pudo usar Peek.'); });
+          return;
+        }
+        var res = usePokemonPower(gameState, 'player', instance.id, { target: chosenTarget });
+        renderBoard();
+        if (res && res.peekResult && res.peekResult.card) {
+          openCardModal(res.peekResult.card.name);
+        }
+      }, 'list');
+      return;
+    }
   }
 
   var habilidadBtn = document.getElementById('habilidadBtn');
@@ -3062,9 +3172,27 @@ function wireBoardButtons() {
         executePlayerAttack('Lure', instanceId);
         return;
       }
-      if (pendingAttackNeedingTarget === 'Whirlwind') {
+      if (pendingAttackNeedingTarget === 'Whirlwind' || pendingAttackNeedingTarget === 'Ram') {
         var onCpuBenchForWhirlwind = gameState.players.cpu.bench.some(function (b) { return b && b.id === instanceId; });
         if (!onCpuBenchForWhirlwind) {
+          logEvent(gameState, 'Elige un Pokémon de la Banca del Rival', 'player');
+          renderBoard();
+          return;
+        }
+        var currentPendingAtk = pendingAttackNeedingTarget;
+        pendingAttackNeedingTarget = null;
+        if (pvpMode) {
+          pvpAttackEndedMyTurn = true;
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: currentPendingAtk, targetInstanceId: instanceId })
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
+        executePlayerAttack(currentPendingAtk, instanceId);
+        return;
+      }
+      if (pendingAttackNeedingTarget === 'Spark') {
+        var onCpuBenchForSpark = gameState.players.cpu.bench.some(function (b) { return b && b.id === instanceId; });
+        if (!onCpuBenchForSpark) {
           logEvent(gameState, 'Elige un Pokémon de la Banca del Rival', 'player');
           renderBoard();
           return;
@@ -3072,11 +3200,28 @@ function wireBoardButtons() {
         pendingAttackNeedingTarget = null;
         if (pvpMode) {
           pvpAttackEndedMyTurn = true;
-          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Whirlwind', targetInstanceId: instanceId })
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Spark', targetInstanceId: instanceId })
             .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
           return;
         }
-        executePlayerAttack('Whirlwind', instanceId);
+        executePlayerAttack('Spark', instanceId);
+        return;
+      }
+      if (pendingAttackNeedingTarget === 'Teleport') {
+        var onPlayerBenchForTeleport = gameState.players.player.bench.some(function (b) { return b && b.id === instanceId; });
+        if (!onPlayerBenchForTeleport) {
+          logEvent(gameState, 'Elige un Pokémon de tu Banca', 'player');
+          renderBoard();
+          return;
+        }
+        pendingAttackNeedingTarget = null;
+        if (pvpMode) {
+          pvpAttackEndedMyTurn = true;
+          submitMatchActionCloud(pvpActiveMatchId, { type: 'attack', attackName: 'Teleport', targetInstanceId: instanceId })
+            .catch(function (err) { pvpAttackEndedMyTurn = false; alert(err.message || 'No se pudo atacar.'); });
+          return;
+        }
+        executePlayerAttack('Teleport', instanceId);
         return;
       }
       if (pendingPowerActivation) {
@@ -3088,6 +3233,18 @@ function wireBoardButtons() {
           // here, it would wipe this very closure mid-flow.
           logEvent(gameState, 'Elige uno de tus Pokémon', 'player');
           document.getElementById('log').innerHTML = logHtml(gameState);
+          return;
+        }
+        if (pa.powerName === 'Heal') {
+          pendingPowerActivation = null;
+          if (pvpMode) {
+            submitMatchActionCloud(pvpActiveMatchId, { type: 'usePower', ownerInstanceId: pa.ownerId, params: { targetInstanceId: instanceId } })
+              .catch(function (err) { alert(err.message || 'No se pudo usar Heal.'); });
+            return;
+          }
+          var healResult = usePokemonPower(gameState, 'player', pa.ownerId, { targetInstanceId: instanceId });
+          if (healResult && !healResult.legal) { logEvent(gameState, healResult.reason, 'player'); }
+          afterPlayerAction();
           return;
         }
         if (pa.powerName === 'Damage Swap' || pa.powerName === 'Energy Trans') {

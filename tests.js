@@ -3554,3 +3554,170 @@ function mkPokemon(id, name, overrides) {
   check('Heal cures 10 damage on heads', p.active.damage, 20);
 })();
 
+(function testJungleCards33To64ExistInCardStats() {
+  var jungle33To64 = [
+    'Butterfree', 'Dodrio', 'Exeggutor', 'Fearow', 'Gloom',
+    'Lickitung', 'Marowak', 'Nidorina', 'Parasect', 'Persian',
+    'Primeape', 'Rapidash', 'Rhydon', 'Seaking', 'Tauros',
+    'Weepinbell', 'Bellsprout', 'Cubone', 'Eevee', 'Exeggcute',
+    'Goldeen', 'Jigglypuff', 'Mankey', 'Meowth', 'Nidoran ♀',
+    'Oddish', 'Paras', 'Pikachu (Jungle)', 'Rhyhorn', 'Spearow',
+    'Venonat', 'Poké Ball'
+  ];
+  var missing = jungle33To64.filter(function (name) { return !CARD_STATS[name]; });
+  check('all Jungle cards 33-64 exist in CARD_STATS', missing, []);
+  check('Butterfree evolves from Metapod', CARD_STATS['Butterfree'].evolvesFrom, 'Metapod');
+  check('Dodrio has Retreat Aid power', CARD_STATS['Dodrio'].pokemonPower.name, 'Retreat Aid');
+  check('Mankey has Peek power', CARD_STATS['Mankey'].pokemonPower.name, 'Peek');
+  check('Poké Ball is a Trainer', CARD_STATS['Poké Ball'].supertype, 'Trainer');
+  check('Pikachu (Jungle) has Spark attack', CARD_STATS['Pikachu (Jungle)'].attacks[0].name, 'Spark');
+})();
+
+(function testDodrioRetreatAid() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  p.active = mkPokemon('sn1', 'Snorlax', { damage: 0 }); // base retreat cost 4
+  p.bench[0] = mkPokemon('do1', 'Dodrio', { damage: 0 });
+  check('Snorlax retreat cost is 3 with 1 Dodrio in play', getRetreatCost(state, 'player'), 3);
+
+  p.bench[1] = mkPokemon('do2', 'Dodrio', { damage: 0 });
+  check('Snorlax retreat cost is 2 with 2 Dodrios in play', getRetreatCost(state, 'player'), 2);
+
+  addStatus(p.bench[0], 'Asleep');
+  check('Asleep Dodrio does not provide Retreat Aid', getRetreatCost(state, 'player'), 3);
+})();
+
+(function testMankeyPeek() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('mk1', 'Mankey', { damage: 0 });
+  p.deck = [{ id: 'c1', name: 'Bulbasaur' }];
+  op.deck = [{ id: 'c2', name: 'Charmander' }];
+  op.hand = [{ id: 'c3', name: 'Squirtle' }];
+  p.prizes = [{ id: 'p1', name: 'Pikachu' }];
+  op.prizes = [{ id: 'p2', name: 'Eevee' }];
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  var resOwnDeck = POKEMON_POWER_EFFECTS['Peek'](state, 'player', p.active, { target: 'ownDeckTop' });
+  checkTrue('Peek own deck top is legal', resOwnDeck.legal);
+  check('Peek revealed own deck top card', resOwnDeck.peekResult.card.name, 'Bulbasaur');
+
+  // Second Peek in same turn is rejected
+  var resRepeat = POKEMON_POWER_EFFECTS['Peek'](state, 'player', p.active, { target: 'opDeckTop' });
+  check('Second Peek in same turn is illegal', resRepeat.legal, false);
+
+  // New turn
+  state.turnCounter = 5;
+  var resOpDeck = POKEMON_POWER_EFFECTS['Peek'](state, 'player', p.active, { target: 'opDeckTop' });
+  checkTrue('Peek op deck top is legal', resOpDeck.legal);
+  check('Peek revealed op deck top card', resOpDeck.peekResult.card.name, 'Charmander');
+
+  state.turnCounter = 7;
+  var resOpHand = POKEMON_POWER_EFFECTS['Peek'](state, 'player', p.active, { target: 'opHandRandom' });
+  checkTrue('Peek op hand is legal', resOpHand.legal);
+  check('Peek revealed op hand card', resOpHand.peekResult.card.name, 'Squirtle');
+
+  state.turnCounter = 9;
+  var resPrize = POKEMON_POWER_EFFECTS['Peek'](state, 'player', p.active, { target: 'ownPrize', prizeIndex: 0 });
+  checkTrue('Peek prize is legal', resPrize.legal);
+  check('Peek revealed prize card', resPrize.peekResult.card.name, 'Pikachu');
+})();
+
+(function testPokeBallTrainer() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  p.hand = [{ id: 'pb1', name: 'Poké Ball' }];
+  p.deck = [{ id: 'pk1', name: 'Pikachu' }, { id: 'en1', name: 'Grass Energy' }];
+  state.activePlayerId = 'player';
+
+  // Test Tails
+  var resTails = TRAINER_EFFECTS['Poké Ball'](state, 'player', 'pb1', 'FAIL_TAILS');
+  checkTrue('Poké Ball tails is legal', resTails.legal);
+  check('Poké Ball tails has coinFlip T', resTails.coinFlip, 'T');
+  check('Poké Ball card left hand and went to discard', p.discard.some(function (c) { return c.id === 'pb1'; }), true);
+
+  // Test Heads with specific card
+  p.hand = [{ id: 'pb2', name: 'Poké Ball' }];
+  var resHeads = TRAINER_EFFECTS['Poké Ball'](state, 'player', 'pb2', 'pk1');
+  checkTrue('Poké Ball heads is legal', resHeads.legal);
+  check('Poké Ball heads has coinFlip H', resHeads.coinFlip, 'H');
+  check('Pikachu moved from deck to hand', p.hand.some(function (c) { return c.name === 'Pikachu'; }), true);
+  check('Poké Ball pb2 is in discard', p.discard.some(function (c) { return c.id === 'pb2'; }), true);
+})();
+
+(function testButterfreeWhirlwindAndMegaDrain() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('bf1', 'Butterfree', { damage: 30 });
+  op.active = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+  op.bench[0] = mkPokemon('bl1', 'Bulbasaur', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  ATTACK_EFFECTS['Butterfree']['Mega Drain'](state, p.active, op.active);
+  check('Mega Drain deals 40 damage', op.active.damage, 40);
+  check('Mega Drain heals 20 damage on Butterfree', p.active.damage, 10);
+
+  ATTACK_EFFECTS['Butterfree']['Whirlwind'](state, p.active, op.active, null, 'player', op.bench[0].id);
+  check('Bulbasaur switched into Active via Whirlwind', op.active.name, 'Bulbasaur');
+  check('Squirtle moved to Bench', op.bench[0].name, 'Squirtle');
+})();
+
+(function testExeggutorTeleportAndBigEggsplosion() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('ex1', 'Exeggutor', { damage: 0 });
+  p.active.attachedEnergy = ['Grass', 'Psychic', 'Colorless'];
+  p.bench[0] = mkPokemon('od1', 'Oddish', { damage: 0 });
+  op.active = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  // RNG returns 0.1 (< 0.5 = Heads) for all 3 coins -> 3 * 20 = 60 dmg
+  ATTACK_EFFECTS['Exeggutor']['Big Eggsplosion'](state, p.active, op.active);
+  check('Big Eggsplosion deals 60 damage with 3 heads', op.active.damage, 60);
+
+  ATTACK_EFFECTS['Exeggutor']['Teleport'](state, p.active, op.active, null, 'player', p.bench[0].id);
+  check('Oddish is now Active', p.active.name, 'Oddish');
+  check('Exeggutor is now on Bench', p.bench[0].name, 'Exeggutor');
+})();
+
+(function testRhydonRamSelfDamage() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('rh1', 'Rhydon', { damage: 0 });
+  op.active = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+  op.bench[0] = mkPokemon('bl1', 'Bulbasaur', { damage: 0 });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  ATTACK_EFFECTS['Rhydon']['Ram'](state, p.active, op.active, null, 'player', op.bench[0].id);
+  check('Ram deals 50 damage to defender', op.bench[0].damage, 50); // switched to bench
+  check('Ram deals 20 self damage to Rhydon', p.active.damage, 20);
+  check('Bulbasaur switched to Active', op.active.name, 'Bulbasaur');
+})();
+
+(function testEeveeTailWagBlocksAttack() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('ee1', 'Eevee', { damage: 0 });
+  op.active = mkPokemon('sq1', 'Squirtle', { damage: 0 });
+  op.active.attachedEnergy = ['Water'];
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+
+  ATTACK_EFFECTS['Eevee']['Tail Wag'](state, p.active, op.active);
+  check('Defender cantAttackUntilTurn set to 4', op.active.cantAttackUntilTurn, 4);
+
+  // Switch turn to CPU (turnCounter 4)
+  state.activePlayerId = 'cpu';
+  state.turnCounter = 4;
+  check('Defender cannot attack due to Tail Wag', canAttack(state, 'cpu', 'Bubble'), false);
+})();
+
