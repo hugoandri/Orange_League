@@ -640,13 +640,37 @@ function boardCardFoilTier(name, ownerId, instance) {
     : (ownerId === 'cpu' && isHoloInMatch('cpu', name) ? 'holo' : null));
 }
 
+function highlightBoardSlot(instanceId, className) {
+  if (!instanceId) return;
+  var cardEl = document.querySelector('[data-instance-id="' + instanceId + '"]');
+  if (!cardEl) return;
+  cardEl.classList.remove('just-played', 'just-evolved');
+  void cardEl.offsetWidth;
+  cardEl.classList.add(className);
+  setTimeout(function () {
+    cardEl.classList.remove(className);
+  }, 1600);
+}
+
+function onPokemonPlayed(name, instanceId) {
+  playSfxPokemonPlay();
+  showCardInViewer(name, instanceId, { action: 'play' });
+  highlightBoardSlot(instanceId, 'just-played');
+}
+
+function onPokemonEvolved(name, instanceId) {
+  playSfxPokemonEvolve();
+  showCardInViewer(name, instanceId, { action: 'evolve' });
+  highlightBoardSlot(instanceId, 'just-evolved');
+}
+
 // Fills the card viewer (Column A) with a card's illustration, identity, and
 // (for Pokémon) its real attacks + weakness/resistance/retreat -- shown by
 // clicking the card itself (hand or board). Attack rows are only real,
 // clickable buttons when the card being viewed is the player's own current
 // Active during their own turn; otherwise this is a read-only reference,
 // same as it's always been for any card that isn't actionable.
-function showCardInViewer(name, instanceId) {
+function showCardInViewer(name, instanceId, actionOpts) {
   var url = CARD_IMAGE_BY_NAME[name];
   if (!url) { return; }
   var stats = CARD_STATS[name];
@@ -664,7 +688,15 @@ function showCardInViewer(name, instanceId) {
   var viewerFoilTier = boardCardFoilTier(name, viewerOwnerId, instance);
   var viewerIsHolo = !!viewerFoilTier;
 
-  var frameHtml = '<div class="shell-board-viewer-frame">' +
+  var badgeHtml = '';
+  if (actionOpts && actionOpts.action === 'play') {
+    badgeHtml = '<div class="shell-board-viewer-action-badge play">★ ¡POKÉMON EN BATALLA!</div>';
+  } else if (actionOpts && actionOpts.action === 'evolve') {
+    badgeHtml = '<div class="shell-board-viewer-action-badge evolve">▲ ¡POKÉMON EVOLUCIONADO!</div>';
+  }
+
+  var frameHtml = '<div class="shell-board-viewer-frame' + (actionOpts && actionOpts.action ? ' anim-' + actionOpts.action : '') + '">' +
+    badgeHtml +
     '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '">' +
     (viewerFoilTier === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
       : viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') + '</div>' +
@@ -1040,6 +1072,11 @@ function showTrainerPlayedOverlay(play, onDone) {
   img.src = url;
   img.alt = play.name;
   label.textContent = cpuActionLabel(play);
+  if (play.kind === 'basic') {
+    playSfxPokemonPlay();
+  } else if (play.kind === 'evolve') {
+    playSfxPokemonEvolve();
+  }
   el.classList.remove('hidden', 'fading');
   var isEasy = getCpuDifficulty() === 'easy';
   var holdTime = isEasy ? 3780 : 1280;
@@ -1099,12 +1136,31 @@ function drainTrainerPlaysQueue(onAllDone) {
 // damage number for that case, and `selfDamage` shows its own badge on the
 // attacker's own card. onDone runs once the overlay has fully faded back
 // out.
+function getSfxVolume() {
+  var v = parseInt(localStorage.getItem('tcg_sfx_volume'), 10);
+  return isNaN(v) ? 85 : Math.max(0, Math.min(100, v));
+}
+function setSfxVolume(pct) {
+  try { localStorage.setItem('tcg_sfx_volume', pct); } catch (e) {}
+  if (sfxMasterGain && coinAudioCtx) {
+    try {
+      sfxMasterGain.gain.setValueAtTime(pct / 100, coinAudioCtx.currentTime);
+    } catch (e) {}
+  }
+}
+
 var coinAudioCtx = null;
+var sfxMasterGain = null;
 function getCoinAudioCtx() {
   if (!coinAudioCtx) {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) {
-      try { coinAudioCtx = new AudioContext(); } catch (e) {}
+      try {
+        coinAudioCtx = new AudioContext();
+        sfxMasterGain = coinAudioCtx.createGain();
+        sfxMasterGain.gain.setValueAtTime(getSfxVolume() / 100, coinAudioCtx.currentTime);
+        sfxMasterGain.connect(coinAudioCtx.destination);
+      } catch (e) {}
     }
   }
   if (coinAudioCtx && coinAudioCtx.state === 'suspended') {
@@ -1113,9 +1169,25 @@ function getCoinAudioCtx() {
   return coinAudioCtx;
 }
 
+function getSfxDestination() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return null;
+  if (!sfxMasterGain) {
+    try {
+      sfxMasterGain = ctx.createGain();
+      sfxMasterGain.gain.setValueAtTime(getSfxVolume() / 100, ctx.currentTime);
+      sfxMasterGain.connect(ctx.destination);
+    } catch (e) {
+      return ctx.destination;
+    }
+  }
+  return sfxMasterGain;
+}
+
 function playNoiseBurst(duration, maxGain, cutoffFreq, filterType, sweep) {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   try {
     filterType = filterType || 'lowpass';
     var bufferSize = Math.floor(ctx.sampleRate * duration);
@@ -1140,7 +1212,7 @@ function playNoiseBurst(duration, maxGain, cutoffFreq, filterType, sweep) {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
 
     noise.start(ctx.currentTime);
     noise.stop(ctx.currentTime + duration);
@@ -1150,7 +1222,8 @@ function playNoiseBurst(duration, maxGain, cutoffFreq, filterType, sweep) {
 // 1. ATAQUE: Fuego / Explosión
 function playSfxAttackFire() {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   var t = ctx.currentTime;
   try {
     var osc = ctx.createOscillator();
@@ -1161,7 +1234,7 @@ function playSfxAttackFire() {
     gain.gain.setValueAtTime(0.4, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start(t);
     osc.stop(t + 0.3);
 
@@ -1172,7 +1245,8 @@ function playSfxAttackFire() {
 // 2. CLICK MENÚ / GENERAL: Tick Preciso (Arcade)
 function playSfxMenuClick() {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   try {
     var t = ctx.currentTime;
     var osc = ctx.createOscillator();
@@ -1185,7 +1259,7 @@ function playSfxMenuClick() {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start(t);
     osc.stop(t + 0.022);
   } catch (e) {}
@@ -1194,7 +1268,8 @@ function playSfxMenuClick() {
 // 3. CLICK TABLERO: Unir Energía (Chime Cristal)
 function playSfxBoardClick() {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   try {
     var t = ctx.currentTime;
     var osc1 = ctx.createOscillator();
@@ -1204,7 +1279,7 @@ function playSfxBoardClick() {
     gain1.gain.setValueAtTime(0.16, t);
     gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
     osc1.connect(gain1);
-    gain1.connect(ctx.destination);
+    gain1.connect(dest);
     osc1.start(t);
     osc1.stop(t + 0.12);
 
@@ -1215,7 +1290,7 @@ function playSfxBoardClick() {
     gain2.gain.setValueAtTime(0.2, t + 0.05);
     gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
     osc2.connect(gain2);
-    gain2.connect(ctx.destination);
+    gain2.connect(dest);
     osc2.start(t + 0.05);
     osc2.stop(t + 0.2);
   } catch (e) {}
@@ -1224,7 +1299,8 @@ function playSfxBoardClick() {
 // 4. CAMBIO DE TURNO: ¡Tu Turno! Triunfal
 function playSfxTurnMine() {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   try {
     var t = ctx.currentTime;
     var notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
@@ -1239,7 +1315,7 @@ function playSfxTurnMine() {
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
       osc.start(startTime);
       osc.stop(startTime + 0.15);
     });
@@ -1249,7 +1325,8 @@ function playSfxTurnMine() {
 // 5. CAMBIO DE TURNO: Turno del Rival
 function playSfxTurnRival() {
   var ctx = getCoinAudioCtx();
-  if (!ctx) return;
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
   try {
     var t = ctx.currentTime;
     var notes = [587.33, 440.00, 349.23, 293.66]; // D5, A4, F4, D4 (descendente D menor / alerta)
@@ -1264,10 +1341,85 @@ function playSfxTurnRival() {
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
       osc.start(startTime);
       osc.stop(startTime + 0.15);
     });
+  } catch (e) {}
+}
+
+// 6. POKÉMON ENTRA EN BATALLA: Invocación / Slam táctil
+function playSfxPokemonPlay() {
+  var ctx = getCoinAudioCtx();
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
+  try {
+    var t = ctx.currentTime;
+    var osc1 = ctx.createOscillator();
+    var gain1 = ctx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(220, t);
+    osc1.frequency.exponentialRampToValueAtTime(587.33, t + 0.08); // sube a D5
+    osc1.frequency.exponentialRampToValueAtTime(440, t + 0.18);    // aterriza en A4
+
+    gain1.gain.setValueAtTime(0.24, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    osc1.connect(gain1);
+    gain1.connect(dest);
+    osc1.start(t);
+    osc1.stop(t + 0.22);
+
+    var osc2 = ctx.createOscillator();
+    var gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, t + 0.04);
+    osc2.frequency.exponentialRampToValueAtTime(1174.66, t + 0.20); // D6
+
+    gain2.gain.setValueAtTime(0.18, t + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+
+    osc2.connect(gain2);
+    gain2.connect(dest);
+    osc2.start(t + 0.04);
+    osc2.stop(t + 0.25);
+  } catch (e) {}
+}
+
+// 7. EVOLUCIÓN POKÉMON: Arpegio ascendente radiante
+function playSfxPokemonEvolve() {
+  var ctx = getCoinAudioCtx();
+  var dest = getSfxDestination();
+  if (!ctx || !dest) return;
+  try {
+    var t = ctx.currentTime;
+    var notes = [440.00, 554.37, 659.25, 880.00, 1108.73]; // A4, C#5, E5, A5, C#6
+    notes.forEach(function (freq, idx) {
+      var startTime = t + (idx * 0.05);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.22, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start(startTime);
+      osc.stop(startTime + 0.18);
+    });
+
+    var oscRes = ctx.createOscillator();
+    var gainRes = ctx.createGain();
+    oscRes.type = 'sine';
+    oscRes.frequency.setValueAtTime(1760, t + 0.20); // A6
+    gainRes.gain.setValueAtTime(0.16, t + 0.20);
+    gainRes.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    oscRes.connect(gainRes);
+    gainRes.connect(dest);
+    oscRes.start(t + 0.20);
+    oscRes.stop(t + 0.45);
   } catch (e) {}
 }
 
@@ -1291,7 +1443,8 @@ if (typeof document !== 'undefined') {
 function playCoinFlipSound() {
   try {
     var ctx = getCoinAudioCtx();
-    if (!ctx) { return; }
+    var dest = getSfxDestination();
+    if (!ctx || !dest) { return; }
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.type = 'triangle';
@@ -1300,7 +1453,7 @@ function playCoinFlipSound() {
     gain.gain.setValueAtTime(0.18, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start();
     osc.stop(ctx.currentTime + 0.2);
   } catch (e) {}
@@ -1309,7 +1462,8 @@ function playCoinFlipSound() {
 function playCoinLandSound(isCara) {
   try {
     var ctx = getCoinAudioCtx();
-    if (!ctx) { return; }
+    var dest = getSfxDestination();
+    if (!ctx || !dest) { return; }
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.type = 'sine';
@@ -1319,13 +1473,13 @@ function playCoinLandSound(isCara) {
     gain.gain.setValueAtTime(0.24, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start();
     osc.stop(ctx.currentTime + 0.4);
 
     setTimeout(function () {
       try {
-        if (!ctx) { return; }
+        if (!ctx || !dest) { return; }
         var osc2 = ctx.createOscillator();
         var gain2 = ctx.createGain();
         osc2.type = 'sine';
@@ -1333,7 +1487,7 @@ function playCoinLandSound(isCara) {
         gain2.gain.setValueAtTime(0.1, ctx.currentTime);
         gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
         osc2.connect(gain2);
-        gain2.connect(ctx.destination);
+        gain2.connect(dest);
         osc2.start();
         osc2.stop(ctx.currentTime + 0.18);
       } catch (e) {}
@@ -3263,9 +3417,12 @@ function wireBoardButtons() {
             .catch(function (err) { alert(err.message || 'Jugada inválida.'); });
           return;
         }
+        var playedName = handCard.name;
+        var playedId = handId;
         playBasic(gameState, 'player', handId);
         selectedHandId = null;
         renderBoard();
+        onPokemonPlayed(playedName, playedId);
         return;
       }
       selectedHandId = handId;
@@ -3311,13 +3468,16 @@ function wireBoardButtons() {
       return;
     }
     if (isEmptySlotDrop && isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', handId)) {
+      var dropPlayedName = handCard.name;
+      var dropPlayedId = handId;
       playBasic(gameState, 'player', handId, benchIndex);
       afterPlayerAction();
+      onPokemonPlayed(dropPlayedName, dropPlayedId);
     } else if (targetInstanceId && canEvolve(gameState, 'player', handId, targetInstanceId)) {
+      var dropEvoName = handCard.name;
       evolve(gameState, 'player', handId, targetInstanceId);
-      var evolved = findInstanceEitherSide(targetInstanceId);
-      if (evolved) { showCardInViewer(evolved.name, targetInstanceId); }
       afterPlayerAction();
+      onPokemonEvolved(dropEvoName, targetInstanceId);
     } else if (targetInstanceId && canAttachEnergy(gameState, 'player', handId, targetInstanceId)) {
       attachEnergy(gameState, 'player', handId, targetInstanceId);
       afterPlayerAction();
@@ -3747,7 +3907,12 @@ function wireBoardButtons() {
       if (pendingPokemonBreeder) {
         var pb = pendingPokemonBreeder;
         pendingPokemonBreeder = null;
+        var evoCard = p.hand.find(function (c) { return c.id === pb.evolutionHandId; });
+        var evoName = evoCard ? evoCard.name : null;
         applyOrSubmitTrainerEffect('Pokémon Breeder', pb.handId, [pb.evolutionHandId, instanceId]);
+        if (evoName) {
+          onPokemonEvolved(evoName, instanceId);
+        }
         return;
       }
       if (!selectedHandId) { return; }
@@ -3782,14 +3947,20 @@ function wireBoardButtons() {
       var superPotionTarget = handCard.name === 'Super Potion' ? findInstance(p, instanceId) : null;
       var energyRemovalTarget = handCard.name === 'Energy Removal' ? findInstance(gameState.players.cpu, instanceId) : null;
       if (isBasicPokemon(handCard.name) && canPlayBasic(gameState, 'player', selectedHandId)) {
+        var clickPlayedName = handCard.name;
+        var clickPlayedId = selectedHandId;
         playBasic(gameState, 'player', selectedHandId);
+        selectedHandId = null;
+        renderBoard();
+        onPokemonPlayed(clickPlayedName, clickPlayedId);
+        return;
       } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
+        var clickEvoName = handCard.name;
         evolve(gameState, 'player', selectedHandId, instanceId);
-        // Refresh the viewer to the evolved Pokémon (new name/HP/attacks/
-        // status) -- it was showing a snapshot of the pre-evolution card
-        // from the showCardInViewer() call at the top of this handler.
-        var evolved = findInstanceEitherSide(instanceId);
-        if (evolved) { showCardInViewer(evolved.name, instanceId); }
+        selectedHandId = null;
+        renderBoard();
+        onPokemonEvolved(clickEvoName, instanceId);
+        return;
       } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
         attachEnergy(gameState, 'player', selectedHandId, instanceId);
       } else if (superPotionTarget && superPotionTarget.attachedEnergy.length > 0) {
@@ -3932,7 +4103,13 @@ function wireBoardButtons() {
           selectedHandId = null;
           return;
         }
+        var benchPlayedName = handCard.name;
+        var benchPlayedId = selectedHandId;
         playBasic(gameState, 'player', selectedHandId, benchIndex);
+        selectedHandId = null;
+        renderBoard();
+        onPokemonPlayed(benchPlayedName, benchPlayedId);
+        return;
       }
       selectedHandId = null;
       renderBoard();
@@ -6945,6 +7122,7 @@ function initConfigSliders() {
     var thumb = el.querySelector('[data-slider-thumb]');
     var valueEl = el.querySelector('[data-slider-value]');
     var isMusic = el.id === 'configMusicSlider';
+    var isSfx = el.id === 'configSfxSlider';
 
     function setFromClientX(clientX) {
       var rect = track.getBoundingClientRect();
@@ -6953,20 +7131,26 @@ function initConfigSliders() {
       thumb.style.left = pct + '%';
       valueEl.textContent = pct;
       if (isMusic) { setMusicVolume(pct); }
+      if (isSfx) { setSfxVolume(pct); }
     }
 
     track.addEventListener('mousedown', function (e) {
       setFromClientX(e.clientX);
+      if (isSfx) { playSfxMenuClick(); }
       function onMove(e2) { setFromClientX(e2.clientX); }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        if (isSfx) { playSfxMenuClick(); }
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
     track.addEventListener('touchstart', function (e) {
-      if (e.touches[0]) { setFromClientX(e.touches[0].clientX); }
+      if (e.touches[0]) {
+        setFromClientX(e.touches[0].clientX);
+        if (isSfx) { playSfxMenuClick(); }
+      }
     });
     track.addEventListener('touchmove', function (e) {
       if (e.touches[0]) { setFromClientX(e.touches[0].clientX); }
@@ -6996,6 +7180,13 @@ function showConfigScreen(returnTo) {
   musicSlider.querySelector('[data-slider-fill]').style.width = musicPct + '%';
   musicSlider.querySelector('[data-slider-thumb]').style.left = musicPct + '%';
   musicSlider.querySelector('[data-slider-value]').textContent = musicPct;
+  var sfxPct = getSfxVolume();
+  var sfxSlider = document.getElementById('configSfxSlider');
+  if (sfxSlider) {
+    sfxSlider.querySelector('[data-slider-fill]').style.width = sfxPct + '%';
+    sfxSlider.querySelector('[data-slider-thumb]').style.left = sfxPct + '%';
+    sfxSlider.querySelector('[data-slider-value]').textContent = sfxPct;
+  }
   document.getElementById('configScreen').classList.remove('hidden');
 }
 function hideConfigScreen() {

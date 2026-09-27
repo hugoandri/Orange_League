@@ -1201,6 +1201,55 @@
 .shell-board-viewer-corner.tl{left:-1px;top:-1px;border-left:2px solid;border-top:2px solid;}
 .shell-board-viewer-corner.br{right:-1px;bottom:-1px;border-right:2px solid;border-bottom:2px solid;}
 
+.shell-board-viewer-action-badge{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  z-index:30;font-family:'Silkscreen',monospace;font-size:11px;font-weight:700;
+  letter-spacing:.12em;padding:6px 14px;border-radius:6px;white-space:nowrap;
+  pointer-events:none;animation:viewerBadgePop .35s cubic-bezier(.175,.885,.32,1.275) forwards;
+}
+.shell-board-viewer-action-badge.play{
+  background:rgba(18,140,75,.94);border:1px solid #8dff62;color:#fff;
+  box-shadow:0 0 16px rgba(141,255,98,.6);text-shadow:0 1px 3px rgba(0,0,0,.8);
+}
+.shell-board-viewer-action-badge.evolve{
+  background:rgba(180,115,10,.94);border:1px solid #ffe066;color:#fff;
+  box-shadow:0 0 20px rgba(255,215,0,.7);text-shadow:0 1px 3px rgba(0,0,0,.8);
+}
+@keyframes viewerBadgePop{
+  0%{opacity:0;transform:translateX(-50%) translateY(-12px) scale(.85);}
+  100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+}
+.shell-board-viewer-frame.anim-play{animation:viewerFramePlay .45s ease-out;}
+.shell-board-viewer-frame.anim-evolve{animation:viewerFrameEvolve .55s ease-out;}
+@keyframes viewerFramePlay{
+  0%{transform:scale(.94);filter:brightness(1.2);}
+  50%{transform:scale(1.02);filter:brightness(1.08);}
+  100%{transform:scale(1);filter:brightness(1);}
+}
+@keyframes viewerFrameEvolve{
+  0%{transform:scale(.93);filter:brightness(1.5) drop-shadow(0 0 18px #ffd700);}
+  50%{transform:scale(1.03);filter:brightness(1.25) drop-shadow(0 0 26px #ffd700);}
+  100%{transform:scale(1);filter:brightness(1) drop-shadow(0 0 6px rgba(255,215,0,.3));}
+}
+.shell-board-bench-card.just-played,
+.shell-board-active-card.just-played{
+  animation:slotPulseGreen 1.4s ease-out;
+}
+.shell-board-bench-card.just-evolved,
+.shell-board-active-card.just-evolved{
+  animation:slotPulseGold 1.4s ease-out;
+}
+@keyframes slotPulseGreen{
+  0%{transform:scale(1.08);box-shadow:0 0 25px #8dff62,inset 0 0 15px #8dff62;filter:brightness(1.3);}
+  60%{transform:scale(1.02);box-shadow:0 0 15px rgba(141,255,98,.6);}
+  100%{transform:scale(1);box-shadow:none;filter:brightness(1);}
+}
+@keyframes slotPulseGold{
+  0%{transform:scale(1.1);box-shadow:0 0 30px #ffd700,inset 0 0 20px #ffd700;filter:brightness(1.4);}
+  60%{transform:scale(1.03);box-shadow:0 0 18px rgba(255,215,0,.7);}
+  100%{transform:scale(1);box-shadow:none;filter:brightness(1);}
+}
+
 .shell-board-viewer-identity{
   display:flex;align-items:center;gap:12px;padding:9px 12px;
   background:linear-gradient(180deg,#2a3a26,#172415);border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);
