@@ -6952,7 +6952,10 @@ var DUEL_MUSIC_TRACKS = {
   ygomsd_duel: { label: 'Duel', file: 'Songs/YGOMSD - Duel.mp3' }
 };
 var DUEL_MUSIC_DEFAULT = 'orange_duel';
-var MATCH_END_MUSIC = { win: 'Songs/06 Win!.mp3', loss: 'Songs/08 Lost.mp3' };
+var MATCH_END_MUSIC = {
+  win: 'Songs/BW_Win_Trainer_Battle_Theme.mp3',
+  loss: 'Songs/TCG_Loss_Pokemon_Black_White.mp3'
+};
 
 function getMusicVolume() {
   var v = parseInt(localStorage.getItem('tcg_music_volume'), 10);
