@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokémon TCG - Selector de Sonidos: Victoria & Derrota</title>
+  <title>Pokémon TCG - Selector de Sonidos Modernizados: Victoria & Derrota</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -23,7 +23,9 @@
       --green-glow: rgba(46, 204, 113, 0.35);
       --red: #ff3366;
       --red-glow: rgba(255, 51, 102, 0.4);
-      --purple: #a855f7;
+      --purple: #c084fc;
+      --purple-glow: rgba(192, 132, 252, 0.4);
+      --orange: #ff9f43;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,26 +33,26 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(ellipse at 20% 0%, rgba(255, 210, 63, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 0%, rgba(255, 51, 102, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 15% 0%, rgba(255, 210, 63, 0.09) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 0%, rgba(255, 51, 102, 0.09) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 100%, rgba(0, 229, 255, 0.06) 0%, transparent 60%),
         repeating-linear-gradient(rgba(255,255,255,0.015) 0 1px, transparent 1px 32px),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 32px);
       color: var(--text);
       font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
-      padding: 32px 20px 120px;
+      padding: 32px 20px 130px;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1240px;
       margin: 0 auto;
     }
 
     /* Header */
     header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 36px;
       position: relative;
     }
     .header-badge {
@@ -68,7 +70,7 @@
     }
     h1 {
       font-family: 'Pixelify Sans', cursive, sans-serif;
-      font-size: 40px;
+      font-size: 38px;
       letter-spacing: 1px;
       background: linear-gradient(135deg, #ffffff 0%, var(--gold) 45%, var(--red) 100%);
       -webkit-background-clip: text;
@@ -78,9 +80,12 @@
     .header-sub {
       color: var(--text-dim);
       font-size: 15px;
-      max-width: 640px;
-      margin: 0 auto 24px;
+      max-width: 720px;
+      margin: 0 auto 22px;
       line-height: 1.6;
+    }
+    .header-sub strong {
+      color: #fff;
     }
 
     /* Master volume bar */
@@ -89,7 +94,7 @@
       align-items: center;
       justify-content: center;
       gap: 18px;
-      background: rgba(16, 23, 38, 0.7);
+      background: rgba(16, 23, 38, 0.75);
       border: 1px solid var(--card-border);
       border-radius: 14px;
       padding: 12px 24px;
@@ -140,10 +145,10 @@
     .sections-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 32px;
-      margin-top: 36px;
+      gap: 28px;
+      margin-top: 32px;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 950px) {
       .sections-grid { grid-template-columns: 1fr; }
     }
 
@@ -191,7 +196,7 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 14px;
-      padding: 18px 20px;
+      padding: 16px 20px;
       position: relative;
       transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
@@ -219,7 +224,7 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .card-meta {
       display: flex;
@@ -235,20 +240,30 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
-    .tag-mp3 {
-      background: rgba(46, 204, 113, 0.15);
-      color: var(--green);
-      border: 1px solid rgba(46, 204, 113, 0.4);
-    }
-    .tag-synth {
+    .tag-remaster {
       background: rgba(0, 229, 255, 0.15);
       color: var(--cyan);
       border: 1px solid rgba(0, 229, 255, 0.4);
     }
-    .tag-8bit {
-      background: rgba(168, 85, 247, 0.15);
+    .tag-synthwave {
+      background: rgba(192, 132, 252, 0.18);
       color: var(--purple);
-      border: 1px solid rgba(168, 85, 247, 0.4);
+      border: 1px solid rgba(192, 132, 252, 0.45);
+    }
+    .tag-universal {
+      background: rgba(255, 159, 67, 0.18);
+      color: var(--orange);
+      border: 1px solid rgba(255, 159, 67, 0.45);
+    }
+    .tag-synth {
+      background: rgba(46, 204, 113, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(46, 204, 113, 0.4);
+    }
+    .tag-original {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .duration-tag {
@@ -258,7 +273,7 @@
     }
 
     .card-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       color: #fff;
       margin-bottom: 6px;
@@ -271,7 +286,7 @@
       font-size: 13px;
       color: var(--text-dim);
       line-height: 1.5;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     /* Controls bar */
@@ -280,7 +295,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding-top: 12px;
+      padding-top: 10px;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
 
@@ -407,7 +422,7 @@
       box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
     }
     .bottom-inner {
-      max-width: 1200px;
+      max-width: 1240px;
       margin: 0 auto;
       display: flex;
       align-items: center;
@@ -516,10 +531,9 @@
   <div class="container">
     <header>
       <div class="header-badge">Laboratorio de Audio TCG</div>
-      <h1>SELECTOR DE SONIDOS</h1>
+      <h1>SONIDOS ORIGINALES MODERNIZADOS</h1>
       <p class="header-sub">
-        Haz clic en <strong>"▶ ESCUCHAR"</strong> en cada opción para probarla las veces que desees. 
-        Luego marca tus favoritas y pulsa <strong>"COPIAR MI SELECCIÓN"</strong> para informarme tu preferencia.
+        Todas estas opciones mantienen la <strong>esencia y melodía original de Pokémon</strong>, pero remasterizadas y producidas con <strong>tecnología de sonido moderna</strong> (bajos 808, mayor amplitud estéreo, síntesis actual y compresión de alta fidelidad).
       </p>
 
       <div class="master-controls">
@@ -534,24 +548,24 @@
       <!-- COLUMNA VICTORIA -->
       <section class="section-victory">
         <div class="section-title-wrap">
-          <h2 class="section-title">🏆 SONIDOS DE VICTORIA</h2>
-          <span class="section-badge">4 OPCIONES</span>
+          <h2 class="section-title">🏆 VICTORIA (MELODÍA ORIGINAL)</h2>
+          <span class="section-badge">5 OPCIONES</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Victoria Opción 1 -->
+          <!-- Victoria Opción 1: Remaster Hi-Fi TCG -->
           <div class="sound-card victory-card selected" id="card-win-1" onclick="selectSound('win', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-mp3">Audio Original MP3</span>
-                <span class="duration-tag">⏱ ~7.2s</span>
+                <span class="tech-tag tag-remaster">Remaster Hi-Fi 2026</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
               </div>
               <div class="select-pill" id="pill-win-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">Opción 1: Fanfarria Clásica Pokémon TCG</h3>
+            <h3 class="card-title">1. Fanfarria TCG: Remaster Hi-Fi</h3>
             <p class="card-desc">
-              La banda sonora oficial original del videojuego de Game Boy (06 Win!.mp3). Alegre, nostálgica, orquestada y reconocible al instante por cualquier fan.
+              La melodía original de Pokémon TCG (06 Win!) procesada con ecualización de sub-graves, ampliación estéreo envolvente y nitidez armónica cristalina. Misma nostalgia, sonido impecable.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-1" onclick="togglePlay('win', 1)">
@@ -567,18 +581,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 2 -->
+          <!-- Victoria Opción 2: Synthwave / Modern Bass TCG -->
           <div class="sound-card victory-card" id="card-win-2" onclick="selectSound('win', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Síntesis Web Audio</span>
-                <span class="duration-tag">⏱ ~2.8s</span>
+                <span class="tech-tag tag-synthwave">Remix Moderno 808</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
               </div>
               <div class="select-pill" id="pill-win-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 2: Fanfarria Triunfal Dorada</h3>
+            <h3 class="card-title">2. Fanfarria TCG: Synthwave & Sub 808</h3>
             <p class="card-desc">
-              Sintetizador nítido estilo JRPG: arranque staccato de trompetas doradas [Do, Mi, Sol, Do alto] con resolución en acordes mayores sostenidos y destello armónico de campanas.
+              La fanfarria oficial enriquecida con impactos de sub-bajo 808 en los tiempos fuertes y acordes supersaw estéreo en el clímax final. Moderna, enérgica y con gran presencia.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-2" onclick="togglePlay('win', 2)">
@@ -594,18 +608,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 3 -->
+          <!-- Victoria Opción 3: Fanfarria Universal Pokémon (Junichi Masuda) -->
           <div class="sound-card victory-card" id="card-win-3" onclick="selectSound('win', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-8bit">Chiptune 8-Bit</span>
-                <span class="duration-tag">⏱ ~1.6s</span>
+                <span class="tech-tag tag-universal">Clásico Universal</span>
+                <span class="duration-tag">⏱ ~5.2s</span>
               </div>
               <div class="select-pill" id="pill-win-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 3: Chiptune Arcade Victoria</h3>
+            <h3 class="card-title">3. Combate Pokémon: Fanfarria Legendaria</h3>
             <p class="card-desc">
-              Rápido, enérgico y saltarín. Onda de pulso retro al estilo Game Boy / NES con arpegio mayor acelerado y slide ascendente que celebra la victoria al instante.
+              La mundialmente famosa fanfarria de victoria de Pokémon ("¡Has ganado el combate!"), reinterpretada con synth-brass moderno, base rítmica electrónica y sub-bajo contundente.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-3" onclick="togglePlay('win', 3)">
@@ -621,21 +635,48 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 4 -->
+          <!-- Victoria Opción 4: Web Audio Synth - Lead Moderno TCG -->
           <div class="sound-card victory-card" id="card-win-4" onclick="selectSound('win', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Resonancia Épica</span>
-                <span class="duration-tag">⏱ ~2.6s</span>
+                <span class="tech-tag tag-synth">Síntesis Lead Ágil</span>
+                <span class="duration-tag">⏱ ~2.8s</span>
               </div>
               <div class="select-pill" id="pill-win-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 4: Resonancia Legendaria & Campanas</h3>
+            <h3 class="card-title">4. Síntesis TCG: Lead Polifónico Dinámico</h3>
             <p class="card-desc">
-              Golpe de bajo cálido y profundo complementado con un barrido de campanas de cristal celestiales que reverberan suavemente. Sensación de triunfo épico en gran torneo.
+              La melodía original de victoria interpretada nota por nota mediante sintetizador en tiempo real: ataque de trompetas doradas [La, Fa#, La, Re, Si, Do#, Mi], bajo sintético y campana final.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-4" onclick="togglePlay('win', 4)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Victoria Opción 5: Original 1998 (Referencia) -->
+          <div class="sound-card victory-card" id="card-win-5" onclick="selectSound('win', 5)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-original">Original Game Boy 1998</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
+              </div>
+              <div class="select-pill" id="pill-win-5">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">5. Original 1998 (Audio GBC Clásico)</h3>
+            <p class="card-desc">
+              El archivo original sin procesar tal como sonaba en la Game Boy Color. Úsalo para comparar cómo evoluciona hacia las versiones modernizadas de arriba.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-win-5" onclick="togglePlay('win', 5)">
                 <span>▶ ESCUCHAR</span>
               </button>
               <div class="wave-bars">
@@ -654,24 +695,24 @@
       <!-- COLUMNA DERROTA -->
       <section class="section-defeat">
         <div class="section-title-wrap">
-          <h2 class="section-title">💀 SONIDOS DE DERROTA</h2>
-          <span class="section-badge">4 OPCIONES</span>
+          <h2 class="section-title">💀 DERROTA (MELODÍA ORIGINAL)</h2>
+          <span class="section-badge">5 OPCIONES</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Derrota Opción 1 -->
+          <!-- Derrota Opción 1: Remaster Hi-Fi TCG -->
           <div class="sound-card defeat-card selected" id="card-loss-1" onclick="selectSound('loss', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-mp3">Audio Original MP3</span>
-                <span class="duration-tag">⏱ ~8.4s</span>
+                <span class="tech-tag tag-remaster">Remaster Hi-Fi 2026</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">Opción 1: Melancolía Clásica Pokémon TCG</h3>
+            <h3 class="card-title">1. Derrota TCG: Remaster Hi-Fi</h3>
             <p class="card-desc">
-              El tema oficial de derrota del Pokémon TCG original (08 Lost.mp3). Suave, nostálgico, con un toque de resignación elegante y respetuoso.
+              El tema original de derrota (08 Lost...) restaurado con acústica estéreo cálida, compresión moderna y realce de frecuencias graves para un tono suave y conmovedor.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-1" onclick="togglePlay('loss', 1)">
@@ -687,18 +728,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 2 -->
+          <!-- Derrota Opción 2: Neo-Chill / Ambient Lo-Fi TCG -->
           <div class="sound-card defeat-card" id="card-loss-2" onclick="selectSound('loss', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Síntesis Web Audio</span>
-                <span class="duration-tag">⏱ ~2.5s</span>
+                <span class="tech-tag tag-synthwave">Neo-Chill & Ambient</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 2: Marcha Sombría Menor (Elegía JRPG)</h3>
+            <h3 class="card-title">2. Derrota TCG: Neo-Chill & Sub-Pad</h3>
             <p class="card-desc">
-              Melodía cromática descendente melancólica que culmina en un acorde profundo de Do menor sostenido con decaimiento suave y solemne.
+              La melodía original de derrota combinada con una capa de bajo ambiental envolvente y textura cálida. Transmite reflexión y elegancia tras un duelo reñido.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-2" onclick="togglePlay('loss', 2)">
@@ -714,18 +755,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 3 -->
+          <!-- Derrota Opción 3: Pokemon Universal Blackout -->
           <div class="sound-card defeat-card" id="card-loss-3" onclick="selectSound('loss', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-8bit">Chiptune 8-Bit</span>
-                <span class="duration-tag">⏱ ~1.8s</span>
+                <span class="tech-tag tag-universal">Clásico Universal</span>
+                <span class="duration-tag">⏱ ~4.8s</span>
               </div>
               <div class="select-pill" id="pill-loss-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 3: Retro "Game Over" Arcade (Wah-Wah)</h3>
+            <h3 class="card-title">3. Derrota Pokémon: Debilitado Universal</h3>
             <p class="card-desc">
-              El clásico sonido arcade de 'Fin de Partida': 4 tonos en escalera descendente con un glide final en diente de sierra ("wah-wah") que se desvanece en notas graves.
+              La clásica melodía descendente de derrota de los videojuegos principales de Pokémon [Re5 → Do5 → Sib4 → La4 → Sol4...], producida con piano eléctrico Rhodes moderno y sub-drop.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-3" onclick="togglePlay('loss', 3)">
@@ -741,21 +782,48 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 4 -->
+          <!-- Derrota Opción 4: Web Audio Synth - Elegía TCG Moderna -->
           <div class="sound-card defeat-card" id="card-loss-4" onclick="selectSound('loss', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Cinemático</span>
-                <span class="duration-tag">⏱ ~2.4s</span>
+                <span class="tech-tag tag-synth">Síntesis Melódica</span>
+                <span class="duration-tag">⏱ ~2.6s</span>
               </div>
               <div class="select-pill" id="pill-loss-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">Opción 4: Caída Dramática & Tensión</h3>
+            <h3 class="card-title">4. Síntesis TCG: Elegía Menor Suspendida</h3>
             <p class="card-desc">
-              Un golpe de impacto sordo y grave acompañado de un acorde menor apagado por filtro pasa-bajos. Dramático, tenso y fulminante.
+              Interpretación sintetizada moderna de la melodía cromática triste de Pokémon TCG con ondas senoidales puras y acorde de resolución solemne en Do menor.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-4" onclick="togglePlay('loss', 4)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derrota Opción 5: Original 1998 (Referencia) -->
+          <div class="sound-card defeat-card" id="card-loss-5" onclick="selectSound('loss', 5)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-original">Original Game Boy 1998</span>
+                <span class="duration-tag">⏱ ~7.0s</span>
+              </div>
+              <div class="select-pill" id="pill-loss-5">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">5. Original 1998 (Audio GBC Clásico)</h3>
+            <p class="card-desc">
+              El audio original del Game Boy Color sin modificar (08 Lost...). Ideal como referencia para comprobar el cambio respecto a las versiones modernas.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-loss-5" onclick="togglePlay('loss', 5)">
                 <span>▶ ESCUCHAR</span>
               </button>
               <div class="wave-bars">
@@ -779,8 +847,8 @@
     <div class="bottom-inner">
       <div class="summary-box">
         <span class="summary-label">Tu Selección:</span>
-        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: Opción 1 (Clásica TCG)</span>
-        <span class="summary-tag summary-loss" id="summaryLossText">💀 Derrota: Opción 1 (Melancolía TCG)</span>
+        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: 1. Fanfarria TCG: Remaster Hi-Fi</span>
+        <span class="summary-tag summary-loss" id="summaryLossText">💀 Derrota: 1. Derrota TCG: Remaster Hi-Fi</span>
       </div>
       <div class="bottom-actions">
         <button class="action-btn btn-copy" onclick="copySelection()">
@@ -793,15 +861,22 @@
     </div>
   </div>
 
-  <!-- Audio elements para las pistas MP3 originales -->
-  <audio id="audio-win-1" src="Songs/06 Win!.mp3" preload="auto"></audio>
-  <audio id="audio-loss-1" src="Songs/08 Lost.mp3" preload="auto"></audio>
+  <!-- Audio elements para las pistas pregrabadas -->
+  <audio id="audio-win-1" src="Songs/06_Win_Remaster.mp3" preload="auto"></audio>
+  <audio id="audio-win-2" src="Songs/06_Win_Synthwave_Modern.mp3" preload="auto"></audio>
+  <audio id="audio-win-3" src="Songs/Win_Universal_Pokemon_Modern.mp3" preload="auto"></audio>
+  <audio id="audio-win-5" src="Songs/06 Win!.mp3" preload="auto"></audio>
+
+  <audio id="audio-loss-1" src="Songs/08_Lost_Remaster.mp3" preload="auto"></audio>
+  <audio id="audio-loss-2" src="Songs/08_Lost_Neo_Chill.mp3" preload="auto"></audio>
+  <audio id="audio-loss-3" src="Songs/Lost_Universal_Pokemon_Modern.mp3" preload="auto"></audio>
+  <audio id="audio-loss-5" src="Songs/08 Lost.mp3" preload="auto"></audio>
 
   <script>
     // --- ESTADO Y AUDIO CONTEXT ---
     var audioCtx = null;
     var masterGain = null;
-    var currentlyPlaying = null; // { type: 'win'|'loss', id: 1..4, stopFn: function }
+    var currentlyPlaying = null;
     var stopTimeout = null;
 
     var selectedWin = 1;
@@ -809,16 +884,18 @@
 
     var titles = {
       win: {
-        1: "Opción 1: Fanfarria Clásica TCG (MP3)",
-        2: "Opción 2: Fanfarria Triunfal Dorada (JRPG Synth)",
-        3: "Opción 3: Chiptune Arcade Victoria (8-bit)",
-        4: "Opción 4: Resonancia Legendaria & Campanas"
+        1: "1. Fanfarria TCG: Remaster Hi-Fi",
+        2: "2. Fanfarria TCG: Synthwave & Sub 808",
+        3: "3. Combate Pokémon: Fanfarria Legendaria Universal",
+        4: "4. Síntesis TCG: Lead Polifónico Dinámico",
+        5: "5. Original 1998 (Audio GBC Clásico)"
       },
       loss: {
-        1: "Opción 1: Melancolía Clásica TCG (MP3)",
-        2: "Opción 2: Marcha Sombría Menor (Elegía JRPG)",
-        3: "Opción 3: Retro 'Game Over' Arcade (Wah-Wah 8-bit)",
-        4: "Opción 4: Caída Dramática & Tensión"
+        1: "1. Derrota TCG: Remaster Hi-Fi",
+        2: "2. Derrota TCG: Neo-Chill & Sub-Pad",
+        3: "3. Derrota Pokémon: Debilitado Universal",
+        4: "4. Síntesis TCG: Elegía Menor Suspendida",
+        5: "5. Original 1998 (Audio GBC Clásico)"
       }
     };
 
@@ -849,10 +926,14 @@
       if (masterGain && audioCtx) {
         masterGain.gain.setValueAtTime(vol, audioCtx.currentTime);
       }
-      var aWin = document.getElementById('audio-win-1');
-      if (aWin) aWin.volume = vol;
-      var aLoss = document.getElementById('audio-loss-1');
-      if (aLoss) aLoss.volume = vol;
+      var audioIds = [
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-5',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-5'
+      ];
+      audioIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.volume = vol;
+      });
     });
 
     // Detener cualquier sonido en curso
@@ -874,8 +955,11 @@
         }
         currentlyPlaying = null;
       }
-      // Detener audios MP3
-      ['audio-win-1', 'audio-loss-1'].forEach(function(id) {
+      var audioIds = [
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-5',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-5'
+      ];
+      audioIds.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
           el.pause();
@@ -905,14 +989,14 @@
     }
 
     function playOption(type, id) {
-      var ctx = getAudioContext();
       var vol = getMasterVolume();
       markButtonPlaying(type, id);
 
-      // --- VICTORIAS ---
-      if (type === 'win') {
-        if (id === 1) {
-          var audio = document.getElementById('audio-win-1');
+      if (id !== 4) {
+        // Pista pregrabada en audio HTML5
+        var audioId = 'audio-' + type + '-' + id;
+        var audio = document.getElementById(audioId);
+        if (audio) {
           audio.volume = vol;
           audio.currentTime = 0;
           audio.play().catch(function(){});
@@ -921,60 +1005,53 @@
             stopFn: function() { audio.pause(); audio.currentTime = 0; }
           };
           audio.onended = function() { stopAllPlaying(); };
-        } else if (id === 2) {
-          playVictoryGolden(ctx);
-        } else if (id === 3) {
-          playVictoryChiptune(ctx);
-        } else if (id === 4) {
-          playVictoryEpic(ctx);
         }
-      }
-
-      // --- DERROTAS ---
-      if (type === 'loss') {
-        if (id === 1) {
-          var audioL = document.getElementById('audio-loss-1');
-          audioL.volume = vol;
-          audioL.currentTime = 0;
-          audioL.play().catch(function(){});
-          currentlyPlaying = {
-            type: type, id: id,
-            stopFn: function() { audioL.pause(); audioL.currentTime = 0; }
-          };
-          audioL.onended = function() { stopAllPlaying(); };
-        } else if (id === 2) {
-          playDefeatSomber(ctx);
-        } else if (id === 3) {
-          playDefeatRetroWah(ctx);
-        } else if (id === 4) {
-          playDefeatCinematicDrop(ctx);
+      } else {
+        // Opción 4: Síntesis Web Audio en vivo
+        var ctx = getAudioContext();
+        if (type === 'win') {
+          playVictorySynthTCG(ctx);
+        } else {
+          playDefeatSynthTCG(ctx);
         }
       }
     }
 
-    // ==========================================
-    // SÍNTESIS DE AUDIO (Web Audio API)
-    // ==========================================
+    // ========================================================
+    // SÍNTESIS WEB AUDIO API EN TIEMPO REAL
+    // ========================================================
 
-    // Victoria 2: Fanfarria Triunfal Dorada (JRPG)
-    function playVictoryGolden(ctx) {
+    // Victoria Opción 4: Melodía oficial Pokémon TCG sintetizada moderna
+    function playVictorySynthTCG(ctx) {
       var t = ctx.currentTime;
       var dest = masterGain;
       var activeOscs = [];
 
-      var intro = [
-        { f: 523.25, time: 0, dur: 0.12 },     // C5
-        { f: 659.25, time: 0.13, dur: 0.12 },  // E5
-        { f: 783.99, time: 0.26, dur: 0.12 },  // G5
-        { f: 1046.50, time: 0.40, dur: 0.26 }  // C6
+      // Melodía exacta de la fanfarria de Ichiro Shimakura (TCG)
+      var melody = [
+        { f: 440.00, time: 0.00, dur: 0.12 }, // A4
+        { f: 369.99, time: 0.12, dur: 0.12 }, // F#4
+        { f: 440.00, time: 0.24, dur: 0.16 }, // A4
+        { f: 440.00, time: 0.44, dur: 0.10 }, // A4
+        { f: 369.99, time: 0.55, dur: 0.10 }, // F#4
+        { f: 440.00, time: 0.66, dur: 0.16 }, // A4
+        { f: 587.33, time: 0.88, dur: 0.18 }, // D5
+        { f: 493.88, time: 1.08, dur: 0.18 }, // B4
+        { f: 440.00, time: 1.28, dur: 0.25 }, // A4
+        { f: 554.37, time: 1.58, dur: 0.18 }, // C#5
+        { f: 659.25, time: 1.78, dur: 0.22 }, // E5
+        { f: 880.00, time: 2.05, dur: 0.80 }  // A5
       ];
-      intro.forEach(function(n) {
+
+      melody.forEach(function(n) {
         var osc = ctx.createOscillator();
         var gain = ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(n.f, t + n.time);
-        gain.gain.setValueAtTime(0.3, t + n.time);
+
+        gain.gain.setValueAtTime(0.32, t + n.time);
         gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
+
         osc.connect(gain);
         gain.connect(dest);
         osc.start(t + n.time);
@@ -982,335 +1059,22 @@
         activeOscs.push(osc);
       });
 
+      // Acordes de soporte modernos (Re Mayor -> La Mayor)
       var chords = [
-        { f: [349.23, 440.00, 523.25], time: 0.70, dur: 0.32, g: 0.22 }, // F
-        { f: [392.00, 493.88, 587.33], time: 1.05, dur: 0.32, g: 0.24 }, // G
-        { f: [261.63, 392.00, 523.25, 659.25, 783.99, 1046.50], time: 1.40, dur: 1.4, g: 0.28 } // C
-      ];
-      chords.forEach(function(ch) {
-        ch.f.forEach(function(freq) {
-          var osc = ctx.createOscillator();
-          var gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, t + ch.time);
-          gain.gain.setValueAtTime(ch.g / ch.f.length * 2.3, t + ch.time);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + ch.time + ch.dur);
-          osc.connect(gain);
-          gain.connect(dest);
-          osc.start(t + ch.time);
-          osc.stop(t + ch.time + ch.dur);
-          activeOscs.push(osc);
-        });
-      });
-
-      // Shimmer bells
-      var bells = [1046.50, 1318.51, 1567.98, 2093.00];
-      bells.forEach(function(freq, i) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        var st = t + 1.45 + i * 0.05;
-        osc.frequency.setValueAtTime(freq, st);
-        gain.gain.setValueAtTime(0.12, st);
-        gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.85);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(st);
-        osc.stop(st + 0.85);
-        activeOscs.push(osc);
-      });
-
-      currentlyPlaying = {
-        type: 'win', id: 2,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2850);
-    }
-
-    // Victoria 3: Chiptune Arcade Victoria (8-bit)
-    function playVictoryChiptune(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      var notes = [
-        { f: 392.00, d: 0.07 }, // G4
-        { f: 523.25, d: 0.07 }, // C5
-        { f: 659.25, d: 0.07 }, // E5
-        { f: 783.99, d: 0.07 }, // G5
-        { f: 659.25, d: 0.07 }, // E5
-        { f: 783.99, d: 0.07 }, // G5
-        { f: 1046.50, d: 0.16 }, // C6
-        { f: 783.99, d: 0.08 }, // G5
-        { f: 1046.50, d: 0.08 }, // C6
-        { f: 1318.51, d: 0.40 }  // E6
-      ];
-      var curTime = 0;
-      notes.forEach(function(n) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(n.f, t + curTime);
-        gain.gain.setValueAtTime(0.20, t + curTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + curTime + n.d);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(t + curTime);
-        osc.stop(t + curTime + n.d);
-        activeOscs.push(osc);
-        curTime += n.d;
-      });
-
-      var slideOsc = ctx.createOscillator();
-      var slideGain = ctx.createGain();
-      slideOsc.type = 'square';
-      slideOsc.frequency.setValueAtTime(659.25, t + curTime);
-      slideOsc.frequency.exponentialRampToValueAtTime(1567.98, t + curTime + 0.35);
-      slideGain.gain.setValueAtTime(0.18, t + curTime);
-      slideGain.gain.exponentialRampToValueAtTime(0.001, t + curTime + 0.38);
-      slideOsc.connect(slideGain);
-      slideGain.connect(dest);
-      slideOsc.start(t + curTime);
-      slideOsc.stop(t + curTime + 0.38);
-      activeOscs.push(slideOsc);
-
-      currentlyPlaying = {
-        type: 'win', id: 3,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, (curTime + 0.45) * 1000);
-    }
-
-    // Victoria 4: Resonancia Legendaria & Campanas
-    function playVictoryEpic(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      var bass = ctx.createOscillator();
-      var bassGain = ctx.createGain();
-      bass.type = 'triangle';
-      bass.frequency.setValueAtTime(130.81, t); // C3
-      bassGain.gain.setValueAtTime(0.36, t);
-      bassGain.gain.exponentialRampToValueAtTime(0.001, t + 2.4);
-      bass.connect(bassGain);
-      bassGain.connect(dest);
-      bass.start(t);
-      bass.stop(t + 2.4);
-      activeOscs.push(bass);
-
-      var sub = ctx.createOscillator();
-      var subGain = ctx.createGain();
-      sub.type = 'sine';
-      sub.frequency.setValueAtTime(65.41, t); // C2
-      subGain.gain.setValueAtTime(0.32, t);
-      subGain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
-      sub.connect(subGain);
-      subGain.connect(dest);
-      sub.start(t);
-      sub.stop(t + 2.0);
-      activeOscs.push(sub);
-
-      var sweepNotes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51, 1567.98, 2093.00];
-      sweepNotes.forEach(function(freq, idx) {
-        var st = t + 0.08 + idx * 0.07;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, st);
-        gain.gain.setValueAtTime(0.20, st);
-        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.6);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(st);
-        osc.stop(st + 1.6);
-        activeOscs.push(osc);
-      });
-
-      var chord = [523.25, 659.25, 783.99, 1046.50];
-      chord.forEach(function(freq) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'triangle';
-        var st = t + 0.65;
-        osc.frequency.setValueAtTime(freq, st);
-        gain.gain.setValueAtTime(0.14, st);
-        gain.gain.exponentialRampToValueAtTime(0.0001, st + 2.0);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(st);
-        osc.stop(st + 2.0);
-        activeOscs.push(osc);
-      });
-
-      currentlyPlaying = {
-        type: 'win', id: 4,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2650);
-    }
-
-    // Derrota 2: Marcha Sombría Menor (Elegía JRPG)
-    function playDefeatSomber(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      var motif = [
-        { f: 659.25, time: 0, dur: 0.28 },     // E5
-        { f: 622.25, time: 0.28, dur: 0.28 },  // Eb5
-        { f: 587.33, time: 0.56, dur: 0.28 },  // D5
-        { f: 554.37, time: 0.84, dur: 0.32 },  // Db5
-        { f: 523.25, time: 1.18, dur: 0.60 }   // C5
-      ];
-      motif.forEach(function(n) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(n.f, t + n.time);
-        gain.gain.setValueAtTime(0.24, t + n.time);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(t + n.time);
-        osc.stop(t + n.time + n.dur);
-        activeOscs.push(osc);
-      });
-
-      var chord = [130.81, 196.00, 261.63, 311.13, 392.00];
-      chord.forEach(function(freq) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'triangle';
-        var st = t + 1.20;
-        osc.frequency.setValueAtTime(freq, st);
-        gain.gain.setValueAtTime(0.18, st);
-        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.6);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(st);
-        osc.stop(st + 1.6);
-        activeOscs.push(osc);
-      });
-
-      currentlyPlaying = {
-        type: 'loss', id: 2,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2500);
-    }
-
-    // Derrota 3: Retro "Game Over" Arcade (Wah-Wah 8-bit)
-    function playDefeatRetroWah(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      var tones = [
-        { f: 587.33, d: 0.16 }, // D5
-        { f: 440.00, d: 0.16 }, // A4
-        { f: 349.23, d: 0.18 }, // F4
-        { f: 293.66, d: 0.22 }  // D4
-      ];
-      var curTime = 0;
-      tones.forEach(function(n) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(n.f, t + curTime);
-        gain.gain.setValueAtTime(0.20, t + curTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + curTime + n.d);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(t + curTime);
-        osc.stop(t + curTime + n.d);
-        activeOscs.push(osc);
-        curTime += n.d;
-      });
-
-      var wah = ctx.createOscillator();
-      var wahGain = ctx.createGain();
-      wah.type = 'sawtooth';
-      wah.frequency.setValueAtTime(293.66, t + curTime);
-      wah.frequency.exponentialRampToValueAtTime(110.00, t + curTime + 0.85);
-      wahGain.gain.setValueAtTime(0.22, t + curTime);
-      wahGain.gain.exponentialRampToValueAtTime(0.001, t + curTime + 0.9);
-
-      var filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1200, t + curTime);
-      filter.frequency.exponentialRampToValueAtTime(300, t + curTime + 0.9);
-
-      wah.connect(filter);
-      filter.connect(wahGain);
-      wahGain.connect(dest);
-      wah.start(t + curTime);
-      wah.stop(t + curTime + 0.9);
-      activeOscs.push(wah);
-
-      currentlyPlaying = {
-        type: 'loss', id: 3,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, (curTime + 0.95) * 1000);
-    }
-
-    // Derrota 4: Caída Dramática & Tensión
-    function playDefeatCinematicDrop(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      var thud = ctx.createOscillator();
-      var thudGain = ctx.createGain();
-      thud.type = 'sine';
-      thud.frequency.setValueAtTime(150, t);
-      thud.frequency.exponentialRampToValueAtTime(35, t + 0.45);
-      thudGain.gain.setValueAtTime(0.45, t);
-      thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      thud.connect(thudGain);
-      thudGain.connect(dest);
-      thud.start(t);
-      thud.stop(t + 0.5);
-      activeOscs.push(thud);
-
-      var bufferSize = Math.floor(ctx.sampleRate * 0.4);
-      var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      var data = buffer.getChannelData(0);
-      for (var i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      var noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      var noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'lowpass';
-      noiseFilter.frequency.setValueAtTime(300, t);
-      noiseFilter.frequency.exponentialRampToValueAtTime(60, t + 0.4);
-      var noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.3, t);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      noise.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(dest);
-      noise.start(t);
-      noise.stop(t + 0.4);
-
-      var chords = [
-        { freqs: [146.83, 174.61, 220.00], time: 0.35, dur: 1.2, gain: 0.22 },
-        { freqs: [116.54, 146.83, 174.61], time: 1.10, dur: 1.4, gain: 0.18 }
+        { freqs: [293.66, 369.99, 440.00], time: 0.88, dur: 0.65 },
+        { freqs: [220.00, 277.18, 329.63, 440.00], time: 1.58, dur: 1.2 }
       ];
       chords.forEach(function(ch) {
         ch.freqs.forEach(function(freq) {
           var osc = ctx.createOscillator();
           var gain = ctx.createGain();
-          var flt = ctx.createBiquadFilter();
           osc.type = 'sawtooth';
+          var flt = ctx.createBiquadFilter();
           flt.type = 'lowpass';
-          flt.frequency.setValueAtTime(450, t + ch.time);
-          flt.frequency.exponentialRampToValueAtTime(150, t + ch.time + ch.dur);
+          flt.frequency.setValueAtTime(1400, t + ch.time);
 
           osc.frequency.setValueAtTime(freq, t + ch.time);
-          gain.gain.setValueAtTime(ch.gain / ch.freqs.length * 1.5, t + ch.time);
+          gain.gain.setValueAtTime(0.09, t + ch.time);
           gain.gain.exponentialRampToValueAtTime(0.0001, t + ch.time + ch.dur);
 
           osc.connect(flt);
@@ -1322,11 +1086,82 @@
         });
       });
 
+      // Sub-bass de impacto en el inicio y resolución
+      [0.0, 1.58].forEach(function(st) {
+        var sub = ctx.createOscillator();
+        var subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(110, t + st);
+        sub.frequency.exponentialRampToValueAtTime(45, t + st + 0.4);
+        subGain.gain.setValueAtTime(0.38, t + st);
+        subGain.gain.exponentialRampToValueAtTime(0.001, t + st + 0.45);
+        sub.connect(subGain);
+        subGain.connect(dest);
+        sub.start(t + st);
+        sub.stop(t + st + 0.45);
+        activeOscs.push(sub);
+      });
+
+      currentlyPlaying = {
+        type: 'win', id: 4,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2850);
+    }
+
+    // Derrota Opción 4: Melodía oficial Pokémon TCG sintetizada
+    function playDefeatSynthTCG(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      // Melodía melancólica de Ichiro Shimakura (08 Lost...)
+      var motif = [
+        { f: 349.23, time: 0.00, dur: 0.32 }, // F4
+        { f: 261.63, time: 0.32, dur: 0.28 }, // C4
+        { f: 233.08, time: 0.60, dur: 0.30 }, // Bb3
+        { f: 311.13, time: 0.90, dur: 0.32 }, // Eb4
+        { f: 233.08, time: 1.22, dur: 0.28 }, // Bb3
+        { f: 207.65, time: 1.50, dur: 0.35 }, // Ab3
+        { f: 261.63, time: 1.85, dur: 0.65 }  // C4 (resolución triste)
+      ];
+
+      motif.forEach(function(n) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(n.f, t + n.time);
+        gain.gain.setValueAtTime(0.28, t + n.time);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(t + n.time);
+        osc.stop(t + n.time + n.dur);
+        activeOscs.push(osc);
+      });
+
+      // Acorde sombrío suave de fondo
+      var chord = [130.81, 155.56, 196.00]; // Do menor
+      chord.forEach(function(freq) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        var st = t + 1.85;
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(0.18, st);
+        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.4);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(st);
+        osc.stop(st + 1.4);
+        activeOscs.push(osc);
+      });
+
       currentlyPlaying = {
         type: 'loss', id: 4,
         stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
       };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2400);
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2600);
     }
 
     // ==========================================
@@ -1335,7 +1170,7 @@
     function selectSound(type, id) {
       if (type === 'win') {
         selectedWin = id;
-        for (var i = 1; i <= 4; i++) {
+        for (var i = 1; i <= 5; i++) {
           var c = document.getElementById('card-win-' + i);
           var p = document.getElementById('pill-win-' + i);
           if (c) c.classList.toggle('selected', i === id);
@@ -1344,7 +1179,7 @@
         document.getElementById('summaryWinText').textContent = '🏆 Victoria: ' + titles.win[id];
       } else {
         selectedLoss = id;
-        for (var j = 1; j <= 4; j++) {
+        for (var j = 1; j <= 5; j++) {
           var cL = document.getElementById('card-loss-' + j);
           var pL = document.getElementById('pill-loss-' + j);
           if (cL) cL.classList.toggle('selected', j === id);
@@ -1355,14 +1190,13 @@
     }
 
     function copySelection() {
-      var text = "Hola! He probado los sonidos y elijo:\n" +
-                 "- Sonido de Victoria: " + titles.win[selectedWin] + "\n" +
-                 "- Sonido de Derrota: " + titles.loss[selectedLoss];
+      var text = "Hola! He probado los sonidos modernizados y elijo:\n" +
+                 "- Victoria: " + titles.win[selectedWin] + "\n" +
+                 "- Derrota: " + titles.loss[selectedLoss];
       
       navigator.clipboard.writeText(text).then(function() {
         showToast("✓ ¡Selección copiada al portapapeles!");
       }).catch(function() {
-        // Fallback prompt
         prompt("Copia tu selección aquí:", text);
       });
     }
