@@ -1099,9 +1099,252 @@ function drainTrainerPlaysQueue(onAllDone) {
 // damage number for that case, and `selfDamage` shows its own badge on the
 // attacker's own card. onDone runs once the overlay has fully faded back
 // out.
+var coinAudioCtx = null;
+function getCoinAudioCtx() {
+  if (!coinAudioCtx) {
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      try { coinAudioCtx = new AudioContext(); } catch (e) {}
+    }
+  }
+  if (coinAudioCtx && coinAudioCtx.state === 'suspended') {
+    coinAudioCtx.resume().catch(function () {});
+  }
+  return coinAudioCtx;
+}
+
+function playCoinFlipSound() {
+  try {
+    var ctx = getCoinAudioCtx();
+    if (!ctx) { return; }
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1600, ctx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (e) {}
+}
+
+function playCoinLandSound(isCara) {
+  try {
+    var ctx = getCoinAudioCtx();
+    if (!ctx) { return; }
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    var baseFreq = isCara ? 1760 : 1320;
+    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, ctx.currentTime + 0.38);
+    gain.gain.setValueAtTime(0.24, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+
+    setTimeout(function () {
+      try {
+        if (!ctx) { return; }
+        var osc2 = ctx.createOscillator();
+        var gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(baseFreq * 1.2, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.18);
+      } catch (e) {}
+    }, 90);
+  } catch (e) {}
+}
+
+function triggerCoinParticles(isCara) {
+  var container = document.getElementById('coinParticles');
+  if (!container) { return; }
+  container.innerHTML = '';
+  var color = isCara ? '#f2c94c' : '#cfc6b6';
+  var count = 12;
+  for (var i = 0; i < count; i++) {
+    var p = document.createElement('div');
+    p.className = 'shell-coin-spark shell-coin-spark-animate';
+    p.style.backgroundColor = color;
+    var angle = (i / count) * (Math.PI * 2);
+    var dist = 28 + Math.random() * 32;
+    var tx = Math.cos(angle) * dist;
+    var ty = Math.sin(angle) * (dist * 0.45);
+    p.style.setProperty('--tx', tx + 'px');
+    p.style.setProperty('--ty', ty + 'px');
+    container.appendChild(p);
+  }
+}
+
+function addCoinBadge(isCara) {
+  var badgesEl = document.getElementById('coinFlipBadges');
+  if (!badgesEl) { return; }
+  var badge = document.createElement('div');
+  badge.className = 'shell-coin-badge ' + (isCara ? 'cara' : 'cruz');
+  if (isCara) {
+    badge.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="3.5" fill="none"><circle cx="12" cy="12" r="8.5"/></svg>';
+    badge.title = 'Cara';
+  } else {
+    badge.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" fill="none"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>';
+    badge.title = 'Cruz';
+  }
+  badgesEl.appendChild(badge);
+}
+
+function animateSingleCoinFlip(isCara, onFlipDone) {
+  var coin = document.getElementById('coinModel');
+  var stage = document.getElementById('coinStage');
+  var shadow = document.getElementById('coinShadow');
+  var banner = document.getElementById('coinResultBanner');
+  var bannerIcon = document.getElementById('coinBannerIcon');
+  var bannerText = document.getElementById('coinBannerText');
+
+  if (!coin || !stage || !shadow) {
+    if (onFlipDone) { onFlipDone(); }
+    return;
+  }
+
+  if (banner) {
+    banner.className = 'shell-coin-result-banner';
+  }
+
+  playCoinFlipSound();
+
+  var duration = 720;
+  var apexHeight = 150;
+  var turns = 5;
+  var baseRot = turns * 360;
+  var finalRot = isCara ? baseRot : (baseRot + 180);
+  var startTime = performance.now();
+
+  function step(now) {
+    var elapsed = now - startTime;
+    var progress = Math.min(1, elapsed / duration);
+
+    var elevationProgress = Math.sin(progress * Math.PI);
+    var currentY = -elevationProgress * apexHeight;
+
+    var bounceY = 0;
+    if (progress > 0.85) {
+      var bounceP = (progress - 0.85) / 0.15;
+      bounceY = -Math.sin(bounceP * Math.PI) * 12;
+    }
+
+    var easeRotation = 1 - Math.pow(1 - progress, 2.2);
+    var currentRotX = finalRot * easeRotation;
+    var wobbleY = Math.sin(progress * Math.PI * 4) * 16 * (1 - progress);
+
+    stage.style.transform = 'translateY(' + (currentY + bounceY) + 'px)';
+    coin.style.transform = 'rotateX(' + currentRotX + 'deg) rotateY(' + wobbleY + 'deg)';
+
+    var shadowScale = 1 - (elevationProgress * 0.45);
+    var shadowOpacity = 0.85 - (elevationProgress * 0.55);
+    var shadowBlur = 4 + (elevationProgress * 12);
+    shadow.style.transform = 'rotateX(60deg) scale(' + shadowScale + ')';
+    shadow.style.opacity = shadowOpacity;
+    shadow.style.filter = 'blur(' + shadowBlur + 'px)';
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      stage.style.transform = 'translateY(0px)';
+      coin.style.transform = isCara ? 'rotateX(0deg)' : 'rotateX(180deg)';
+      shadow.style.transform = 'rotateX(60deg) scale(1)';
+      shadow.style.opacity = 0.85;
+      shadow.style.filter = 'blur(4px)';
+
+      playCoinLandSound(isCara);
+      triggerCoinParticles(isCara);
+
+      if (banner && bannerIcon && bannerText) {
+        banner.className = 'shell-coin-result-banner visible ' + (isCara ? 'cara' : 'cruz');
+        bannerIcon.textContent = isCara ? '★' : '✕';
+        bannerText.textContent = isCara ? '¡CARA!' : '¡CRUZ!';
+      }
+
+      setTimeout(function () {
+        if (onFlipDone) { onFlipDone(); }
+      }, 260);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+var coinFlipSequenceTimeout = null;
+function showCoinFlipsSequence(coinFlips, onDone) {
+  var overlay = document.getElementById('coinFlipOverlay');
+  var badgesEl = document.getElementById('coinFlipBadges');
+  var banner = document.getElementById('coinResultBanner');
+  var coin = document.getElementById('coinModel');
+  var stage = document.getElementById('coinStage');
+  var shadow = document.getElementById('coinShadow');
+
+  if (!overlay || !badgesEl || !coinFlips || coinFlips.length === 0) {
+    if (onDone) { onDone(); }
+    return;
+  }
+
+  clearTimeout(coinFlipSequenceTimeout);
+  badgesEl.innerHTML = '';
+  if (banner) { banner.className = 'shell-coin-result-banner'; }
+  if (coin) { coin.style.transform = 'rotateX(0deg)'; }
+  if (stage) { stage.style.transform = 'translateY(0px)'; }
+  if (shadow) {
+    shadow.style.transform = 'rotateX(60deg) scale(1)';
+    shadow.style.opacity = '0.85';
+    shadow.style.filter = 'blur(4px)';
+  }
+
+  overlay.classList.remove('hidden', 'fading');
+
+  var flipIndex = 0;
+  function nextFlip() {
+    if (flipIndex >= coinFlips.length) {
+      coinFlipSequenceTimeout = setTimeout(function () {
+        overlay.classList.add('fading');
+        coinFlipSequenceTimeout = setTimeout(function () {
+          overlay.classList.add('hidden');
+          overlay.classList.remove('fading');
+          if (onDone) { onDone(); }
+        }, 240);
+      }, 650);
+      return;
+    }
+
+    var flipResult = coinFlips[flipIndex];
+    var isCara = (flipResult === 'H');
+    flipIndex++;
+
+    animateSingleCoinFlip(isCara, function () {
+      addCoinBadge(isCara);
+      var pauseBetween = (flipIndex < coinFlips.length) ? 320 : 0;
+      coinFlipSequenceTimeout = setTimeout(nextFlip, pauseBetween);
+    });
+  }
+
+  coinFlipSequenceTimeout = setTimeout(nextFlip, 150);
+}
+
 var attackOverlayHoldTimeout = null;
 var attackOverlayFadeTimeout = null;
 function showAttackOverlay(result, onDone) {
+  if (result && result.coinFlips && result.coinFlips.length > 0 && !result._coinsShown) {
+    result._coinsShown = true;
+    showCoinFlipsSequence(result.coinFlips, function () {
+      showAttackOverlay(result, onDone);
+    });
+    return;
+  }
   var el = document.getElementById('attackOverlay');
   var attackerImg = document.getElementById('attackOverlayAttackerImg');
   var defenderImg = document.getElementById('attackOverlayDefenderImg');

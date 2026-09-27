@@ -44,6 +44,9 @@ function logEvent(state, msg, ownerId, kind) { state.log.push({ msg: msg, ownerI
 function coinFlip(state) {
   var result = state.rng() < 0.5 ? 'H' : 'T';
   logEvent(state, 'Moneda: ' + (result === 'H' ? 'Cara' : 'Sello'));
+  if (state && state.currentCoinFlips) {
+    state.currentCoinFlips.push(result);
+  }
   return result;
 }
 
@@ -1259,6 +1262,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
     if (playerId === 'cpu') { applyEndOfTurnCheckup(state); }
   }
 
+  state.currentCoinFlips = [];
   logEvent(state, attacker.name + ' usa ' + translateAttackName(attackName), playerId);
 
   if (attacker.missChanceUntilTurn === state.turnCounter) {
@@ -1274,12 +1278,14 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: true, selfDamage: 0, shielded: false, selfEffect: false
+          newStatuses: [], severePoison: false, missed: true, selfDamage: 0, shielded: false, selfEffect: false,
+          coinFlips: (state.currentCoinFlips || []).slice()
         };
       }
       endThisTurn();
       return;
     }
+    state.currentCoinFlips = [];
   }
 
   if (hasStatus(attacker, 'Confused')) {
@@ -1300,13 +1306,15 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       if (op.active) {
         state.lastAttackResult = {
           attackerName: attacker.name, defenderName: op.active.name, damage: 0,
-          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage, shielded: false, selfEffect: false
+          newStatuses: [], severePoison: false, missed: false, selfDamage: attacker.damage - beforeAttackerDamage, shielded: false, selfEffect: false,
+          coinFlips: (state.currentCoinFlips || []).slice()
         };
       }
       knockOutIfNeeded(state, playerId, attacker); // a confused Pokémon can KO itself
       endThisTurn();
       return;
     }
+    state.currentCoinFlips = [];
   }
 
   var defender = op.active;
@@ -1337,6 +1345,7 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // can route the badge onto the ATTACKER's own card instead.
   state.attackSelfEffect = false;
   state.attackCustomBadge = null;
+  state.currentCoinFlips = [];
   var effectFn = (typeof ATTACK_EFFECTS !== 'undefined' && ATTACK_EFFECTS[attacker.name]) ? ATTACK_EFFECTS[attacker.name][attackName] : null;
   if (effectFn) {
     effectFn(state, attacker, defender, atkDef, playerId, targetInstanceId);
@@ -1357,7 +1366,8 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
   // itself only ever displayed that defender damage -- the attacker's own
   // recoil was invisible there, only readable in the text log.
   var selfDamageDealt = attacker.damage - beforeAttackerDamage;
-  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0 || state.attackShielded || state.attackCustomBadge) {
+  var hadCoins = !!(state.currentCoinFlips && state.currentCoinFlips.length > 0);
+  if (damageDealt > 0 || newStatuses.length > 0 || state.attackMissed || selfDamageDealt > 0 || state.attackShielded || state.attackCustomBadge || hadCoins) {
     // Drives the ~1s "both cards in the foreground, damage number (and any
     // new Special Condition) on the defender" animation (see
     // showAttackOverlay, ui.js) -- damageDealt is already the real final
@@ -1377,6 +1387,9 @@ function attack(state, playerId, attackName, targetInstanceId, deferTurnEnd) {
       newStatuses: newStatuses, severePoison: !!defender.severePoison, missed: !!state.attackMissed,
       selfDamage: selfDamageDealt, shielded: !!state.attackShielded, selfEffect: !!state.attackSelfEffect
     };
+    if (hadCoins) {
+      state.lastAttackResult.coinFlips = state.currentCoinFlips.slice();
+    }
     if (state.attackCustomBadge) {
       state.lastAttackResult.customBadge = state.attackCustomBadge;
     }

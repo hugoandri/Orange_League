@@ -3721,3 +3721,24 @@ function mkPokemon(id, name, overrides) {
   check('Defender cannot attack due to Tail Wag', canAttack(state, 'cpu', 'Bubble'), false);
 })();
 
+(function testLastAttackResultCoinFlips() {
+  var state = createGame(function () { return 0.1; }, 'overgrowth');
+  var p = state.players.player;
+  var op = state.players.cpu;
+  p.active = mkPokemon('b1', 'Beedrill', { damage: 0 });
+  p.active.attachedEnergy = ['Grass', 'Grass', 'Grass'];
+  op.active = mkPokemon('m1', 'Machop', { damage: 0 });
+  state.activePlayerId = 'player';
+
+  var flips = [0.1, 0.9];
+  var flipIdx = 0;
+  state.rng = function () {
+    return flips[flipIdx++] !== undefined ? flips[flipIdx - 1] : 0.1;
+  };
+
+  attack(state, 'player', 'Twineedle');
+  checkTrue('Twineedle sets lastAttackResult', !!state.lastAttackResult);
+  check('Twineedle records coinFlips array of length 2', state.lastAttackResult.coinFlips, ['H', 'T']);
+})();
+
+

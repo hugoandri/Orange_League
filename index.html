@@ -5,7 +5,7 @@
 <title>Orange League Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css?v=20260922d">
-<link rel="stylesheet" href="shell-theme.css?v=20260927d">
+<link rel="stylesheet" href="shell-theme.css?v=20260927e">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -496,6 +496,72 @@
        attack's own coin flip whiffed entirely, and a self-damage badge on
        the attacker's own card for any recoil (Confusion's self-hit, or a
        normal attack's own recoil like Thunder Jolt/Take Down/Selfdestruct). -->
+  <!-- Coin flip animation overlay for attacks with coin flip requirements -->
+  <div id="coinFlipOverlay" class="shell-coin-flip-overlay hidden">
+    <!-- Top-left indicator badges for coin flip results -->
+    <div class="shell-coin-flip-topleft">
+      <div class="shell-coin-flip-title">LANZAMIENTOS</div>
+      <div class="shell-coin-flip-badges" id="coinFlipBadges"></div>
+    </div>
+
+    <!-- Central coin arena -->
+    <div class="shell-coin-arena">
+      <div class="shell-coin-result-banner" id="coinResultBanner">
+        <span id="coinBannerIcon">🪙</span>
+        <span id="coinBannerText">¡CARA!</span>
+      </div>
+
+      <div class="shell-coin-arena-ring"></div>
+      <div class="shell-coin-shadow" id="coinShadow"></div>
+      <div class="shell-coin-particles" id="coinParticles"></div>
+
+      <div class="shell-coin-stage" id="coinStage">
+        <div class="shell-coin" id="coinModel">
+          <div class="shell-coin-edge">
+            <div class="shell-coin-edge-slice" style="transform: translateZ(3px);"></div>
+            <div class="shell-coin-edge-slice" style="transform: translateZ(1px);"></div>
+            <div class="shell-coin-edge-slice" style="transform: translateZ(-1px);"></div>
+            <div class="shell-coin-edge-slice" style="transform: translateZ(-3px);"></div>
+          </div>
+
+          <!-- CARA (Frente) -->
+          <div class="shell-coin-face shell-coin-front">
+            <div class="shell-coin-inner-ring">
+              <svg class="shell-coin-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="46" stroke="#5c3e00" stroke-width="6" fill="#fce484"/>
+                <path d="M 4 50 A 46 46 0 0 1 96 50 Z" fill="#d99b11" stroke="#5c3e00" stroke-width="5"/>
+                <path d="M 4 50 A 46 46 0 0 0 96 50 Z" fill="#fff7b0" stroke="#5c3e00" stroke-width="5"/>
+                <line x1="4" y1="50" x2="96" y2="50" stroke="#4a2f00" stroke-width="8"/>
+                <circle cx="50" cy="50" r="17" fill="#4a2f00"/>
+                <circle cx="50" cy="50" r="12" fill="#fff" stroke="#4a2f00" stroke-width="3"/>
+                <circle cx="50" cy="50" r="6" fill="#f7d046"/>
+              </svg>
+              <div class="shell-coin-label">CARA</div>
+            </div>
+            <div class="shell-coin-shine"></div>
+          </div>
+
+          <!-- CRUZ (Reverso) -->
+          <div class="shell-coin-face shell-coin-back">
+            <div class="shell-coin-inner-ring">
+              <svg class="shell-coin-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="46" stroke="#2c3542" stroke-width="6" fill="#e2e8f0"/>
+                <path d="M 4 50 A 46 46 0 0 1 96 50 Z" fill="#94a3b8" stroke="#2c3542" stroke-width="5"/>
+                <path d="M 4 50 A 46 46 0 0 0 96 50 Z" fill="#f1f5f9" stroke="#2c3542" stroke-width="5"/>
+                <line x1="4" y1="50" x2="96" y2="50" stroke="#1f2733" stroke-width="8"/>
+                <circle cx="50" cy="50" r="17" fill="#1f2733"/>
+                <circle cx="50" cy="50" r="12" fill="#ffffff" stroke="#1f2733" stroke-width="3"/>
+                <circle cx="50" cy="50" r="6" fill="#64748b"/>
+              </svg>
+              <div class="shell-coin-label">CRUZ</div>
+            </div>
+            <div class="shell-coin-shine"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="attackOverlay" class="shell-attack-overlay hidden">
     <div class="shell-attack-overlay-pair">
       <div class="shell-attack-overlay-card attacker">
@@ -1551,15 +1617,15 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 <script src="firebase-init.js?v=20260927d"></script>
-<script src="data-sets.js?v=20260927d"></script>
-<script src="data-decks.js?v=20260927d"></script>
-<script src="data-cards.js?v=20260927d"></script>
-<script src="rules-engine.js?v=20260927d"></script>
-<script src="card-effects.js?v=20260927d"></script>
-<script src="ai.js?v=20260927d"></script>
-<script src="economy.js?v=20260927d"></script>
-<script src="shell-layout.js?v=20260927d"></script>
-<script src="ui.js?v=20260927d"></script>
-<script src="auth-ui.js?v=20260927d"></script>
+<script src="data-sets.js?v=20260927e"></script>
+<script src="data-decks.js?v=20260927e"></script>
+<script src="data-cards.js?v=20260927e"></script>
+<script src="rules-engine.js?v=20260927e"></script>
+<script src="card-effects.js?v=20260927e"></script>
+<script src="ai.js?v=20260927e"></script>
+<script src="economy.js?v=20260927e"></script>
+<script src="shell-layout.js?v=20260927e"></script>
+<script src="ui.js?v=20260927e"></script>
+<script src="auth-ui.js?v=20260927e"></script>
 </body>
 </html>

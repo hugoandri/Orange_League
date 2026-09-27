@@ -1550,6 +1550,165 @@
   text-shadow:0 2px 8px rgba(0,0,0,.85);text-align:center;
 }
 
+/* ===== Coin flip overlay (see showCoinFlipsSequence, ui.js) ===== */
+.shell-coin-flip-overlay{
+  position:fixed;inset:0;z-index:310;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(10,8,7,.75);
+  backdrop-filter:blur(4px);
+  pointer-events:none;opacity:1;transition:opacity .24s ease;
+}
+.shell-coin-flip-overlay.fading{opacity:0;}
+.shell-coin-flip-overlay.hidden{display:none;}
+
+/* Upper-left badges indicator */
+.shell-coin-flip-topleft{
+  position:absolute;top:28px;left:32px;
+  display:flex;flex-direction:column;gap:8px;
+  z-index:320;pointer-events:none;
+}
+.shell-coin-flip-title{
+  font-family:'Silkscreen',monospace;font-size:12px;font-weight:700;
+  letter-spacing:.16em;color:#f2c94c;
+  text-shadow:0 0 10px rgba(242,201,76,.5),0 2px 4px rgba(0,0,0,.9);
+}
+.shell-coin-flip-badges{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:440px;
+}
+.shell-coin-badge{
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.7);
+  animation:shell-coin-badge-pop .32s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes shell-coin-badge-pop{
+  0%{transform:scale(0) rotate(-45deg);opacity:0;}
+  70%{transform:scale(1.2) rotate(10deg);opacity:1;}
+  100%{transform:scale(1) rotate(0deg);opacity:1;}
+}
+.shell-coin-badge.cara{
+  background:radial-gradient(circle,rgba(141,255,98,.28) 0%,rgba(141,255,98,.08) 100%);
+  border:2px solid #8dff62;color:#8dff62;
+  box-shadow:0 0 16px rgba(141,255,98,.55),inset 0 0 8px rgba(141,255,98,.3);
+  text-shadow:0 0 10px rgba(141,255,98,.8);
+}
+.shell-coin-badge.cruz{
+  background:radial-gradient(circle,rgba(255,92,92,.28) 0%,rgba(255,92,92,.08) 100%);
+  border:2px solid #ff5c5c;color:#ff5c5c;
+  box-shadow:0 0 16px rgba(255,92,92,.55),inset 0 0 8px rgba(255,92,92,.3);
+  text-shadow:0 0 10px rgba(255,92,92,.8);
+}
+
+/* Central coin arena */
+.shell-coin-arena{
+  position:relative;width:440px;height:360px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  perspective:1100px;
+}
+.shell-coin-arena-ring{
+  position:absolute;bottom:50px;width:220px;height:86px;border-radius:50%;
+  border:2px dashed rgba(242,201,76,.25);
+  transform:rotateX(60deg);pointer-events:none;
+}
+.shell-coin-shadow{
+  position:absolute;bottom:68px;width:130px;height:34px;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,.85) 0%,rgba(0,0,0,.4) 50%,transparent 75%);
+  transform:rotateX(60deg);
+  transition:transform .15s ease,opacity .15s ease,filter .15s ease;
+  filter:blur(4px);pointer-events:none;z-index:1;
+}
+.shell-coin-stage{
+  position:relative;width:140px;height:140px;
+  transform-style:preserve-3d;z-index:10;
+  user-select:none;
+}
+.shell-coin{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  transform-style:preserve-3d;
+}
+.shell-coin-face{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:inset 0 0 0 5px rgba(255,255,255,.4),inset 0 0 15px rgba(0,0,0,.5),0 0 25px rgba(242,201,76,.3);
+}
+.shell-coin-front{
+  background:radial-gradient(circle at 35% 30%,#fff7c2 0%,#f7d046 25%,#d49a15 65%,#946400 100%);
+  transform:rotateY(0deg) translateZ(5px);
+}
+.shell-coin-back{
+  background:radial-gradient(circle at 35% 30%,#ffffff 0%,#d8dde6 30%,#8a96a8 70%,#475263 100%);
+  transform:rotateY(180deg) translateZ(5px);
+  box-shadow:inset 0 0 0 5px rgba(255,255,255,.5),inset 0 0 15px rgba(0,0,0,.6),0 0 25px rgba(180,200,230,.35);
+}
+.shell-coin-edge{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  transform-style:preserve-3d;pointer-events:none;
+}
+.shell-coin-edge-slice{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  border:4px solid #b87b00;
+}
+.shell-coin-inner-ring{
+  width:116px;height:116px;border-radius:50%;
+  border:3px dashed rgba(255,255,255,.45);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;
+}
+.shell-coin-back .shell-coin-inner-ring{
+  border-color:rgba(255,255,255,.55);
+}
+.shell-coin-icon{
+  width:58px;height:58px;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.4));
+}
+.shell-coin-label{
+  font-family:'Silkscreen',monospace;font-size:13px;font-weight:700;
+  letter-spacing:.18em;margin-top:4px;
+  text-shadow:0 2px 4px rgba(0,0,0,.5);
+}
+.shell-coin-front .shell-coin-label{color:#4a2f00;}
+.shell-coin-back .shell-coin-label{color:#1f2733;}
+.shell-coin-shine{
+  position:absolute;inset:0;border-radius:50%;
+  background:linear-gradient(135deg,rgba(255,255,255,.65) 0%,rgba(255,255,255,0) 45%,rgba(0,0,0,.2) 100%);
+  pointer-events:none;
+}
+.shell-coin-result-banner{
+  position:absolute;top:12px;padding:8px 24px;border-radius:12px;
+  font-family:'Silkscreen',monospace;font-size:16px;font-weight:700;
+  letter-spacing:.15em;display:flex;align-items:center;gap:10px;
+  opacity:0;transform:translateY(-10px) scale(.9);
+  transition:opacity .26s ease,transform .26s cubic-bezier(.175,.885,.32,1.275);
+  pointer-events:none;z-index:20;
+}
+.shell-coin-result-banner.visible{
+  opacity:1;transform:translateY(0) scale(1);
+}
+.shell-coin-result-banner.cara{
+  background:rgba(141,255,98,.16);border:1px solid #8dff62;
+  color:#8dff62;box-shadow:0 0 20px rgba(141,255,98,.35);
+}
+.shell-coin-result-banner.cruz{
+  background:rgba(255,92,92,.16);border:1px solid #ff5c5c;
+  color:#ff5c5c;box-shadow:0 0 20px rgba(255,92,92,.35);
+}
+.shell-coin-particles{
+  position:absolute;bottom:85px;width:20px;height:20px;
+  pointer-events:none;z-index:15;
+}
+.shell-coin-spark{
+  position:absolute;width:6px;height:6px;border-radius:50%;
+  background:#f2c94c;opacity:0;
+}
+.shell-coin-spark-animate{
+  animation:shell-coin-spark-anim .45s ease-out forwards;
+}
+@keyframes shell-coin-spark-anim{
+  0%{opacity:1;transform:translate(0,0) scale(1);}
+  100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(.2);}
+}
+
 /* ===== Attack animation (see showAttackOverlay, ui.js) ===== */
 /* Same fixed/centered/fade-in-out tier as .shell-trainer-played above
    (z-index:300), just two cards side by side instead of one. */
