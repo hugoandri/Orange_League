@@ -984,6 +984,8 @@ function showTrainerPlayedOverlay(play, onDone) {
   img.alt = play.name;
   label.textContent = cpuActionLabel(play);
   el.classList.remove('hidden', 'fading');
+  var isEasy = getCpuDifficulty() === 'easy';
+  var holdTime = isEasy ? 3780 : 1280;
   trainerPlayedHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
     trainerPlayedFadeTimeout = setTimeout(function () {
@@ -991,7 +993,7 @@ function showTrainerPlayedOverlay(play, onDone) {
       el.classList.remove('fading');
       if (onDone) { onDone(); }
     }, 220);
-  }, 1280); // 1280ms hold + 220ms fade-out = ~1.5s total on screen
+  }, holdTime); // 3780ms hold + 220ms fade = 4000ms in Easy (~1.5s in normal/hard)
 }
 
 // Drains gameState.trainerPlaysQueue (see card-effects.js's TRAINER_EFFECTS
@@ -1088,6 +1090,8 @@ function showAttackOverlay(result, onDone) {
     return pixelStatusBadgeHtml(badgeKey, 3);
   }).join('');
   el.classList.remove('hidden', 'fading');
+  var isCpuEasy = (cpuTurnRevealInProgress || (gameState && gameState.activePlayerId === 'cpu')) && getCpuDifficulty() === 'easy';
+  var attackHoldTime = isCpuEasy ? 3780 : 2000;
   attackOverlayHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
     attackOverlayFadeTimeout = setTimeout(function () {
@@ -1095,7 +1099,7 @@ function showAttackOverlay(result, onDone) {
       el.classList.remove('fading');
       if (onDone) { onDone(); }
     }, 220);
-  }, 2000);
+  }, attackHoldTime); // 3780ms hold + 220ms fade = 4000ms in Easy
 }
 
 // Shared by every attack() call site below: pops gameState.lastAttackResult
@@ -2332,6 +2336,7 @@ function proceedWithCpuTurn() {
         // A short "CPU PENSANDO..." beat before the reveal, even when no
         // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
         showCpuThinkingIndicator();
+        var postPause = difficulty === 'easy' ? 4000 : CPU_POST_ACTION_PAUSE_MS;
         setTimeout(function () {
           function reveal() {
             try {
@@ -2363,7 +2368,7 @@ function proceedWithCpuTurn() {
           // as the Trainer-plays sequence above: the player should see the
           // "why" before the resulting board state.
           if (cpuAttackResult) { showAttackOverlay(cpuAttackResult, reveal); } else { reveal(); }
-        }, CPU_POST_ACTION_PAUSE_MS);
+        }, postPause);
       });
     } catch (err) {
       console.error('Error during trainer sequence:', err);
@@ -6184,7 +6189,7 @@ function setDuelMusicKey(key) {
 // 'easy' (default, unchanged from before difficulty tiers existed), 'normal',
 // or 'hard' -- see ai.js's cpuTakeTurn. Kept in this browser only
 // (localStorage), same as the rest of Configuración's settings.
-var CPU_THINK_DELAY_MS = { easy: 0, normal: [1000, 2000], hard: [2000, 5000] };
+var CPU_THINK_DELAY_MS = { easy: 4000, normal: [1000, 2000], hard: [2000, 5000] };
 // A short "beat" held after the CPU's turn resolves (and any Trainer-play
 // flashes finish) before the real result -- attack damage, a KO, a forced
 // Active choice -- actually renders. Applies to every difficulty, even
