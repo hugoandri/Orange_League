@@ -1321,11 +1321,30 @@
     <div class="shell-modal-card">
       <p class="shell-modal-title">JUGAR PVP</p>
       <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
-        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpFindRivalBtn" disabled>BUSCAR RIVAL (PRÓXIMAMENTE)</button>
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpTrainerBattleBtn">⚔️ DESAFIAR ENTRENADORES</button>
         <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpCreateRoomBtn">CREAR SALA</button>
         <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="pvpJoinRoomBtn">BUSCAR SALA</button>
       </div>
       <button type="button" class="shell-modal-btn" id="pvpModalClose">&times;</button>
+    </div>
+  </div>
+
+  <div id="pvpTrainersModal" class="card-modal hidden">
+    <div class="card-modal-backdrop" id="pvpTrainersModalBackdrop"></div>
+    <div class="shell-modal-card pvp-trainers-modal-card">
+      <div class="pvp-trainers-header">
+        <span class="pvp-trainers-badge">⚔️ PS1 RETRO DUELISTS</span>
+        <h2 class="pvp-trainers-title">DESAFIAR ENTRENADORES</h2>
+        <p class="pvp-trainers-sub">Elige a un duelista legendario para poner a prueba tus habilidades.</p>
+        <div class="pvp-trainers-deck-bar">
+          <label for="pvpTrainerPlayerDeckSelect">Tu Mazo:</label>
+          <select id="pvpTrainerPlayerDeckSelect" class="shell-select" style="background:#141210;color:#efe9dd;border:1px solid #d4af37;padding:4px 8px;border-radius:6px;font-family:inherit;font-size:12px;"></select>
+        </div>
+      </div>
+      <div id="pvpTrainersList" class="pvp-trainers-grid">
+        <!-- Rendered dynamically -->
+      </div>
+      <button type="button" class="shell-modal-btn" id="pvpTrainersModalClose">&times;</button>
     </div>
   </div>
 
@@ -1620,6 +1639,7 @@
 <script src="data-sets.js?v=20260927e"></script>
 <script src="data-decks.js?v=20260927e"></script>
 <script src="data-cards.js?v=20260927e"></script>
+<script src="data-trainers.js?v=20260927a"></script>
 <script src="rules-engine.js?v=20260927g"></script>
 <script src="card-effects.js?v=20260927e"></script>
 <script src="ai.js?v=20260927e"></script>

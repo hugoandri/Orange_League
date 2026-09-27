@@ -239,6 +239,7 @@ function renderProfile() {
 // profileState (economy.js) once signed in; these are the fallback until a
 // photo is configured (or for the CPU side, which is never configurable).
 var PROFILE_PHOTO_URL = { player: 'Perfil/Jugador.jpg', cpu: 'Perfil/Rival.jpg' };
+var currentActiveTrainer = null;
 
 function playerPhotoUrl() {
   return (profileState && profileState.photo) || PROFILE_PHOTO_URL.player;
@@ -2484,11 +2485,11 @@ function activeColHtml(activeInstance, mine, flipped) {
 
 function sideHeaderHtml(ownerId) {
   var mine = ownerId === 'player';
-  var name = mine ? escapeHtml(playerDisplayName()) : (pvpMode && pvpOpponentName ? escapeHtml(pvpOpponentName) : 'CPU');
-  // Real reported bug: this always showed the CPU bot avatar for the
-  // opponent slot, even in PVP against a real human -- pvpOpponentPhoto
-  // mirrors pvpOpponentName's own pvpMode check right above.
-  var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : PROFILE_PHOTO_URL.cpu);
+  var defaultCpuName = currentActiveTrainer ? (currentActiveTrainer.name + ' (' + currentActiveTrainer.title + ')') : 'CPU';
+  var defaultCpuPhoto = currentActiveTrainer ? currentActiveTrainer.photo : PROFILE_PHOTO_URL.cpu;
+
+  var name = mine ? escapeHtml(playerDisplayName()) : (pvpMode && pvpOpponentName ? escapeHtml(pvpOpponentName) : escapeHtml(defaultCpuName));
+  var avatar = mine ? playerPhotoUrl() : (pvpMode && pvpOpponentPhoto ? pvpOpponentPhoto : defaultCpuPhoto);
   var on = gameState.activePlayerId === ownerId;
   // Real reported bug: PVP never showed a real, per-side clock at all --
   // per user request, both players' own timers are always visible, one
@@ -4324,7 +4325,7 @@ function stopGameClock() {
   clockLastTickAt = null;
 }
 
-function startNewMatch() {
+function startNewMatch(customCpuDeckKey, customOpponentInfo) {
   resetPvpMatchState();
   matchWinner = null;
   cpuTurnInProgress = false;
@@ -4332,7 +4333,16 @@ function startNewMatch() {
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();
   document.getElementById('matchEndModal').classList.add('hidden');
-  gameState = createGame(Math.random, (econState && econState.activeDeck) || 'overgrowth');
+
+  if (customOpponentInfo) {
+    currentActiveTrainer = customOpponentInfo;
+  } else if (!customCpuDeckKey) {
+    currentActiveTrainer = null;
+  }
+
+  var playerDeck = (econState && econState.activeDeck) || 'overgrowth';
+  var cpuDeck = customCpuDeckKey || (currentActiveTrainer ? (currentActiveTrainer.deckKey || ('trainer_' + currentActiveTrainer.id)) : null);
+  gameState = createGame(Math.random, playerDeck, null, cpuDeck);
   aiSetupBoard(gameState, 'cpu');
   logEvent(gameState, 'Coloca tu Pokémon Activo y, si quieres, tu Banca (máx. 5) antes de empezar.');
   renderBoard();
@@ -6887,6 +6897,7 @@ function hideBoardScreen() {
   stopGameClock();
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();
+  currentActiveTrainer = null;
 }
 
 // Restarts the chess clock after anything that covers the board (pause,
@@ -7284,6 +7295,115 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('pvpModal').classList.add('hidden');
       playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
     });
+  }
+
+  var pvpTrainerBattleBtn = document.getElementById('pvpTrainerBattleBtn');
+  if (pvpTrainerBattleBtn) {
+    pvpTrainerBattleBtn.addEventListener('click', function () {
+      document.getElementById('pvpModal').classList.add('hidden');
+      openPvpTrainersModal();
+    });
+  }
+  var pvpTrainersModalClose = document.getElementById('pvpTrainersModalClose');
+  if (pvpTrainersModalClose) {
+    pvpTrainersModalClose.addEventListener('click', function () {
+      document.getElementById('pvpTrainersModal').classList.add('hidden');
+      document.getElementById('pvpModal').classList.remove('hidden');
+    });
+  }
+  var pvpTrainersModalBackdrop = document.getElementById('pvpTrainersModalBackdrop');
+  if (pvpTrainersModalBackdrop) {
+    pvpTrainersModalBackdrop.addEventListener('click', function () {
+      document.getElementById('pvpTrainersModal').classList.add('hidden');
+      document.getElementById('pvpModal').classList.remove('hidden');
+    });
+  }
+
+  function openPvpTrainersModal() {
+    var modal = document.getElementById('pvpTrainersModal');
+    if (!modal) { return; }
+
+    var playerDeckSelect = document.getElementById('pvpTrainerPlayerDeckSelect');
+    if (playerDeckSelect) {
+      var playerDeckOptionsHtml = '';
+      PRECON_DECK_KEYS.forEach(function (key) {
+        var dName = DECK_DISPLAY_NAME[key] || key;
+        playerDeckOptionsHtml += '<option value="' + key + '">' + escapeHtml(dName) + '</option>';
+      });
+      var savedCustom = (econState && econState.customDecks) || {};
+      CUSTOM_DECK_SLOTS.forEach(function (slot) {
+        if (savedCustom[slot]) {
+          playerDeckOptionsHtml += '<option value="' + slot + '">' + escapeHtml(savedCustom[slot].name || slot) + '</option>';
+        }
+      });
+      playerDeckSelect.innerHTML = playerDeckOptionsHtml;
+      var currentActive = (econState && econState.activeDeck) || 'overgrowth';
+      playerDeckSelect.value = currentActive;
+    }
+
+    var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);
+    var grid = document.getElementById('pvpTrainersList');
+    if (grid) {
+      grid.innerHTML = trainers.map(function (t) {
+        var deck = (typeof getTrainerDeckList === 'function') ? getTrainerDeckList(t) : [];
+        var comp = (typeof getTrainerDeckComposition === 'function') ? getTrainerDeckComposition(deck) : { total: 60 };
+        return '<div class="pvp-trainer-card">' +
+          '<div class="pvp-trainer-portrait-wrap">' +
+            '<img src="' + escapeHtml(t.photo) + '" alt="' + escapeHtml(t.name) + '">' +
+          '</div>' +
+          '<div class="pvp-trainer-meta">' +
+            '<span class="pvp-trainer-badge">#' + escapeHtml(t.num) + '</span>' +
+            '<span class="pvp-trainer-type" style="background:' + (t.typeColor || '#333') + ';">' + escapeHtml(t.type) + '</span>' +
+          '</div>' +
+          '<div class="pvp-trainer-name">' + escapeHtml(t.name) + '</div>' +
+          '<div class="pvp-trainer-title">' + escapeHtml(t.title) + '</div>' +
+          '<div class="pvp-trainer-deck">⚔️ ' + escapeHtml(t.deckName || 'Mazo') + ' (' + comp.total + ' c.)</div>' +
+          '<button type="button" class="pvp-trainer-btn" data-trainer-id="' + escapeHtml(t.id) + '">⚔️ DESAFIAR</button>' +
+        '</div>';
+      }).join('');
+
+      grid.querySelectorAll('.pvp-trainer-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tId = btn.getAttribute('data-trainer-id');
+          challengeTrainer(tId);
+        });
+      });
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function challengeTrainer(trainerId) {
+    var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);
+    var trainer = trainers.find(function (t) { return t.id === trainerId; }) || trainers[0];
+    if (!trainer) { return; }
+
+    var playerDeckSelect = document.getElementById('pvpTrainerPlayerDeckSelect');
+    var chosenDeck = (playerDeckSelect && playerDeckSelect.value) || (econState && econState.activeDeck) || 'overgrowth';
+    if (econState) { econState.activeDeck = chosenDeck; }
+
+    var trainerCards = (typeof getTrainerDeckList === 'function') ? getTrainerDeckList(trainer) : [];
+    var trainerDeckKey = 'trainer_' + trainer.id;
+    DECKLISTS[trainerDeckKey] = trainerCards;
+    DECK_DISPLAY_NAME[trainerDeckKey] = trainer.deckName || ('Mazo de ' + trainer.name);
+
+    currentActiveTrainer = {
+      id: trainer.id,
+      name: trainer.name,
+      title: trainer.title,
+      photo: trainer.photo,
+      deckName: trainer.deckName,
+      deckKey: trainerDeckKey
+    };
+
+    var pvpTrainersModal = document.getElementById('pvpTrainersModal');
+    if (pvpTrainersModal) { pvpTrainersModal.classList.add('hidden'); }
+    var pvpModal = document.getElementById('pvpModal');
+    if (pvpModal) { pvpModal.classList.add('hidden'); }
+
+    hideMenu();
+    showBoardScreen();
+    startNewMatch(trainerDeckKey, currentActiveTrainer);
   }
 
   var pvpCreateRoomBtn = document.getElementById('pvpCreateRoomBtn');
@@ -7834,7 +7954,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('matchEndReplayBtn').addEventListener('click', function () {
     document.getElementById('matchEndModal').classList.add('hidden');
-    if (!pvpMode) { startNewMatch(); return; }
+    if (!pvpMode) {
+      if (currentActiveTrainer) {
+        startNewMatch(currentActiveTrainer.deckKey, currentActiveTrainer);
+      } else {
+        startNewMatch();
+      }
+      return;
+    }
     // Real reported bug: this used to unconditionally fall through to
     // startNewMatch() above even in PVP -- that function's own very first
     // step is resetPvpMatchState(), which closes the shared PVP socket,

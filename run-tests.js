@@ -6,7 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const FILES = [
-  'data-sets.js', 'data-decks.js', 'data-cards.js',
+  'data-sets.js', 'data-decks.js', 'data-cards.js', 'data-trainers.js',
   'rules-engine.js', 'card-effects.js', 'ai.js', 'economy.js',
   'shell-layout.js',
   'tests.js'

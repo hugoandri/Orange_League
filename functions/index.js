@@ -1899,4 +1899,40 @@ exports.setEconomyConfig = onCall(async (request) => {
   return { ok: true, config: payload };
 });
 
+// ── Admin Trainers Config ───────────────────────────────────────────────
+exports.getTrainersConfig = onCall(async (request) => {
+  const doc = await admin.firestore().collection('config').doc('trainers').get();
+  return { trainers: doc.exists ? doc.data().trainers : null };
+});
+
+exports.setTrainersConfig = onCall(async (request) => {
+  requireAdmin(request);
+  const data = request.data || {};
+  const trainers = data.trainers;
+  if (!Array.isArray(trainers)) {
+    throw new HttpsError('invalid-argument', 'Lista de entrenadores requerida.');
+  }
+  const cleanTrainers = trainers.map((t) => {
+    return {
+      id: String(t.id || ''),
+      num: String(t.num || ''),
+      name: String(t.name || ''),
+      title: String(t.title || ''),
+      type: String(t.type || ''),
+      typeColor: String(t.typeColor || ''),
+      photo: String(t.photo || ''),
+      desc: String(t.desc || ''),
+      deckPreset: String(t.deckPreset || 'custom'),
+      deckName: String(t.deckName || ''),
+      cards: Array.isArray(t.cards) ? t.cards.map((c) => ({ name: String(c.name || ''), count: parseInt(c.count, 10) || 1 })) : []
+    };
+  });
+  await admin.firestore().collection('config').doc('trainers').set({
+    trainers: cleanTrainers,
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { ok: true, count: cleanTrainers.length };
+});
+
+
 

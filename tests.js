@@ -3748,4 +3748,29 @@ function mkPokemon(id, name, overrides) {
   check('Twineedle records coinFlips array of length 2', state.lastAttackResult.coinFlips, ['H', 'T']);
 })();
 
+(function testTrainerDefinitions() {
+  check('DEFAULT_TRAINERS has 10 trainers', DEFAULT_TRAINERS.length, 10);
+  DEFAULT_TRAINERS.forEach(function (t, idx) {
+    checkTrue('Trainer ' + t.id + ' has valid name and photo', !!t.name && !!t.photo && t.photo.indexOf('Perfil/') === 0);
+    var deck = getTrainerDeckList(t);
+    var comp = getTrainerDeckComposition(deck);
+    check('Trainer ' + t.name + ' deck has 60 cards', comp.total, 60);
+    checkTrue('Trainer ' + t.name + ' deck has basic Pokemon', comp.hasBasic);
+  });
+})();
+
+(function testTrainerMatchDeckAssignment() {
+  var lance = DEFAULT_TRAINERS[3]; // Lance
+  var lanceKey = 'trainer_' + lance.id;
+  DECKLISTS[lanceKey] = getTrainerDeckList(lance);
+  
+  var state = createGame(function () { return 0.5; }, 'overgrowth', null, lanceKey);
+  check('CPU player gets Lance assigned deck', state.players.cpu.deckKey, lanceKey);
+  check('Player gets overgrowth deck', state.players.player.deckKey, 'overgrowth');
+  // Check total cards in match for cpu (deck + hand + prizes = 60)
+  var totalCpuCards = state.players.cpu.deck.length + state.players.cpu.hand.length + state.players.cpu.prizes.length;
+  check('CPU deck has exactly 60 cards expanded', totalCpuCards, 60);
+})();
+
+
 

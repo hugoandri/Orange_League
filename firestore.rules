@@ -36,6 +36,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Trainers configuration -- readable by any signed-in player so battle mode reflects custom decks
+    match /config/trainers {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Admin-only game-balance config (currently just rareOdds -- the
     // "Probabilidades" tab's per-card weights, see setRareOdds/
     // fetchRareWeights, functions/index.js). Only the admin panel ever

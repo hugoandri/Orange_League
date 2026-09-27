@@ -168,6 +168,51 @@
   .stars-pkg-field{display:flex;flex-direction:column;gap:4px;}
   .stars-pkg-field label{font-size:11px;color:#8a7e6f;margin:0;}
   .stars-pkg-field input{padding:6px 8px;font-size:13px;}
+
+  /* Trainers panel styles */
+  .trainers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:14px;}
+  .trainer-admin-card{background:#141210;border:1px solid #3a342c;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:border-color 0.2s;}
+  .trainer-admin-card:hover{border-color:#d4af37;}
+  .trainer-admin-top{display:flex;gap:12px;align-items:center;}
+  .trainer-admin-portrait{width:70px;height:70px;flex:none;border-radius:8px;overflow:hidden;border:2px solid #d4af37;box-shadow:0 0 10px rgba(212,175,55,0.25);background:#07090e;}
+  .trainer-admin-portrait img{width:100%;height:100%;object-fit:cover;display:block;}
+  .trainer-admin-info{flex:1;min-width:0;}
+  .trainer-admin-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.06em;padding:2px 6px;border-radius:4px;background:#2c2822;color:#d4af37;margin-bottom:4px;}
+  .trainer-admin-name{font-size:14px;font-weight:700;color:#efe9dd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .trainer-admin-title{font-size:11px;color:#8a7e6f;}
+  .trainer-admin-deck-section{background:#1d1a15;border:1px solid #2c2822;border-radius:6px;padding:10px;}
+  .trainer-admin-deck-section label{font-size:11px;color:#a49785;margin:0 0 4px;}
+  .trainer-admin-deck-stats{font-size:11px;color:#8dff62;margin-top:6px;font-weight:600;}
+  .trainer-admin-actions{display:flex;gap:8px;margin-top:auto;}
+  .btn-gold{background:linear-gradient(180deg,#ffd700,#b8860b);color:#141210;}
+  .btn-gold:hover{filter:brightness(1.1);}
+
+  /* Trainer Deck Builder Modal */
+  .deck-builder-modal-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .deck-builder-modal-overlay.hidden{display:none;}
+  .deck-builder-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);}
+  .deck-builder-modal-card{position:relative;z-index:1;background:#1d1a15;border:1px solid #d4af37;box-shadow:0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(212,175,55,0.2);border-radius:12px;max-width:960px;width:100%;max-height:90vh;display:flex;flex-direction:column;padding:24px;overflow:hidden;}
+  .deck-builder-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #2c2822;}
+  .deck-builder-title{font-size:18px;font-weight:700;color:#ffd700;margin:0;}
+  .deck-builder-close{background:none;border:none;color:#a49785;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px;}
+  .deck-builder-close:hover{color:#fff;background:#2c2822;}
+  .deck-builder-meta-bar{display:flex;flex-wrap:wrap;gap:16px;align-items:center;background:#141210;padding:10px 14px;border-radius:8px;border:1px solid #3a342c;margin-bottom:14px;}
+  .deck-builder-stat-chip{font-size:12px;font-weight:700;color:#efe9dd;}
+  .deck-builder-stat-chip.valid{color:#8dff62;}
+  .deck-builder-stat-chip.invalid{color:#ff5c5c;}
+  .deck-builder-body{display:flex;gap:18px;flex:1;min-height:0;margin-bottom:14px;}
+  .deck-builder-col{flex:1;min-width:0;display:flex;flex-direction:column;background:#141210;border:1px solid #2c2822;border-radius:8px;padding:12px;}
+  .deck-builder-col-title{font-size:13px;font-weight:700;color:#efe9dd;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+  .deck-builder-cards-scroll{flex:1;overflow-y:auto;min-height:260px;max-height:440px;}
+  .deck-builder-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #241f19;font-size:12px;}
+  .deck-builder-row:hover{background:#1d1a15;}
+  .deck-builder-row-info{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .deck-builder-row-type{font-size:10px;color:#8a7e6f;}
+  .deck-builder-qty-controls{display:flex;align-items:center;gap:4px;flex:none;}
+  .deck-qty-btn{background:#2c2822;color:#efe9dd;border:none;border-radius:4px;width:22px;height:22px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .deck-qty-btn:hover{background:#3a342c;}
+  .deck-qty-val{min-width:18px;text-align:center;font-weight:700;color:#ffd700;}
+  .deck-builder-footer{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #2c2822;}
 </style>
 </head>
 <body>
@@ -180,6 +225,7 @@
       <button type="button" class="side-link" data-panel="packs">Packs</button>
       <button type="button" class="side-link" data-panel="codes">Códigos</button>
       <button type="button" class="side-link" data-panel="economy">Precios / Tienda</button>
+      <button type="button" class="side-link" data-panel="trainers">Entrenadores</button>
     </nav>
     <main class="content">
       <div id="stateBox" class="state-box">Cargando…</div>
@@ -394,6 +440,27 @@
           </div>
           <p class="status-msg" id="economyStatus"></p>
         </section>
+
+        <section id="panel-trainers" class="panel">
+          <h1>Entrenadores (Trainers)</h1>
+          <p class="sub">Configura a los 10 duelistas legendarios estilo Yu-Gi-Oh! Forbidden Memories y ármales su mazo de 60 cartas para desafiar en combate.</p>
+
+          <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+              <strong style="color:#d4af37;">⚔️ Duelistas Registrados (10)</strong>
+              <div style="font-size:12px;color:#8a7e6f;margin-top:2px;">Mazos asignados y listos para desafiar en el modo Batalla / PVP.</div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button type="button" class="btn-primary" id="saveTrainersBtn">Guardar Entrenadores</button>
+              <button type="button" class="btn-secondary" id="resetTrainersBtn">Restablecer Mazos</button>
+            </div>
+          </div>
+          <p class="status-msg" id="trainersStatus"></p>
+
+          <div class="trainers-grid" id="trainersGrid">
+            <div class="empty-note">Cargando entrenadores…</div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -406,12 +473,89 @@
     </div>
   </div>
 
+  <div id="trainerDeckModal" class="deck-builder-modal-overlay hidden">
+    <div class="deck-builder-modal-backdrop" id="trainerDeckModalBackdrop"></div>
+    <div class="deck-builder-modal-card">
+      <div class="deck-builder-header">
+        <h2 class="deck-builder-title" id="trainerDeckModalTitle">Armar Mazo de Entrenador</h2>
+        <button type="button" class="deck-builder-close" id="trainerDeckModalClose">✕</button>
+      </div>
+
+      <div class="deck-builder-meta-bar">
+        <div style="flex:1;min-width:200px;">
+          <label style="margin:0 0 4px;font-size:11px;color:#8a7e6f;display:block;">Nombre del Mazo</label>
+          <input type="text" id="trainerDeckNameField" placeholder="Ej: Mazo Furia Dragón" style="padding:6px 10px;">
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <label style="margin:0 0 4px;font-size:11px;color:#8a7e6f;display:block;">Cargar plantilla preconstruida</label>
+          <select id="trainerDeckPresetSelect" style="padding:6px 10px;">
+            <option value="">-- Cargar mazo preconstruido --</option>
+            <option value="brushfire">Llamarada (Brushfire - Fuego/Planta)</option>
+            <option value="blackout">Apagón (Blackout - Lucha/Agua)</option>
+            <option value="zap">Trueno (Zap! - Eléctrico/Psíquico)</option>
+            <option value="overgrowth">Maremoto (Overgrowth - Planta/Agua)</option>
+            <option value="reset_default">Restablecer mazo original de este entrenador</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="deck-builder-meta-bar" style="background:#1a1713;">
+        <span class="deck-builder-stat-chip" id="trainerDeckCountChip">Total: 0/60</span>
+        <span class="deck-builder-stat-chip" id="trainerDeckPkmnChip">Pokémon: 0</span>
+        <span class="deck-builder-stat-chip" id="trainerDeckTrainersChip">Entrenador: 0</span>
+        <span class="deck-builder-stat-chip" id="trainerDeckEnergyChip">Energía: 0</span>
+        <span class="deck-builder-stat-chip" id="trainerDeckValidChip">✓ Válido</span>
+      </div>
+
+      <div class="deck-builder-body">
+        <div class="deck-builder-col">
+          <div class="deck-builder-col-title">
+            <span>Cartas en el Mazo</span>
+            <span id="trainerDeckCardCountBadge" style="color:#d4af37;font-size:11px;">0 cartas</span>
+          </div>
+          <div class="deck-builder-cards-scroll" id="trainerDeckCardsList">
+            <!-- List of deck cards -->
+          </div>
+        </div>
+
+        <div class="deck-builder-col">
+          <div class="deck-builder-col-title">
+            <span>Agregar Cartas del Catálogo</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <input type="text" id="trainerCatalogSearch" placeholder="Buscar por nombre..." style="padding:6px 8px;font-size:12px;">
+            <select id="trainerCatalogTypeFilter" style="width:130px;padding:6px;font-size:12px;">
+              <option value="all">Todos</option>
+              <option value="Pokémon">Pokémon</option>
+              <option value="Trainer">Entrenador</option>
+              <option value="Energy">Energía</option>
+            </select>
+          </div>
+          <div class="deck-builder-cards-scroll" id="trainerCatalogCardsList">
+            <!-- Catalog cards list -->
+          </div>
+        </div>
+      </div>
+
+      <div class="deck-builder-footer">
+        <div style="font-size:12px;color:#a49785;" id="trainerDeckValidationMsg"></div>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn-secondary" id="trainerDeckCancelBtn">Cancelar</button>
+          <button type="button" class="btn-primary" id="trainerDeckConfirmBtn">Guardar Mazo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
   <script src="firebase-init.js"></script>
   <script src="data-sets.js"></script>
+  <script src="data-decks.js"></script>
+  <script src="data-cards.js"></script>
+  <script src="data-trainers.js"></script>
   <script>
   (function () {
     // Client-side check only for UX (hiding the form) -- the REAL
@@ -460,6 +604,7 @@
     var packsLoadedOnce = false;
     var codesLoadedOnce = false;
     var economyLoadedOnce = false;
+    var trainersLoadedOnce = false;
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, function (c) {
@@ -478,6 +623,7 @@
         if (target === 'packs' && !packsLoadedOnce) { loadCustomPacks(); }
         if (target === 'codes' && !codesLoadedOnce) { loadGiftCodes(); }
         if (target === 'economy' && !economyLoadedOnce) { loadEconomyConfig(); }
+        if (target === 'trainers' && !trainersLoadedOnce) { loadTrainersPanel(); }
       });
     });
 
@@ -1435,6 +1581,373 @@
           statusEl.className = 'status-msg error';
           statusEl.textContent = 'Error: ' + (err.message || 'No se pudo guardar la configuración.');
         });
+      });
+    }
+
+    // ── Entrenadores (Trainers) Panel & Deck Builder ─────────────────────
+    var currentTrainers = [];
+    var editingTrainer = null;
+    var editingTrainerCards = {}; // { [cardName]: count }
+
+    var BASIC_ENERGY_NAMES = [
+      'Grass Energy', 'Fire Energy', 'Water Energy', 'Lightning Energy', 'Fighting Energy', 'Psychic Energy'
+    ];
+
+    function loadTrainersPanel() {
+      trainersLoadedOnce = true;
+      var grid = document.getElementById('trainersGrid');
+      grid.innerHTML = '<div class="empty-note">Cargando entrenadores…</div>';
+
+      firebase.firestore().collection('config').doc('trainers').get().then(function (snap) {
+        if (snap.exists && Array.isArray(snap.data().trainers) && snap.data().trainers.length === 10) {
+          currentTrainers = cloneTrainers(snap.data().trainers);
+        } else {
+          currentTrainers = loadTrainersConfigSync();
+        }
+        renderTrainersList();
+      }).catch(function (err) {
+        console.warn('Error cargando entrenadores desde Firestore:', err);
+        currentTrainers = loadTrainersConfigSync();
+        renderTrainersList();
+      });
+    }
+
+    function renderTrainersList() {
+      var grid = document.getElementById('trainersGrid');
+      grid.innerHTML = currentTrainers.map(function (t) {
+        var deck = getTrainerDeckList(t);
+        var comp = getTrainerDeckComposition(deck);
+        var presetOptionsHtml = TRAINER_PRESET_OPTIONS.map(function (opt) {
+          var sel = (t.deckPreset === opt.key) ? 'selected' : '';
+          return '<option value="' + opt.key + '" ' + sel + '>' + escapeHtml(opt.name) + '</option>';
+        }).join('');
+
+        return '<div class="trainer-admin-card" data-trainer-id="' + escapeHtml(t.id) + '">' +
+          '<div class="trainer-admin-top">' +
+            '<div class="trainer-admin-portrait">' +
+              '<img src="' + escapeHtml(t.photo) + '" alt="' + escapeHtml(t.name) + '">' +
+            '</div>' +
+            '<div class="trainer-admin-info">' +
+              '<div class="trainer-admin-badge" style="border-left: 3px solid ' + (t.typeColor || '#d4af37') + ';">#' + escapeHtml(t.num) + ' · ' + escapeHtml(t.type) + '</div>' +
+              '<div class="trainer-admin-name">' + escapeHtml(t.name) + '</div>' +
+              '<div class="trainer-admin-title">' + escapeHtml(t.title) + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="trainer-admin-deck-section">' +
+            '<label>Mazo preconstruido / personalizado:</label>' +
+            '<select class="trainer-preset-select" data-trainer-id="' + escapeHtml(t.id) + '">' +
+              presetOptionsHtml +
+            '</select>' +
+            '<div class="trainer-admin-deck-stats" id="trainerStats-' + escapeHtml(t.id) + '">' +
+              '⚔️ ' + escapeHtml(t.deckName || 'Mazo') + ' (' + comp.total + ' cartas · ' + comp.pokemon + ' PKMN, ' + comp.trainer + ' TR, ' + comp.energy + ' ENG)' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="trainer-admin-actions">' +
+            '<button type="button" class="btn-gold edit-trainer-deck-btn" data-trainer-id="' + escapeHtml(t.id) + '" style="width:100%;">🛠️ Armar / Editar Mazo (60)</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      // Wire preset dropdowns
+      grid.querySelectorAll('.trainer-preset-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          var tId = sel.getAttribute('data-trainer-id');
+          var trainer = currentTrainers.find(function (x) { return x.id === tId; });
+          if (!trainer) { return; }
+          var val = sel.value;
+          trainer.deckPreset = val;
+          if (val !== 'custom' && DECKLISTS[val]) {
+            trainer.cards = cloneTrainerDeck(DECKLISTS[val]);
+            var optName = (TRAINER_PRESET_OPTIONS.find(function (o) { return o.key === val; }) || {}).name || val;
+            trainer.deckName = optName;
+          }
+          var statsEl = document.getElementById('trainerStats-' + tId);
+          if (statsEl) {
+            var deck = getTrainerDeckList(trainer);
+            var comp = getTrainerDeckComposition(deck);
+            statsEl.textContent = '⚔️ ' + (trainer.deckName || 'Mazo') + ' (' + comp.total + ' cartas · ' + comp.pokemon + ' PKMN, ' + comp.trainer + ' TR, ' + comp.energy + ' ENG)';
+          }
+        });
+      });
+
+      // Wire edit deck buttons
+      grid.querySelectorAll('.edit-trainer-deck-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tId = btn.getAttribute('data-trainer-id');
+          openTrainerDeckModal(tId);
+        });
+      });
+    }
+
+    // Modal Deck Builder logic
+    function openTrainerDeckModal(trainerId) {
+      editingTrainer = currentTrainers.find(function (t) { return t.id === trainerId; });
+      if (!editingTrainer) { return; }
+
+      document.getElementById('trainerDeckModalTitle').textContent = 'Armar Mazo: ' + editingTrainer.name + ' (' + editingTrainer.title + ')';
+      document.getElementById('trainerDeckNameField').value = editingTrainer.deckName || ('Mazo de ' + editingTrainer.name);
+      document.getElementById('trainerDeckPresetSelect').value = '';
+
+      editingTrainerCards = {};
+      var cardsList = getTrainerDeckList(editingTrainer);
+      cardsList.forEach(function (c) {
+        editingTrainerCards[c.name] = (editingTrainerCards[c.name] || 0) + (c.count || 1);
+      });
+
+      renderDeckBuilderModal();
+      document.getElementById('trainerDeckModal').classList.remove('hidden');
+    }
+
+    function closeTrainerDeckModal() {
+      document.getElementById('trainerDeckModal').classList.add('hidden');
+      editingTrainer = null;
+      editingTrainerCards = {};
+    }
+
+    function renderDeckBuilderModal() {
+      var total = 0;
+      var pkmn = 0;
+      var tr = 0;
+      var eng = 0;
+      var hasBasic = false;
+
+      var deckRowsHtml = '';
+      var cardNames = Object.keys(editingTrainerCards).sort();
+      cardNames.forEach(function (name) {
+        var count = editingTrainerCards[name];
+        if (count <= 0) { return; }
+        total += count;
+        var stats = CARD_STATS[name] || {};
+        var st = stats.supertype || 'Desconocido';
+        if (st === 'Pokémon') {
+          pkmn += count;
+          if (!stats.evolvesFrom) { hasBasic = true; }
+        } else if (st === 'Trainer') {
+          tr += count;
+        } else if (st === 'Energy') {
+          eng += count;
+        }
+
+        var isBasicEng = BASIC_ENERGY_NAMES.indexOf(name) !== -1;
+        var canInc = isBasicEng || count < 4;
+
+        deckRowsHtml += '<div class="deck-builder-row">' +
+          '<div class="deck-builder-row-info">' +
+            '<div><strong>' + escapeHtml(name) + '</strong></div>' +
+            '<div class="deck-builder-row-type">' + escapeHtml(st) + (stats.types ? ' · ' + stats.types.join('/') : '') + '</div>' +
+          '</div>' +
+          '<div class="deck-builder-qty-controls">' +
+            '<button type="button" class="deck-qty-btn" data-action="dec" data-name="' + escapeHtml(name) + '">-</button>' +
+            '<span class="deck-qty-val">' + count + '</span>' +
+            '<button type="button" class="deck-qty-btn" data-action="inc" data-name="' + escapeHtml(name) + '" ' + (canInc ? '' : 'disabled') + '>+</button>' +
+            '<button type="button" class="deck-qty-btn" data-action="del" data-name="' + escapeHtml(name) + '" style="color:#ff5c5c;margin-left:4px;">×</button>' +
+          '</div>' +
+        '</div>';
+      });
+
+      if (!deckRowsHtml) {
+        deckRowsHtml = '<div class="empty-note">El mazo está vacío. Agrega cartas desde el catálogo.</div>';
+      }
+      document.getElementById('trainerDeckCardsList').innerHTML = deckRowsHtml;
+
+      // Wire row controls
+      document.querySelectorAll('#trainerDeckCardsList [data-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var act = btn.getAttribute('data-action');
+          var cName = btn.getAttribute('data-name');
+          if (act === 'inc') {
+            editingTrainerCards[cName] = (editingTrainerCards[cName] || 0) + 1;
+          } else if (act === 'dec') {
+            if (editingTrainerCards[cName] > 1) {
+              editingTrainerCards[cName] -= 1;
+            } else {
+              delete editingTrainerCards[cName];
+            }
+          } else if (act === 'del') {
+            delete editingTrainerCards[cName];
+          }
+          renderDeckBuilderModal();
+        });
+      });
+
+      // Update stat chips
+      var countChip = document.getElementById('trainerDeckCountChip');
+      countChip.textContent = 'Total: ' + total + '/60 cartas';
+      countChip.className = 'deck-builder-stat-chip ' + (total === 60 ? 'valid' : 'invalid');
+
+      document.getElementById('trainerDeckPkmnChip').textContent = 'Pokémon: ' + pkmn;
+      document.getElementById('trainerDeckTrainersChip').textContent = 'Entrenador: ' + tr;
+      document.getElementById('trainerDeckEnergyChip').textContent = 'Energía: ' + eng;
+
+      var validChip = document.getElementById('trainerDeckValidChip');
+      var isValid = (total === 60) && hasBasic;
+      validChip.textContent = isValid ? '✓ Mazo Válido' : (!hasBasic ? '⚠ Sin Pokémon Básico' : (total < 60 ? 'Faltan ' + (60 - total) : 'Sobran ' + (total - 60)));
+      validChip.className = 'deck-builder-stat-chip ' + (isValid ? 'valid' : 'invalid');
+
+      document.getElementById('trainerDeckCardCountBadge').textContent = total + ' / 60 cartas';
+
+      var confirmBtn = document.getElementById('trainerDeckConfirmBtn');
+      confirmBtn.disabled = !isValid;
+      var msgEl = document.getElementById('trainerDeckValidationMsg');
+      if (!hasBasic && total === 60) {
+        msgEl.textContent = 'El mazo necesita al menos 1 Pokémon Básico para poder empezar una partida.';
+      } else if (total < 60) {
+        msgEl.textContent = 'Faltan ' + (60 - total) + ' cartas para completar las 60 reglamentarias.';
+      } else if (total > 60) {
+        msgEl.textContent = 'Tienes ' + (total - 60) + ' cartas de más (un mazo real tiene exactamente 60).';
+      } else {
+        msgEl.textContent = '✓ Mazo reglamentario de 60 cartas listo para guardar.';
+      }
+
+      renderCatalogCardsList();
+    }
+
+    // Catalog filtering and adding
+    function renderCatalogCardsList() {
+      var search = (document.getElementById('trainerCatalogSearch').value || '').trim().toLowerCase();
+      var typeFilter = document.getElementById('trainerCatalogTypeFilter').value;
+      var allCards = Object.keys(CARD_STATS).sort();
+
+      var filtered = allCards.filter(function (name) {
+        var stats = CARD_STATS[name] || {};
+        if (search && name.toLowerCase().indexOf(search) === -1) { return false; }
+        if (typeFilter !== 'all' && stats.supertype !== typeFilter) { return false; }
+        return true;
+      });
+
+      var catalogListEl = document.getElementById('trainerCatalogCardsList');
+      if (filtered.length === 0) {
+        catalogListEl.innerHTML = '<div class="empty-note">No se encontraron cartas.</div>';
+        return;
+      }
+
+      catalogListEl.innerHTML = filtered.map(function (name) {
+        var stats = CARD_STATS[name] || {};
+        var currentQty = editingTrainerCards[name] || 0;
+        var isBasicEng = BASIC_ENERGY_NAMES.indexOf(name) !== -1;
+        var atCap = !isBasicEng && currentQty >= 4;
+
+        return '<div class="deck-builder-row">' +
+          '<div class="deck-builder-row-info">' +
+            '<div><strong>' + escapeHtml(name) + '</strong> ' + (currentQty > 0 ? '<span style="color:#d4af37;">(×' + currentQty + ')</span>' : '') + '</div>' +
+            '<div class="deck-builder-row-type">' + escapeHtml(stats.supertype || '') + (stats.types ? ' · ' + stats.types.join('/') : '') + (stats.evolvesFrom ? ' · Ev: ' + stats.evolvesFrom : '') + '</div>' +
+          '</div>' +
+          '<div class="deck-builder-qty-controls">' +
+            '<button type="button" class="btn-secondary add-to-deck-btn" data-name="' + escapeHtml(name) + '" ' + (atCap ? 'disabled' : '') + ' style="padding:4px 8px;font-size:11px;">+ Agregar</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      catalogListEl.querySelectorAll('.add-to-deck-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var name = btn.getAttribute('data-name');
+          var isBasicEng = BASIC_ENERGY_NAMES.indexOf(name) !== -1;
+          var cur = editingTrainerCards[name] || 0;
+          if (!isBasicEng && cur >= 4) { return; }
+          editingTrainerCards[name] = cur + 1;
+          renderDeckBuilderModal();
+        });
+      });
+    }
+
+    document.getElementById('trainerCatalogSearch').addEventListener('input', renderCatalogCardsList);
+    document.getElementById('trainerCatalogTypeFilter').addEventListener('change', renderCatalogCardsList);
+
+    document.getElementById('trainerDeckPresetSelect').addEventListener('change', function () {
+      var presetKey = this.value;
+      if (!presetKey || !editingTrainer) { return; }
+      if (presetKey === 'reset_default') {
+        var defTrainer = DEFAULT_TRAINERS.find(function (x) { return x.id === editingTrainer.id; });
+        if (defTrainer) {
+          editingTrainerCards = {};
+          defTrainer.cards.forEach(function (c) {
+            editingTrainerCards[c.name] = c.count;
+          });
+          document.getElementById('trainerDeckNameField').value = defTrainer.deckName;
+        }
+      } else if (DECKLISTS[presetKey]) {
+        editingTrainerCards = {};
+        DECKLISTS[presetKey].forEach(function (c) {
+          editingTrainerCards[c.name] = c.count;
+        });
+        var optName = (TRAINER_PRESET_OPTIONS.find(function (o) { return o.key === presetKey; }) || {}).name || presetKey;
+        document.getElementById('trainerDeckNameField').value = optName;
+      }
+      renderDeckBuilderModal();
+    });
+
+    document.getElementById('trainerDeckModalClose').addEventListener('click', closeTrainerDeckModal);
+    document.getElementById('trainerDeckModalBackdrop').addEventListener('click', closeTrainerDeckModal);
+    document.getElementById('trainerDeckCancelBtn').addEventListener('click', closeTrainerDeckModal);
+
+    document.getElementById('trainerDeckConfirmBtn').addEventListener('click', function () {
+      if (!editingTrainer) { return; }
+      var total = 0;
+      var hasBasic = false;
+      var cardsArray = [];
+      Object.keys(editingTrainerCards).forEach(function (name) {
+        var count = editingTrainerCards[name];
+        if (count > 0) {
+          total += count;
+          var stats = CARD_STATS[name] || {};
+          if (stats.supertype === 'Pokémon' && !stats.evolvesFrom) { hasBasic = true; }
+          cardsArray.push({ name: name, count: count });
+        }
+      });
+      if (total !== 60 || !hasBasic) { return; }
+
+      var customDeckName = (document.getElementById('trainerDeckNameField').value || '').trim() || ('Mazo de ' + editingTrainer.name);
+      editingTrainer.deckPreset = 'custom';
+      editingTrainer.deckName = customDeckName;
+      editingTrainer.cards = cardsArray;
+
+      renderTrainersList();
+      closeTrainerDeckModal();
+    });
+
+    var saveTrainersBtn = document.getElementById('saveTrainersBtn');
+    if (saveTrainersBtn) {
+      saveTrainersBtn.addEventListener('click', function () {
+        saveTrainersBtn.disabled = true;
+        saveTrainersBtn.textContent = 'Guardando…';
+        var statusEl = document.getElementById('trainersStatus');
+        statusEl.className = 'status-msg';
+        statusEl.textContent = '';
+
+        saveTrainersConfigSync(currentTrainers);
+
+        firebase.firestore().collection('config').doc('trainers').set({
+          trainers: currentTrainers,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).then(function () {
+          saveTrainersBtn.disabled = false;
+          saveTrainersBtn.textContent = 'Guardar Entrenadores';
+          statusEl.className = 'status-msg ok';
+          statusEl.textContent = '✓ Entrenadores y mazos guardados correctamente en Firestore y LocalStorage.';
+          setTimeout(function () { statusEl.textContent = ''; }, 4000);
+        }).catch(function (err) {
+          console.warn('Error guardando en Firestore, guardado en LocalStorage:', err);
+          saveTrainersBtn.disabled = false;
+          saveTrainersBtn.textContent = 'Guardar Entrenadores';
+          statusEl.className = 'status-msg ok';
+          statusEl.textContent = '✓ Mazos guardados en LocalStorage (' + (err.message || 'Firestore offline') + ').';
+          setTimeout(function () { statusEl.textContent = ''; }, 4000);
+        });
+      });
+    }
+
+    var resetTrainersBtn = document.getElementById('resetTrainersBtn');
+    if (resetTrainersBtn) {
+      resetTrainersBtn.addEventListener('click', function () {
+        if (!confirm('¿Restablecer todos los entrenadores a sus mazos originales por defecto?')) { return; }
+        currentTrainers = cloneTrainers(DEFAULT_TRAINERS);
+        saveTrainersConfigSync(currentTrainers);
+        renderTrainersList();
+        var statusEl = document.getElementById('trainersStatus');
+        statusEl.className = 'status-msg ok';
+        statusEl.textContent = '✓ Mazos restablecidos por defecto. Haz clic en "Guardar Entrenadores" para confirmar en la nube.';
       });
     }
 
