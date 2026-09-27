@@ -220,9 +220,13 @@ function createGame(rng, playerDeckKey, humanControlled, cpuDeckKey) {
 function startMatch(state, predecidedWinner) {
   state.phase = 'playing';
   state.turnCounter = 1;
+  var flip = (predecidedWinner === 'player' || predecidedWinner === 'cpu')
+    ? null
+    : coinFlip(state);
+  state.openingCoinFlip = flip;
   state.activePlayerId = (predecidedWinner === 'player' || predecidedWinner === 'cpu')
     ? predecidedWinner
-    : (coinFlip(state) === 'H' ? 'player' : 'cpu');
+    : (flip === 'H' ? 'player' : 'cpu');
   // "match-start" gets the same bigger/bolder log styling as "turn-end"
   // (see logHtml, ui.js) -- who actually won the coin flip used to be
   // easy to miss, sitting in the log at the same small size as everything

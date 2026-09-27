@@ -1678,6 +1678,7 @@
   position:absolute;top:12px;padding:8px 24px;border-radius:12px;
   font-family:'Silkscreen',monospace;font-size:16px;font-weight:700;
   letter-spacing:.15em;display:flex;align-items:center;gap:10px;
+  white-space:nowrap;
   opacity:0;transform:translateY(-10px) scale(.9);
   transition:opacity .26s ease,transform .26s cubic-bezier(.175,.885,.32,1.275);
   pointer-events:none;z-index:20;

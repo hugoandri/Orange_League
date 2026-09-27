@@ -3324,6 +3324,7 @@ function mkPokemon(id, name, overrides) {
   state.rng = function () { return 0.9; };
   startMatch(state, state.activePlayerId);
   check('startMatch keeps the RPS-decided winner instead of re-flipping', state.activePlayerId, 'player');
+  check('openingCoinFlip is null for predecided RPS winner', state.openingCoinFlip, null);
 })();
 
 (function testStartMatchStillFlipsACoinWhenNoWinnerIsPredecided() {
@@ -3332,6 +3333,12 @@ function mkPokemon(id, name, overrides) {
   var state = createGame(function () { return 0.99; }, 'overgrowth'); // rng()=0.99 -> tails -> 'cpu'
   startMatch(state);
   check('local play with no predecided winner still coin-flips as before', state.activePlayerId, 'cpu');
+  check('openingCoinFlip records T for tails', state.openingCoinFlip, 'T');
+
+  var stateHeads = createGame(function () { return 0.1; }, 'overgrowth'); // rng()=0.1 -> heads -> 'player'
+  startMatch(stateHeads);
+  check('openingCoinFlip records H for heads', stateHeads.openingCoinFlip, 'H');
+  check('activePlayerId is player on heads', stateHeads.activePlayerId, 'player');
 })();
 
 (function testRedactMatchStateNeverExposesTheActualRpsChoiceOnlyWhetherEachSideSubmitted() {

@@ -1351,7 +1351,7 @@ function addCoinBadge(isCara) {
   badgesEl.appendChild(badge);
 }
 
-function animateSingleCoinFlip(isCara, onFlipDone) {
+function animateSingleCoinFlip(isCara, onFlipDone, opts) {
   var coin = document.getElementById('coinModel');
   var stage = document.getElementById('coinStage');
   var shadow = document.getElementById('coinShadow');
@@ -1419,7 +1419,10 @@ function animateSingleCoinFlip(isCara, onFlipDone) {
       if (banner && bannerIcon && bannerText) {
         banner.className = 'shell-coin-result-banner visible ' + (isCara ? 'cara' : 'cruz');
         bannerIcon.textContent = isCara ? '★' : '✕';
-        bannerText.textContent = isCara ? '¡CARA!' : '¡CRUZ!';
+        var text = isCara
+          ? (opts && opts.bannerCara ? opts.bannerCara : '¡CARA!')
+          : (opts && opts.bannerCruz ? opts.bannerCruz : '¡CRUZ!');
+        bannerText.textContent = text;
       }
 
       setTimeout(function () {
@@ -1431,7 +1434,7 @@ function animateSingleCoinFlip(isCara, onFlipDone) {
 }
 
 var coinFlipSequenceTimeout = null;
-function showCoinFlipsSequence(coinFlips, onDone) {
+function showCoinFlipsSequence(coinFlips, onDone, opts) {
   var overlay = document.getElementById('coinFlipOverlay');
   var badgesEl = document.getElementById('coinFlipBadges');
   var banner = document.getElementById('coinResultBanner');
@@ -1446,6 +1449,10 @@ function showCoinFlipsSequence(coinFlips, onDone) {
 
   clearTimeout(coinFlipSequenceTimeout);
   badgesEl.innerHTML = '';
+  var titleEl = overlay.querySelector('.shell-coin-flip-title');
+  if (titleEl) {
+    titleEl.textContent = (opts && opts.title) ? opts.title : 'LANZAMIENTOS';
+  }
   if (banner) { banner.className = 'shell-coin-result-banner'; }
   if (coin) { coin.style.transform = 'rotateX(0deg)'; }
   if (stage) { stage.style.transform = 'translateY(0px)'; }
@@ -1460,14 +1467,16 @@ function showCoinFlipsSequence(coinFlips, onDone) {
   var flipIndex = 0;
   function nextFlip() {
     if (flipIndex >= coinFlips.length) {
+      var holdMs = (opts && typeof opts.holdMs === 'number') ? opts.holdMs : 650;
       coinFlipSequenceTimeout = setTimeout(function () {
         overlay.classList.add('fading');
         coinFlipSequenceTimeout = setTimeout(function () {
           overlay.classList.add('hidden');
           overlay.classList.remove('fading');
+          if (titleEl) { titleEl.textContent = 'LANZAMIENTOS'; }
           if (onDone) { onDone(); }
         }, 240);
-      }, 650);
+      }, holdMs);
       return;
     }
 
@@ -1479,7 +1488,7 @@ function showCoinFlipsSequence(coinFlips, onDone) {
       addCoinBadge(isCara);
       var pauseBetween = (flipIndex < coinFlips.length) ? 320 : 0;
       coinFlipSequenceTimeout = setTimeout(nextFlip, pauseBetween);
-    });
+    }, opts);
   }
 
   coinFlipSequenceTimeout = setTimeout(nextFlip, 150);
@@ -3306,23 +3315,38 @@ function wireBoardButtons() {
         return;
       }
       if (gameState.phase === 'setup' && gameState.players.player.active) {
+        startMatchBtn.disabled = true;
         startMatch(gameState);
-        startGameClock();
-        startDuelMusic();
-        showCardInViewer(gameState.players.player.active.name, gameState.players.player.active.id);
-        // If the coin flip hands the CPU the opening turn, there's no turn
-        // of mine being cut short here to review -- so, same as ending my
-        // own turn, let it play immediately instead of sitting idle until
-        // a click.
-        if (gameState.activePlayerId === 'cpu') {
-          runCpuTurn();
+        var openingFlip = gameState.openingCoinFlip;
+        var proceedAfterOpening = function () {
+          startGameClock();
+          startDuelMusic();
+          showCardInViewer(gameState.players.player.active.name, gameState.players.player.active.id);
+          // If the coin flip hands the CPU the opening turn, there's no turn
+          // of mine being cut short here to review -- so, same as ending my
+          // own turn, let it play immediately instead of sitting idle until
+          // a click.
+          if (gameState.activePlayerId === 'cpu') {
+            runCpuTurn();
+          } else {
+            // runCpuTurn's own 'TURNO DEL RIVAL' flash covers the other
+            // branch -- this one needs its own "TU TURNO" for the same
+            // reason, since winning the opening coin flip never otherwise
+            // passes through runCpuTurn/proceedWithCpuTurn at all.
+            showTurnFlash('TU TURNO', 'mine');
+            afterPlayerAction();
+          }
+        };
+
+        if (openingFlip) {
+          showCoinFlipsSequence([openingFlip], proceedAfterOpening, {
+            title: '¿QUIÉN EMPIEZA?',
+            bannerCara: '¡CARA! EMPIEZAS TÚ',
+            bannerCruz: '¡CRUZ! EMPIEZA CPU',
+            holdMs: 850
+          });
         } else {
-          // runCpuTurn's own 'TURNO DEL RIVAL' flash covers the other
-          // branch -- this one needs its own "TU TURNO" for the same
-          // reason, since winning the opening coin flip never otherwise
-          // passes through runCpuTurn/proceedWithCpuTurn at all.
-          showTurnFlash('TU TURNO', 'mine');
-          afterPlayerAction();
+          proceedAfterOpening();
         }
       }
     });
