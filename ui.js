@@ -7277,10 +7277,11 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Menu buttons
+  var trainersModalSource = 'menuPlay';
+
+  // Menu buttons: JUGAR (DUELO CONTRA LA CPU) -> Abre el selector de rivales/entrenadores
   document.getElementById('menuPlay').addEventListener('click', function () {
-    hideMenu();
-    showBoardScreen();
-    startNewMatch();
+    openPvpTrainersModal('menuPlay');
   });
   var menuPvpBtn = document.getElementById('menuPvp');
   if (menuPvpBtn) {
@@ -7301,27 +7302,57 @@ document.addEventListener('DOMContentLoaded', function () {
   if (pvpTrainerBattleBtn) {
     pvpTrainerBattleBtn.addEventListener('click', function () {
       document.getElementById('pvpModal').classList.add('hidden');
-      openPvpTrainersModal();
-    });
-  }
-  var pvpTrainersModalClose = document.getElementById('pvpTrainersModalClose');
-  if (pvpTrainersModalClose) {
-    pvpTrainersModalClose.addEventListener('click', function () {
-      document.getElementById('pvpTrainersModal').classList.add('hidden');
-      document.getElementById('pvpModal').classList.remove('hidden');
-    });
-  }
-  var pvpTrainersModalBackdrop = document.getElementById('pvpTrainersModalBackdrop');
-  if (pvpTrainersModalBackdrop) {
-    pvpTrainersModalBackdrop.addEventListener('click', function () {
-      document.getElementById('pvpTrainersModal').classList.add('hidden');
-      document.getElementById('pvpModal').classList.remove('hidden');
+      openPvpTrainersModal('pvp');
     });
   }
 
-  function openPvpTrainersModal() {
+  function closePvpTrainersModal() {
+    var modal = document.getElementById('pvpTrainersModal');
+    if (modal) { modal.classList.add('hidden'); }
+    if (trainersModalSource === 'pvp') {
+      var pvpModal = document.getElementById('pvpModal');
+      if (pvpModal) { pvpModal.classList.remove('hidden'); }
+    } else {
+      playScreenMusic('Songs/Login_Screen_Main_Menu_3.mp3');
+    }
+  }
+
+  var pvpTrainersModalClose = document.getElementById('pvpTrainersModalClose');
+  if (pvpTrainersModalClose) {
+    pvpTrainersModalClose.addEventListener('click', closePvpTrainersModal);
+  }
+  var pvpTrainersModalBackdrop = document.getElementById('pvpTrainersModalBackdrop');
+  if (pvpTrainersModalBackdrop) {
+    pvpTrainersModalBackdrop.addEventListener('click', closePvpTrainersModal);
+  }
+
+  var pvpRandomTrainerBtn = document.getElementById('pvpRandomTrainerBtn');
+  if (pvpRandomTrainerBtn) {
+    pvpRandomTrainerBtn.addEventListener('click', function () {
+      var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);
+      if (!trainers.length) { return; }
+      var rnd = trainers[Math.floor(Math.random() * trainers.length)];
+      challengeTrainer(rnd.id);
+    });
+  }
+
+  function openPvpTrainersModal(source) {
+    trainersModalSource = source || 'menuPlay';
     var modal = document.getElementById('pvpTrainersModal');
     if (!modal) { return; }
+
+    var titleEl = document.getElementById('pvpTrainersTitle');
+    var subEl = document.getElementById('pvpTrainersSub');
+    if (titleEl) {
+      titleEl.textContent = (trainersModalSource === 'pvp') ? 'DESAFIAR ENTRENADORES' : 'SELECCIONAR RIVAL (DUELO CPU)';
+    }
+    if (subEl) {
+      subEl.textContent = (trainersModalSource === 'pvp')
+        ? 'Elige a un duelista legendario para poner a prueba tus habilidades.'
+        : 'Elige al entrenador contra el que deseas batallar en duelo.';
+    }
+
+    playScreenMusic('Songs/PVP_MUSIC_MATCHMAKING.mp3');
 
     var playerDeckSelect = document.getElementById('pvpTrainerPlayerDeckSelect');
     if (playerDeckSelect) {

@@ -1334,11 +1334,14 @@
     <div class="shell-modal-card pvp-trainers-modal-card">
       <div class="pvp-trainers-header">
         <span class="pvp-trainers-badge">⚔️ PS1 RETRO DUELISTS</span>
-        <h2 class="pvp-trainers-title">DESAFIAR ENTRENADORES</h2>
-        <p class="pvp-trainers-sub">Elige a un duelista legendario para poner a prueba tus habilidades.</p>
-        <div class="pvp-trainers-deck-bar">
-          <label for="pvpTrainerPlayerDeckSelect">Tu Mazo:</label>
-          <select id="pvpTrainerPlayerDeckSelect" class="shell-select" style="background:#141210;color:#efe9dd;border:1px solid #d4af37;padding:4px 8px;border-radius:6px;font-family:inherit;font-size:12px;"></select>
+        <h2 class="pvp-trainers-title" id="pvpTrainersTitle">SELECCIONAR RIVAL</h2>
+        <p class="pvp-trainers-sub" id="pvpTrainersSub">Elige al entrenador contra el que deseas batallar en duelo.</p>
+        <div style="display:flex;justify-content:center;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div class="pvp-trainers-deck-bar">
+            <label for="pvpTrainerPlayerDeckSelect">Tu Mazo:</label>
+            <select id="pvpTrainerPlayerDeckSelect" class="shell-select" style="background:#141210;color:#efe9dd;border:1px solid #d4af37;padding:4px 8px;border-radius:6px;font-family:inherit;font-size:12px;"></select>
+          </div>
+          <button type="button" id="pvpRandomTrainerBtn" style="font-family:'Silkscreen',monospace;font-size:11px;padding:7px 14px;background:rgba(212,175,55,0.18);border:1px solid #d4af37;color:#ffd700;border-radius:8px;cursor:pointer;">🎲 RIVAL ALEATORIO</button>
         </div>
       </div>
       <div id="pvpTrainersList" class="pvp-trainers-grid">
