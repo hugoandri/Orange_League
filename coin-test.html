@@ -618,6 +618,82 @@
     </div>
   </div>
 
+  <!-- SECCIÓN: LABORATORIO DE EFECTOS DE SONIDO -->
+  <div class="control-panel" style="margin-top: 24px; max-width: 600px;">
+    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 14px;">
+      <div class="header-badge" style="margin-bottom: 6px;">★ CATÁLOGO DE SFX INTERACTIVO ★</div>
+      <h2 style="font-family:'Pixelify Sans'; font-size:22px; color:#fff; margin-bottom: 4px;">Efectos de Sonido para el Juego</h2>
+      <p style="font-size:12px; color:#9e9384;">Haz clic en cada botón para escuchar las diferentes opciones y estilos en tiempo real.</p>
+    </div>
+
+    <!-- 1. Ataque & Impacto -->
+    <div style="margin-bottom: 16px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--red-accent); margin-bottom: 8px;">⚔️ 1. ATAQUE / IMPACTO / GOLPE</div>
+      <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackHit()">
+          💥 Impacto Normal (Tackle)
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackSlash()">
+          🗡️ Corte Rápido (Slash)
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackHeavy()">
+          💣 Golpe Pesado (+40 DMG)
+        </button>
+        <button class="btn" style="background:#2a1515; border:1px solid #732a2a; color:#ff9494; font-size:11px; padding:10px;" onclick="playAttackSpecial()">
+          ⚡ Ataque Especial / Rayo
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. Click en Menú -->
+    <div style="margin-bottom: 16px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--gold); margin-bottom: 8px;">🔘 2. CLICK EN EL MENÚ (UI / BOTONES)</div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickClassic()">
+          🎮 8-Bit Bip (Game Boy)
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickPop()">
+          🫧 Pop Suave (Moderno)
+        </button>
+        <button class="btn" style="background:#252014; border:1px solid #6b5825; color:#fce082; font-size:10px; padding:10px;" onclick="playMenuClickTick()">
+          ⏱️ Tick Preciso (Arcade)
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. Click en Tablero -->
+    <div style="margin-bottom: 16px;">
+      <div style="font-family:'Silkscreen'; font-size:12px; color:var(--green-accent); margin-bottom: 8px;">🃏 3. CLICK EN TABLERO (CARTAS / BANCA / ENERGÍA)</div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardCardPlay()">
+          🎴 Jugar Carta (Snap Tap)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardEnergyAttach()">
+          ✨ Unir Energía (Chime)
+        </button>
+        <button class="btn" style="background:#142416; border:1px solid #2f6335; color:#9dfca8; font-size:10px; padding:10px;" onclick="playBoardSelect()">
+          🎯 Seleccionar Pokémon
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. Cambio de Turno -->
+    <div>
+      <div style="font-family:'Silkscreen'; font-size:12px; color:#74b9ff; margin-bottom: 8px;">🔄 4. CAMBIO DE TURNO (TURN FLASH)</div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnMine()">
+          🌟 ¡Tu Turno! (Triunfal)
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnRival()">
+          ⚠️ Turno Rival (Alerta)
+        </button>
+        <button class="btn" style="background:#141f2d; border:1px solid #294b70; color:#96cbff; font-size:10px; padding:10px;" onclick="playTurnSwoosh()">
+          💨 Swoosh de Pantalla
+        </button>
+      </div>
+    </div>
+  </div>
+
 <script>
   // Estado
   let isFlipping = false;
@@ -667,11 +743,10 @@
     initAudio();
     if (!audioCtx) return;
 
-    // Ting metálico agudo
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
-    const baseFreq = isCara ? 1760 : 1320; // La más brillante en Cara
+    const baseFreq = isCara ? 1760 : 1320;
     osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.9, audioCtx.currentTime + 0.4);
 
@@ -683,7 +758,6 @@
     osc.start();
     osc.stop(audioCtx.currentTime + 0.45);
 
-    // Segundo impacto sutil (rebote)
     setTimeout(() => {
       if (!audioCtx) return;
       const osc2 = audioCtx.createOscillator();
@@ -697,6 +771,300 @@
       osc2.start();
       osc2.stop(audioCtx.currentTime + 0.2);
     }, 90);
+  }
+
+  // --- CATÁLOGO DE SFX SINTETIZADOS ---
+
+  function playNoiseBurst(duration, maxGain, cutoffFreq, filterType = 'lowpass', sweep = false) {
+    initAudio();
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(cutoffFreq, audioCtx.currentTime);
+    if (sweep) {
+      filter.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + duration);
+    }
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(maxGain, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    noise.start(audioCtx.currentTime);
+    noise.stop(audioCtx.currentTime + duration);
+  }
+
+  // 1. ATAQUE / IMPACTO
+  function playAttackHit() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.13);
+
+    gain.gain.setValueAtTime(0.42, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.15);
+
+    playNoiseBurst(0.06, 0.35, 750);
+  }
+
+  function playAttackSlash() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1450, t);
+    osc.frequency.exponentialRampToValueAtTime(260, t + 0.11);
+
+    gain.gain.setValueAtTime(0.28, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.12);
+
+    playNoiseBurst(0.09, 0.28, 2200);
+  }
+
+  function playAttackHeavy() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(25, t + 0.3);
+
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.32);
+
+    playNoiseBurst(0.14, 0.45, 480);
+  }
+
+  function playAttackSpecial() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(1100, t + 0.11);
+    osc.frequency.exponentialRampToValueAtTime(420, t + 0.24);
+
+    gain.gain.setValueAtTime(0.24, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.26);
+  }
+
+  // 2. CLICK EN EL MENÚ
+  function playMenuClickClassic() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(987.77, t); // B5 clásico Game Boy
+
+    gain.gain.setValueAtTime(0.12, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.035);
+  }
+
+  function playMenuClickPop() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(500, t);
+    osc.frequency.exponentialRampToValueAtTime(290, t + 0.04);
+
+    gain.gain.setValueAtTime(0.22, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.045);
+  }
+
+  function playMenuClickTick() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1760, t);
+    osc.frequency.exponentialRampToValueAtTime(900, t + 0.02);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.022);
+  }
+
+  // 3. CLICK EN TABLERO
+  function playBoardCardPlay() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(270, t);
+    osc.frequency.exponentialRampToValueAtTime(75, t + 0.07);
+
+    gain.gain.setValueAtTime(0.26, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.075);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.075);
+
+    playNoiseBurst(0.045, 0.22, 1100);
+  }
+
+  function playBoardEnergyAttach() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, t); // D5
+    gain1.gain.setValueAtTime(0.18, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(t);
+    osc1.stop(t + 0.12);
+
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, t + 0.06); // A5
+    gain2.gain.setValueAtTime(0.24, t + 0.06);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(t + 0.06);
+    osc2.stop(t + 0.22);
+  }
+
+  function playBoardSelect() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(620, t);
+    osc.frequency.exponentialRampToValueAtTime(940, t + 0.05);
+
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  }
+
+  // 4. CAMBIO DE TURNO
+  function playTurnMine() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, idx) => {
+      const startTime = t + (idx * 0.065);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.24, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.15);
+    });
+  }
+
+  function playTurnRival() {
+    initAudio();
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const notes = [392.00, 293.66]; // G4, D4
+    notes.forEach((freq, idx) => {
+      const startTime = t + (idx * 0.09);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.22, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.19);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.19);
+    });
+  }
+
+  function playTurnSwoosh() {
+    initAudio();
+    if (!audioCtx) return;
+    playNoiseBurst(0.22, 0.28, 1400, 'bandpass', true);
   }
 
   // Configuración de velocidades
@@ -726,7 +1094,6 @@
     const banner = document.getElementById('resultBanner');
     banner.classList.remove('visible', 'cara', 'cruz');
 
-    // Determinar resultado: 'H' (Cara) o 'T' (Cruz)
     const result = forcedResult || (Math.random() < 0.5 ? 'H' : 'T');
     const isCara = (result === 'H');
 
@@ -737,9 +1104,6 @@
 
     playFlipSound();
 
-    // Cálculo de vueltas
-    // Cara siempre termina en rotación par (0 mod 360)
-    // Cruz termina en rotación impar (180 mod 360)
     const baseRot = config.turns * 360;
     const finalRot = isCara ? baseRot : (baseRot + 180);
 
@@ -751,30 +1115,22 @@
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / duration);
 
-      // Curva parabólica para la elevación (0 -> 1 -> 0)
-      // Usamos seno para un arco suave de gravedad
       const elevationProgress = Math.sin(progress * Math.PI);
       const currentY = -elevationProgress * apexHeight;
 
-      // Rebote al final (último 15% del tiempo)
       let bounceY = 0;
       if (progress > 0.85) {
         const bounceP = (progress - 0.85) / 0.15;
         bounceY = -Math.sin(bounceP * Math.PI) * 14;
       }
 
-      // Rotación con desaceleración hacia el final
       const easeRotation = 1 - Math.pow(1 - progress, 2.2);
       const currentRotX = finalRot * easeRotation;
-
-      // Inclinación lateral ligera en Y para darle tridimensionalidad
       const wobbleY = Math.sin(progress * Math.PI * 4) * 18 * (1 - progress);
 
-      // Aplicar a la moneda
       stage.style.transform = `translateY(${currentY + bounceY}px)`;
       coin.style.transform = `rotateX(${currentRotX}deg) rotateY(${wobbleY}deg)`;
 
-      // Sombra dinámica: se achica y difumina cuando la moneda sube
       const shadowScale = 1 - (elevationProgress * 0.45);
       const shadowOpacity = 0.85 - (elevationProgress * 0.55);
       const shadowBlur = 4 + (elevationProgress * 12);
@@ -785,7 +1141,6 @@
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        // Aterrizaje
         stage.style.transform = 'translateY(0px)';
         coin.style.transform = isCara ? 'rotateX(0deg)' : 'rotateX(180deg)';
         shadow.style.transform = 'rotateX(60deg) scale(1)';
@@ -806,7 +1161,6 @@
     requestAnimationFrame(animate);
   }
 
-  // Muestra el banner con el resultado
   function showResultBanner(isCara) {
     const banner = document.getElementById('resultBanner');
     const icon = document.getElementById('bannerIcon');
@@ -817,7 +1171,6 @@
     text.textContent = isCara ? '¡CARA!' : '¡CRUZ!';
   }
 
-  // Genera chispas al aterrizar
   function triggerParticles(isCara) {
     const container = document.getElementById('particles');
     container.innerHTML = '';
@@ -832,7 +1185,7 @@
       const angle = (i / count) * (Math.PI * 2);
       const dist = 30 + Math.random() * 35;
       const tx = Math.cos(angle) * dist;
-      const ty = Math.sin(angle) * (dist * 0.45); // elíptico para la perspectiva
+      const ty = Math.sin(angle) * (dist * 0.45);
 
       p.style.setProperty('--tx', `${tx}px`);
       p.style.setProperty('--ty', `${ty}px`);
@@ -840,7 +1193,6 @@
     }
   }
 
-  // Historial y Estadísticas
   function updateHistory(isCara) {
     totalFlips++;
     if (isCara) totalCara++; else totalCruz++;
@@ -854,7 +1206,6 @@
     badge.className = 'history-badge ' + (isCara ? 'cara' : 'cruz');
     badge.textContent = isCara ? 'CARA' : 'CRUZ';
     
-    // Insertar después de la etiqueta
     if (bar.children.length > 1) {
       bar.insertBefore(badge, bar.children[1]);
     } else {
@@ -877,7 +1228,6 @@
     banner.classList.remove('visible');
   }
 
-  // Lanzar racha de N monedas consecutivas
   function flipMultiple(count) {
     if (isFlipping) return;
     let current = 0;
@@ -892,7 +1242,6 @@
     next();
   }
 
-  // Click directo en la moneda
   document.getElementById('coinStage').addEventListener('click', () => {
     if (!isFlipping) flipCoin();
   });
