@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokémon TCG - Selector de Sonidos: Edición 16-Bit & Piano</title>
+  <title>Pokémon TCG - Selector de Sonidos: Edición 16-Bit Auténtica</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -32,8 +32,8 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(ellipse at 15% 0%, rgba(0, 229, 255, 0.10) 0%, transparent 50%),
-        radial-gradient(ellipse at 85% 0%, rgba(192, 132, 252, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 15% 0%, rgba(0, 229, 255, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 0%, rgba(192, 132, 252, 0.12) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 100%, rgba(255, 210, 63, 0.06) 0%, transparent 60%),
         repeating-linear-gradient(rgba(255,255,255,0.015) 0 1px, transparent 1px 32px),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 32px);
@@ -48,7 +48,6 @@
       margin: 0 auto;
     }
 
-    /* Header */
     header {
       text-align: center;
       margin-bottom: 36px;
@@ -79,7 +78,7 @@
     .header-sub {
       color: var(--text-dim);
       font-size: 15px;
-      max-width: 760px;
+      max-width: 780px;
       margin: 0 auto 22px;
       line-height: 1.6;
     }
@@ -87,7 +86,6 @@
       color: #fff;
     }
 
-    /* Master volume bar */
     .master-controls {
       display: flex;
       align-items: center;
@@ -140,7 +138,6 @@
       text-align: right;
     }
 
-    /* Section layout */
     .sections-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -184,7 +181,6 @@
       color: var(--text-dim);
     }
 
-    /* Cards */
     .cards-list {
       display: flex;
       flex-direction: column;
@@ -249,11 +245,6 @@
       color: var(--gold);
       border: 1px solid rgba(255, 210, 63, 0.45);
     }
-    .tag-piano {
-      background: rgba(46, 204, 113, 0.18);
-      color: var(--green);
-      border: 1px solid rgba(46, 204, 113, 0.45);
-    }
     .tag-musicbox {
       background: rgba(192, 132, 252, 0.2);
       color: var(--purple);
@@ -283,7 +274,6 @@
       margin-bottom: 14px;
     }
 
-    /* Controls bar */
     .card-controls {
       display: flex;
       align-items: center;
@@ -341,7 +331,6 @@
       to { transform: scale(1.05); }
     }
 
-    /* Sound waves visualizer */
     .wave-bars {
       display: flex;
       align-items: center;
@@ -374,7 +363,6 @@
     .victory-card .wave-bar { background: var(--cyan); }
     .defeat-card .wave-bar { background: var(--purple); }
 
-    /* Selection pill */
     .select-pill {
       font-family: 'Silkscreen', monospace;
       font-size: 11px;
@@ -402,7 +390,6 @@
       color: var(--purple);
     }
 
-    /* Fixed bottom floating bar */
     .bottom-bar {
       position: fixed;
       bottom: 0;
@@ -495,7 +482,6 @@
       color: #fff;
     }
 
-    /* Toast notification */
     .toast {
       position: fixed;
       top: 24px;
@@ -524,10 +510,10 @@
 
   <div class="container">
     <header>
-      <div class="header-badge">✨ Edición 16-Bit: SNES, GBA & Piano</div>
-      <h1>16-BIT & PIANO STUDIO: 06 WIN! Y 08 LOST...</h1>
+      <div class="header-badge">✨ Edición 16-Bit Auténtica (SNES & GBA)</div>
+      <h1>16-BIT STUDIO: 06 WIN! Y 08 LOST...</h1>
       <p class="header-sub">
-        Las canciones originales interpretadas con <strong>sonido cálido de 16 bits</strong> (Super Nintendo / GBA), <strong>campanas de cristal</strong>, <strong>flauta</strong> y <strong>piano acústico</strong>. Cero estridencia, melódico, acogedor y muy Pokémon.
+        Para derrota ya te ha gustado la <strong>Caja de Música Nostálgica 16-bit</strong>. Aquí tienes las versiones de victoria <strong>100% fieles a 06 Win!</strong> adaptadas a 16 bits (Super Nintendo SPC700, campanas armónicas y caja de música con melodía y bajo auténticos).
       </p>
 
       <div class="master-controls">
@@ -542,24 +528,24 @@
       <!-- COLUMNA VICTORIA -->
       <section class="section-victory">
         <div class="section-title-wrap">
-          <h2 class="section-title">🏆 VICTORIA 16-BIT & PIANO</h2>
-          <span class="section-badge">4 ESTILOS</span>
+          <h2 class="section-title">🏆 06 WIN! (16-BIT AUTÉNTICO)</h2>
+          <span class="section-badge">4 OPCIONES</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Win 1: SNES Campanas & Marimba -->
+          <!-- Win 1: SNES SPC700 Remaster Oficial -->
           <div class="sound-card victory-card selected" id="card-win-1" onclick="selectSound('win', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-snes">SNES SPC700 Reverb</span>
-                <span class="duration-tag">⏱ ~5.4s</span>
+                <span class="tech-tag tag-snes">SNES SPC700 Oficial</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
               </div>
               <div class="select-pill" id="pill-win-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. 16-bit SNES: Campanas de Cristal & Marimba</h3>
+            <h3 class="card-title">1. 16-bit SNES: Remaster Oficial SPC700</h3>
             <p class="card-desc">
-              La melodía original de <strong>06 Win!</strong> tocada con marimba cálida de 16 bits, celesta brillante y cuerdas suaves con el mítico eco del chip SPC700 de Super Nintendo. Muy alegre, dulce y mágico.
+              La canción <strong>06 Win! exacta e íntegra</strong> procesada a través de la arquitectura del chip de Super Nintendo: filtrado gaussiano cálido (elimina el chirrido de 8 bits), eco estéreo por hardware SPC700 y graves profundos. 100% fiel, suave y con pegada.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-1" onclick="togglePlay('win', 1)">
@@ -575,18 +561,18 @@
             </div>
           </div>
 
-          <!-- Win 2: GBA Piano & Strings -->
+          <!-- Win 2: SNES Campanas de Cristal & Celesta (Layered) -->
           <div class="sound-card victory-card" id="card-win-2" onclick="selectSound('win', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-gba">GBA Pokémon Gym</span>
-                <span class="duration-tag">⏱ ~5.4s</span>
+                <span class="tech-tag tag-snes">Campanas & Base Original</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
               </div>
               <div class="select-pill" id="pill-win-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. 16-bit GBA: Piano & Strings de Gimnasio Pokémon</h3>
+            <h3 class="card-title">2. 16-bit SNES: Campanas de Cristal sobre 06 Win!</h3>
             <p class="card-desc">
-              Estilo Game Boy Advance (Pokémon Rubí/Zafiro): piano nítido y cuerdas orquestales de 16 bits interpretando la fanfarria de victoria con dinamismo y orgullo.
+              Mantiene la <strong>melodía, ritmo y timbales completos de 06 Win!</strong> enriquecidos con una capa de campanas de cristal y celesta en los acentos triunfales. Reconocible de inmediato, mágica y dulce.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-2" onclick="togglePlay('win', 2)">
@@ -602,18 +588,18 @@
             </div>
           </div>
 
-          <!-- Win 3: Piano Acústico de Cola & Celesta -->
+          <!-- Win 3: GBA Pokémon Gym -->
           <div class="sound-card victory-card" id="card-win-3" onclick="selectSound('win', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-piano">Piano de Cola & Celesta</span>
-                <span class="duration-tag">⏱ ~5.4s</span>
+                <span class="tech-tag tag-gba">GBA Pokémon Gym</span>
+                <span class="duration-tag">⏱ ~6.4s</span>
               </div>
               <div class="select-pill" id="pill-win-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">3. Piano Acústico de Cola & Celesta</h3>
+            <h3 class="card-title">3. 16-bit GBA: Victoria de Gimnasio Pokémon</h3>
             <p class="card-desc">
-              Estilo juego de cartas moderno (como <em>Hearthstone</em> o <em>Pokémon TCG Pocket</em>): piano de cola cálido y destello de celesta sobre la melodía de <strong>06 Win!</strong>. Fino, distinguido y relajante.
+              La fanfarria oficial de <strong>06 Win!</strong> con la ecualización característica de Game Boy Advance (*Pokémon Rubí/Zafiro*): medios ricos, reverberación ambiental y balance dinámico.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-3" onclick="togglePlay('win', 3)">
@@ -629,18 +615,18 @@
             </div>
           </div>
 
-          <!-- Win 4: Music Box Celesta -->
+          <!-- Win 4: Caja de Música Auténtica 06 Win! -->
           <div class="sound-card victory-card" id="card-win-4" onclick="selectSound('win', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-musicbox">Caja de Música 16-Bit</span>
-                <span class="duration-tag">⏱ ~5.2s</span>
+                <span class="tech-tag tag-musicbox">Caja de Música Fiel</span>
+                <span class="duration-tag">⏱ ~5.5s</span>
               </div>
               <div class="select-pill" id="pill-win-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Caja de Música Mágica 16-bit</h3>
+            <h3 class="card-title">4. Caja de Música Auténtica de 06 Win!</h3>
             <p class="card-desc">
-              Como una cajita de música antigua de ensueño que reproduce la melodía de victoria con campanas agudas cristalinas y reverberación etérea. Muy dulce.
+              Arreglo para caja de música donde las púas tocan la <strong>melodía exacta de 06 Win! junto a los acordes de bajo que le dan su identidad</strong> [La → Re → Mi → La]. Dulce, afinada y 100% reconocible.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-4" onclick="togglePlay('win', 4)">
@@ -662,24 +648,24 @@
       <!-- COLUMNA DERROTA -->
       <section class="section-defeat">
         <div class="section-title-wrap">
-          <h2 class="section-title">🥀 DERROTA 16-BIT & PIANO</h2>
-          <span class="section-badge">4 ESTILOS</span>
+          <h2 class="section-title">🥀 08 LOST... (16-BIT AUTÉNTICO)</h2>
+          <span class="section-badge">TU FAVORITA MARCADA</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Loss 1: Flauta Melancólica SNES -->
+          <!-- Loss 1: Caja de Música Nostálgica (La que te gustó) -->
           <div class="sound-card defeat-card selected" id="card-loss-1" onclick="selectSound('loss', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-snes">Flauta SNES SPC700</span>
+                <span class="tech-tag tag-musicbox">⭐ Tu Favorita</span>
                 <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. 16-bit SNES: Flauta Melancólica & Cuerdas</h3>
+            <h3 class="card-title">1. Caja de Música Nostálgica 16-bit</h3>
             <p class="card-desc">
-              La melodía de <strong>08 Lost...</strong> tocada con flauta de madera suave y pads de cuerdas de 16 bits con eco espacioso al estilo <em>Chrono Trigger / Final Fantasy</em>. Emotiva, dulce y respetuosa.
+              La melodía original de <strong>08 Lost...</strong> en campanas de caja de música antigua que se apagan suavemente en la distancia con eco cálido. Emotiva, reconfortante y hermosa.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-1" onclick="togglePlay('loss', 1)">
@@ -695,18 +681,18 @@
             </div>
           </div>
 
-          <!-- Loss 2: GBA Piano -->
+          <!-- Loss 2: Flauta Melancólica SNES -->
           <div class="sound-card defeat-card" id="card-loss-2" onclick="selectSound('loss', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-gba">GBA Pueblo Lavanda</span>
+                <span class="tech-tag tag-snes">Flauta SNES SPC700</span>
                 <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. 16-bit GBA: Piano Eléctrico & Resignación</h3>
+            <h3 class="card-title">2. 16-bit SNES: Flauta Melancólica & Cuerdas</h3>
             <p class="card-desc">
-              Piano de 16 bits cálido y suave estilo Game Boy Advance, desgranando los acordes melancólicos de <strong>08 Lost...</strong> con calidez reconfortante.
+              La melodía de <strong>08 Lost...</strong> tocada con flauta de madera suave y pads de cuerdas de 16 bits con eco espacioso al estilo *Chrono Trigger / Final Fantasy*. Emotiva y solemne.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-2" onclick="togglePlay('loss', 2)">
@@ -726,14 +712,14 @@
           <div class="sound-card defeat-card" id="card-loss-3" onclick="selectSound('loss', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-piano">Piano Solo Elegía</span>
+                <span class="tech-tag tag-gba">Piano Solo</span>
                 <span class="duration-tag">⏱ ~7.2s</span>
               </div>
               <div class="select-pill" id="pill-loss-3">○ ELEGIR</div>
             </div>
             <h3 class="card-title">3. Piano Acústico Solitario (Elegía de Salón)</h3>
             <p class="card-desc">
-              Interpretación a piano solo con pedal de sustain y pulsación suave. Nostálgica, madura y poética; acompaña la derrota con empatía y elegancia.
+              Interpretación a piano de cola solo con pedal de sustain y pulsación suave. Acompaña la derrota con calma, madurez y empatía.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-3" onclick="togglePlay('loss', 3)">
@@ -749,18 +735,18 @@
             </div>
           </div>
 
-          <!-- Loss 4: Music Box Celesta -->
+          <!-- Loss 4: GBA Piano Eléctrico -->
           <div class="sound-card defeat-card" id="card-loss-4" onclick="selectSound('loss', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-musicbox">Caja de Música Nostálgica</span>
+                <span class="tech-tag tag-gba">GBA Resignación</span>
                 <span class="duration-tag">⏱ ~7.0s</span>
               </div>
               <div class="select-pill" id="pill-loss-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Caja de Música Nostálgica 16-bit</h3>
+            <h3 class="card-title">4. 16-bit GBA: Piano Eléctrico & Resignación</h3>
             <p class="card-desc">
-              Sonido suave de campanas de caja de música que se apaga lentamente en la distancia tras la partida. Pura nostalgia.
+              Piano cálido de 16 bits estilo Game Boy Advance, desgranando los acordes melancólicos de <strong>08 Lost...</strong> con calidez reconfortante.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-4" onclick="togglePlay('loss', 4)">
@@ -787,8 +773,8 @@
     <div class="bottom-inner">
       <div class="summary-box">
         <span class="summary-label">Tu Selección:</span>
-        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: 1. 16-bit SNES: Campanas & Marimba</span>
-        <span class="summary-tag summary-loss" id="summaryLossText">🥀 Derrota: 1. 16-bit SNES: Flauta & Cuerdas</span>
+        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: 1. 16-bit SNES: Remaster Oficial SPC700</span>
+        <span class="summary-tag summary-loss" id="summaryLossText">🥀 Derrota: 1. Caja de Música Nostálgica 16-bit</span>
       </div>
       <div class="bottom-actions">
         <button class="action-btn btn-copy" onclick="copySelection()">
@@ -801,16 +787,16 @@
     </div>
   </div>
 
-  <!-- Audio elements para las pistas 16-bit -->
-  <audio id="audio-win-1" src="Songs/TCG_Win_16Bit_SNES_Bells.mp3" preload="auto"></audio>
-  <audio id="audio-win-2" src="Songs/TCG_Win_16Bit_GBA_Piano.mp3" preload="auto"></audio>
-  <audio id="audio-win-3" src="Songs/TCG_Win_Piano_Celesta.mp3" preload="auto"></audio>
-  <audio id="audio-win-4" src="Songs/TCG_Win_16Bit_Music_Box.mp3" preload="auto"></audio>
+  <!-- Audio elements -->
+  <audio id="audio-win-1" src="Songs/TCG_Win_16Bit_SNES_SPC700.mp3" preload="auto"></audio>
+  <audio id="audio-win-2" src="Songs/TCG_Win_16Bit_SNES_Bells_Layered.mp3" preload="auto"></audio>
+  <audio id="audio-win-3" src="Songs/TCG_Win_16Bit_GBA_Gym.mp3" preload="auto"></audio>
+  <audio id="audio-win-4" src="Songs/TCG_Win_Music_Box_Authentic.mp3" preload="auto"></audio>
 
-  <audio id="audio-loss-1" src="Songs/TCG_Loss_16Bit_SNES_Flute.mp3" preload="auto"></audio>
-  <audio id="audio-loss-2" src="Songs/TCG_Loss_16Bit_GBA_Piano.mp3" preload="auto"></audio>
+  <audio id="audio-loss-1" src="Songs/TCG_Loss_16Bit_Music_Box.mp3" preload="auto"></audio>
+  <audio id="audio-loss-2" src="Songs/TCG_Loss_16Bit_SNES_Flute.mp3" preload="auto"></audio>
   <audio id="audio-loss-3" src="Songs/TCG_Loss_Piano_Solo.mp3" preload="auto"></audio>
-  <audio id="audio-loss-4" src="Songs/TCG_Loss_16Bit_Music_Box.mp3" preload="auto"></audio>
+  <audio id="audio-loss-4" src="Songs/TCG_Loss_16Bit_GBA_Piano.mp3" preload="auto"></audio>
 
   <script>
     var currentlyPlaying = null;
@@ -819,16 +805,16 @@
 
     var titles = {
       win: {
-        1: "1. 16-bit SNES: Campanas de Cristal & Marimba (06 Win!)",
-        2: "2. 16-bit GBA: Piano & Strings de Gimnasio Pokémon (06 Win!)",
-        3: "3. Piano Acústico de Cola & Celesta (06 Win!)",
-        4: "4. Caja de Música Mágica 16-bit (06 Win!)"
+        1: "1. 16-bit SNES: Remaster Oficial SPC700 (06 Win!)",
+        2: "2. 16-bit SNES: Campanas de Cristal sobre 06 Win!",
+        3: "3. 16-bit GBA: Victoria de Gimnasio Pokémon (06 Win!)",
+        4: "4. Caja de Música Auténtica de 06 Win!"
       },
       loss: {
-        1: "1. 16-bit SNES: Flauta Melancólica & Cuerdas (08 Lost...)",
-        2: "2. 16-bit GBA: Piano Eléctrico & Resignación (08 Lost...)",
+        1: "1. Caja de Música Nostálgica 16-bit (08 Lost...)",
+        2: "2. 16-bit SNES: Flauta Melancólica & Cuerdas (08 Lost...)",
         3: "3. Piano Acústico Solitario - Elegía (08 Lost...)",
-        4: "4. Caja de Música Nostálgica 16-bit (08 Lost...)"
+        4: "4. 16-bit GBA: Piano Eléctrico & Resignación (08 Lost...)"
       }
     };
 
@@ -837,7 +823,6 @@
       return slider ? (slider.value / 100) : 0.85;
     }
 
-    // Slider de volumen
     document.getElementById('masterVolume').addEventListener('input', function(e) {
       var val = e.target.value;
       document.getElementById('masterVolumeVal').textContent = val + '%';
@@ -852,7 +837,6 @@
       });
     });
 
-    // Detener cualquier sonido en curso
     function stopAllPlaying() {
       if (currentlyPlaying) {
         var card = document.getElementById('card-' + currentlyPlaying.type + '-' + currentlyPlaying.id);
@@ -877,14 +861,13 @@
       });
     }
 
-    // Toggle de reproducción
     function togglePlay(type, id) {
       if (currentlyPlaying && currentlyPlaying.type === type && currentlyPlaying.id === id) {
         stopAllPlaying();
         return;
       }
       stopAllPlaying();
-      play16BitOption(type, id);
+      playOption(type, id);
     }
 
     function markButtonPlaying(type, id) {
@@ -897,7 +880,7 @@
       }
     }
 
-    function play16BitOption(type, id) {
+    function playOption(type, id) {
       var vol = getMasterVolume();
       markButtonPlaying(type, id);
 
@@ -912,9 +895,6 @@
       }
     }
 
-    // ==========================================
-    // SELECCIÓN Y FEEDBACK
-    // ==========================================
     function selectSound(type, id) {
       if (type === 'win') {
         selectedWin = id;
@@ -938,9 +918,9 @@
     }
 
     function copySelection() {
-      var text = "Hola! He probado las opciones en 16-bit / Piano y elijo:\n" +
-                 "- Victoria (06 Win!): " + titles.win[selectedWin] + "\n" +
-                 "- Derrota (08 Lost...): " + titles.loss[selectedLoss];
+      var text = "Hola! He probado las opciones y elijo:\n" +
+                 "- Victoria (06 Win! en 16-bit): " + titles.win[selectedWin] + "\n" +
+                 "- Derrota (08 Lost... en 16-bit): " + titles.loss[selectedLoss];
       
       navigator.clipboard.writeText(text).then(function() {
         showToast("✓ ¡Selección copiada al portapapeles!");
