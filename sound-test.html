@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokémon TCG - Selector de Sonidos Modernizados: Victoria & Derrota</title>
+  <title>Pokémon TCG - Selector de Sonidos: Edición Guitarra</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #07090e;
-      --card-bg: rgba(18, 26, 43, 0.85);
+      --card-bg: rgba(18, 26, 43, 0.88);
       --card-border: rgba(64, 98, 148, 0.35);
       --card-border-active: #00e5ff;
       --text: #e6edf8;
@@ -26,6 +26,7 @@
       --purple: #c084fc;
       --purple-glow: rgba(192, 132, 252, 0.4);
       --orange: #ff9f43;
+      --amber: #f59e0b;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,7 +34,7 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(ellipse at 15% 0%, rgba(255, 210, 63, 0.09) 0%, transparent 50%),
+        radial-gradient(ellipse at 15% 0%, rgba(255, 159, 67, 0.10) 0%, transparent 50%),
         radial-gradient(ellipse at 85% 0%, rgba(255, 51, 102, 0.09) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 100%, rgba(0, 229, 255, 0.06) 0%, transparent 60%),
         repeating-linear-gradient(rgba(255,255,255,0.015) 0 1px, transparent 1px 32px),
@@ -59,9 +60,9 @@
       display: inline-block;
       font-family: 'Silkscreen', monospace;
       font-size: 11px;
-      color: var(--gold);
-      background: rgba(255, 210, 63, 0.12);
-      border: 1px solid rgba(255, 210, 63, 0.35);
+      color: var(--orange);
+      background: rgba(255, 159, 67, 0.12);
+      border: 1px solid rgba(255, 159, 67, 0.4);
       padding: 4px 14px;
       border-radius: 999px;
       letter-spacing: 2px;
@@ -70,9 +71,9 @@
     }
     h1 {
       font-family: 'Pixelify Sans', cursive, sans-serif;
-      font-size: 38px;
+      font-size: 40px;
       letter-spacing: 1px;
-      background: linear-gradient(135deg, #ffffff 0%, var(--gold) 45%, var(--red) 100%);
+      background: linear-gradient(135deg, #ffffff 0%, var(--orange) 45%, var(--red) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 10px;
@@ -80,7 +81,7 @@
     .header-sub {
       color: var(--text-dim);
       font-size: 15px;
-      max-width: 720px;
+      max-width: 740px;
       margin: 0 auto 22px;
       line-height: 1.6;
     }
@@ -161,7 +162,7 @@
       border-bottom: 2px solid;
     }
     .section-victory .section-title-wrap {
-      border-color: rgba(255, 210, 63, 0.4);
+      border-color: rgba(255, 159, 67, 0.4);
     }
     .section-defeat .section-title-wrap {
       border-color: rgba(255, 51, 102, 0.4);
@@ -173,7 +174,7 @@
       align-items: center;
       gap: 10px;
     }
-    .section-victory .section-title { color: var(--gold); text-shadow: 0 0 15px var(--gold-glow); }
+    .section-victory .section-title { color: var(--orange); text-shadow: 0 0 15px rgba(255, 159, 67, 0.4); }
     .section-defeat .section-title { color: var(--red); text-shadow: 0 0 15px var(--red-glow); }
 
     .section-badge {
@@ -209,9 +210,9 @@
     }
 
     .sound-card.selected.victory-card {
-      border-color: var(--gold);
-      background: linear-gradient(135deg, rgba(255, 210, 63, 0.12) 0%, rgba(18, 26, 43, 0.95) 100%);
-      box-shadow: 0 0 24px var(--gold-glow);
+      border-color: var(--orange);
+      background: linear-gradient(135deg, rgba(255, 159, 67, 0.14) 0%, rgba(18, 26, 43, 0.95) 100%);
+      box-shadow: 0 0 24px rgba(255, 159, 67, 0.35);
     }
     .sound-card.selected.defeat-card {
       border-color: var(--red);
@@ -240,30 +241,30 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
-    .tag-remaster {
-      background: rgba(0, 229, 255, 0.15);
-      color: var(--cyan);
-      border: 1px solid rgba(0, 229, 255, 0.4);
-    }
-    .tag-synthwave {
-      background: rgba(192, 132, 252, 0.18);
-      color: var(--purple);
-      border: 1px solid rgba(192, 132, 252, 0.45);
-    }
-    .tag-universal {
-      background: rgba(255, 159, 67, 0.18);
+    .tag-rock {
+      background: rgba(255, 159, 67, 0.2);
       color: var(--orange);
       border: 1px solid rgba(255, 159, 67, 0.45);
     }
-    .tag-synth {
-      background: rgba(46, 204, 113, 0.15);
-      color: var(--green);
-      border: 1px solid rgba(46, 204, 113, 0.4);
+    .tag-solo {
+      background: rgba(255, 210, 63, 0.2);
+      color: var(--gold);
+      border: 1px solid rgba(255, 210, 63, 0.45);
     }
-    .tag-original {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-dim);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .tag-acoustic {
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--green);
+      border: 1px solid rgba(46, 204, 113, 0.45);
+    }
+    .tag-metal {
+      background: rgba(192, 132, 252, 0.2);
+      color: var(--purple);
+      border: 1px solid rgba(192, 132, 252, 0.45);
+    }
+    .tag-blues {
+      background: rgba(0, 229, 255, 0.2);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, 0.45);
     }
 
     .duration-tag {
@@ -317,14 +318,14 @@
       color: #fff;
     }
     .victory-card .play-btn {
-      background: linear-gradient(135deg, rgba(255, 210, 63, 0.25), rgba(255, 170, 0, 0.15));
-      color: var(--gold);
-      border: 1px solid rgba(255, 210, 63, 0.5);
+      background: linear-gradient(135deg, rgba(255, 159, 67, 0.25), rgba(255, 107, 107, 0.15));
+      color: var(--orange);
+      border: 1px solid rgba(255, 159, 67, 0.5);
     }
     .victory-card .play-btn:hover {
-      background: var(--gold);
+      background: var(--orange);
       color: #07090e;
-      box-shadow: 0 0 16px var(--gold-glow);
+      box-shadow: 0 0 16px rgba(255, 159, 67, 0.4);
     }
     .defeat-card .play-btn {
       background: linear-gradient(135deg, rgba(255, 51, 102, 0.25), rgba(220, 20, 60, 0.15));
@@ -377,7 +378,7 @@
       0% { height: 4px; }
       100% { height: 20px; }
     }
-    .victory-card .wave-bar { background: var(--gold); }
+    .victory-card .wave-bar { background: var(--orange); }
     .defeat-card .wave-bar { background: var(--red); }
 
     /* Selection pill */
@@ -398,9 +399,9 @@
       font-weight: 700;
     }
     .sound-card.selected.victory-card .select-pill {
-      background: rgba(255, 210, 63, 0.2);
-      border-color: var(--gold);
-      color: var(--gold);
+      background: rgba(255, 159, 67, 0.25);
+      border-color: var(--orange);
+      color: var(--orange);
     }
     .sound-card.selected.defeat-card .select-pill {
       background: rgba(255, 51, 102, 0.2);
@@ -453,9 +454,9 @@
       font-weight: 600;
     }
     .summary-win {
-      background: rgba(255, 210, 63, 0.15);
-      border: 1px solid var(--gold);
-      color: var(--gold);
+      background: rgba(255, 159, 67, 0.18);
+      border: 1px solid var(--orange);
+      color: var(--orange);
     }
     .summary-loss {
       background: rgba(255, 51, 102, 0.15);
@@ -530,16 +531,16 @@
 
   <div class="container">
     <header>
-      <div class="header-badge">Laboratorio de Audio TCG</div>
-      <h1>SONIDOS ORIGINALES MODERNIZADOS</h1>
+      <div class="header-badge">🎸 Edición Especial: Sonidos de Guitarra</div>
+      <h1>GUITAR STUDIO: VICTORIA & DERROTA</h1>
       <p class="header-sub">
-        Todas estas opciones mantienen la <strong>esencia y melodía original de Pokémon</strong>, pero remasterizadas y producidas con <strong>tecnología de sonido moderna</strong> (bajos 808, mayor amplitud estéreo, síntesis actual y compresión de alta fidelidad).
+        Reemplazamos las fanfarrias orquestadas por <strong>riffs, solos y rasgueos de guitarra</strong> (eléctrica rock con overdrive, solo melódico de Pokémon, acústica española, blues y metal).
       </p>
 
       <div class="master-controls">
         <label for="masterVolume">VOLUMEN</label>
-        <input type="range" id="masterVolume" class="volume-slider" min="0" max="100" value="80">
-        <span class="volume-val" id="masterVolumeVal">80%</span>
+        <input type="range" id="masterVolume" class="volume-slider" min="0" max="100" value="85">
+        <span class="volume-val" id="masterVolumeVal">85%</span>
       </div>
     </header>
 
@@ -548,24 +549,24 @@
       <!-- COLUMNA VICTORIA -->
       <section class="section-victory">
         <div class="section-title-wrap">
-          <h2 class="section-title">🏆 VICTORIA (MELODÍA ORIGINAL)</h2>
-          <span class="section-badge">5 OPCIONES</span>
+          <h2 class="section-title">⚡ VICTORIA CON GUITARRA</h2>
+          <span class="section-badge">5 ESTILOS</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Victoria Opción 1: Remaster Hi-Fi TCG -->
+          <!-- Victoria Opción 1: Rock Riff Eléctrico Triunfal -->
           <div class="sound-card victory-card selected" id="card-win-1" onclick="selectSound('win', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-remaster">Remaster Hi-Fi 2026</span>
-                <span class="duration-tag">⏱ ~6.4s</span>
+                <span class="tech-tag tag-rock">Rock Eléctrico</span>
+                <span class="duration-tag">⏱ ~3.6s</span>
               </div>
               <div class="select-pill" id="pill-win-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. Fanfarria TCG: Remaster Hi-Fi</h3>
+            <h3 class="card-title">1. Riff Rock Eléctrico Triunfal</h3>
             <p class="card-desc">
-              La melodía original de Pokémon TCG (06 Win!) procesada con ecualización de sub-graves, ampliación estéreo envolvente y nitidez armónica cristalina. Misma nostalgia, sonido impecable.
+              Power chords contundentes con distorsión crujiente [Mi5 → Sol5 → La5] que rematan en un acorde abierto con bend agudo sostenido y vibrato rockero. Pura adrenalina de victoria.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-1" onclick="togglePlay('win', 1)">
@@ -581,18 +582,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 2: Synthwave / Modern Bass TCG -->
+          <!-- Victoria Opción 2: Solo de Guitarra Rock Pokémon -->
           <div class="sound-card victory-card" id="card-win-2" onclick="selectSound('win', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synthwave">Remix Moderno 808</span>
-                <span class="duration-tag">⏱ ~6.4s</span>
+                <span class="tech-tag tag-solo">Solo Pokémon</span>
+                <span class="duration-tag">⏱ ~4.2s</span>
               </div>
               <div class="select-pill" id="pill-win-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. Fanfarria TCG: Synthwave & Sub 808</h3>
+            <h3 class="card-title">2. Solo de Guitarra: Victoria Pokémon</h3>
             <p class="card-desc">
-              La fanfarria oficial enriquecida con impactos de sub-bajo 808 en los tiempos fuertes y acordes supersaw estéreo en el clímax final. Moderna, enérgica y con gran presencia.
+              La melodía universal de victoria de Pokémon interpretada nota por nota como un solo de guitarra eléctrica con sustain cálido, vibrato y acordes rítmicos de fondo estilo anime / Smash Bros.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-2" onclick="togglePlay('win', 2)">
@@ -608,18 +609,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 3: Fanfarria Universal Pokémon (Junichi Masuda) -->
+          <!-- Victoria Opción 3: Guitarra Acústica Triunfal -->
           <div class="sound-card victory-card" id="card-win-3" onclick="selectSound('win', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-universal">Clásico Universal</span>
-                <span class="duration-tag">⏱ ~5.2s</span>
+                <span class="tech-tag tag-acoustic">Acústica / Flamenco</span>
+                <span class="duration-tag">⏱ ~3.2s</span>
               </div>
               <div class="select-pill" id="pill-win-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">3. Combate Pokémon: Fanfarria Legendaria</h3>
+            <h3 class="card-title">3. Guitarra Acústica: Rasgueo Brillante</h3>
             <p class="card-desc">
-              La mundialmente famosa fanfarria de victoria de Pokémon ("¡Has ganado el combate!"), reinterpretada con synth-brass moderno, base rítmica electrónica y sub-bajo contundente.
+              Rasgueos enérgicos y abiertos con percusión sutil en la madera de la guitarra. Resuelve en un radiante acorde de Sol mayor acústico. Limpio, orgánico y victorioso.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-3" onclick="togglePlay('win', 3)">
@@ -635,18 +636,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 4: Web Audio Synth - Lead Moderno TCG -->
+          <!-- Victoria Opción 4: Heavy Metal Chug & Pinch Harmonic -->
           <div class="sound-card victory-card" id="card-win-4" onclick="selectSound('win', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Síntesis Lead Ágil</span>
-                <span class="duration-tag">⏱ ~2.8s</span>
+                <span class="tech-tag tag-metal">Heavy Metal Chug</span>
+                <span class="duration-tag">⏱ ~3.0s</span>
               </div>
               <div class="select-pill" id="pill-win-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Síntesis TCG: Lead Polifónico Dinámico</h3>
+            <h3 class="card-title">4. Heavy Metal: Chugs & Armónico Chillón</h3>
             <p class="card-desc">
-              La melodía original de victoria interpretada nota por nota mediante sintetizador en tiempo real: ataque de trompetas doradas [La, Fa#, La, Re, Si, Do#, Mi], bajo sintético y campana final.
+              Palm-muting agresivo y pesado en afinación grave ("chug-chug-chug") que culmina con un armónico agudo chirriante (pinch harmonic) y decaimiento poderoso.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-4" onclick="togglePlay('win', 4)">
@@ -662,18 +663,18 @@
             </div>
           </div>
 
-          <!-- Victoria Opción 5: Original 1998 (Referencia) -->
+          <!-- Victoria Opción 5: J-Rock / Funk Pokémon -->
           <div class="sound-card victory-card" id="card-win-5" onclick="selectSound('win', 5)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-original">Original Game Boy 1998</span>
-                <span class="duration-tag">⏱ ~6.4s</span>
+                <span class="tech-tag tag-rock">J-Rock Crunch</span>
+                <span class="duration-tag">⏱ ~3.4s</span>
               </div>
               <div class="select-pill" id="pill-win-5">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">5. Original 1998 (Audio GBC Clásico)</h3>
+            <h3 class="card-title">5. J-Rock / Funk Pokémon: Chops Rítmicos</h3>
             <p class="card-desc">
-              El archivo original sin procesar tal como sonaba en la Game Boy Color. Úsalo para comparar cómo evoluciona hacia las versiones modernizadas de arriba.
+              Guitarra eléctrica con crunch crujiente tocando acordes rítmicos funk/anime que avanzan con cadencia alegre y rematan en un acorde mayor brillante.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-win-5" onclick="togglePlay('win', 5)">
@@ -695,24 +696,24 @@
       <!-- COLUMNA DERROTA -->
       <section class="section-defeat">
         <div class="section-title-wrap">
-          <h2 class="section-title">💀 DERROTA (MELODÍA ORIGINAL)</h2>
-          <span class="section-badge">5 OPCIONES</span>
+          <h2 class="section-title">🥀 DERROTA CON GUITARRA</h2>
+          <span class="section-badge">5 ESTILOS</span>
         </div>
 
         <div class="cards-list">
           
-          <!-- Derrota Opción 1: Remaster Hi-Fi TCG -->
+          <!-- Derrota Opción 1: Guitarra Acústica Melancólica -->
           <div class="sound-card defeat-card selected" id="card-loss-1" onclick="selectSound('loss', 1)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-remaster">Remaster Hi-Fi 2026</span>
-                <span class="duration-tag">⏱ ~7.0s</span>
+                <span class="tech-tag tag-acoustic">Acústica Melancólica</span>
+                <span class="duration-tag">⏱ ~3.8s</span>
               </div>
               <div class="select-pill" id="pill-loss-1">● SELECCIONADO</div>
             </div>
-            <h3 class="card-title">1. Derrota TCG: Remaster Hi-Fi</h3>
+            <h3 class="card-title">1. Guitarra Acústica: Punteo Melancólico</h3>
             <p class="card-desc">
-              El tema original de derrota (08 Lost...) restaurado con acústica estéreo cálida, compresión moderna y realce de frecuencias graves para un tono suave y conmovedor.
+              Punteo suave y pausado de cuerdas acústicas frotadas que descienden en arpegio menor y terminan en un acorde de Mi menor desvaneciéndose en silencio. Íntimo y emotivo.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-1" onclick="togglePlay('loss', 1)">
@@ -728,18 +729,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 2: Neo-Chill / Ambient Lo-Fi TCG -->
+          <!-- Derrota Opción 2: Blues Eléctrico Melancólico -->
           <div class="sound-card defeat-card" id="card-loss-2" onclick="selectSound('loss', 2)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synthwave">Neo-Chill & Ambient</span>
-                <span class="duration-tag">⏱ ~7.0s</span>
+                <span class="tech-tag tag-blues">Blues Melancólico</span>
+                <span class="duration-tag">⏱ ~3.6s</span>
               </div>
               <div class="select-pill" id="pill-loss-2">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">2. Derrota TCG: Neo-Chill & Sub-Pad</h3>
+            <h3 class="card-title">2. Blues Eléctrico: Sad Bend & Reverb</h3>
             <p class="card-desc">
-              La melodía original de derrota combinada con una capa de bajo ambiental envolvente y textura cálida. Transmite reflexión y elegancia tras un duelo reñido.
+              Guitarra eléctrica limpia con reverb profundo de amplificador Fender: una nota doblada (bend) triste que desciende lentamente con vibrato tembloroso en Re menor.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-2" onclick="togglePlay('loss', 2)">
@@ -755,18 +756,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 3: Pokemon Universal Blackout -->
+          <!-- Derrota Opción 3: Rasgueo Desafinándose (Whammy Dive) -->
           <div class="sound-card defeat-card" id="card-loss-3" onclick="selectSound('loss', 3)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-universal">Clásico Universal</span>
-                <span class="duration-tag">⏱ ~4.8s</span>
+                <span class="tech-tag tag-metal">Grunge / Dive</span>
+                <span class="duration-tag">⏱ ~3.4s</span>
               </div>
               <div class="select-pill" id="pill-loss-3">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">3. Derrota Pokémon: Debilitado Universal</h3>
+            <h3 class="card-title">3. Rasgueo Desafinándose: Whammy Dive</h3>
             <p class="card-desc">
-              La clásica melodía descendente de derrota de los videojuegos principales de Pokémon [Re5 → Do5 → Sib4 → La4 → Sol4...], producida con piano eléctrico Rhodes moderno y sub-drop.
+              Un acorde menor distorsionado con overdrive que va perdiendo tono y cayendo en picada (efecto palanca de trémolo / whammy bar) hasta apagarse en la oscuridad.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-3" onclick="togglePlay('loss', 3)">
@@ -782,18 +783,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 4: Web Audio Synth - Elegía TCG Moderna -->
+          <!-- Derrota Opción 4: Lo-Fi Chill Guitar -->
           <div class="sound-card defeat-card" id="card-loss-4" onclick="selectSound('loss', 4)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-synth">Síntesis Melódica</span>
-                <span class="duration-tag">⏱ ~2.6s</span>
+                <span class="tech-tag tag-solo">Neo-Soul / Lo-Fi</span>
+                <span class="duration-tag">⏱ ~3.5s</span>
               </div>
               <div class="select-pill" id="pill-loss-4">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">4. Síntesis TCG: Elegía Menor Suspendida</h3>
+            <h3 class="card-title">4. Lo-Fi Guitar: Acordes Neo-Soul</h3>
             <p class="card-desc">
-              Interpretación sintetizada moderna de la melodía cromática triste de Pokémon TCG con ondas senoidales puras y acorde de resolución solemne en Do menor.
+              Arpegio de guitarra eléctrica suave con sutil calidez de cinta y textura Lo-Fi. Acorde Fa# menor 9 elegante, relajante y nostálgico tras una derrota ajustada.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-4" onclick="togglePlay('loss', 4)">
@@ -809,18 +810,18 @@
             </div>
           </div>
 
-          <!-- Derrota Opción 5: Original 1998 (Referencia) -->
+          <!-- Derrota Opción 5: Guitarra Eléctrica Solitaria -->
           <div class="sound-card defeat-card" id="card-loss-5" onclick="selectSound('loss', 5)">
             <div class="card-top">
               <div class="card-meta">
-                <span class="tech-tag tag-original">Original Game Boy 1998</span>
-                <span class="duration-tag">⏱ ~7.0s</span>
+                <span class="tech-tag tag-blues">Lamento Vintage</span>
+                <span class="duration-tag">⏱ ~3.6s</span>
               </div>
               <div class="select-pill" id="pill-loss-5">○ ELEGIR</div>
             </div>
-            <h3 class="card-title">5. Original 1998 (Audio GBC Clásico)</h3>
+            <h3 class="card-title">5. Guitarra Solitaria: Eco & Resignación</h3>
             <p class="card-desc">
-              El audio original del Game Boy Color sin modificar (08 Lost...). Ideal como referencia para comprobar el cambio respecto a las versiones modernas.
+              Notas punteadas espaciadas en tono menor [La → Fa → Mi → Re] con eco de cinta cálido. Sensación de escenario vacío tras el combate.
             </p>
             <div class="card-controls" onclick="event.stopPropagation();">
               <button class="play-btn" id="btn-loss-5" onclick="togglePlay('loss', 5)">
@@ -847,8 +848,8 @@
     <div class="bottom-inner">
       <div class="summary-box">
         <span class="summary-label">Tu Selección:</span>
-        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: 1. Fanfarria TCG: Remaster Hi-Fi</span>
-        <span class="summary-tag summary-loss" id="summaryLossText">💀 Derrota: 1. Derrota TCG: Remaster Hi-Fi</span>
+        <span class="summary-tag summary-win" id="summaryWinText">⚡ Victoria: 1. Riff Rock Eléctrico Triunfal</span>
+        <span class="summary-tag summary-loss" id="summaryLossText">🥀 Derrota: 1. Guitarra Acústica: Punteo Melancólico</span>
       </div>
       <div class="bottom-actions">
         <button class="action-btn btn-copy" onclick="copySelection()">
@@ -861,61 +862,44 @@
     </div>
   </div>
 
-  <!-- Audio elements para las pistas pregrabadas -->
-  <audio id="audio-win-1" src="Songs/06_Win_Remaster.mp3" preload="auto"></audio>
-  <audio id="audio-win-2" src="Songs/06_Win_Synthwave_Modern.mp3" preload="auto"></audio>
-  <audio id="audio-win-3" src="Songs/Win_Universal_Pokemon_Modern.mp3" preload="auto"></audio>
-  <audio id="audio-win-5" src="Songs/06 Win!.mp3" preload="auto"></audio>
+  <!-- Audio elements para las pistas de guitarra -->
+  <audio id="audio-win-1" src="Songs/Guitar_Win_Rock_Riff.mp3" preload="auto"></audio>
+  <audio id="audio-win-2" src="Songs/Guitar_Win_Pokemon_Solo.mp3" preload="auto"></audio>
+  <audio id="audio-win-3" src="Songs/Guitar_Win_Acoustic_Strum.mp3" preload="auto"></audio>
+  <audio id="audio-win-4" src="Songs/Guitar_Win_Metal_Chug.mp3" preload="auto"></audio>
+  <audio id="audio-win-5" src="Songs/Guitar_Win_Funk_Rock.mp3" preload="auto"></audio>
 
-  <audio id="audio-loss-1" src="Songs/08_Lost_Remaster.mp3" preload="auto"></audio>
-  <audio id="audio-loss-2" src="Songs/08_Lost_Neo_Chill.mp3" preload="auto"></audio>
-  <audio id="audio-loss-3" src="Songs/Lost_Universal_Pokemon_Modern.mp3" preload="auto"></audio>
-  <audio id="audio-loss-5" src="Songs/08 Lost.mp3" preload="auto"></audio>
+  <audio id="audio-loss-1" src="Songs/Guitar_Loss_Acoustic_Sad.mp3" preload="auto"></audio>
+  <audio id="audio-loss-2" src="Songs/Guitar_Loss_Blues_Bend.mp3" preload="auto"></audio>
+  <audio id="audio-loss-3" src="Songs/Guitar_Loss_Whammy_Dive.mp3" preload="auto"></audio>
+  <audio id="audio-loss-4" src="Songs/Guitar_Loss_Lofi_Soul.mp3" preload="auto"></audio>
+  <audio id="audio-loss-5" src="Songs/Guitar_Loss_Electric_Slow.mp3" preload="auto"></audio>
 
   <script>
-    // --- ESTADO Y AUDIO CONTEXT ---
-    var audioCtx = null;
-    var masterGain = null;
     var currentlyPlaying = null;
-    var stopTimeout = null;
-
     var selectedWin = 1;
     var selectedLoss = 1;
 
     var titles = {
       win: {
-        1: "1. Fanfarria TCG: Remaster Hi-Fi",
-        2: "2. Fanfarria TCG: Synthwave & Sub 808",
-        3: "3. Combate Pokémon: Fanfarria Legendaria Universal",
-        4: "4. Síntesis TCG: Lead Polifónico Dinámico",
-        5: "5. Original 1998 (Audio GBC Clásico)"
+        1: "1. Riff Rock Eléctrico Triunfal (Power Chords Overdrive)",
+        2: "2. Solo de Guitarra: Victoria Pokémon (Lick Melódico)",
+        3: "3. Guitarra Acústica: Rasgueo Brillante (Pop/Flamenco)",
+        4: "4. Heavy Metal: Chugs & Armónico Chillón",
+        5: "5. J-Rock / Funk Pokémon: Chops Rítmicos"
       },
       loss: {
-        1: "1. Derrota TCG: Remaster Hi-Fi",
-        2: "2. Derrota TCG: Neo-Chill & Sub-Pad",
-        3: "3. Derrota Pokémon: Debilitado Universal",
-        4: "4. Síntesis TCG: Elegía Menor Suspendida",
-        5: "5. Original 1998 (Audio GBC Clásico)"
+        1: "1. Guitarra Acústica: Punteo Melancólico",
+        2: "2. Blues Eléctrico: Sad Bend & Reverb",
+        3: "3. Rasgueo Desafinándose: Whammy Dive",
+        4: "4. Lo-Fi Guitar: Acordes Neo-Soul",
+        5: "5. Guitarra Solitaria: Eco & Resignación"
       }
     };
 
-    function getAudioContext() {
-      if (!audioCtx) {
-        var AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(getMasterVolume(), audioCtx.currentTime);
-        masterGain.connect(audioCtx.destination);
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
-
     function getMasterVolume() {
       var slider = document.getElementById('masterVolume');
-      return slider ? (slider.value / 100) : 0.8;
+      return slider ? (slider.value / 100) : 0.85;
     }
 
     // Slider de volumen
@@ -923,12 +907,9 @@
       var val = e.target.value;
       document.getElementById('masterVolumeVal').textContent = val + '%';
       var vol = val / 100;
-      if (masterGain && audioCtx) {
-        masterGain.gain.setValueAtTime(vol, audioCtx.currentTime);
-      }
       var audioIds = [
-        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-5',
-        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-5'
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4', 'audio-win-5',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4', 'audio-loss-5'
       ];
       audioIds.forEach(function(id) {
         var el = document.getElementById(id);
@@ -938,14 +919,7 @@
 
     // Detener cualquier sonido en curso
     function stopAllPlaying() {
-      if (stopTimeout) {
-        clearTimeout(stopTimeout);
-        stopTimeout = null;
-      }
       if (currentlyPlaying) {
-        if (typeof currentlyPlaying.stopFn === 'function') {
-          try { currentlyPlaying.stopFn(); } catch(e) {}
-        }
         var card = document.getElementById('card-' + currentlyPlaying.type + '-' + currentlyPlaying.id);
         var btn = document.getElementById('btn-' + currentlyPlaying.type + '-' + currentlyPlaying.id);
         if (card) card.classList.remove('playing');
@@ -956,8 +930,8 @@
         currentlyPlaying = null;
       }
       var audioIds = [
-        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-5',
-        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-5'
+        'audio-win-1', 'audio-win-2', 'audio-win-3', 'audio-win-4', 'audio-win-5',
+        'audio-loss-1', 'audio-loss-2', 'audio-loss-3', 'audio-loss-4', 'audio-loss-5'
       ];
       audioIds.forEach(function(id) {
         var el = document.getElementById(id);
@@ -975,7 +949,7 @@
         return;
       }
       stopAllPlaying();
-      playOption(type, id);
+      playGuitarOption(type, id);
     }
 
     function markButtonPlaying(type, id) {
@@ -988,180 +962,19 @@
       }
     }
 
-    function playOption(type, id) {
+    function playGuitarOption(type, id) {
       var vol = getMasterVolume();
       markButtonPlaying(type, id);
 
-      if (id !== 4) {
-        // Pista pregrabada en audio HTML5
-        var audioId = 'audio-' + type + '-' + id;
-        var audio = document.getElementById(audioId);
-        if (audio) {
-          audio.volume = vol;
-          audio.currentTime = 0;
-          audio.play().catch(function(){});
-          currentlyPlaying = {
-            type: type, id: id,
-            stopFn: function() { audio.pause(); audio.currentTime = 0; }
-          };
-          audio.onended = function() { stopAllPlaying(); };
-        }
-      } else {
-        // Opción 4: Síntesis Web Audio en vivo
-        var ctx = getAudioContext();
-        if (type === 'win') {
-          playVictorySynthTCG(ctx);
-        } else {
-          playDefeatSynthTCG(ctx);
-        }
+      var audioId = 'audio-' + type + '-' + id;
+      var audio = document.getElementById(audioId);
+      if (audio) {
+        audio.volume = vol;
+        audio.currentTime = 0;
+        audio.play().catch(function(){});
+        currentlyPlaying = { type: type, id: id };
+        audio.onended = function() { stopAllPlaying(); };
       }
-    }
-
-    // ========================================================
-    // SÍNTESIS WEB AUDIO API EN TIEMPO REAL
-    // ========================================================
-
-    // Victoria Opción 4: Melodía oficial Pokémon TCG sintetizada moderna
-    function playVictorySynthTCG(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      // Melodía exacta de la fanfarria de Ichiro Shimakura (TCG)
-      var melody = [
-        { f: 440.00, time: 0.00, dur: 0.12 }, // A4
-        { f: 369.99, time: 0.12, dur: 0.12 }, // F#4
-        { f: 440.00, time: 0.24, dur: 0.16 }, // A4
-        { f: 440.00, time: 0.44, dur: 0.10 }, // A4
-        { f: 369.99, time: 0.55, dur: 0.10 }, // F#4
-        { f: 440.00, time: 0.66, dur: 0.16 }, // A4
-        { f: 587.33, time: 0.88, dur: 0.18 }, // D5
-        { f: 493.88, time: 1.08, dur: 0.18 }, // B4
-        { f: 440.00, time: 1.28, dur: 0.25 }, // A4
-        { f: 554.37, time: 1.58, dur: 0.18 }, // C#5
-        { f: 659.25, time: 1.78, dur: 0.22 }, // E5
-        { f: 880.00, time: 2.05, dur: 0.80 }  // A5
-      ];
-
-      melody.forEach(function(n) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(n.f, t + n.time);
-
-        gain.gain.setValueAtTime(0.32, t + n.time);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
-
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(t + n.time);
-        osc.stop(t + n.time + n.dur);
-        activeOscs.push(osc);
-      });
-
-      // Acordes de soporte modernos (Re Mayor -> La Mayor)
-      var chords = [
-        { freqs: [293.66, 369.99, 440.00], time: 0.88, dur: 0.65 },
-        { freqs: [220.00, 277.18, 329.63, 440.00], time: 1.58, dur: 1.2 }
-      ];
-      chords.forEach(function(ch) {
-        ch.freqs.forEach(function(freq) {
-          var osc = ctx.createOscillator();
-          var gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          var flt = ctx.createBiquadFilter();
-          flt.type = 'lowpass';
-          flt.frequency.setValueAtTime(1400, t + ch.time);
-
-          osc.frequency.setValueAtTime(freq, t + ch.time);
-          gain.gain.setValueAtTime(0.09, t + ch.time);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + ch.time + ch.dur);
-
-          osc.connect(flt);
-          flt.connect(gain);
-          gain.connect(dest);
-          osc.start(t + ch.time);
-          osc.stop(t + ch.time + ch.dur);
-          activeOscs.push(osc);
-        });
-      });
-
-      // Sub-bass de impacto en el inicio y resolución
-      [0.0, 1.58].forEach(function(st) {
-        var sub = ctx.createOscillator();
-        var subGain = ctx.createGain();
-        sub.type = 'sine';
-        sub.frequency.setValueAtTime(110, t + st);
-        sub.frequency.exponentialRampToValueAtTime(45, t + st + 0.4);
-        subGain.gain.setValueAtTime(0.38, t + st);
-        subGain.gain.exponentialRampToValueAtTime(0.001, t + st + 0.45);
-        sub.connect(subGain);
-        subGain.connect(dest);
-        sub.start(t + st);
-        sub.stop(t + st + 0.45);
-        activeOscs.push(sub);
-      });
-
-      currentlyPlaying = {
-        type: 'win', id: 4,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2850);
-    }
-
-    // Derrota Opción 4: Melodía oficial Pokémon TCG sintetizada
-    function playDefeatSynthTCG(ctx) {
-      var t = ctx.currentTime;
-      var dest = masterGain;
-      var activeOscs = [];
-
-      // Melodía melancólica de Ichiro Shimakura (08 Lost...)
-      var motif = [
-        { f: 349.23, time: 0.00, dur: 0.32 }, // F4
-        { f: 261.63, time: 0.32, dur: 0.28 }, // C4
-        { f: 233.08, time: 0.60, dur: 0.30 }, // Bb3
-        { f: 311.13, time: 0.90, dur: 0.32 }, // Eb4
-        { f: 233.08, time: 1.22, dur: 0.28 }, // Bb3
-        { f: 207.65, time: 1.50, dur: 0.35 }, // Ab3
-        { f: 261.63, time: 1.85, dur: 0.65 }  // C4 (resolución triste)
-      ];
-
-      motif.forEach(function(n) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(n.f, t + n.time);
-        gain.gain.setValueAtTime(0.28, t + n.time);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(t + n.time);
-        osc.stop(t + n.time + n.dur);
-        activeOscs.push(osc);
-      });
-
-      // Acorde sombrío suave de fondo
-      var chord = [130.81, 155.56, 196.00]; // Do menor
-      chord.forEach(function(freq) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'triangle';
-        var st = t + 1.85;
-        osc.frequency.setValueAtTime(freq, st);
-        gain.gain.setValueAtTime(0.18, st);
-        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.4);
-        osc.connect(gain);
-        gain.connect(dest);
-        osc.start(st);
-        osc.stop(st + 1.4);
-        activeOscs.push(osc);
-      });
-
-      currentlyPlaying = {
-        type: 'loss', id: 4,
-        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
-      };
-      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2600);
     }
 
     // ==========================================
@@ -1176,7 +989,7 @@
           if (c) c.classList.toggle('selected', i === id);
           if (p) p.textContent = (i === id) ? '● SELECCIONADO' : '○ ELEGIR';
         }
-        document.getElementById('summaryWinText').textContent = '🏆 Victoria: ' + titles.win[id];
+        document.getElementById('summaryWinText').textContent = '⚡ Victoria: ' + titles.win[id];
       } else {
         selectedLoss = id;
         for (var j = 1; j <= 5; j++) {
@@ -1185,12 +998,12 @@
           if (cL) cL.classList.toggle('selected', j === id);
           if (pL) pL.textContent = (j === id) ? '● SELECCIONADO' : '○ ELEGIR';
         }
-        document.getElementById('summaryLossText').textContent = '💀 Derrota: ' + titles.loss[id];
+        document.getElementById('summaryLossText').textContent = '🥀 Derrota: ' + titles.loss[id];
       }
     }
 
     function copySelection() {
-      var text = "Hola! He probado los sonidos modernizados y elijo:\n" +
+      var text = "Hola! He probado las opciones de guitarra y elijo:\n" +
                  "- Victoria: " + titles.win[selectedWin] + "\n" +
                  "- Derrota: " + titles.loss[selectedLoss];
       
