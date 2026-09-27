@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon TCG - Selector de Sonidos: Victoria & Derrota</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(18, 26, 43, 0.85);
+      --card-border: rgba(64, 98, 148, 0.35);
+      --card-border-active: #00e5ff;
+      --text: #e6edf8;
+      --text-dim: #8b9bb4;
+      --gold: #ffd23f;
+      --gold-glow: rgba(255, 210, 63, 0.4);
+      --cyan: #00e5ff;
+      --cyan-glow: rgba(0, 229, 255, 0.35);
+      --green: #2ecc71;
+      --green-glow: rgba(46, 204, 113, 0.35);
+      --red: #ff3366;
+      --red-glow: rgba(255, 51, 102, 0.4);
+      --purple: #a855f7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(ellipse at 20% 0%, rgba(255, 210, 63, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 0%, rgba(255, 51, 102, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(0, 229, 255, 0.06) 0%, transparent 60%),
+        repeating-linear-gradient(rgba(255,255,255,0.015) 0 1px, transparent 1px 32px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 32px);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 32px 20px 120px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+    .header-badge {
+      display: inline-block;
+      font-family: 'Silkscreen', monospace;
+      font-size: 11px;
+      color: var(--gold);
+      background: rgba(255, 210, 63, 0.12);
+      border: 1px solid rgba(255, 210, 63, 0.35);
+      padding: 4px 14px;
+      border-radius: 999px;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-family: 'Pixelify Sans', cursive, sans-serif;
+      font-size: 40px;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #ffffff 0%, var(--gold) 45%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    .header-sub {
+      color: var(--text-dim);
+      font-size: 15px;
+      max-width: 640px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+
+    /* Master volume bar */
+    .master-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: rgba(16, 23, 38, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 24px;
+      max-width: 520px;
+      margin: 0 auto;
+      backdrop-filter: blur(10px);
+    }
+    .master-controls label {
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .volume-slider {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #1c2738;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan-glow);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    .volume-val {
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      color: var(--gold);
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* Section layout */
+    .sections-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 36px;
+    }
+    @media (max-width: 900px) {
+      .sections-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid;
+    }
+    .section-victory .section-title-wrap {
+      border-color: rgba(255, 210, 63, 0.4);
+    }
+    .section-defeat .section-title-wrap {
+      border-color: rgba(255, 51, 102, 0.4);
+    }
+    .section-title {
+      font-family: 'Pixelify Sans', sans-serif;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-victory .section-title { color: var(--gold); text-shadow: 0 0 15px var(--gold-glow); }
+    .section-defeat .section-title { color: var(--red); text-shadow: 0 0 15px var(--red-glow); }
+
+    .section-badge {
+      font-family: 'Silkscreen', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+    }
+
+    /* Cards */
+    .cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sound-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+    }
+    .sound-card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .sound-card.selected.victory-card {
+      border-color: var(--gold);
+      background: linear-gradient(135deg, rgba(255, 210, 63, 0.12) 0%, rgba(18, 26, 43, 0.95) 100%);
+      box-shadow: 0 0 24px var(--gold-glow);
+    }
+    .sound-card.selected.defeat-card {
+      border-color: var(--red);
+      background: linear-gradient(135deg, rgba(255, 51, 102, 0.12) 0%, rgba(18, 26, 43, 0.95) 100%);
+      box-shadow: 0 0 24px var(--red-glow);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tech-tag {
+      font-family: 'Silkscreen', monospace;
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .tag-mp3 {
+      background: rgba(46, 204, 113, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(46, 204, 113, 0.4);
+    }
+    .tag-synth {
+      background: rgba(0, 229, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, 0.4);
+    }
+    .tag-8bit {
+      background: rgba(168, 85, 247, 0.15);
+      color: var(--purple);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    .duration-tag {
+      font-family: 'Silkscreen', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    /* Controls bar */
+    .card-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .play-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.18s ease;
+      background: #1e293b;
+      color: #fff;
+    }
+    .victory-card .play-btn {
+      background: linear-gradient(135deg, rgba(255, 210, 63, 0.25), rgba(255, 170, 0, 0.15));
+      color: var(--gold);
+      border: 1px solid rgba(255, 210, 63, 0.5);
+    }
+    .victory-card .play-btn:hover {
+      background: var(--gold);
+      color: #07090e;
+      box-shadow: 0 0 16px var(--gold-glow);
+    }
+    .defeat-card .play-btn {
+      background: linear-gradient(135deg, rgba(255, 51, 102, 0.25), rgba(220, 20, 60, 0.15));
+      color: var(--red);
+      border: 1px solid rgba(255, 51, 102, 0.5);
+    }
+    .defeat-card .play-btn:hover {
+      background: var(--red);
+      color: #07090e;
+      box-shadow: 0 0 16px var(--red-glow);
+    }
+
+    .play-btn.playing {
+      background: #fff !important;
+      color: #07090e !important;
+      animation: pulseBtn 1s infinite alternate;
+    }
+    @keyframes pulseBtn {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    /* Sound waves visualizer */
+    .wave-bars {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 22px;
+      opacity: 0.3;
+      transition: opacity 0.2s;
+    }
+    .sound-card.playing .wave-bars {
+      opacity: 1;
+    }
+    .wave-bar {
+      width: 3px;
+      height: 6px;
+      background: var(--cyan);
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+    .sound-card.playing .wave-bar {
+      animation: waveBounce 0.6s infinite ease-in-out alternate;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+    @keyframes waveBounce {
+      0% { height: 4px; }
+      100% { height: 20px; }
+    }
+    .victory-card .wave-bar { background: var(--gold); }
+    .defeat-card .wave-bar { background: var(--red); }
+
+    /* Selection pill */
+    .select-pill {
+      font-family: 'Silkscreen', monospace;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-dim);
+      transition: all 0.15s;
+    }
+    .sound-card.selected .select-pill {
+      font-weight: 700;
+    }
+    .sound-card.selected.victory-card .select-pill {
+      background: rgba(255, 210, 63, 0.2);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    .sound-card.selected.defeat-card .select-pill {
+      background: rgba(255, 51, 102, 0.2);
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* Fixed bottom floating bar */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(10, 14, 23, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+      padding: 16px 24px;
+      z-index: 100;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+    }
+    .bottom-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .summary-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .summary-label {
+      font-family: 'Silkscreen', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .summary-tag {
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+    .summary-win {
+      background: rgba(255, 210, 63, 0.15);
+      border: 1px solid var(--gold);
+      color: var(--gold);
+    }
+    .summary-loss {
+      background: rgba(255, 51, 102, 0.15);
+      border: 1px solid var(--red);
+      color: var(--red);
+    }
+
+    .bottom-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .action-btn {
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      transition: all 0.18s;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-copy {
+      background: var(--cyan);
+      color: #07090e;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+    .btn-copy:hover {
+      background: #66f0ff;
+      transform: translateY(-2px);
+    }
+    .btn-back {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: var(--green);
+      color: #07090e;
+      font-family: 'Silkscreen', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--green-glow);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toast" id="toastMessage">✓ ¡Selección copiada al portapapeles!</div>
+
+  <div class="container">
+    <header>
+      <div class="header-badge">Laboratorio de Audio TCG</div>
+      <h1>SELECTOR DE SONIDOS</h1>
+      <p class="header-sub">
+        Haz clic en <strong>"▶ ESCUCHAR"</strong> en cada opción para probarla las veces que desees. 
+        Luego marca tus favoritas y pulsa <strong>"COPIAR MI SELECCIÓN"</strong> para informarme tu preferencia.
+      </p>
+
+      <div class="master-controls">
+        <label for="masterVolume">VOLUMEN</label>
+        <input type="range" id="masterVolume" class="volume-slider" min="0" max="100" value="80">
+        <span class="volume-val" id="masterVolumeVal">80%</span>
+      </div>
+    </header>
+
+    <div class="sections-grid">
+      
+      <!-- COLUMNA VICTORIA -->
+      <section class="section-victory">
+        <div class="section-title-wrap">
+          <h2 class="section-title">🏆 SONIDOS DE VICTORIA</h2>
+          <span class="section-badge">4 OPCIONES</span>
+        </div>
+
+        <div class="cards-list">
+          
+          <!-- Victoria Opción 1 -->
+          <div class="sound-card victory-card selected" id="card-win-1" onclick="selectSound('win', 1)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-mp3">Audio Original MP3</span>
+                <span class="duration-tag">⏱ ~7.2s</span>
+              </div>
+              <div class="select-pill" id="pill-win-1">● SELECCIONADO</div>
+            </div>
+            <h3 class="card-title">Opción 1: Fanfarria Clásica Pokémon TCG</h3>
+            <p class="card-desc">
+              La banda sonora oficial original del videojuego de Game Boy (06 Win!.mp3). Alegre, nostálgica, orquestada y reconocible al instante por cualquier fan.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-win-1" onclick="togglePlay('win', 1)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Victoria Opción 2 -->
+          <div class="sound-card victory-card" id="card-win-2" onclick="selectSound('win', 2)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-synth">Síntesis Web Audio</span>
+                <span class="duration-tag">⏱ ~2.8s</span>
+              </div>
+              <div class="select-pill" id="pill-win-2">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 2: Fanfarria Triunfal Dorada</h3>
+            <p class="card-desc">
+              Sintetizador nítido estilo JRPG: arranque staccato de trompetas doradas [Do, Mi, Sol, Do alto] con resolución en acordes mayores sostenidos y destello armónico de campanas.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-win-2" onclick="togglePlay('win', 2)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Victoria Opción 3 -->
+          <div class="sound-card victory-card" id="card-win-3" onclick="selectSound('win', 3)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-8bit">Chiptune 8-Bit</span>
+                <span class="duration-tag">⏱ ~1.6s</span>
+              </div>
+              <div class="select-pill" id="pill-win-3">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 3: Chiptune Arcade Victoria</h3>
+            <p class="card-desc">
+              Rápido, enérgico y saltarín. Onda de pulso retro al estilo Game Boy / NES con arpegio mayor acelerado y slide ascendente que celebra la victoria al instante.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-win-3" onclick="togglePlay('win', 3)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Victoria Opción 4 -->
+          <div class="sound-card victory-card" id="card-win-4" onclick="selectSound('win', 4)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-synth">Resonancia Épica</span>
+                <span class="duration-tag">⏱ ~2.6s</span>
+              </div>
+              <div class="select-pill" id="pill-win-4">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 4: Resonancia Legendaria & Campanas</h3>
+            <p class="card-desc">
+              Golpe de bajo cálido y profundo complementado con un barrido de campanas de cristal celestiales que reverberan suavemente. Sensación de triunfo épico en gran torneo.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-win-4" onclick="togglePlay('win', 4)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- COLUMNA DERROTA -->
+      <section class="section-defeat">
+        <div class="section-title-wrap">
+          <h2 class="section-title">💀 SONIDOS DE DERROTA</h2>
+          <span class="section-badge">4 OPCIONES</span>
+        </div>
+
+        <div class="cards-list">
+          
+          <!-- Derrota Opción 1 -->
+          <div class="sound-card defeat-card selected" id="card-loss-1" onclick="selectSound('loss', 1)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-mp3">Audio Original MP3</span>
+                <span class="duration-tag">⏱ ~8.4s</span>
+              </div>
+              <div class="select-pill" id="pill-loss-1">● SELECCIONADO</div>
+            </div>
+            <h3 class="card-title">Opción 1: Melancolía Clásica Pokémon TCG</h3>
+            <p class="card-desc">
+              El tema oficial de derrota del Pokémon TCG original (08 Lost.mp3). Suave, nostálgico, con un toque de resignación elegante y respetuoso.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-loss-1" onclick="togglePlay('loss', 1)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derrota Opción 2 -->
+          <div class="sound-card defeat-card" id="card-loss-2" onclick="selectSound('loss', 2)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-synth">Síntesis Web Audio</span>
+                <span class="duration-tag">⏱ ~2.5s</span>
+              </div>
+              <div class="select-pill" id="pill-loss-2">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 2: Marcha Sombría Menor (Elegía JRPG)</h3>
+            <p class="card-desc">
+              Melodía cromática descendente melancólica que culmina en un acorde profundo de Do menor sostenido con decaimiento suave y solemne.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-loss-2" onclick="togglePlay('loss', 2)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derrota Opción 3 -->
+          <div class="sound-card defeat-card" id="card-loss-3" onclick="selectSound('loss', 3)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-8bit">Chiptune 8-Bit</span>
+                <span class="duration-tag">⏱ ~1.8s</span>
+              </div>
+              <div class="select-pill" id="pill-loss-3">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 3: Retro "Game Over" Arcade (Wah-Wah)</h3>
+            <p class="card-desc">
+              El clásico sonido arcade de 'Fin de Partida': 4 tonos en escalera descendente con un glide final en diente de sierra ("wah-wah") que se desvanece en notas graves.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-loss-3" onclick="togglePlay('loss', 3)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derrota Opción 4 -->
+          <div class="sound-card defeat-card" id="card-loss-4" onclick="selectSound('loss', 4)">
+            <div class="card-top">
+              <div class="card-meta">
+                <span class="tech-tag tag-synth">Cinemático</span>
+                <span class="duration-tag">⏱ ~2.4s</span>
+              </div>
+              <div class="select-pill" id="pill-loss-4">○ ELEGIR</div>
+            </div>
+            <h3 class="card-title">Opción 4: Caída Dramática & Tensión</h3>
+            <p class="card-desc">
+              Un golpe de impacto sordo y grave acompañado de un acorde menor apagado por filtro pasa-bajos. Dramático, tenso y fulminante.
+            </p>
+            <div class="card-controls" onclick="event.stopPropagation();">
+              <button class="play-btn" id="btn-loss-4" onclick="togglePlay('loss', 4)">
+                <span>▶ ESCUCHAR</span>
+              </button>
+              <div class="wave-bars">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Barra flotante de selección inferior -->
+  <div class="bottom-bar">
+    <div class="bottom-inner">
+      <div class="summary-box">
+        <span class="summary-label">Tu Selección:</span>
+        <span class="summary-tag summary-win" id="summaryWinText">🏆 Victoria: Opción 1 (Clásica TCG)</span>
+        <span class="summary-tag summary-loss" id="summaryLossText">💀 Derrota: Opción 1 (Melancolía TCG)</span>
+      </div>
+      <div class="bottom-actions">
+        <button class="action-btn btn-copy" onclick="copySelection()">
+          <span>📋 COPIAR MI SELECCIÓN</span>
+        </button>
+        <a href="index.html" class="action-btn btn-back">
+          <span>VOLVER AL JUEGO</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio elements para las pistas MP3 originales -->
+  <audio id="audio-win-1" src="Songs/06 Win!.mp3" preload="auto"></audio>
+  <audio id="audio-loss-1" src="Songs/08 Lost.mp3" preload="auto"></audio>
+
+  <script>
+    // --- ESTADO Y AUDIO CONTEXT ---
+    var audioCtx = null;
+    var masterGain = null;
+    var currentlyPlaying = null; // { type: 'win'|'loss', id: 1..4, stopFn: function }
+    var stopTimeout = null;
+
+    var selectedWin = 1;
+    var selectedLoss = 1;
+
+    var titles = {
+      win: {
+        1: "Opción 1: Fanfarria Clásica TCG (MP3)",
+        2: "Opción 2: Fanfarria Triunfal Dorada (JRPG Synth)",
+        3: "Opción 3: Chiptune Arcade Victoria (8-bit)",
+        4: "Opción 4: Resonancia Legendaria & Campanas"
+      },
+      loss: {
+        1: "Opción 1: Melancolía Clásica TCG (MP3)",
+        2: "Opción 2: Marcha Sombría Menor (Elegía JRPG)",
+        3: "Opción 3: Retro 'Game Over' Arcade (Wah-Wah 8-bit)",
+        4: "Opción 4: Caída Dramática & Tensión"
+      }
+    };
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        var AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(getMasterVolume(), audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function getMasterVolume() {
+      var slider = document.getElementById('masterVolume');
+      return slider ? (slider.value / 100) : 0.8;
+    }
+
+    // Slider de volumen
+    document.getElementById('masterVolume').addEventListener('input', function(e) {
+      var val = e.target.value;
+      document.getElementById('masterVolumeVal').textContent = val + '%';
+      var vol = val / 100;
+      if (masterGain && audioCtx) {
+        masterGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+      }
+      var aWin = document.getElementById('audio-win-1');
+      if (aWin) aWin.volume = vol;
+      var aLoss = document.getElementById('audio-loss-1');
+      if (aLoss) aLoss.volume = vol;
+    });
+
+    // Detener cualquier sonido en curso
+    function stopAllPlaying() {
+      if (stopTimeout) {
+        clearTimeout(stopTimeout);
+        stopTimeout = null;
+      }
+      if (currentlyPlaying) {
+        if (typeof currentlyPlaying.stopFn === 'function') {
+          try { currentlyPlaying.stopFn(); } catch(e) {}
+        }
+        var card = document.getElementById('card-' + currentlyPlaying.type + '-' + currentlyPlaying.id);
+        var btn = document.getElementById('btn-' + currentlyPlaying.type + '-' + currentlyPlaying.id);
+        if (card) card.classList.remove('playing');
+        if (btn) {
+          btn.classList.remove('playing');
+          btn.innerHTML = '<span>▶ ESCUCHAR</span>';
+        }
+        currentlyPlaying = null;
+      }
+      // Detener audios MP3
+      ['audio-win-1', 'audio-loss-1'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+          el.pause();
+          el.currentTime = 0;
+        }
+      });
+    }
+
+    // Toggle de reproducción
+    function togglePlay(type, id) {
+      if (currentlyPlaying && currentlyPlaying.type === type && currentlyPlaying.id === id) {
+        stopAllPlaying();
+        return;
+      }
+      stopAllPlaying();
+      playOption(type, id);
+    }
+
+    function markButtonPlaying(type, id) {
+      var card = document.getElementById('card-' + type + '-' + id);
+      var btn = document.getElementById('btn-' + type + '-' + id);
+      if (card) card.classList.add('playing');
+      if (btn) {
+        btn.classList.add('playing');
+        btn.innerHTML = '<span>⏹ DETENER</span>';
+      }
+    }
+
+    function playOption(type, id) {
+      var ctx = getAudioContext();
+      var vol = getMasterVolume();
+      markButtonPlaying(type, id);
+
+      // --- VICTORIAS ---
+      if (type === 'win') {
+        if (id === 1) {
+          var audio = document.getElementById('audio-win-1');
+          audio.volume = vol;
+          audio.currentTime = 0;
+          audio.play().catch(function(){});
+          currentlyPlaying = {
+            type: type, id: id,
+            stopFn: function() { audio.pause(); audio.currentTime = 0; }
+          };
+          audio.onended = function() { stopAllPlaying(); };
+        } else if (id === 2) {
+          playVictoryGolden(ctx);
+        } else if (id === 3) {
+          playVictoryChiptune(ctx);
+        } else if (id === 4) {
+          playVictoryEpic(ctx);
+        }
+      }
+
+      // --- DERROTAS ---
+      if (type === 'loss') {
+        if (id === 1) {
+          var audioL = document.getElementById('audio-loss-1');
+          audioL.volume = vol;
+          audioL.currentTime = 0;
+          audioL.play().catch(function(){});
+          currentlyPlaying = {
+            type: type, id: id,
+            stopFn: function() { audioL.pause(); audioL.currentTime = 0; }
+          };
+          audioL.onended = function() { stopAllPlaying(); };
+        } else if (id === 2) {
+          playDefeatSomber(ctx);
+        } else if (id === 3) {
+          playDefeatRetroWah(ctx);
+        } else if (id === 4) {
+          playDefeatCinematicDrop(ctx);
+        }
+      }
+    }
+
+    // ==========================================
+    // SÍNTESIS DE AUDIO (Web Audio API)
+    // ==========================================
+
+    // Victoria 2: Fanfarria Triunfal Dorada (JRPG)
+    function playVictoryGolden(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var intro = [
+        { f: 523.25, time: 0, dur: 0.12 },     // C5
+        { f: 659.25, time: 0.13, dur: 0.12 },  // E5
+        { f: 783.99, time: 0.26, dur: 0.12 },  // G5
+        { f: 1046.50, time: 0.40, dur: 0.26 }  // C6
+      ];
+      intro.forEach(function(n) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(n.f, t + n.time);
+        gain.gain.setValueAtTime(0.3, t + n.time);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(t + n.time);
+        osc.stop(t + n.time + n.dur);
+        activeOscs.push(osc);
+      });
+
+      var chords = [
+        { f: [349.23, 440.00, 523.25], time: 0.70, dur: 0.32, g: 0.22 }, // F
+        { f: [392.00, 493.88, 587.33], time: 1.05, dur: 0.32, g: 0.24 }, // G
+        { f: [261.63, 392.00, 523.25, 659.25, 783.99, 1046.50], time: 1.40, dur: 1.4, g: 0.28 } // C
+      ];
+      chords.forEach(function(ch) {
+        ch.f.forEach(function(freq) {
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + ch.time);
+          gain.gain.setValueAtTime(ch.g / ch.f.length * 2.3, t + ch.time);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + ch.time + ch.dur);
+          osc.connect(gain);
+          gain.connect(dest);
+          osc.start(t + ch.time);
+          osc.stop(t + ch.time + ch.dur);
+          activeOscs.push(osc);
+        });
+      });
+
+      // Shimmer bells
+      var bells = [1046.50, 1318.51, 1567.98, 2093.00];
+      bells.forEach(function(freq, i) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        var st = t + 1.45 + i * 0.05;
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(0.12, st);
+        gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.85);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(st);
+        osc.stop(st + 0.85);
+        activeOscs.push(osc);
+      });
+
+      currentlyPlaying = {
+        type: 'win', id: 2,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2850);
+    }
+
+    // Victoria 3: Chiptune Arcade Victoria (8-bit)
+    function playVictoryChiptune(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var notes = [
+        { f: 392.00, d: 0.07 }, // G4
+        { f: 523.25, d: 0.07 }, // C5
+        { f: 659.25, d: 0.07 }, // E5
+        { f: 783.99, d: 0.07 }, // G5
+        { f: 659.25, d: 0.07 }, // E5
+        { f: 783.99, d: 0.07 }, // G5
+        { f: 1046.50, d: 0.16 }, // C6
+        { f: 783.99, d: 0.08 }, // G5
+        { f: 1046.50, d: 0.08 }, // C6
+        { f: 1318.51, d: 0.40 }  // E6
+      ];
+      var curTime = 0;
+      notes.forEach(function(n) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(n.f, t + curTime);
+        gain.gain.setValueAtTime(0.20, t + curTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + curTime + n.d);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(t + curTime);
+        osc.stop(t + curTime + n.d);
+        activeOscs.push(osc);
+        curTime += n.d;
+      });
+
+      var slideOsc = ctx.createOscillator();
+      var slideGain = ctx.createGain();
+      slideOsc.type = 'square';
+      slideOsc.frequency.setValueAtTime(659.25, t + curTime);
+      slideOsc.frequency.exponentialRampToValueAtTime(1567.98, t + curTime + 0.35);
+      slideGain.gain.setValueAtTime(0.18, t + curTime);
+      slideGain.gain.exponentialRampToValueAtTime(0.001, t + curTime + 0.38);
+      slideOsc.connect(slideGain);
+      slideGain.connect(dest);
+      slideOsc.start(t + curTime);
+      slideOsc.stop(t + curTime + 0.38);
+      activeOscs.push(slideOsc);
+
+      currentlyPlaying = {
+        type: 'win', id: 3,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, (curTime + 0.45) * 1000);
+    }
+
+    // Victoria 4: Resonancia Legendaria & Campanas
+    function playVictoryEpic(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var bass = ctx.createOscillator();
+      var bassGain = ctx.createGain();
+      bass.type = 'triangle';
+      bass.frequency.setValueAtTime(130.81, t); // C3
+      bassGain.gain.setValueAtTime(0.36, t);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, t + 2.4);
+      bass.connect(bassGain);
+      bassGain.connect(dest);
+      bass.start(t);
+      bass.stop(t + 2.4);
+      activeOscs.push(bass);
+
+      var sub = ctx.createOscillator();
+      var subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(65.41, t); // C2
+      subGain.gain.setValueAtTime(0.32, t);
+      subGain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+      sub.connect(subGain);
+      subGain.connect(dest);
+      sub.start(t);
+      sub.stop(t + 2.0);
+      activeOscs.push(sub);
+
+      var sweepNotes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51, 1567.98, 2093.00];
+      sweepNotes.forEach(function(freq, idx) {
+        var st = t + 0.08 + idx * 0.07;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(0.20, st);
+        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.6);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(st);
+        osc.stop(st + 1.6);
+        activeOscs.push(osc);
+      });
+
+      var chord = [523.25, 659.25, 783.99, 1046.50];
+      chord.forEach(function(freq) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        var st = t + 0.65;
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(0.14, st);
+        gain.gain.exponentialRampToValueAtTime(0.0001, st + 2.0);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(st);
+        osc.stop(st + 2.0);
+        activeOscs.push(osc);
+      });
+
+      currentlyPlaying = {
+        type: 'win', id: 4,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2650);
+    }
+
+    // Derrota 2: Marcha Sombría Menor (Elegía JRPG)
+    function playDefeatSomber(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var motif = [
+        { f: 659.25, time: 0, dur: 0.28 },     // E5
+        { f: 622.25, time: 0.28, dur: 0.28 },  // Eb5
+        { f: 587.33, time: 0.56, dur: 0.28 },  // D5
+        { f: 554.37, time: 0.84, dur: 0.32 },  // Db5
+        { f: 523.25, time: 1.18, dur: 0.60 }   // C5
+      ];
+      motif.forEach(function(n) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(n.f, t + n.time);
+        gain.gain.setValueAtTime(0.24, t + n.time);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(t + n.time);
+        osc.stop(t + n.time + n.dur);
+        activeOscs.push(osc);
+      });
+
+      var chord = [130.81, 196.00, 261.63, 311.13, 392.00];
+      chord.forEach(function(freq) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'triangle';
+        var st = t + 1.20;
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(0.18, st);
+        gain.gain.exponentialRampToValueAtTime(0.0001, st + 1.6);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(st);
+        osc.stop(st + 1.6);
+        activeOscs.push(osc);
+      });
+
+      currentlyPlaying = {
+        type: 'loss', id: 2,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2500);
+    }
+
+    // Derrota 3: Retro "Game Over" Arcade (Wah-Wah 8-bit)
+    function playDefeatRetroWah(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var tones = [
+        { f: 587.33, d: 0.16 }, // D5
+        { f: 440.00, d: 0.16 }, // A4
+        { f: 349.23, d: 0.18 }, // F4
+        { f: 293.66, d: 0.22 }  // D4
+      ];
+      var curTime = 0;
+      tones.forEach(function(n) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(n.f, t + curTime);
+        gain.gain.setValueAtTime(0.20, t + curTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + curTime + n.d);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(t + curTime);
+        osc.stop(t + curTime + n.d);
+        activeOscs.push(osc);
+        curTime += n.d;
+      });
+
+      var wah = ctx.createOscillator();
+      var wahGain = ctx.createGain();
+      wah.type = 'sawtooth';
+      wah.frequency.setValueAtTime(293.66, t + curTime);
+      wah.frequency.exponentialRampToValueAtTime(110.00, t + curTime + 0.85);
+      wahGain.gain.setValueAtTime(0.22, t + curTime);
+      wahGain.gain.exponentialRampToValueAtTime(0.001, t + curTime + 0.9);
+
+      var filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1200, t + curTime);
+      filter.frequency.exponentialRampToValueAtTime(300, t + curTime + 0.9);
+
+      wah.connect(filter);
+      filter.connect(wahGain);
+      wahGain.connect(dest);
+      wah.start(t + curTime);
+      wah.stop(t + curTime + 0.9);
+      activeOscs.push(wah);
+
+      currentlyPlaying = {
+        type: 'loss', id: 3,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, (curTime + 0.95) * 1000);
+    }
+
+    // Derrota 4: Caída Dramática & Tensión
+    function playDefeatCinematicDrop(ctx) {
+      var t = ctx.currentTime;
+      var dest = masterGain;
+      var activeOscs = [];
+
+      var thud = ctx.createOscillator();
+      var thudGain = ctx.createGain();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(150, t);
+      thud.frequency.exponentialRampToValueAtTime(35, t + 0.45);
+      thudGain.gain.setValueAtTime(0.45, t);
+      thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      thud.connect(thudGain);
+      thudGain.connect(dest);
+      thud.start(t);
+      thud.stop(t + 0.5);
+      activeOscs.push(thud);
+
+      var bufferSize = Math.floor(ctx.sampleRate * 0.4);
+      var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      var noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      var noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.setValueAtTime(300, t);
+      noiseFilter.frequency.exponentialRampToValueAtTime(60, t + 0.4);
+      var noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.3, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(dest);
+      noise.start(t);
+      noise.stop(t + 0.4);
+
+      var chords = [
+        { freqs: [146.83, 174.61, 220.00], time: 0.35, dur: 1.2, gain: 0.22 },
+        { freqs: [116.54, 146.83, 174.61], time: 1.10, dur: 1.4, gain: 0.18 }
+      ];
+      chords.forEach(function(ch) {
+        ch.freqs.forEach(function(freq) {
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          var flt = ctx.createBiquadFilter();
+          osc.type = 'sawtooth';
+          flt.type = 'lowpass';
+          flt.frequency.setValueAtTime(450, t + ch.time);
+          flt.frequency.exponentialRampToValueAtTime(150, t + ch.time + ch.dur);
+
+          osc.frequency.setValueAtTime(freq, t + ch.time);
+          gain.gain.setValueAtTime(ch.gain / ch.freqs.length * 1.5, t + ch.time);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + ch.time + ch.dur);
+
+          osc.connect(flt);
+          flt.connect(gain);
+          gain.connect(dest);
+          osc.start(t + ch.time);
+          osc.stop(t + ch.time + ch.dur);
+          activeOscs.push(osc);
+        });
+      });
+
+      currentlyPlaying = {
+        type: 'loss', id: 4,
+        stopFn: function() { activeOscs.forEach(function(o){ try{o.stop();}catch(e){} }); }
+      };
+      stopTimeout = setTimeout(function() { stopAllPlaying(); }, 2400);
+    }
+
+    // ==========================================
+    // SELECCIÓN Y FEEDBACK
+    // ==========================================
+    function selectSound(type, id) {
+      if (type === 'win') {
+        selectedWin = id;
+        for (var i = 1; i <= 4; i++) {
+          var c = document.getElementById('card-win-' + i);
+          var p = document.getElementById('pill-win-' + i);
+          if (c) c.classList.toggle('selected', i === id);
+          if (p) p.textContent = (i === id) ? '● SELECCIONADO' : '○ ELEGIR';
+        }
+        document.getElementById('summaryWinText').textContent = '🏆 Victoria: ' + titles.win[id];
+      } else {
+        selectedLoss = id;
+        for (var j = 1; j <= 4; j++) {
+          var cL = document.getElementById('card-loss-' + j);
+          var pL = document.getElementById('pill-loss-' + j);
+          if (cL) cL.classList.toggle('selected', j === id);
+          if (pL) pL.textContent = (j === id) ? '● SELECCIONADO' : '○ ELEGIR';
+        }
+        document.getElementById('summaryLossText').textContent = '💀 Derrota: ' + titles.loss[id];
+      }
+    }
+
+    function copySelection() {
+      var text = "Hola! He probado los sonidos y elijo:\n" +
+                 "- Sonido de Victoria: " + titles.win[selectedWin] + "\n" +
+                 "- Sonido de Derrota: " + titles.loss[selectedLoss];
+      
+      navigator.clipboard.writeText(text).then(function() {
+        showToast("✓ ¡Selección copiada al portapapeles!");
+      }).catch(function() {
+        // Fallback prompt
+        prompt("Copia tu selección aquí:", text);
+      });
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('toastMessage');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(function() {
+        toast.classList.remove('show');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
