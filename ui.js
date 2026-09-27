@@ -1113,6 +1113,156 @@ function getCoinAudioCtx() {
   return coinAudioCtx;
 }
 
+function playNoiseBurst(duration, maxGain, cutoffFreq, filterType, sweep) {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  try {
+    filterType = filterType || 'lowpass';
+    var bufferSize = Math.floor(ctx.sampleRate * duration);
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    var noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    var filter = ctx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(cutoffFreq, ctx.currentTime);
+    if (sweep) {
+      filter.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + duration);
+    }
+
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(maxGain, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    noise.start(ctx.currentTime);
+    noise.stop(ctx.currentTime + duration);
+  } catch (e) {}
+}
+
+// 1. ATAQUE: Fuego / Explosión
+function playSfxAttackFire() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  var t = ctx.currentTime;
+  try {
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.28);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.3);
+
+    playNoiseBurst(0.25, 0.42, 1200, 'bandpass', true);
+  } catch (e) {}
+}
+
+// 2. CLICK MENÚ / GENERAL: Tick Preciso (Arcade)
+function playSfxMenuClick() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  try {
+    var t = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1760, t);
+    osc.frequency.exponentialRampToValueAtTime(900, t + 0.02);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.022);
+  } catch (e) {}
+}
+
+// 3. CLICK TABLERO: Unir Energía (Chime Cristal)
+function playSfxBoardClick() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  try {
+    var t = ctx.currentTime;
+    var osc1 = ctx.createOscillator();
+    var gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, t); // D5
+    gain1.gain.setValueAtTime(0.16, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(t);
+    osc1.stop(t + 0.12);
+
+    var osc2 = ctx.createOscillator();
+    var gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, t + 0.05); // A5
+    gain2.gain.setValueAtTime(0.2, t + 0.05);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(t + 0.05);
+    osc2.stop(t + 0.2);
+  } catch (e) {}
+}
+
+// 4. CAMBIO DE TURNO: ¡Tu Turno! Triunfal
+function playSfxTurnMine() {
+  var ctx = getCoinAudioCtx();
+  if (!ctx) return;
+  try {
+    var t = ctx.currentTime;
+    var notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach(function (freq, idx) {
+      var startTime = t + (idx * 0.065);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.22, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.15);
+    });
+  } catch (e) {}
+}
+
+// Global delegated click handler for UI & Board SFX
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', function (e) {
+    var target = e.target;
+    if (!target) return;
+    var clickable = target.closest('button, [role="button"], a, input[type="button"], input[type="submit"], select, .shell-nav-item, .shell-tab, .shell-chip-btn, .shell-action-btn, .shell-btn, .btn, .card-slot, .card-hand, .card, .shell-board-card, .shell-hand-card, .shell-bench-slot, .shell-active-slot, .shell-prize-card, .shell-deck-card, .shell-discard-card');
+    if (!clickable || clickable.disabled) return;
+
+    var isBoard = !!clickable.closest('#boardScreen, #activeChoiceModal, #cardChoiceModal, #energyDiscardModal, #handCardMenu, #choicePickerModal, #pokedexModal, #lassRevealModal');
+    if (isBoard) {
+      playSfxBoardClick();
+    } else {
+      playSfxMenuClick();
+    }
+  }, true);
+}
+
 function playCoinFlipSound() {
   try {
     var ctx = getCoinAudioCtx();
@@ -1391,6 +1541,9 @@ function showAttackOverlay(result, onDone) {
     return pixelStatusBadgeHtml(badgeKey, 3);
   }).join('');
   el.classList.remove('hidden', 'fading');
+  if (!result.missed && (result.damage > 0 || result.selfDamage > 0 || result.customBadge || result.shielded)) {
+    playSfxAttackFire();
+  }
   var isCpuEasy = (cpuTurnRevealInProgress || (gameState && gameState.activePlayerId === 'cpu')) && getCpuDifficulty() === 'easy';
   var attackHoldTime = isCpuEasy ? 3780 : 2000;
   attackOverlayHoldTimeout = setTimeout(function () {
@@ -1523,6 +1676,9 @@ function showTurnFlash(text, colorClass, onDone) {
   el.textContent = text;
   el.className = 'shell-turn-flash ' + colorClass; // resets any stale fading/hidden from a previous flash
   positionTurnFlash(el);
+  if (colorClass === 'mine' || text === 'TU TURNO') {
+    playSfxTurnMine();
+  }
   turnFlashHoldTimeout = setTimeout(function () {
     el.classList.add('fading');
     turnFlashFadeTimeout = setTimeout(function () {
