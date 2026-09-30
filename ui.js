@@ -1836,6 +1836,7 @@ var pendingTurnFlash = null;
 // checkup it just ran left a prize or new-Active choice open for the
 // player -- see hasPendingPlayerChoice/maybeResumeCpuTurn.
 var cpuTurnAwaitingPlayerChoice = false;
+var cpuTurnTimeoutId = null;
 // Set to an attack name while the player has clicked an attack that needs
 // a chosen target (Ninetales' Lure is the only real one) and is waiting
 // for a rival Bench click -- module-level (not scoped inside a single
@@ -1859,7 +1860,10 @@ function positionTurnFlash(el) {
 
 function showTurnFlash(text, colorClass, onDone) {
   var el = document.getElementById('turnFlashOverlay');
-  if (!el) { if (onDone) { onDone(); } return; }
+  if (!el || matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState))) {
+    if (onDone) { onDone(); }
+    return;
+  }
   clearTimeout(turnFlashHoldTimeout);
   clearTimeout(turnFlashFadeTimeout);
   el.textContent = text;
@@ -2249,6 +2253,8 @@ function renderActiveChoiceModal() {
       }
       chooseNewActive(gameState, 'player', btn.getAttribute('data-instance-id'));
       afterPlayerAction();
+      var wActive = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+      if (wActive) { finishMatch(wActive); return; }
       // Now that the choice is made and the modal is closing, show whatever
       // turn flash runCpuTurn held back for this exact moment (see its own
       // comment) -- if any, and only once every OTHER pending choice from
@@ -2348,11 +2354,15 @@ function renderPrizeChoiceModal() {
         var prizeFoil = getPlayerCardFoilTier(wonCardName) || (isHoloInMatch('player', wonCardName) ? 'holo' : null);
         openCardModal(wonCardName, null, prizeFoil);
         onCardModalClose = function () {
+          var wPrize = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+          if (wPrize) { finishMatch(wPrize); return; }
           maybeShowPendingTurnFlash();
           maybeResumeCpuTurn();
           if (showEndTurnConfirmAfter) { renderEndTurnConfirm(); }
         };
       } else {
+        var wPrize = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+        if (wPrize) { finishMatch(wPrize); return; }
         maybeShowPendingTurnFlash();
         maybeResumeCpuTurn();
         if (showEndTurnConfirmAfter) { renderEndTurnConfirm(); }
@@ -2846,6 +2856,11 @@ function hasPendingPlayerChoice() {
 function maybeResumeCpuTurn() {
   if (!cpuTurnAwaitingPlayerChoice || hasPendingPlayerChoice()) { return; }
   cpuTurnAwaitingPlayerChoice = false;
+  var winner = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+  if (winner) {
+    finishMatch(winner);
+    return;
+  }
   proceedWithCpuTurn();
 }
 
@@ -2861,7 +2876,10 @@ function maybeResumeCpuTurn() {
 // to begin with, so a prize-only checkup (no active choice needed) left
 // "TU TURNO" and the turn's draw stuck forever.
 function maybeShowPendingTurnFlash() {
-  if (!pendingTurnFlash || hasPendingPlayerChoice()) { return; }
+  if (!pendingTurnFlash || hasPendingPlayerChoice() || matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState))) {
+    pendingTurnFlash = null;
+    return;
+  }
   var flash = pendingTurnFlash;
   pendingTurnFlash = null;
   showTurnFlash(flash.text, flash.colorClass, function () {
@@ -2901,6 +2919,11 @@ function runCpuTurn() {
   // one of its own.
   localAttackEndedMyTurn = false;
   localMyPrizeChoiceSeen = false;
+  var earlyWinner = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+  if (earlyWinner) {
+    finishMatch(earlyWinner);
+    return;
+  }
   // The player's turn already ended engine-side the moment they attacked
   // (attack() calls endTurn() internally) -- or, if they didn't attack,
   // right here via the click handler's own endTurn(gameState) call, just
@@ -2912,6 +2935,11 @@ function runCpuTurn() {
   // handed the turn over. Harmless no-op on turn 1 (coin flip handing the
   // CPU the opening turn): nobody has a status condition yet.
   applyEndOfTurnCheckup(gameState);
+  var postCheckupWinner = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+  if (postCheckupWinner) {
+    finishMatch(postCheckupWinner);
+    return;
+  }
   // Render right now so the checkup's damage/status changes actually show
   // up on screen at the click, instead of sitting invisible in state until
   // afterPlayerAction's render much later (after the CPU's whole turn) --
@@ -2922,6 +2950,11 @@ function runCpuTurn() {
   // "choose a new Active" modal (renderBoard's pendingActiveChoice check)
   // right away too, rather than only once the CPU's turn later resolves.
   renderBoard();
+  var finalWinner = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+  if (finalWinner) {
+    finishMatch(finalWinner);
+    return;
+  }
   // The checkup that just ran can knock something out and leave the player
   // with their own choice to make first -- a prize to take (their own
   // Pokémon's poison finishing off the CPU's Active) or a new Active to
@@ -2937,6 +2970,11 @@ function runCpuTurn() {
 }
 
 function proceedWithCpuTurn() {
+  var winner = matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState));
+  if (winner) {
+    finishMatch(winner);
+    return;
+  }
   var difficulty = getCpuDifficulty();
   var delay = cpuThinkDelayMs(difficulty);
   var endTurnBtn = document.getElementById('endTurnBtn');
@@ -2944,7 +2982,14 @@ function proceedWithCpuTurn() {
   showTurnFlash('TURNO DEL RIVAL', 'rival');
   if (delay > 0) { showCpuThinkingIndicator(); }
   cpuTurnInProgress = true;
-  setTimeout(function () {
+  if (cpuTurnTimeoutId) { clearTimeout(cpuTurnTimeoutId); }
+  cpuTurnTimeoutId = setTimeout(function () {
+    cpuTurnTimeoutId = null;
+    if (matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState))) {
+      cpuTurnInProgress = false;
+      hideCpuThinkingIndicator();
+      return;
+    }
     try {
       cpuTakeTurn(gameState, difficulty);
     } catch (e) {
@@ -3066,6 +3111,18 @@ function finishMatch(winner) {
   // Perdido"/"Has Ganado".
   gameState.pendingPrizeChoice = null;
   gameState.pendingActiveChoice = null;
+  cpuTurnAwaitingPlayerChoice = false;
+  cpuTurnInProgress = false;
+  pendingTurnFlash = null;
+  if (cpuTurnTimeoutId) { clearTimeout(cpuTurnTimeoutId); cpuTurnTimeoutId = null; }
+  clearTimeout(turnFlashHoldTimeout);
+  clearTimeout(turnFlashFadeTimeout);
+  var flashEl = document.getElementById('turnFlashOverlay');
+  if (flashEl) {
+    flashEl.className = 'shell-turn-flash hidden';
+    flashEl.textContent = '';
+  }
+  hideCpuThinkingIndicator();
   stopGameClock();
   // PVP counterpart to stopGameClock() above -- rules-engine.js never moves
   // phase away from 'playing' once a winner is decided, so tickPvpClocks's
@@ -4329,6 +4386,17 @@ function startNewMatch(customCpuDeckKey, customOpponentInfo) {
   resetPvpMatchState();
   matchWinner = null;
   cpuTurnInProgress = false;
+  cpuTurnAwaitingPlayerChoice = false;
+  pendingTurnFlash = null;
+  if (cpuTurnTimeoutId) { clearTimeout(cpuTurnTimeoutId); cpuTurnTimeoutId = null; }
+  clearTimeout(turnFlashHoldTimeout);
+  clearTimeout(turnFlashFadeTimeout);
+  var flashEl = document.getElementById('turnFlashOverlay');
+  if (flashEl) {
+    flashEl.className = 'shell-turn-flash hidden';
+    flashEl.textContent = '';
+  }
+  hideCpuThinkingIndicator();
   stopGameClock();
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();

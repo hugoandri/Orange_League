@@ -3772,5 +3772,31 @@ function mkPokemon(id, name, overrides) {
   check('CPU deck has exactly 60 cards expanded', totalCpuCards, 60);
 })();
 
+(function testCpuKnockoutByPoisonAtTurnEndEndsMatch() {
+  var state = createGame(function () { return 0.5; });
+  state.activePlayerId = 'player';
+  state.turnCounter = 4;
+  state.players.cpu.hasHadActive = true;
+  state.players.player.hasHadActive = true;
+  state.players.cpu.active = { id: 'c1', name: 'Diglett', attachedEnergy: [], damage: 20, statusConditions: ['Poisoned'], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.cpu.bench = [];
+  state.players.player.active = { id: 'p1', name: 'Bulbasaur', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  state.players.player.bench = [];
+  
+  var cpuHandBefore = state.players.cpu.hand.length;
+  var cpuDeckBefore = state.players.cpu.deck.length;
+
+  endTurn(state);
+  applyEndOfTurnCheckup(state);
+
+  check('CPU active was knocked out by poison', state.players.cpu.active, null);
+  check('Player wins immediately because CPU has no Pokemon left in play', getWinner(state), 'player');
+
+  // Verify that cpuTakeTurn aborts and does not draw a card when match has already been won
+  cpuTakeTurn(state);
+  check('CPU did not draw a card after match already ended', state.players.cpu.deck.length, cpuDeckBefore);
+  check('CPU hand did not increase after match already ended', state.players.cpu.hand.length, cpuHandBefore);
+})();
+
 
 

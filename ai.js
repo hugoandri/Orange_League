@@ -309,6 +309,7 @@ function queueCpuAction(state, kind, name, playerId, extra) {
 // synchronous either way, so tests that call it directly keep working
 // exactly as before when difficulty is omitted.
 function cpuTakeTurn(state, difficulty) {
+  if (!state || (typeof getWinner === 'function' && getWinner(state))) { return; }
   difficulty = difficulty || 'easy';
   var playerId = state.activePlayerId;
   // The CPU's turn-start draw happens here (rather than in endTurn(),
