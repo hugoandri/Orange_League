@@ -578,23 +578,70 @@
 .shell-booster-result-actions{display:flex;align-items:center;justify-content:center;gap:16px;}
 @keyframes holo{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
 
-/* Secret Rare foil: same rainbow-sweep idea as holo but faster/brighter,
-   plus a second panning checkerboard/damero layer -- the two-layer combo
-   from the "Holos.html" design reference, reimplemented as a plain overlay
-   on the real card photo (that mockup drew a whole fake card; ours photos
-   are real, so only the foil layers themselves carry over). Shared by every
-   context that shows a Secret pull: booster reveal, Collection, card zoom. */
+/* Secret Rare foil (Opción 1):
+   - Capas base calibradas (.shell-secret-foil-a & b): arcoíris en color-dodge sutil + damero ajedrez 18px (22% opacidad)
+     para que las letras de ataques, descripciones y PS queden 100% negras, nítidas y legibles.
+   - Súper brillo en el dibujo (.shell-secret-foil-art): aura dorada + arcoíris vivo + ajedrez 18px (65% opacidad) + destello (gleam).
+   - Contorno dorado del dibujo (.shell-secret-foil-frame): marco de la ilustración con resplandor dorado metálico.
+   - Insignia de Stage 1 / Stage 2 (.shell-secret-foil-stage): caja de evolución con aura dorada y borde brillante.
+*/
 .shell-secret-foil-a{
-  position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
-  animation:holo 1.8s linear infinite;
-  background-image:linear-gradient(115deg,rgba(255,90,220,.4),rgba(90,210,255,.4),rgba(255,230,90,.4),rgba(120,255,170,.4),rgba(255,90,220,.4));
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:color-dodge;background-size:200% 100%;z-index:1;
+  animation:holo 2.8s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,90,220,.18),rgba(90,210,255,.18),rgba(255,230,90,.22),rgba(120,255,170,.18),rgba(255,90,220,.18));
 }
 .shell-secret-foil-b{
-  position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:22px 22px;
-  animation:damero 3.6s linear infinite;
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:18px 18px;z-index:1;
+  animation:damero 4s linear infinite;
+  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.22) 0% 25%,transparent 0% 50%);
+}
+@keyframes damero{0%{background-position:0 0;}100%{background-position:18px 18px;}}
+
+.shell-secret-foil-art{
+  position:absolute;top:11.4%;left:9.6%;width:80.8%;height:43.6%;border-radius:4px;overflow:hidden;pointer-events:none;z-index:2;
+}
+.shell-secret-foil-art-glow{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 50%,rgba(255,240,160,.65) 0%,rgba(255,215,0,.3) 60%,transparent 85%);
+  mix-blend-mode:hard-light;animation:secretArtPulse 3s ease-in-out infinite;
+}
+.shell-secret-foil-art-rainbow{
+  position:absolute;inset:0;mix-blend-mode:color-dodge;background-size:200% 100%;
+  animation:holo 1.8s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,70,230,.65),rgba(70,220,255,.65),rgba(255,245,90,.75),rgba(100,255,170,.65),rgba(255,70,230,.65));
+}
+.shell-secret-foil-art-damero{
+  position:absolute;inset:0;mix-blend-mode:overlay;background-size:18px 18px;
+  animation:damero 3s linear infinite;
   background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.65) 0% 25%,transparent 0% 50%);
 }
-@keyframes damero{0%{background-position:0 0;}100%{background-position:22px 22px;}}
+.shell-secret-foil-art-gleam{
+  position:absolute;inset:-80%;
+  background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.45) 47%,rgba(255,245,170,.85) 50%,rgba(255,255,255,.45) 53%,transparent 62%);
+  mix-blend-mode:color-dodge;animation:secretGleam 3.2s ease-in-out infinite;pointer-events:none;
+}
+.shell-secret-foil-frame{
+  position:absolute;top:10.9%;left:9.1%;width:81.8%;height:44.6%;border-radius:5px;
+  border:2px solid rgba(255,235,130,.9);
+  box-shadow:inset 0 0 8px rgba(255,220,90,.7),0 0 12px rgba(255,215,0,.7);
+  pointer-events:none;z-index:3;
+}
+.shell-secret-foil-stage{
+  position:absolute;top:3.6%;left:5.8%;width:25.8%;height:9.1%;border-radius:6px;
+  border:1.5px solid rgba(255,235,140,.9);
+  background:radial-gradient(circle at 40% 50%,rgba(255,240,160,.5) 0%,rgba(255,215,0,.3) 70%,transparent 100%);
+  mix-blend-mode:color-dodge;
+  box-shadow:0 0 10px rgba(255,215,0,.7),inset 0 0 6px rgba(255,235,120,.5);
+  pointer-events:none;z-index:3;overflow:hidden;
+}
+
+@keyframes secretArtPulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+@keyframes secretGleam{
+  0%{transform:translateY(-130%) rotate(-18deg);opacity:0;}
+  20%{opacity:.95;}
+  55%{transform:translateY(130%) rotate(-18deg);opacity:.95;}
+  60%,100%{transform:translateY(130%) rotate(-18deg);opacity:0;}
+}
 
 /* ===== Mi Colección ===== */
 .shell-collection-progress{display:flex;align-items:center;gap:14px;font-family:'Silkscreen',monospace;}
@@ -1852,31 +1899,13 @@
   border:1px solid #0b0907;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 10px 30px rgba(0,0,0,.6);
   clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);
 }
-.shell-card-zoom img{max-width:80vw;max-height:75vh;display:block;}
-/* Holo zoom (a real Rare Holo, or a Rare that rolled/owns the bonus
-   upgrade -- see openCardModal's isHolo param) -- a pseudo-element instead
-   of a new wrapper div, since .shell-card-zoom is already position:relative
-   and covers the image + close button padding it needs to sweep over. */
-#cardModal.holo .shell-card-zoom img{box-shadow:0 0 0 1px #e8c46a,0 0 40px rgba(232,196,106,.6);}
-#cardModal.holo .shell-card-zoom::after{
-  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
-  animation:holo 3.4s linear infinite;
-  background-image:linear-gradient(115deg,rgba(255,120,220,.22),rgba(120,220,255,.22),rgba(255,240,120,.22),rgba(160,255,140,.22),rgba(255,120,220,.22));
-}
-/* Secret zoom -- brighter/faster rainbow (::after) plus a second, panning
-   checkerboard layer (::before, the only other pseudo-element available on
-   this same node) -- same two-layer idea as .shell-secret-foil-a/-b. */
-#cardModal.secret .shell-card-zoom img{box-shadow:0 0 0 1px #ffe89a,0 0 46px rgba(255,232,154,.7);}
-#cardModal.secret .shell-card-zoom::after{
-  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;background-size:200% 100%;
-  animation:holo 1.8s linear infinite;
-  background-image:linear-gradient(115deg,rgba(255,90,220,.32),rgba(90,210,255,.32),rgba(255,230,90,.32),rgba(120,255,170,.32),rgba(255,90,220,.32));
-}
-#cardModal.secret .shell-card-zoom::before{
-  content:'';position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:22px 22px;
-  animation:damero 3.6s linear infinite;
-  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.5) 0% 25%,transparent 0% 50%);
-}
+.shell-card-zoom-img-box{position:relative;display:inline-block;line-height:0;border-radius:12px;overflow:hidden;}
+.shell-card-zoom-img-box img{max-width:80vw;max-height:75vh;display:block;border-radius:12px;}
+.shell-card-zoom-img-box #cardModalOverlay{position:absolute;inset:0;pointer-events:none;}
+/* Holo zoom */
+#cardModal.holo .shell-card-zoom-img-box img{box-shadow:0 0 0 1px #e8c46a,0 0 40px rgba(232,196,106,.6);}
+/* Secret zoom -- resplandor dorado exterior de la carta */
+#cardModal.secret .shell-card-zoom-img-box img{box-shadow:0 0 0 1px #ffe89a,0 0 46px rgba(255,232,154,.75);}
 /* Trainer effect text (translateTrainerText, rules-engine.js) -- the real
    printed rules text on the scanned card art is too small to read even at
    this zoom size, unlike a Pokémon's attack name/damage. Hidden (no

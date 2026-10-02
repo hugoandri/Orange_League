@@ -470,6 +470,25 @@ function holoStarsHtml(n) {
   return '<div class="shell-holo-stars">' + stars + '</div>';
 }
 
+function secretFoilHtml(cardName) {
+  var isPokemon = true;
+  if (cardName && CARD_STATS[cardName] && CARD_STATS[cardName].supertype !== 'Pokémon') {
+    isPokemon = false;
+  }
+  var stageHtml = isPokemon ? '<div class="shell-secret-foil-stage"></div>' : '';
+  return '<div class="shell-secret-foil-a"></div>' +
+         '<div class="shell-secret-foil-b"></div>' +
+         '<div class="shell-secret-foil-art">' +
+           '<div class="shell-secret-foil-art-glow"></div>' +
+           '<div class="shell-secret-foil-art-rainbow"></div>' +
+           '<div class="shell-secret-foil-art-damero"></div>' +
+           '<div class="shell-secret-foil-art-gleam"></div>' +
+         '</div>' +
+         '<div class="shell-secret-foil-frame"></div>' +
+         stageHtml +
+         holoStarsHtml();
+}
+
 // isHolo is real, not decorative: the historical Overgrowth/Blackout theme
 // decks each ship exactly one guaranteed Rare Holo (Gyarados / Hitmonchan --
 // see isHoloInMatch), so this reuses the same shimmering foil overlay the
@@ -480,7 +499,7 @@ function cardImageTag(name, cls, isHolo) {
   if (!url) { return ''; }
   var img = '<img class="' + cls + '" src="' + url + '" alt="' + escapeHtml(name) + '" loading="lazy">';
   if (isHolo === 'secret') {
-    return '<span class="shell-card-holo-wrap">' + img + '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml() + '</span>';
+    return '<span class="shell-card-holo-wrap">' + img + secretFoilHtml(name) + '</span>';
   }
   return isHolo ? '<span class="shell-card-holo-wrap">' + img + '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() + '</span>' : img;
 }
@@ -699,7 +718,7 @@ function showCardInViewer(name, instanceId, actionOpts) {
   var frameHtml = '<div class="shell-board-viewer-frame' + (actionOpts && actionOpts.action ? ' anim-' + actionOpts.action : '') + '">' +
     badgeHtml +
     '<div class="shell-board-viewer-frame-inner"><img src="' + url + '" alt="' + escapeHtml(name) + '">' +
-    (viewerFoilTier === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+    (viewerFoilTier === 'secret' ? secretFoilHtml(name)
       : viewerIsHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '') + '</div>' +
     '<div class="shell-board-viewer-corner tl"></div><div class="shell-board-viewer-corner br"></div>' +
     '</div>';
@@ -995,7 +1014,17 @@ function openCardModal(name, imgUrl, foilTier) {
   var modal = document.getElementById('cardModal');
   modal.classList.toggle('holo', foilTier === 'holo');
   modal.classList.toggle('secret', foilTier === 'secret');
-  document.getElementById('cardModalStars').innerHTML = foilTier === 'holo' ? holoStarsHtml() : '';
+  var overlay = document.getElementById('cardModalOverlay');
+  if (overlay) {
+    if (foilTier === 'secret') {
+      overlay.innerHTML = secretFoilHtml(name);
+    } else if (foilTier === 'holo') {
+      overlay.innerHTML = '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml();
+    } else {
+      overlay.innerHTML = '';
+    }
+  }
+  document.getElementById('cardModalStars').innerHTML = '';
   // A real Trainer card's printed rules text is too small to read even
   // zoomed in (unlike a Pokémon's attack name/damage, which prints large
   // enough on the card itself) -- show the Spanish translation
@@ -1018,6 +1047,8 @@ function openCardModal(name, imgUrl, foilTier) {
 var onCardModalClose = null;
 function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
+  var overlay = document.getElementById('cardModalOverlay');
+  if (overlay) { overlay.innerHTML = ''; }
   if (onCardModalClose) {
     var cb = onCardModalClose;
     onCardModalClose = null;
@@ -1903,7 +1934,7 @@ function openDiscardPileModal(ownerId) {
     var foilTier = ownerId === 'player' ? getPlayerCardFoilTier(card.name) : (isHoloInMatch('cpu', card.name) ? 'holo' : null);
     var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
     var foilOverlay = foilTier === 'secret'
-      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      ? secretFoilHtml(card.name)
       : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
     return '<div class="shell-discard-pile-card-item' + tierClass + '">' +
       '<div class="shell-discard-pile-card-art"><img src="' + url + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' + foilOverlay + '</div>' +
@@ -1961,7 +1992,7 @@ function openDeckSearchModal(deckCards, onPick, title) {
     var foilTier = getPlayerCardFoilTier(card.name);
     var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
     var foilOverlay = foilTier === 'secret'
-      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      ? secretFoilHtml(card.name)
       : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
     return '<button type="button" class="shell-discard-pile-card-item' + tierClass + '" data-deck-card-id="' + card.id + '">' +
       '<div class="shell-discard-pile-card-art">' +
@@ -5048,7 +5079,7 @@ function renderCollectionGrid(all) {
     return '<div class="shell-collection-cell' + (owned ? '' : ' locked') + tierClass + '" data-set-key="' + c.setKey + '" data-num="' + c.num + '" data-card-name="' + escapeHtml(c.name) + '" data-card-img="' + escapeHtml(c.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (c.img ? '<img src="' + c.img + '" alt="' + escapeHtml(c.name) + '" loading="lazy">' : '') +
-        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
+        (isSecret ? secretFoilHtml(c.name) : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         (owned ? '<span class="shell-collection-cell-count">' + c.count + '</span>' : '<div class="shell-collection-cell-veil">?</div>') +
       '</div>' +
       '<div class="shell-collection-cell-num">' + numLabel + '</div>' +
@@ -5093,7 +5124,7 @@ function openCollectionVersionsModal(entry, tiers) {
     return '<button type="button" class="shell-collection-cell' + tierClass + '" data-card-img="' + escapeHtml(entry.img || '') + '">' +
       '<div class="shell-collection-cell-art">' +
         (entry.img ? '<img src="' + entry.img + '" alt="' + escapeHtml(entry.name) + '" loading="lazy">' : '') +
-        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
+        (isSecret ? secretFoilHtml(entry.name) : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         '<span class="shell-collection-cell-count">' + t.count + '</span>' +
       '</div>' +
       '<div class="shell-collection-cell-tier">' + tierLabel + '</div>' +
@@ -5211,7 +5242,7 @@ function showBoosterResult(cards, setKey) {
       : c.pulledRarity === 'rare' ? 'Rare'
       : c.r;
     var rarity = BOOSTER_RESULT_RARITY[displayRarityKey] || BOOSTER_RESULT_RARITY.Common;
-    var foilHtml = rarity.cls === 'secret' ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>'
+    var foilHtml = rarity.cls === 'secret' ? secretFoilHtml(c.n)
       : rarity.cls === 'holo' ? '<div class="shell-booster-result-foil"></div>' + holoStarsHtml() : '';
     html += '<div class="shell-booster-result-card ' + rarity.cls + '" data-card-name="' + escapeHtml(c.n) + '" data-card-img="' + escapeHtml(url) + '">' +
       '<div class="shell-booster-result-card-art">' +
@@ -5320,7 +5351,7 @@ function renderDeckDetail(deckKey) {
     var foilTier = getPlayerCardFoilTier(card.name) || (card.name === deckHoloCard ? 'holo' : null);
     var tierClass = foilTier === 'secret' ? ' secret' : (foilTier === 'holo' ? ' holo' : '');
     var foilOverlay = foilTier === 'secret'
-      ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml()
+      ? secretFoilHtml(card.name)
       : (foilTier === 'holo' ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '');
     return '<div class="shell-deck-slot' + tierClass + '" data-card-name="' + escapeHtml(card.name) + '">' +
       (img ? '<img src="' + img + '" alt="' + escapeHtml(card.name) + '" loading="lazy">' : '') +
@@ -5673,7 +5704,7 @@ function openDeckBuilderVersionModal(cardName, tiers) {
     return '<div class="shell-collection-cell' + tierClass + '" data-tier-holo="' + (isHolo ? '1' : '0') + '" data-tier-secret="' + (isSecret ? '1' : '0') + '">' +
       '<div class="shell-collection-cell-art">' +
         (img ? '<img src="' + img + '" alt="' + escapeHtml(cardName) + '" loading="lazy">' : '') +
-        (isSecret ? '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
+        (isSecret ? secretFoilHtml(cardName) : (isHolo ? '<div class="shell-collection-cell-foil"></div>' + holoStarsHtml() : '')) +
         '<span class="shell-collection-cell-count">' + t.count + '</span>' +
       '</div>' +
       '<div class="shell-deck-builder-versions-tier' + tierCls + '">' + tierLabel + '</div>' +
