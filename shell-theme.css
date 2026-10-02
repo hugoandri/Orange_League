@@ -578,70 +578,26 @@
 .shell-booster-result-actions{display:flex;align-items:center;justify-content:center;gap:16px;}
 @keyframes holo{0%{background-position:0% 50%;}100%{background-position:200% 50%;}}
 
-/* Secret Rare foil (Opción 1):
-   - Capas base calibradas (.shell-secret-foil-a & b): arcoíris en color-dodge sutil + damero ajedrez 18px (22% opacidad)
-     para que las letras de ataques, descripciones y PS queden 100% negras, nítidas y legibles.
-   - Súper brillo en el dibujo (.shell-secret-foil-art): aura dorada + arcoíris vivo + ajedrez 18px (65% opacidad) + destello (gleam).
-   - Contorno dorado del dibujo (.shell-secret-foil-frame): marco de la ilustración con resplandor dorado metálico.
-   - Insignia de Stage 1 / Stage 2 (.shell-secret-foil-stage): caja de evolución con aura dorada y borde brillante.
+/* Secret Rare foil (Opción 4: Sección Superior Unificada):
+   - Arcoíris vivo en color-dodge (.shell-secret-foil-a) + damero ajedrez 20px al 60% (.shell-secret-foil-b).
+   - Máscara inteligente: 100% de fuerza y brillo en toda la mitad superior (dibujo, contorno dorado, Stage 1/2 y encabezado)
+     y se atenúa suavemente hacia la caja de texto inferior (15-20%) para que los ataques se lean 100% nítidos y oscuros.
 */
 .shell-secret-foil-a{
   position:absolute;inset:0;pointer-events:none;mix-blend-mode:color-dodge;background-size:200% 100%;z-index:1;
-  animation:holo 2.8s linear infinite;
-  background-image:linear-gradient(115deg,rgba(255,90,220,.18),rgba(90,210,255,.18),rgba(255,230,90,.22),rgba(120,255,170,.18),rgba(255,90,220,.18));
+  animation:holo 2s linear infinite;
+  background-image:linear-gradient(115deg,rgba(255,80,230,.5),rgba(80,220,255,.5),rgba(255,245,100,.65),rgba(110,255,170,.5),rgba(255,80,230,.5));
+  mask-image:linear-gradient(180deg,rgba(0,0,0,1) 0%,rgba(0,0,0,1) 54%,rgba(0,0,0,0.18) 66%,rgba(0,0,0,0.12) 100%);
+  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,1) 0%,rgba(0,0,0,1) 54%,rgba(0,0,0,0.18) 66%,rgba(0,0,0,0.12) 100%);
 }
 .shell-secret-foil-b{
-  position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:18px 18px;z-index:1;
-  animation:damero 4s linear infinite;
-  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.22) 0% 25%,transparent 0% 50%);
+  position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;background-size:20px 20px;z-index:1;
+  animation:damero 3.5s linear infinite;
+  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.6) 0% 25%,transparent 0% 50%);
+  mask-image:linear-gradient(180deg,rgba(0,0,0,1) 0%,rgba(0,0,0,1) 54%,rgba(0,0,0,0.2) 66%,rgba(0,0,0,0.15) 100%);
+  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,1) 0%,rgba(0,0,0,1) 54%,rgba(0,0,0,0.2) 66%,rgba(0,0,0,0.15) 100%);
 }
-@keyframes damero{0%{background-position:0 0;}100%{background-position:18px 18px;}}
-
-.shell-secret-foil-art{
-  position:absolute;top:11.4%;left:9.6%;width:80.8%;height:43.6%;border-radius:4px;overflow:hidden;pointer-events:none;z-index:2;
-}
-.shell-secret-foil-art-glow{
-  position:absolute;inset:0;
-  background:radial-gradient(ellipse at 50% 50%,rgba(255,240,160,.65) 0%,rgba(255,215,0,.3) 60%,transparent 85%);
-  mix-blend-mode:hard-light;animation:secretArtPulse 3s ease-in-out infinite;
-}
-.shell-secret-foil-art-rainbow{
-  position:absolute;inset:0;mix-blend-mode:color-dodge;background-size:200% 100%;
-  animation:holo 1.8s linear infinite;
-  background-image:linear-gradient(115deg,rgba(255,70,230,.65),rgba(70,220,255,.65),rgba(255,245,90,.75),rgba(100,255,170,.65),rgba(255,70,230,.65));
-}
-.shell-secret-foil-art-damero{
-  position:absolute;inset:0;mix-blend-mode:overlay;background-size:18px 18px;
-  animation:damero 3s linear infinite;
-  background-image:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.65) 0% 25%,transparent 0% 50%);
-}
-.shell-secret-foil-art-gleam{
-  position:absolute;inset:-80%;
-  background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.45) 47%,rgba(255,245,170,.85) 50%,rgba(255,255,255,.45) 53%,transparent 62%);
-  mix-blend-mode:color-dodge;animation:secretGleam 3.2s ease-in-out infinite;pointer-events:none;
-}
-.shell-secret-foil-frame{
-  position:absolute;top:10.9%;left:9.1%;width:81.8%;height:44.6%;border-radius:5px;
-  border:2px solid rgba(255,235,130,.9);
-  box-shadow:inset 0 0 8px rgba(255,220,90,.7),0 0 12px rgba(255,215,0,.7);
-  pointer-events:none;z-index:3;
-}
-.shell-secret-foil-stage{
-  position:absolute;top:3.6%;left:5.8%;width:25.8%;height:9.1%;border-radius:6px;
-  border:1.5px solid rgba(255,235,140,.9);
-  background:radial-gradient(circle at 40% 50%,rgba(255,240,160,.5) 0%,rgba(255,215,0,.3) 70%,transparent 100%);
-  mix-blend-mode:color-dodge;
-  box-shadow:0 0 10px rgba(255,215,0,.7),inset 0 0 6px rgba(255,235,120,.5);
-  pointer-events:none;z-index:3;overflow:hidden;
-}
-
-@keyframes secretArtPulse{0%,100%{opacity:.6;}50%{opacity:1;}}
-@keyframes secretGleam{
-  0%{transform:translateY(-130%) rotate(-18deg);opacity:0;}
-  20%{opacity:.95;}
-  55%{transform:translateY(130%) rotate(-18deg);opacity:.95;}
-  60%,100%{transform:translateY(130%) rotate(-18deg);opacity:0;}
-}
+@keyframes damero{0%{background-position:0 0;}100%{background-position:20px 20px;}}
 
 /* ===== Mi Colección ===== */
 .shell-collection-progress{display:flex;align-items:center;gap:14px;font-family:'Silkscreen',monospace;}

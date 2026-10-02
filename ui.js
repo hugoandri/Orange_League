@@ -471,22 +471,7 @@ function holoStarsHtml(n) {
 }
 
 function secretFoilHtml(cardName) {
-  var isPokemon = true;
-  if (cardName && CARD_STATS[cardName] && CARD_STATS[cardName].supertype !== 'Pokémon') {
-    isPokemon = false;
-  }
-  var stageHtml = isPokemon ? '<div class="shell-secret-foil-stage"></div>' : '';
-  return '<div class="shell-secret-foil-a"></div>' +
-         '<div class="shell-secret-foil-b"></div>' +
-         '<div class="shell-secret-foil-art">' +
-           '<div class="shell-secret-foil-art-glow"></div>' +
-           '<div class="shell-secret-foil-art-rainbow"></div>' +
-           '<div class="shell-secret-foil-art-damero"></div>' +
-           '<div class="shell-secret-foil-art-gleam"></div>' +
-         '</div>' +
-         '<div class="shell-secret-foil-frame"></div>' +
-         stageHtml +
-         holoStarsHtml();
+  return '<div class="shell-secret-foil-a"></div><div class="shell-secret-foil-b"></div>' + holoStarsHtml();
 }
 
 // isHolo is real, not decorative: the historical Overgrowth/Blackout theme
