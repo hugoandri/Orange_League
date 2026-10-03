@@ -5,7 +5,7 @@
 <title>Orange League Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css?v=20260922d">
-<link rel="stylesheet" href="shell-theme.css?v=20261002a">
+<link rel="stylesheet" href="shell-theme.css?v=20261003a">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -427,8 +427,11 @@
               <span class="shell-board-turn-value" id="boardTurnValue">TU TURNO</span>
             </div>
             <div class="shell-board-header-right">
-              <div class="shell-board-wallclock" id="boardWallClock"></div>
-              <button type="button" id="boardStatusHelpBtn" class="shell-board-help-btn" title="Ayuda sobre chips de estado">AYUDA</button>
+              <button type="button" id="boardStatusHelpBtn" class="shell-board-help-btn" title="Guía de estados y efectos">
+                <i class="ph-duotone ph-question"></i>
+                <span>AYUDA</span>
+              </button>
+              <div class="shell-board-wallclock" id="boardWallClock" title="Hora actual"></div>
             </div>
           </div>
 
