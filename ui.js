@@ -807,9 +807,11 @@ function showCardInViewer(name, instanceId, actionOpts) {
           }
           (pvpMode ? peekOwnDeckCloud() : Promise.resolve(pDeckSearch.deck.slice())).then(function (deckCards) {
             var matching = deckCards.filter(function (c) {
-              var cs = CARD_STATS[c.name];
-              if (!cs || cs.supertype !== 'Pokémon' || cs.subtype !== 'Basic') return false;
-              if (atkName === 'Call for Friend') return (cs.types || []).indexOf('Fighting') !== -1;
+              if (!isBasicPokemon(c.name)) return false;
+              if (atkName === 'Call for Friend') {
+                var cs = CARD_STATS[c.name];
+                return cs && (cs.types || []).indexOf('Fighting') !== -1;
+              }
               if (atkName === 'Sprout') return c.name === 'Oddish';
               if (atkName === 'Call for Family') {
                 if (pDeckSearch.active && pDeckSearch.active.name === 'Bellsprout') return c.name === 'Bellsprout';
@@ -826,6 +828,16 @@ function showCardInViewer(name, instanceId, actionOpts) {
               }
               executePlayerAttack(atkName);
             } else {
+              var searchTitle = 'ELIGE UN POKÉMON PARA TU BANCA';
+              if (atkName === 'Call for Family') {
+                searchTitle = (pDeckSearch.active && pDeckSearch.active.name === 'Bellsprout')
+                  ? 'ELIGE UN BELLSPROUT PARA TU BANCA'
+                  : 'ELIGE UN NIDORAN ♀ O ♂ PARA TU BANCA';
+              } else if (atkName === 'Call for Friend') {
+                searchTitle = 'ELIGE UN POKÉMON DE TIPO LUCHA PARA TU BANCA';
+              } else if (atkName === 'Sprout') {
+                searchTitle = 'ELIGE UN ODDISH PARA TU BANCA';
+              }
               openDeckSearchModal(matching, function (chosenDeckCardId) {
                 if (pvpMode) {
                   pvpAttackEndedMyTurn = true;
@@ -834,7 +846,7 @@ function showCardInViewer(name, instanceId, actionOpts) {
                   return;
                 }
                 executePlayerAttack(atkName, chosenDeckCardId);
-              }, 'ELIGE UN POKÉMON PARA PONER EN TU BANCA');
+              }, searchTitle);
             }
           }).catch(function (err) { alert(err.message || 'No se pudo consultar el mazo.'); });
           return;

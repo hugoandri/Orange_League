@@ -2015,7 +2015,7 @@ ATTACK_EFFECTS['Marowak'] = {
     if (cardIdx === -1) {
       cardIdx = p.deck.findIndex(function (c) {
         var cs = CARD_STATS[c.name];
-        return cs && cs.supertype === 'Pokémon' && cs.subtype === 'Basic' && (cs.types || []).indexOf('Fighting') !== -1;
+        return isBasicPokemon(c.name) && cs && (cs.types || []).indexOf('Fighting') !== -1;
       });
     }
     if (cardIdx !== -1) {
