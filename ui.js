@@ -1102,6 +1102,103 @@ function cpuActionLabel(play) {
 // the board completely silently, mid-turn, with nothing to read). Non-
 // blocking (pointer-events:none) since it's a notice, not a modal the
 // player has to dismiss.
+// Sistema de pausas para duelos locales vs CPU:
+// Permite pausar completamente el turno de la CPU, animaciones y temporizadores,
+// congelando el tiempo restante y reanudándolo cuando el jugador cierra el menú de pausa.
+var isGamePaused = false;
+var activeGameTimeouts = [];
+
+function createGameTimeout(callback, delay) {
+  var remaining = Math.max(0, delay || 0);
+  var startedAt = Date.now();
+  var timerId = null;
+  var completed = false;
+
+  var handle = {
+    callback: callback,
+    get remaining() { return remaining; },
+    get completed() { return completed; }
+  };
+
+  function onFire() {
+    if (completed) { return; }
+    if (isGamePaused) {
+      remaining = 0;
+      return;
+    }
+    completed = true;
+    var idx = activeGameTimeouts.indexOf(handle);
+    if (idx !== -1) { activeGameTimeouts.splice(idx, 1); }
+    callback();
+  }
+
+  handle.pause = function () {
+    if (completed || timerId === null) { return; }
+    clearTimeout(timerId);
+    timerId = null;
+    var elapsed = Date.now() - startedAt;
+    remaining = Math.max(0, remaining - elapsed);
+  };
+
+  handle.resume = function () {
+    if (completed || timerId !== null) { return; }
+    if (remaining <= 0) {
+      completed = true;
+      var idx = activeGameTimeouts.indexOf(handle);
+      if (idx !== -1) { activeGameTimeouts.splice(idx, 1); }
+      callback();
+    } else {
+      startedAt = Date.now();
+      timerId = setTimeout(onFire, remaining);
+    }
+  };
+
+  handle.clear = function () {
+    completed = true;
+    if (timerId !== null) {
+      clearTimeout(timerId);
+      timerId = null;
+    }
+    var idx = activeGameTimeouts.indexOf(handle);
+    if (idx !== -1) { activeGameTimeouts.splice(idx, 1); }
+  };
+
+  activeGameTimeouts.push(handle);
+  if (!isGamePaused) {
+    timerId = setTimeout(onFire, remaining);
+  }
+  return handle;
+}
+
+function clearGameTimeout(handle) {
+  if (!handle) { return; }
+  if (typeof handle.clear === 'function') {
+    handle.clear();
+  } else {
+    clearTimeout(handle);
+  }
+}
+
+function clearAllGameTimeouts() {
+  var list = activeGameTimeouts.slice();
+  list.forEach(function (h) {
+    if (h && typeof h.clear === 'function') { h.clear(); }
+  });
+  activeGameTimeouts = [];
+}
+
+function pauseAllGameTimeouts() {
+  activeGameTimeouts.forEach(function (h) {
+    if (h && typeof h.pause === 'function') { h.pause(); }
+  });
+}
+
+function resumeAllGameTimeouts() {
+  activeGameTimeouts.slice().forEach(function (h) {
+    if (h && typeof h.resume === 'function') { h.resume(); }
+  });
+}
+
 var trainerPlayedHoldTimeout = null;
 var trainerPlayedFadeTimeout = null;
 function showTrainerPlayedOverlay(play, onDone) {
@@ -1110,8 +1207,8 @@ function showTrainerPlayedOverlay(play, onDone) {
   var label = document.getElementById('trainerPlayedLabel');
   var url = CARD_IMAGE_BY_NAME[play.name];
   if (!el || !img || !label || !url) { if (onDone) { onDone(); } return; }
-  clearTimeout(trainerPlayedHoldTimeout);
-  clearTimeout(trainerPlayedFadeTimeout);
+  clearGameTimeout(trainerPlayedHoldTimeout);
+  clearGameTimeout(trainerPlayedFadeTimeout);
   img.src = url;
   img.alt = play.name;
   label.textContent = cpuActionLabel(play);
@@ -1123,9 +1220,9 @@ function showTrainerPlayedOverlay(play, onDone) {
   el.classList.remove('hidden', 'fading');
   var isEasy = getCpuDifficulty() === 'easy';
   var holdTime = isEasy ? 3780 : 1280;
-  trainerPlayedHoldTimeout = setTimeout(function () {
+  trainerPlayedHoldTimeout = createGameTimeout(function () {
     el.classList.add('fading');
-    trainerPlayedFadeTimeout = setTimeout(function () {
+    trainerPlayedFadeTimeout = createGameTimeout(function () {
       el.classList.add('hidden');
       el.classList.remove('fading');
       if (onDone) { onDone(); }
@@ -1647,7 +1744,7 @@ function animateSingleCoinFlip(isCara, onFlipDone, opts) {
         bannerText.textContent = text;
       }
 
-      setTimeout(function () {
+      createGameTimeout(function () {
         if (onFlipDone) { onFlipDone(); }
       }, 260);
     }
@@ -1669,7 +1766,7 @@ function showCoinFlipsSequence(coinFlips, onDone, opts) {
     return;
   }
 
-  clearTimeout(coinFlipSequenceTimeout);
+  clearGameTimeout(coinFlipSequenceTimeout);
   badgesEl.innerHTML = '';
   var titleEl = overlay.querySelector('.shell-coin-flip-title');
   if (titleEl) {
@@ -1690,9 +1787,9 @@ function showCoinFlipsSequence(coinFlips, onDone, opts) {
   function nextFlip() {
     if (flipIndex >= coinFlips.length) {
       var holdMs = (opts && typeof opts.holdMs === 'number') ? opts.holdMs : 650;
-      coinFlipSequenceTimeout = setTimeout(function () {
+      coinFlipSequenceTimeout = createGameTimeout(function () {
         overlay.classList.add('fading');
-        coinFlipSequenceTimeout = setTimeout(function () {
+        coinFlipSequenceTimeout = createGameTimeout(function () {
           overlay.classList.add('hidden');
           overlay.classList.remove('fading');
           if (titleEl) { titleEl.textContent = 'LANZAMIENTOS'; }
@@ -1709,11 +1806,11 @@ function showCoinFlipsSequence(coinFlips, onDone, opts) {
     animateSingleCoinFlip(isCara, function () {
       addCoinBadge(isCara);
       var pauseBetween = (flipIndex < coinFlips.length) ? 320 : 0;
-      coinFlipSequenceTimeout = setTimeout(nextFlip, pauseBetween);
+      coinFlipSequenceTimeout = createGameTimeout(nextFlip, pauseBetween);
     }, opts);
   }
 
-  coinFlipSequenceTimeout = setTimeout(nextFlip, 150);
+  coinFlipSequenceTimeout = createGameTimeout(nextFlip, 150);
 }
 
 var attackOverlayHoldTimeout = null;
@@ -1735,8 +1832,8 @@ function showAttackOverlay(result, onDone) {
   var attackerUrl = result && CARD_IMAGE_BY_NAME[result.attackerName];
   var defenderUrl = result && CARD_IMAGE_BY_NAME[result.defenderName];
   if (!el || !attackerImg || !defenderImg || !dmgEl || !selfDmgEl || !statusEl || !attackerUrl || !defenderUrl) { if (onDone) { onDone(); } return; }
-  clearTimeout(attackOverlayHoldTimeout);
-  clearTimeout(attackOverlayFadeTimeout);
+  clearGameTimeout(attackOverlayHoldTimeout);
+  clearGameTimeout(attackOverlayFadeTimeout);
   attackerImg.src = attackerUrl;
   attackerImg.alt = result.attackerName;
   defenderImg.src = defenderUrl;
@@ -1777,9 +1874,9 @@ function showAttackOverlay(result, onDone) {
   }
   var isCpuEasy = (cpuTurnRevealInProgress || (gameState && gameState.activePlayerId === 'cpu')) && getCpuDifficulty() === 'easy';
   var attackHoldTime = isCpuEasy ? 3780 : 2000;
-  attackOverlayHoldTimeout = setTimeout(function () {
+  attackOverlayHoldTimeout = createGameTimeout(function () {
     el.classList.add('fading');
-    attackOverlayFadeTimeout = setTimeout(function () {
+    attackOverlayFadeTimeout = createGameTimeout(function () {
       el.classList.add('hidden');
       el.classList.remove('fading');
       if (onDone) { onDone(); }
@@ -1906,8 +2003,8 @@ function showTurnFlash(text, colorClass, onDone) {
     if (onDone) { onDone(); }
     return;
   }
-  clearTimeout(turnFlashHoldTimeout);
-  clearTimeout(turnFlashFadeTimeout);
+  clearGameTimeout(turnFlashHoldTimeout);
+  clearGameTimeout(turnFlashFadeTimeout);
   el.textContent = text;
   el.className = 'shell-turn-flash ' + colorClass; // resets any stale fading/hidden from a previous flash
   positionTurnFlash(el);
@@ -1916,9 +2013,9 @@ function showTurnFlash(text, colorClass, onDone) {
   } else {
     playSfxTurnRival();
   }
-  turnFlashHoldTimeout = setTimeout(function () {
+  turnFlashHoldTimeout = createGameTimeout(function () {
     el.classList.add('fading');
-    turnFlashFadeTimeout = setTimeout(function () {
+    turnFlashFadeTimeout = createGameTimeout(function () {
       el.classList.add('hidden');
       el.classList.remove('fading');
       if (onDone) { onDone(); }
@@ -3112,8 +3209,8 @@ function proceedWithCpuTurn() {
   showTurnFlash('TURNO DEL RIVAL', 'rival');
   if (delay > 0) { showCpuThinkingIndicator(); }
   cpuTurnInProgress = true;
-  if (cpuTurnTimeoutId) { clearTimeout(cpuTurnTimeoutId); }
-  cpuTurnTimeoutId = setTimeout(function () {
+  if (cpuTurnTimeoutId) { clearGameTimeout(cpuTurnTimeoutId); }
+  cpuTurnTimeoutId = createGameTimeout(function () {
     cpuTurnTimeoutId = null;
     if (matchWinner || (gameState && typeof getWinner === 'function' && getWinner(gameState))) {
       cpuTurnInProgress = false;
@@ -3163,7 +3260,7 @@ function proceedWithCpuTurn() {
         // Trainer was played -- see CPU_POST_ACTION_PAUSE_MS's own comment.
         showCpuThinkingIndicator();
         var postPause = difficulty === 'easy' ? 4000 : CPU_POST_ACTION_PAUSE_MS;
-        setTimeout(function () {
+        createGameTimeout(function () {
           function reveal() {
             try {
               afterPlayerAction();
@@ -3244,9 +3341,16 @@ function finishMatch(winner) {
   cpuTurnAwaitingPlayerChoice = false;
   cpuTurnInProgress = false;
   pendingTurnFlash = null;
-  if (cpuTurnTimeoutId) { clearTimeout(cpuTurnTimeoutId); cpuTurnTimeoutId = null; }
-  clearTimeout(turnFlashHoldTimeout);
-  clearTimeout(turnFlashFadeTimeout);
+  if (cpuTurnTimeoutId) { clearGameTimeout(cpuTurnTimeoutId); cpuTurnTimeoutId = null; }
+  clearGameTimeout(turnFlashHoldTimeout);
+  clearGameTimeout(turnFlashFadeTimeout);
+  clearGameTimeout(trainerPlayedHoldTimeout);
+  clearGameTimeout(trainerPlayedFadeTimeout);
+  clearGameTimeout(attackOverlayHoldTimeout);
+  clearGameTimeout(attackOverlayFadeTimeout);
+  clearGameTimeout(coinFlipSequenceTimeout);
+  clearAllGameTimeouts();
+  isGamePaused = false;
   var flashEl = document.getElementById('turnFlashOverlay');
   if (flashEl) {
     flashEl.className = 'shell-turn-flash hidden';
@@ -7113,6 +7217,8 @@ function showBoardScreen() {
 function hideBoardScreen() {
   document.getElementById('boardScreen').classList.add('hidden');
   stopGameClock();
+  clearAllGameTimeouts();
+  isGamePaused = false;
   stopDuelMusic();
   document.getElementById('matchEndMusic').pause();
   currentActiveTrainer = null;
@@ -7122,6 +7228,10 @@ function hideBoardScreen() {
 // Configuración, the surrender confirm) closes back to a live match --
 // never while setup/game-over, so it can't resurrect a finished match's clock.
 function resumeGameClockIfNeeded() {
+  if (isGamePaused) {
+    isGamePaused = false;
+    resumeAllGameTimeouts();
+  }
   if (gameState && gameState.phase === 'playing' && !getWinner(gameState)) {
     startGameClock();
     // Resumes (not restarts) the duel track from wherever it was paused --
@@ -7428,6 +7538,13 @@ function hideConfigScreen() {
 
 function openPauseMenu() {
   stopGameClock();
+  isGamePaused = true;
+  pauseAllGameTimeouts();
+  var audio = document.getElementById('bgMusic');
+  var musicBtn = document.getElementById('pauseMusic');
+  if (audio && musicBtn) {
+    musicBtn.textContent = audio.paused ? '🔈 MÚSICA' : '🔊 MÚSICA';
+  }
   // Duelo en Vivo: PVP's only intentional way to leave a live match is now
   // RENDIRSE (Step 4 below) -- SALIR AL MENÚ used to abandon the match
   // silently, without telling the server anything, which is exactly the
@@ -8423,8 +8540,17 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('pauseExit').addEventListener('click', function () {
     closePauseMenu();
+    clearAllGameTimeouts();
+    isGamePaused = false;
     resetPvpMatchState();
     hideBoardScreen();
     showMenu();
   });
+  var pauseBackdrop = document.querySelector('#pauseModal .card-modal-backdrop');
+  if (pauseBackdrop) {
+    pauseBackdrop.addEventListener('click', function () {
+      closePauseMenu();
+      resumeGameClockIfNeeded();
+    });
+  }
 });

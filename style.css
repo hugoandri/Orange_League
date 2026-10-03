@@ -215,8 +215,9 @@ button.shell-deck-card.pvp-deck-option{position:relative;min-height:168px;height
 #pvpModal{z-index:210;}
 #activeChoiceModal{z-index:210;}
 #prizeChoiceModal{z-index:210;}
-#pauseModal{z-index:210;}
-#surrenderModal{z-index:210;}
+#pauseModal, #surrenderModal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;}
+#pauseModal .card-modal-backdrop, #surrenderModal .card-modal-backdrop{position:absolute;inset:0;z-index:1000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);}
+#pauseModal .shell-modal-card, #surrenderModal .shell-modal-card{position:relative;z-index:1001;}
 #energyDiscardModal{z-index:210;}
 #handDiscardModal{z-index:210;}
 #energyRetrievalModal{z-index:210;}

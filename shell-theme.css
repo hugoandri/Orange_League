@@ -2060,6 +2060,17 @@
 }
 .shell-match-end-reward.hidden{display:none;}
 
+#pauseModal, #surrenderModal{
+  position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+}
+#pauseModal.hidden, #surrenderModal.hidden{display:none;}
+#pauseModal .card-modal-backdrop, #surrenderModal .card-modal-backdrop{
+  position:absolute;inset:0;z-index:1000;background:rgba(10,8,7,.85);backdrop-filter:blur(6px);
+}
+#pauseModal .shell-modal-card, #surrenderModal .shell-modal-card{
+  position:relative;z-index:1001;
+}
+
 .shell-pause-card{width:340px;}
 .shell-pause-buttons{display:flex;flex-direction:column;gap:10px;width:100%;}
 .shell-pause-buttons .shell-modal-btn{width:100%;text-align:left;padding:0 18px;}
