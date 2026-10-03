@@ -8122,17 +8122,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  var targetHintCloseBtn = document.getElementById('targetHintCloseBtn');
-  if (targetHintCloseBtn) {
-    targetHintCloseBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      closeTargetHintModal();
-      if (typeof selectedHandId !== 'undefined') { selectedHandId = null; }
-      if (typeof retreatMode !== 'undefined') { retreatMode = false; }
-      if (typeof pendingAttackNeedingTarget !== 'undefined') { pendingAttackNeedingTarget = null; }
-      renderBoard();
-    });
-  }
 
   var boardStatusHelpBtn = document.getElementById('boardStatusHelpBtn');
   if (boardStatusHelpBtn) {

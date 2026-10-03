@@ -1589,10 +1589,19 @@
    fills the viewport would otherwise sit on top of the board regardless of
    its own background. */
 .shell-target-hint{
-  position:fixed;inset:0;z-index:250;display:flex;align-items:center;justify-content:center;
+  position:fixed;top:76px;left:24px;z-index:250;display:flex;
   pointer-events:none;
 }
 .shell-target-hint.hidden{display:none;}
+.shell-target-hint .shell-modal-card{
+  width:380px;max-width:calc(100vw - 48px);padding:14px 18px;
+  pointer-events:none;
+  border:1.5px solid #8dff62;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 16px rgba(141,255,98,.22),0 10px 30px rgba(0,0,0,.75);
+}
+.shell-target-hint .shell-modal-text{
+  font-size:12px;letter-spacing:.08em;color:#efe9dd;line-height:1.5;max-width:none;text-align:center;
+}
 .shell-target-hint p{margin:0;}
 
 /* ===== Trainer played flash (see showTrainerPlayedOverlay, ui.js) ===== */
@@ -2000,8 +2009,6 @@
   z-index:20;pointer-events:auto;
 }
 .shell-card-zoom-close-x:hover{color:#efe9dd;filter:brightness(1.25);}
-
-.shell-target-hint .shell-modal-card{pointer-events:auto;}
 
 /* Status help modal (board header AYUDA button) */
 .shell-status-help-modal{
