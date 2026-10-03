@@ -296,6 +296,11 @@ function makeFreshInstance(id, name, turnCounter) {
   };
 }
 
+function createPokemonInstance(name, id, turnCounter) {
+  var cardId = id || ('card_' + Math.random().toString(36).substring(2, 9));
+  return makeFreshInstance(cardId, name, turnCounter || 1);
+}
+
 function canPlayBasic(state, playerId, handId) {
   // During setup, either player may place Basics at any time (there is no
   // "current turn" yet -- both sides set up simultaneously, in real terms).
@@ -1704,7 +1709,7 @@ if (typeof module !== 'undefined') {
     // playTrainer actually ran against the local dev server.
     findInstance, opponentOf, translatePlayer, translateCardName,
     logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
-    evolutionTimingAllowed, makeFreshInstance, shuffle,
+    evolutionTimingAllowed, makeFreshInstance, createPokemonInstance, shuffle,
     discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt, groupEnergyIntoCards,
     // Real reported bug found while testing the Energy Retrieval fix
     // above: card-effects.js's own Energy Retrieval effect references this

@@ -3798,5 +3798,48 @@ function mkPokemon(id, name, overrides) {
   check('CPU hand did not increase after match already ended', state.players.cpu.hand.length, cpuHandBefore);
 })();
 
+(function testNidoranFemaleCallForFamily() {
+  var state = createGame(function () { return 0.5; });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+  state.players.cpu.active = { id: 'c_act', name: 'Rattata', attachedEnergy: [], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  var p = state.players.player;
+  p.active = { id: 'nid_act', name: 'Nidoran ♀', attachedEnergy: ['Grass', 'Grass'], damage: 0, statusConditions: [], turnEnteredCurrentForm: 1, lockedAttacks: [], shield: null, missChanceUntilTurn: null, plusPowerAttached: false };
+  p.bench = [null, null, null, null, null];
+  p.deck = [
+    { id: 'nid_m_1', name: 'Nidoran ♂' },
+    { id: 'nid_f_1', name: 'Nidoran ♀' },
+    { id: 'eng_1', name: 'Grass Energy' }
+  ];
+
+  // Attack with Call for Family without specific target (auto-picks first)
+  attack(state, 'player', 'Call for Family');
+
+  check('Nidoran placed on bench via Call for Family', p.bench.some(function (b) { return b && (b.name === 'Nidoran ♂' || b.name === 'Nidoran ♀'); }), true);
+  check('Deck size reduced by 1', p.deck.length, 2);
+  check('Deck no longer contains the recruited Nidoran', p.deck.some(function (c) { return c.id === 'nid_m_1'; }), false);
+
+  // Attack with specific target
+  state.turnCounter = 4;
+  p.active.attachedEnergy = ['Grass', 'Grass'];
+  attack(state, 'player', 'Call for Family', 'nid_f_1');
+  check('Second Nidoran placed on bench with targetInstanceId', p.bench.some(function (b) { return b && b.id === 'nid_f_1'; }), true);
+  check('Deck size reduced to 1', p.deck.length, 1);
+})();
+
+(function testCreatePokemonInstanceHelper() {
+  var inst = createPokemonInstance('Pikachu', 'pika_99', 5);
+  check('createPokemonInstance id matches', inst.id, 'pika_99');
+  check('createPokemonInstance name matches', inst.name, 'Pikachu');
+  check('createPokemonInstance turn matches', inst.turnEnteredCurrentForm, 5);
+  check('createPokemonInstance damage starts at 0', inst.damage, 0);
+  check('createPokemonInstance attachedEnergy is array', Array.isArray(inst.attachedEnergy), true);
+
+  var autoInst = createPokemonInstance('Bulbasaur');
+  check('createPokemonInstance auto-generates id', typeof autoInst.id === 'string' && autoInst.id.length > 0, true);
+  check('createPokemonInstance auto name matches', autoInst.name, 'Bulbasaur');
+})();
+
+
 
 

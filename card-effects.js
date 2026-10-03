@@ -2020,7 +2020,7 @@ ATTACK_EFFECTS['Marowak'] = {
     }
     if (cardIdx !== -1) {
       var card = p.deck.splice(cardIdx, 1)[0];
-      var instance = createPokemonInstance(card.name);
+      var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
       p.bench[emptyBenchIdx] = instance;
       p.deck = shuffle(p.deck, state.rng);
       logEvent(state, translatePlayer(playerId) + ' usa Call for Friend y pone a ' + translateCardName(card.name) + ' en la Banca', playerId);
@@ -2131,7 +2131,7 @@ ATTACK_EFFECTS['Bellsprout'] = {
     }
     if (cardIdx !== -1) {
       var card = p.deck.splice(cardIdx, 1)[0];
-      var instance = createPokemonInstance(card.name);
+      var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
       p.bench[emptyBenchIdx] = instance;
       p.deck = shuffle(p.deck, state.rng);
       logEvent(state, translatePlayer(playerId) + ' usa Call for Family y pone a Bellsprout en la Banca', playerId);
@@ -2228,7 +2228,7 @@ ATTACK_EFFECTS['Nidoran ♀'] = {
     }
     if (cardIdx !== -1) {
       var card = p.deck.splice(cardIdx, 1)[0];
-      var instance = createPokemonInstance(card.name);
+      var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
       p.bench[emptyBenchIdx] = instance;
       p.deck = shuffle(p.deck, state.rng);
       logEvent(state, translatePlayer(playerId) + ' usa Call for Family y pone a ' + translateCardName(card.name) + ' en la Banca', playerId);
@@ -2260,7 +2260,7 @@ ATTACK_EFFECTS['Oddish'] = {
     }
     if (cardIdx !== -1) {
       var card = p.deck.splice(cardIdx, 1)[0];
-      var instance = createPokemonInstance(card.name);
+      var instance = makeFreshInstance(card.id, card.name, state.turnCounter);
       p.bench[emptyBenchIdx] = instance;
       p.deck = shuffle(p.deck, state.rng);
       logEvent(state, translatePlayer(playerId) + ' usa Sprout y pone a Oddish en la Banca', playerId);
