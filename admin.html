@@ -555,7 +555,7 @@
   <script src="data-sets.js"></script>
   <script src="data-decks.js"></script>
   <script src="data-cards.js"></script>
-  <script src="data-trainers.js"></script>
+  <script src="data-trainers.js?v=20260927b"></script>
   <script>
   (function () {
     // Client-side check only for UX (hiding the form) -- the REAL
@@ -1918,22 +1918,35 @@
 
         saveTrainersConfigSync(currentTrainers);
 
-        firebase.firestore().collection('config').doc('trainers').set({
-          trainers: currentTrainers,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).then(function () {
+        function saveToFirestoreDirect() {
+          return firebase.firestore().collection('config').doc('trainers').set({
+            trainers: currentTrainers,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+
+        saveToFirestoreDirect().then(function () {
           saveTrainersBtn.disabled = false;
           saveTrainersBtn.textContent = 'Guardar Entrenadores';
           statusEl.className = 'status-msg ok';
-          statusEl.textContent = '✓ Entrenadores y mazos guardados correctamente en Firestore y LocalStorage.';
+          statusEl.textContent = '✓ Entrenadores y mazos guardados correctamente en la base de datos (Firestore).';
           setTimeout(function () { statusEl.textContent = ''; }, 4000);
         }).catch(function (err) {
-          console.warn('Error guardando en Firestore, guardado en LocalStorage:', err);
-          saveTrainersBtn.disabled = false;
-          saveTrainersBtn.textContent = 'Guardar Entrenadores';
-          statusEl.className = 'status-msg ok';
-          statusEl.textContent = '✓ Mazos guardados en LocalStorage (' + (err.message || 'Firestore offline') + ').';
-          setTimeout(function () { statusEl.textContent = ''; }, 4000);
+          // Intentar vía Cloud Function como alternativa
+          var setTrainersConfigFn = firebase.functions().httpsCallable('setTrainersConfig');
+          setTrainersConfigFn({ trainers: currentTrainers }).then(function () {
+            saveTrainersBtn.disabled = false;
+            saveTrainersBtn.textContent = 'Guardar Entrenadores';
+            statusEl.className = 'status-msg ok';
+            statusEl.textContent = '✓ Entrenadores y mazos guardados en la base de datos (Cloud Function).';
+            setTimeout(function () { statusEl.textContent = ''; }, 4000);
+          }).catch(function (fnErr) {
+            console.error('Error guardando en Firestore:', err, fnErr);
+            saveTrainersBtn.disabled = false;
+            saveTrainersBtn.textContent = 'Guardar Entrenadores';
+            statusEl.className = 'status-msg error';
+            statusEl.textContent = '✗ Error al guardar en base de datos: ' + (err.message || fnErr.message || 'Permiso denegado');
+          });
         });
       });
     }

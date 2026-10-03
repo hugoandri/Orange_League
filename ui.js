@@ -7470,37 +7470,40 @@ document.addEventListener('DOMContentLoaded', function () {
       playerDeckSelect.value = currentActive;
     }
 
-    var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);
-    var grid = document.getElementById('pvpTrainersList');
-    if (grid) {
-      grid.innerHTML = trainers.map(function (t) {
-        var deck = (typeof getTrainerDeckList === 'function') ? getTrainerDeckList(t) : [];
-        var comp = (typeof getTrainerDeckComposition === 'function') ? getTrainerDeckComposition(deck) : { total: 60 };
-        return '<div class="pvp-trainer-card">' +
-          '<div class="pvp-trainer-portrait-wrap">' +
-            '<img src="' + escapeHtml(t.photo) + '" alt="' + escapeHtml(t.name) + '">' +
-          '</div>' +
-          '<div class="pvp-trainer-meta">' +
-            '<span class="pvp-trainer-badge">#' + escapeHtml(t.num) + '</span>' +
-            '<span class="pvp-trainer-type" style="background:' + (t.typeColor || '#333') + ';">' + escapeHtml(t.type) + '</span>' +
-          '</div>' +
-          '<div class="pvp-trainer-name">' + escapeHtml(t.name) + '</div>' +
-          '<div class="pvp-trainer-title">' + escapeHtml(t.title) + '</div>' +
-          '<div class="pvp-trainer-deck">⚔️ ' + escapeHtml(t.deckName || 'Mazo') + ' (' + comp.total + ' c.)</div>' +
-          '<button type="button" class="pvp-trainer-btn" data-trainer-id="' + escapeHtml(t.id) + '">⚔️ DESAFIAR</button>' +
-        '</div>';
-      }).join('');
-
-      grid.querySelectorAll('.pvp-trainer-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var tId = btn.getAttribute('data-trainer-id');
-          challengeTrainer(tId);
-        });
-      });
-    }
-
+    renderPvpTrainersList();
     modal.classList.remove('hidden');
   }
+
+  function renderPvpTrainersList() {
+    var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);
+    var grid = document.getElementById('pvpTrainersList');
+    if (!grid) { return; }
+    grid.innerHTML = trainers.map(function (t) {
+      var deck = (typeof getTrainerDeckList === 'function') ? getTrainerDeckList(t) : [];
+      var comp = (typeof getTrainerDeckComposition === 'function') ? getTrainerDeckComposition(deck) : { total: 60 };
+      return '<div class="pvp-trainer-card">' +
+        '<div class="pvp-trainer-portrait-wrap">' +
+          '<img src="' + escapeHtml(t.photo) + '" alt="' + escapeHtml(t.name) + '">' +
+        '</div>' +
+        '<div class="pvp-trainer-meta">' +
+          '<span class="pvp-trainer-badge">#' + escapeHtml(t.num) + '</span>' +
+          '<span class="pvp-trainer-type" style="background:' + (t.typeColor || '#333') + ';">' + escapeHtml(t.type) + '</span>' +
+        '</div>' +
+        '<div class="pvp-trainer-name">' + escapeHtml(t.name) + '</div>' +
+        '<div class="pvp-trainer-title">' + escapeHtml(t.title) + '</div>' +
+        '<div class="pvp-trainer-deck">⚔️ ' + escapeHtml(t.deckName || 'Mazo') + ' (' + comp.total + ' c.)</div>' +
+        '<button type="button" class="pvp-trainer-btn" data-trainer-id="' + escapeHtml(t.id) + '">⚔️ DESAFIAR</button>' +
+      '</div>';
+    }).join('');
+
+    grid.querySelectorAll('.pvp-trainer-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tId = btn.getAttribute('data-trainer-id');
+        challengeTrainer(tId);
+      });
+    });
+  }
+  window.renderPvpTrainersList = renderPvpTrainersList;
 
   function challengeTrainer(trainerId) {
     var trainers = (typeof loadTrainersConfigSync === 'function') ? loadTrainersConfigSync() : (typeof DEFAULT_TRAINERS !== 'undefined' ? DEFAULT_TRAINERS : []);

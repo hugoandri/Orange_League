@@ -389,12 +389,18 @@ function getTrainerDeckComposition(cards) {
   };
 }
 
+var activeTrainersConfig = null;
+
 function loadTrainersConfigSync() {
+  if (activeTrainersConfig && Array.isArray(activeTrainersConfig) && activeTrainersConfig.length === 10) {
+    return activeTrainersConfig;
+  }
   try {
     var raw = localStorage.getItem('tcg_trainers_config');
     if (raw) {
       var parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length === 10) {
+        activeTrainersConfig = parsed;
         return parsed;
       }
     }
@@ -406,12 +412,32 @@ function loadTrainersConfigSync() {
 
 function saveTrainersConfigSync(trainers) {
   try {
+    activeTrainersConfig = trainers;
     localStorage.setItem('tcg_trainers_config', JSON.stringify(trainers));
     return true;
   } catch (e) {
     console.error('Error saving tcg_trainers_config to localStorage:', e);
     return false;
   }
+}
+
+function initTrainersConfigListener(onUpdate) {
+  if (typeof firebase === 'undefined' || !firebase.firestore) { return null; }
+  return firebase.firestore().collection('config').doc('trainers')
+    .onSnapshot(function (snap) {
+      if (snap.exists) {
+        var data = snap.data();
+        if (data && Array.isArray(data.trainers) && data.trainers.length === 10) {
+          activeTrainersConfig = data.trainers;
+          try {
+            localStorage.setItem('tcg_trainers_config', JSON.stringify(data.trainers));
+          } catch (e) {}
+          if (typeof onUpdate === 'function') { onUpdate(data.trainers); }
+        }
+      }
+    }, function (err) {
+      console.warn('No se pudo sincronizar la configuración de entrenadores desde Firestore:', err);
+    });
 }
 
 if (typeof module !== 'undefined') {
@@ -424,6 +450,7 @@ if (typeof module !== 'undefined') {
     getTrainerDeckCardCount,
     getTrainerDeckComposition,
     loadTrainersConfigSync,
-    saveTrainersConfigSync
+    saveTrainersConfigSync,
+    initTrainersConfigListener
   };
 }

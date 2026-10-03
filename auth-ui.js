@@ -351,6 +351,7 @@
     var unsubscribeNews = null;
     var unsubscribeCustomPacks = null;
     var unsubscribeEconomyConfig = null;
+    var unsubscribeTrainersConfig = null;
     function getTelegramBotUrl(uid) {
       var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       var startParam = uid ? ('uid_' + encodeURIComponent(uid)) : '';
@@ -407,6 +408,10 @@
         unsubscribeCustomPacks = initCustomPacksListener();
         if (unsubscribeEconomyConfig) { unsubscribeEconomyConfig(); }
         unsubscribeEconomyConfig = initEconomyConfigListener();
+        if (unsubscribeTrainersConfig) { unsubscribeTrainersConfig(); }
+        if (typeof initTrainersConfigListener === 'function') {
+          unsubscribeTrainersConfig = initTrainersConfigListener();
+        }
       } else {
         if (menuUidEl) { menuUidEl.textContent = '--'; }
         if (menuTelegramBtn) { menuTelegramBtn.href = getTelegramBotUrl(null); }
@@ -427,6 +432,10 @@
         if (unsubscribeEconomyConfig) {
           unsubscribeEconomyConfig();
           unsubscribeEconomyConfig = null;
+        }
+        if (unsubscribeTrainersConfig) {
+          unsubscribeTrainersConfig();
+          unsubscribeTrainersConfig = null;
         }
         document.getElementById('menuScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');
