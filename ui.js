@@ -996,6 +996,11 @@ function openCardModal(name, imgUrl, foilTier) {
   var img = document.getElementById('cardModalImg');
   img.src = url;
   img.alt = name;
+  var zoomImgBox = document.querySelector('.shell-card-zoom-img-box');
+  if (zoomImgBox) {
+    zoomImgBox.style.transition = 'none';
+    zoomImgBox.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+  }
   var modal = document.getElementById('cardModal');
   modal.classList.toggle('holo', foilTier === 'holo');
   modal.classList.toggle('secret', foilTier === 'secret');
@@ -1034,6 +1039,11 @@ function closeCardModal() {
   document.getElementById('cardModal').classList.add('hidden');
   var overlay = document.getElementById('cardModalOverlay');
   if (overlay) { overlay.innerHTML = ''; }
+  var zoomImgBox = document.querySelector('.shell-card-zoom-img-box');
+  if (zoomImgBox) {
+    zoomImgBox.style.transition = 'none';
+    zoomImgBox.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+  }
   if (onCardModalClose) {
     var cb = onCardModalClose;
     onCardModalClose = null;
@@ -7919,6 +7929,42 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Modals ───────────────────────────────────────────────────────
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
   document.querySelector('#cardModal .card-modal-backdrop').addEventListener('click', closeCardModal);
+
+  // Efecto 3D Tilt al mover el cursor o tocar la carta en el modal de primer plano
+  var zoomImgBox = document.querySelector('.shell-card-zoom-img-box');
+  if (zoomImgBox) {
+    function handleCardTilt(clientX, clientY) {
+      var rect = zoomImgBox.getBoundingClientRect();
+      if (!rect.width || !rect.height) { return; }
+      var x = clientX - rect.left;
+      var y = clientY - rect.top;
+      var centerX = rect.width / 2;
+      var centerY = rect.height / 2;
+      var rotateX = ((y - centerY) / centerY) * -14;
+      var rotateY = ((x - centerX) / centerX) * 14;
+      zoomImgBox.style.transition = 'transform 0.08s ease-out';
+      zoomImgBox.style.transform = 'perspective(1000px) rotateX(' + rotateX.toFixed(2) + 'deg) rotateY(' + rotateY.toFixed(2) + 'deg) scale3d(1.035, 1.035, 1.035)';
+    }
+
+    function resetCardTilt() {
+      zoomImgBox.style.transition = 'transform 0.35s ease-out';
+      zoomImgBox.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+    }
+
+    zoomImgBox.addEventListener('mousemove', function (e) {
+      handleCardTilt(e.clientX, e.clientY);
+    });
+
+    zoomImgBox.addEventListener('mouseleave', resetCardTilt);
+
+    zoomImgBox.addEventListener('touchmove', function (e) {
+      if (e.touches && e.touches[0]) {
+        handleCardTilt(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    zoomImgBox.addEventListener('touchend', resetCardTilt);
+  }
 
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
