@@ -285,7 +285,7 @@ function renderPixelBadgePlate(cfg, blockPx, titleText) {
     }).join('');
     return '<div style="display:grid;grid-template-columns:repeat(8,' + blockPx + 'px);grid-auto-rows:' + blockPx + 'px;">' + inner + '</div>';
   }).join('');
-  return '<div class="shell-status-badge" style="background:linear-gradient(180deg,' + cfg.plateFrom + ',' + cfg.plateTo + ');" title="' + titleText + '">' +
+  return '<div class="shell-status-badge" style="background:linear-gradient(180deg,' + cfg.plateFrom + ',' + cfg.plateTo + ');" title="' + titleText + '" data-badge-letters="' + cfg.letters + '">' +
     '<div style="display:flex;gap:' + gap + 'px;">' + glyphs + '</div>' +
     '</div>';
 }
@@ -314,4 +314,25 @@ function pixelPlusPowerBadgeHtml(blockPx) {
 var PIXEL_DEFENDER_BADGE = { letters: '+20DEF', plateFrom: '#7ab8ff', plateTo: '#1f5fa8', outline: '#0d2d54' };
 function pixelDefenderBadgeHtml(blockPx) {
   return renderPixelBadgePlate(PIXEL_DEFENDER_BADGE, blockPx, 'Defensor');
+}
+
+var PIXEL_PROTECT_BADGE = { letters: 'PRCT', plateFrom: '#8dff62', plateTo: '#2c8a1c', outline: '#0d2a06' };
+function pixelProtectBadgeHtml(blockPx) {
+  return renderPixelBadgePlate(PIXEL_PROTECT_BADGE, blockPx, 'Protegido');
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    PIXEL_STATUS_BADGES,
+    PIXEL_PLUSPOWER_BADGE,
+    PIXEL_DEFENDER_BADGE,
+    PIXEL_PROTECT_BADGE,
+    pixelStatusBadgeHtml,
+    pixelPlusPowerBadgeHtml,
+    pixelDefenderBadgeHtml,
+    pixelProtectBadgeHtml,
+    pixelDigitsHtml,
+    pixelCoinHtml,
+    renderPixelBadgePlate
+  };
 }

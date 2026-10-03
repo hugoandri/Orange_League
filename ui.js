@@ -720,10 +720,14 @@ function showCardInViewer(name, instanceId, actionOpts) {
       '<div class="shell-board-viewer-identity-hp">' + pixelDigitsHtml(hp, 'fosforo', 2) +
         '<span>/' + stats.hp + '</span></div>' +
       '</div>';
-    var statusHtml = (instance && instance.statusConditions.length)
-      ? '<div class="shell-board-viewer-note">' + escapeHtml(instance.statusConditions.map(function (s) {
-          return translateStatus(s) + (s === 'Poisoned' && instance.severePoison ? ' Severo' : '');
-        }).join(', ')) + '</div>'
+    var statusParts = (instance && instance.statusConditions) ? instance.statusConditions.map(function (s) {
+      return translateStatus(s) + (s === 'Poisoned' && instance.severePoison ? ' Severo' : '');
+    }) : [];
+    if (instance && instance.plusPowerAttached) { statusParts.push('Más Potencia (+10)'); }
+    if (instance && instance.shield && instance.shield.type === 'reduceFlat') { statusParts.push('Defensor (-20)'); }
+    if (instance && instance.shield && (instance.shield.type === 'preventAll' || instance.shield.type === 'thresholdMax')) { statusParts.push('Protegido (PRCT)'); }
+    var statusHtml = statusParts.length
+      ? '<div class="shell-board-viewer-note">' + escapeHtml(statusParts.join(', ')) + '</div>'
       : '';
     // Clefairy Doll: "at any time during your turn before your attack, you
     // may discard it" -- unlike the attack buttons above, this applies
@@ -1978,6 +1982,80 @@ function closeLassRevealModal() {
   document.getElementById('lassRevealModal').classList.add('hidden');
 }
 
+// Guía de estados alterados y efectos de entrenador (botón AYUDA)
+function renderStatusHelpModal() {
+  var list = document.getElementById('statusHelpList');
+  if (!list) { return; }
+  var items = [
+    {
+      name: 'Protegido (PRCT)',
+      badgeHtml: typeof pixelProtectBadgeHtml === 'function' ? pixelProtectBadgeHtml(2) : '',
+      desc: 'El Pokémon es inmune a todo daño y/o efectos de ataques durante el siguiente turno del rival (o contra ataques que superen un límite de daño). Proviene de ataques defensivos como Barrera o Pantalla de Luz.'
+    },
+    {
+      name: 'Dormido (SLP)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('Asleep', 2) : '',
+      desc: 'El Pokémon no puede atacar ni retirarse. Entre cada turno se lanza una moneda: si sale cara, el Pokémon despierta.'
+    },
+    {
+      name: 'Paralizado (PAR)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('Paralyzed', 2) : '',
+      desc: 'El Pokémon no puede atacar ni retirarse. La parálisis dura 1 turno y se elimina automáticamente al finalizar el turno del jugador afectado.'
+    },
+    {
+      name: 'Envenenado (PSN)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('Poisoned', 2) : '',
+      desc: 'El Pokémon recibe 10 puntos de daño entre cada turno. No desaparece por sí solo; se cura al evolucionar, retirarse a la banca o mediante cartas de entrenador.'
+    },
+    {
+      name: 'Veneno Severo (PSNX2)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('SeverePoison', 2) : '',
+      desc: 'Versión potenciada de veneno (infligida por ataques como Tóxico). Causa 20 puntos de daño entre cada turno.'
+    },
+    {
+      name: 'Confundido (???)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('Confused', 2) : '',
+      desc: 'Al intentar atacar, se lanza una moneda: si sale cruz, el ataque falla y el Pokémon se hace 20 puntos de daño a sí mismo. Puede retirarse pagando su coste normal.'
+    },
+    {
+      name: 'Quemado (BRN)',
+      badgeHtml: typeof pixelStatusBadgeHtml === 'function' ? pixelStatusBadgeHtml('Burned', 2) : '',
+      desc: 'El Pokémon recibe 20 puntos de daño entre cada turno. Se lanza una moneda entre turnos: si sale cara, se cura de la quemadura.'
+    },
+    {
+      name: 'Más Potencia (+10ATK)',
+      badgeHtml: typeof pixelPlusPowerBadgeHtml === 'function' ? pixelPlusPowerBadgeHtml(2) : '',
+      desc: 'Efecto de la carta de Entrenador Más Potencia. Suma +10 de daño a todos los ataques realizados por este Pokémon durante el turno en que se jugó.'
+    },
+    {
+      name: 'Defensor (+20DEF)',
+      badgeHtml: typeof pixelDefenderBadgeHtml === 'function' ? pixelDefenderBadgeHtml(2) : '',
+      desc: 'Efecto de la carta de Entrenador Defensor. Reduce en 20 el daño que recibe este Pokémon de cualquier ataque rival hasta el final del próximo turno.'
+    }
+  ];
+
+  list.innerHTML = items.map(function (item) {
+    return '<div class="shell-status-help-row">' +
+      '<div class="shell-status-help-badge">' + item.badgeHtml + '</div>' +
+      '<div class="shell-status-help-info">' +
+        '<div class="shell-status-help-name">' + escapeHtml(item.name) + '</div>' +
+        '<div class="shell-status-help-desc">' + escapeHtml(item.desc) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openStatusHelpModal() {
+  renderStatusHelpModal();
+  document.getElementById('statusHelpModal').classList.remove('hidden');
+  stopGameClock();
+}
+
+function closeStatusHelpModal() {
+  document.getElementById('statusHelpModal').classList.add('hidden');
+  resumeGameClockIfNeeded();
+}
+
 // Computer Search: shows the player's live deck in order (not deduplicated
 // by name -- if a card is duplicated in the deck it appears again, each
 // with its own image, per user request) as a scrollable clickable grid,
@@ -2438,6 +2516,9 @@ function cardStatusOverlayHtml(activeInstance) {
   }).join('');
   if (activeInstance.plusPowerAttached) { badges += pixelPlusPowerBadgeHtml(2); }
   if (activeInstance.shield && activeInstance.shield.type === 'reduceFlat') { badges += pixelDefenderBadgeHtml(2); }
+  if (activeInstance.shield && (activeInstance.shield.type === 'preventAll' || activeInstance.shield.type === 'thresholdMax')) {
+    badges += pixelProtectBadgeHtml(2);
+  }
   if (!badges) { return ''; }
   return '<div class="shell-board-active-status-badges">' + badges + '</div>';
 }
@@ -3446,7 +3527,7 @@ function wireBoardButtons() {
             openDeckSearchModal(stage2Candidates, function (evolutionHandId) {
               pendingPokemonBreeder = { handId: handId, evolutionHandId: evolutionHandId };
               showTargetHintModal('Elige el Pokémon Básico del que evoluciona esa carta');
-            });
+            }, 'ELIGE UN POKÉMON FASE 2 DE TU MANO');
           } else if (handCard.name === 'Pokémon Flute') {
             var opBasicsInDiscard = gameState.players.cpu.discard.filter(function (c) { return isBasicPokemon(c.name); });
             if (opBasicsInDiscard.length === 0) {
@@ -3566,6 +3647,9 @@ function wireBoardButtons() {
         pvpAction = (gameState.players.player.active ? { type: 'placeBench', handCardId: handId, benchIndex: benchIndex } : { type: 'placeActive', handCardId: handId });
       } else if (targetInstanceId && canEvolve(gameState, 'player', handId, targetInstanceId)) {
         pvpAction = { type: 'evolve', handCardId: handId, targetInstanceId: targetInstanceId };
+      } else if (targetInstanceId && typeof isStage2EvolutionOf === 'function' && isStage2EvolutionOf(handCard.name, (findInstance(p, targetInstanceId) || {}).name) && p.hand.some(function (c) { return c.name === 'Pokémon Breeder'; })) {
+        var pvpBreeder = p.hand.find(function (c) { return c.name === 'Pokémon Breeder'; });
+        pvpAction = { type: 'playTrainer', trainerName: 'Pokémon Breeder', handId: pvpBreeder.id, args: [handId, targetInstanceId] };
       } else if (targetInstanceId && canAttachEnergy(gameState, 'player', handId, targetInstanceId)) {
         pvpAction = { type: 'attachEnergy', handCardId: handId, targetInstanceId: targetInstanceId };
       }
@@ -3583,6 +3667,12 @@ function wireBoardButtons() {
     } else if (targetInstanceId && canEvolve(gameState, 'player', handId, targetInstanceId)) {
       var dropEvoName = handCard.name;
       evolve(gameState, 'player', handId, targetInstanceId);
+      afterPlayerAction();
+      onPokemonEvolved(dropEvoName, targetInstanceId);
+    } else if (targetInstanceId && typeof isStage2EvolutionOf === 'function' && isStage2EvolutionOf(handCard.name, (findInstance(p, targetInstanceId) || {}).name) && p.hand.some(function (c) { return c.name === 'Pokémon Breeder'; })) {
+      var dropBreederCard = p.hand.find(function (c) { return c.name === 'Pokémon Breeder'; });
+      var dropEvoName = handCard.name;
+      applyOrSubmitTrainerEffect('Pokémon Breeder', dropBreederCard.id, [handId, targetInstanceId]);
       afterPlayerAction();
       onPokemonEvolved(dropEvoName, targetInstanceId);
     } else if (targetInstanceId && canAttachEnergy(gameState, 'player', handId, targetInstanceId)) {
@@ -3823,6 +3913,7 @@ function wireBoardButtons() {
 
   document.querySelectorAll('.shell-board-bench-card, .shell-board-active-card').forEach(function (el) {
     el.addEventListener('click', function () {
+      var p = gameState.players.player;
       var instanceId = el.getAttribute('data-instance-id');
       showCardInViewer(el.getAttribute('data-card-name'), instanceId);
       if (retreatMode) {
@@ -4014,6 +4105,7 @@ function wireBoardButtons() {
       if (pendingPokemonBreeder) {
         var pb = pendingPokemonBreeder;
         pendingPokemonBreeder = null;
+        closeTargetHintModal();
         var evoCard = p.hand.find(function (c) { return c.id === pb.evolutionHandId; });
         var evoName = evoCard ? evoCard.name : null;
         applyOrSubmitTrainerEffect('Pokémon Breeder', pb.handId, [pb.evolutionHandId, instanceId]);
@@ -4023,7 +4115,6 @@ function wireBoardButtons() {
         return;
       }
       if (!selectedHandId) { return; }
-      var p = gameState.players.player;
       var handCard = p.hand.find(function (c) { return c.id === selectedHandId; });
       if (!handCard) { return; }
       // C2 (final-review fix, historical): this click-to-select-then-
@@ -4042,6 +4133,9 @@ function wireBoardButtons() {
           pvpBoardClickAction = { type: 'placeBench', handCardId: selectedHandId, benchIndex: gameState.players.player.bench.indexOf(null) };
         } else if (canEvolve(gameState, 'player', selectedHandId, instanceId)) {
           pvpBoardClickAction = { type: 'evolve', handCardId: selectedHandId, targetInstanceId: instanceId };
+        } else if (findInstance(p, instanceId) && typeof isStage2EvolutionOf === 'function' && isStage2EvolutionOf(handCard.name, findInstance(p, instanceId).name) && p.hand.some(function (c) { return c.name === 'Pokémon Breeder'; })) {
+          var pvpBreeder = p.hand.find(function (c) { return c.name === 'Pokémon Breeder'; });
+          pvpBoardClickAction = { type: 'playTrainer', trainerName: 'Pokémon Breeder', handId: pvpBreeder.id, args: [selectedHandId, instanceId] };
         } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
           pvpBoardClickAction = { type: 'attachEnergy', handCardId: selectedHandId, targetInstanceId: instanceId };
         }
@@ -4066,6 +4160,13 @@ function wireBoardButtons() {
         evolve(gameState, 'player', selectedHandId, instanceId);
         selectedHandId = null;
         renderBoard();
+        onPokemonEvolved(clickEvoName, instanceId);
+        return;
+      } else if (findInstance(p, instanceId) && typeof isStage2EvolutionOf === 'function' && isStage2EvolutionOf(handCard.name, findInstance(p, instanceId).name) && p.hand.some(function (c) { return c.name === 'Pokémon Breeder'; })) {
+        var clickBreederCard = p.hand.find(function (c) { return c.name === 'Pokémon Breeder'; });
+        var clickEvoName = handCard.name;
+        applyOrSubmitTrainerEffect('Pokémon Breeder', clickBreederCard.id, [selectedHandId, instanceId]);
+        selectedHandId = null;
         onPokemonEvolved(clickEvoName, instanceId);
         return;
       } else if (canAttachEnergy(gameState, 'player', selectedHandId, instanceId)) {
@@ -7955,6 +8056,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Modals ───────────────────────────────────────────────────────
   document.getElementById('cardModalClose').addEventListener('click', closeCardModal);
   document.querySelector('#cardModal .card-modal-backdrop').addEventListener('click', closeCardModal);
+  var cardModalCloseX = document.getElementById('cardModalCloseX');
+  if (cardModalCloseX) { cardModalCloseX.addEventListener('click', closeCardModal); }
 
   // Efecto 3D Tilt al mover el cursor o tocar la carta en el modal de primer plano
   var zoomImgBox = document.querySelector('.shell-card-zoom-img-box');
@@ -7994,13 +8097,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('discardPileClose').addEventListener('click', closeDiscardPileModal);
   document.querySelector('#discardPileModal .card-modal-backdrop').addEventListener('click', closeDiscardPileModal);
+  var discardPileCloseX = document.getElementById('discardPileCloseX');
+  if (discardPileCloseX) { discardPileCloseX.addEventListener('click', closeDiscardPileModal); }
 
   document.getElementById('lassRevealClose').addEventListener('click', closeLassRevealModal);
+  var lassRevealCloseX = document.getElementById('lassRevealCloseX');
+  if (lassRevealCloseX) { lassRevealCloseX.addEventListener('click', closeLassRevealModal); }
 
   document.getElementById('collectionVersionsClose').addEventListener('click', closeCollectionVersionsModal);
   document.querySelector('#collectionVersionsModal .card-modal-backdrop').addEventListener('click', closeCollectionVersionsModal);
+  var collectionVersionsCloseX = document.getElementById('collectionVersionsCloseX');
+  if (collectionVersionsCloseX) { collectionVersionsCloseX.addEventListener('click', closeCollectionVersionsModal); }
 
   document.querySelector('#deckBuilderVersionModal .card-modal-backdrop').addEventListener('click', closeDeckBuilderVersionModal);
+  var deckBuilderVersionCloseX = document.getElementById('deckBuilderVersionCloseX');
+  if (deckBuilderVersionCloseX) { deckBuilderVersionCloseX.addEventListener('click', closeDeckBuilderVersionModal); }
+
+  var deckSearchCloseX = document.getElementById('deckSearchCloseX');
+  if (deckSearchCloseX) {
+    deckSearchCloseX.addEventListener('click', function () {
+      closeDeckSearchModal();
+      closeTargetHintModal();
+      renderBoard();
+    });
+  }
+
+  var targetHintCloseBtn = document.getElementById('targetHintCloseBtn');
+  if (targetHintCloseBtn) {
+    targetHintCloseBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeTargetHintModal();
+      if (typeof selectedHandId !== 'undefined') { selectedHandId = null; }
+      if (typeof retreatMode !== 'undefined') { retreatMode = false; }
+      if (typeof pendingAttackNeedingTarget !== 'undefined') { pendingAttackNeedingTarget = null; }
+      renderBoard();
+    });
+  }
+
+  var boardStatusHelpBtn = document.getElementById('boardStatusHelpBtn');
+  if (boardStatusHelpBtn) {
+    boardStatusHelpBtn.addEventListener('click', openStatusHelpModal);
+  }
+  var statusHelpCloseBtn = document.getElementById('statusHelpCloseBtn');
+  if (statusHelpCloseBtn) {
+    statusHelpCloseBtn.addEventListener('click', closeStatusHelpModal);
+  }
+  var statusHelpOkBtn = document.getElementById('statusHelpOkBtn');
+  if (statusHelpOkBtn) {
+    statusHelpOkBtn.addEventListener('click', closeStatusHelpModal);
+  }
+  var statusHelpBackdrop = document.querySelector('#statusHelpModal .card-modal-backdrop');
+  if (statusHelpBackdrop) {
+    statusHelpBackdrop.addEventListener('click', closeStatusHelpModal);
+  }
 
   document.getElementById('surrenderCancelBtn').addEventListener('click', function () {
     document.getElementById('surrenderModal').classList.add('hidden');

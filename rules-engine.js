@@ -366,6 +366,16 @@ function canEvolve(state, playerId, handId, targetInstanceId) {
   return evolutionTimingAllowed(state, target);
 }
 
+function isStage2EvolutionOf(stage2Name, basicName) {
+  var s2 = CARD_STATS[stage2Name];
+  if (!s2 || s2.supertype !== 'Pokémon' || !s2.evolvesFrom) { return false; }
+  var s1 = CARD_STATS[s2.evolvesFrom];
+  if (!s1 || s1.supertype !== 'Pokémon' || !s1.evolvesFrom) { return false; }
+  var basicNorm = (basicName || '').trim().replace(/\s+/g, ' ');
+  var s1EvolvesFromNorm = (s1.evolvesFrom || '').trim().replace(/\s+/g, ' ');
+  return s1EvolvesFromNorm === basicNorm;
+}
+
 // Walks CARD_STATS[name].evolvesFrom back to the root Basic name -- used by
 // Scoop Up (return the Basic form to hand) and Devolution Spray (devolve
 // all the way back to Basic).
@@ -1708,7 +1718,7 @@ if (typeof module !== 'undefined') {
     // repro: Bill's effect threw "drawCard is not defined" the first time
     // playTrainer actually ran against the local dev server.
     findInstance, opponentOf, translatePlayer, translateCardName,
-    logEvent, drawCard, basicFormName, isBasicPokemon, benchCount,
+    logEvent, drawCard, basicFormName, isBasicPokemon, isStage2EvolutionOf, benchCount,
     evolutionTimingAllowed, makeFreshInstance, createPokemonInstance, shuffle,
     discardedEnergyCard, discardedEvolutionCard, allInstances, removeEnergyCardsAt, groupEnergyIntoCards,
     // Real reported bug found while testing the Energy Retrieval fix

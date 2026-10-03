@@ -538,12 +538,18 @@ TRAINER_EFFECTS['Pokémon Breeder'] = function (state, playerId, handId, evoluti
   var p = state.players[playerId];
   var target = findInstance(p, targetInstanceId);
   var evoCard = p.hand.find(function (c) { return c.id === evolutionHandId; });
-  if (!target || !evoCard) { return { legal: false, reason: 'selección inválida' }; }
-  var evoStats = CARD_STATS[evoCard.name];
-  var stage1Name = evoStats && evoStats.evolvesFrom;
-  var stage1Stats = stage1Name && CARD_STATS[stage1Name];
-  var basicName = stage1Stats && stage1Stats.evolvesFrom;
-  if (!basicName || basicName !== target.name) { return { legal: false, reason: 'esa carta no evoluciona desde ese Pokémon' }; }
+  var isAllowed = (typeof isStage2EvolutionOf === 'function')
+    ? isStage2EvolutionOf(evoCard.name, target.name)
+    : (function () {
+        var evoStats = CARD_STATS[evoCard.name];
+        var s1Name = evoStats && evoStats.evolvesFrom;
+        var s1Stats = s1Name && CARD_STATS[s1Name];
+        var bName = s1Stats && s1Stats.evolvesFrom;
+        var tNorm = (target.name || '').trim().replace(/\s+/g, ' ');
+        var bNorm = (bName || '').trim().replace(/\s+/g, ' ');
+        return !!(bName && bNorm === tNorm);
+      })();
+  if (!isAllowed) { return { legal: false, reason: 'esa carta no evoluciona desde ese Pokémon' }; }
   if (!evolutionTimingAllowed(state, target)) { return { legal: false, reason: 'ese Pokémon no puede evolucionar todavía' }; }
   var idx = p.hand.findIndex(function (c) { return c.id === handId; });
   if (idx === -1) { return { legal: false, reason: 'esa carta no está en tu mano' }; }

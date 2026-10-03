@@ -3840,6 +3840,97 @@ function mkPokemon(id, name, overrides) {
   check('createPokemonInstance auto name matches', autoInst.name, 'Bulbasaur');
 })();
 
+(function testStage2EvolutionChains() {
+  var stage2Pairs = [
+    ['Nidoqueen', 'Nidoran ♀'],
+    ['Nidoking', 'Nidoran ♂'],
+    ['Charizard', 'Charmander'],
+    ['Blastoise', 'Squirtle'],
+    ['Venusaur', 'Bulbasaur'],
+    ['Alakazam', 'Abra'],
+    ['Machamp', 'Machop'],
+    ['Poliwrath', 'Poliwag'],
+    ['Butterfree', 'Caterpie'],
+    ['Beedrill', 'Weedle'],
+    ['Pidgeot', 'Pidgey'],
+    ['Victreebel', 'Bellsprout'],
+    ['Vileplume', 'Oddish']
+  ];
 
+  stage2Pairs.forEach(function (pair) {
+    check('isStage2EvolutionOf recognizes ' + pair[0] + ' evolves from ' + pair[1], isStage2EvolutionOf(pair[0], pair[1]), true);
+  });
 
+  check('isStage2EvolutionOf rejects mismatched basic (Nidoqueen from Bulbasaur)', isStage2EvolutionOf('Nidoqueen', 'Bulbasaur'), false);
+  check('isStage2EvolutionOf rejects Stage 1 as the target (Nidoqueen from Nidorina)', isStage2EvolutionOf('Nidoqueen', 'Nidorina'), false);
+  check('isStage2EvolutionOf rejects Stage 1 card as the evolution (Nidorina from Nidoran ♀)', isStage2EvolutionOf('Nidorina', 'Nidoran ♀'), false);
+  check('isStage2EvolutionOf rejects inverted order (Charmander from Charizard)', isStage2EvolutionOf('Charmander', 'Charizard'), false);
+})();
 
+(function testPokemonBreederPlaysNidoqueenDirectly() {
+  var state = createGame(function () { return 0.5; });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+  var p = state.players.player;
+  p.active = {
+    id: 'nid_f_act',
+    name: 'Nidoran ♀',
+    attachedEnergy: ['Grass', 'Grass'],
+    damage: 20,
+    statusConditions: [],
+    turnEnteredCurrentForm: 1,
+    lockedAttacks: [],
+    shield: null,
+    missChanceUntilTurn: null,
+    plusPowerAttached: false
+  };
+  p.hand = [
+    { id: 'breeder_1', name: 'Pokémon Breeder' },
+    { id: 'nidoqueen_1', name: 'Nidoqueen' },
+    { id: 'extra_1', name: 'Potion' }
+  ];
+  p.discard = [];
+
+  var result = TRAINER_EFFECTS['Pokémon Breeder'](state, 'player', 'breeder_1', 'nidoqueen_1', 'nid_f_act');
+  check('Pokemon Breeder on Nidoqueen is legal', result.legal, true);
+  check('Active Pokemon evolved to Nidoqueen', p.active.name, 'Nidoqueen');
+  check('Damage counters preserved on evolution', p.active.damage, 20);
+  check('Attached energy preserved on evolution', p.active.attachedEnergy.length, 2);
+  check('Stage 2 card removed from hand', p.hand.some(function (c) { return c.id === 'nidoqueen_1'; }), false);
+  check('Breeder card removed from hand', p.hand.some(function (c) { return c.id === 'breeder_1'; }), false);
+  check('Breeder card placed in discard pile', p.discard.some(function (c) { return c.name === 'Pokémon Breeder'; }), true);
+})();
+
+(function testPokemonBreederRejectsIllegalTarget() {
+  var state = createGame(function () { return 0.5; });
+  state.activePlayerId = 'player';
+  state.turnCounter = 3;
+  var p = state.players.player;
+  p.active = {
+    id: 'squirtle_act',
+    name: 'Squirtle',
+    attachedEnergy: ['Water'],
+    damage: 0,
+    statusConditions: [],
+    turnEnteredCurrentForm: 1,
+    lockedAttacks: [],
+    shield: null,
+    missChanceUntilTurn: null,
+    plusPowerAttached: false
+  };
+  p.hand = [
+    { id: 'breeder_2', name: 'Pokémon Breeder' },
+    { id: 'nidoqueen_2', name: 'Nidoqueen' }
+  ];
+
+  var result = TRAINER_EFFECTS['Pokémon Breeder'](state, 'player', 'breeder_2', 'nidoqueen_2', 'squirtle_act');
+  check('Pokemon Breeder rejects Nidoqueen onto Squirtle', result.legal, false);
+  check('Active remains Squirtle', p.active.name, 'Squirtle');
+})();
+
+(function testPixelProtectBadge() {
+  var badgeHtml = pixelProtectBadgeHtml(2);
+  checkTrue('pixelProtectBadgeHtml outputs HTML string', typeof badgeHtml === 'string' && badgeHtml.length > 0);
+  checkTrue('pixelProtectBadgeHtml includes PRCT', badgeHtml.indexOf('PRCT') !== -1);
+  checkTrue('pixelProtectBadgeHtml includes green palette colors', badgeHtml.indexOf('#8dff62') !== -1);
+})();

@@ -5,7 +5,7 @@
 <title>Orange League Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css?v=20260922d">
-<link rel="stylesheet" href="shell-theme.css?v=20260927i">
+<link rel="stylesheet" href="shell-theme.css?v=20261002a">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -426,7 +426,10 @@
               <span class="shell-board-turn-divider"></span>
               <span class="shell-board-turn-value" id="boardTurnValue">TU TURNO</span>
             </div>
-            <div class="shell-board-wallclock" id="boardWallClock"></div>
+            <div class="shell-board-header-right">
+              <div class="shell-board-wallclock" id="boardWallClock"></div>
+              <button type="button" id="boardStatusHelpBtn" class="shell-board-help-btn" title="Ayuda sobre chips de estado">AYUDA</button>
+            </div>
           </div>
 
           <div class="shell-board-body">
@@ -475,6 +478,7 @@
   <div id="cardModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-card-zoom">
+      <button type="button" id="cardModalCloseX" class="shell-card-zoom-close-x" title="Cerrar">✕</button>
       <div class="shell-card-zoom-img-box">
         <img id="cardModalImg" src="" alt="">
         <div id="cardModalOverlay"></div>
@@ -482,6 +486,20 @@
       <div id="cardModalStars"></div>
       <div id="cardModalText" class="shell-card-zoom-text hidden"></div>
       <button type="button" id="cardModalClose" class="shell-card-zoom-close">CERRAR</button>
+    </div>
+  </div>
+
+  <div id="statusHelpModal" class="card-modal hidden">
+    <div class="card-modal-backdrop" id="statusHelpBackdrop"></div>
+    <div class="shell-status-help-modal">
+      <div class="shell-status-help-header">
+        <h3 class="shell-status-help-title">CHIPS DE ESTADO Y EFECTOS</h3>
+        <button type="button" class="shell-modal-close-x" id="statusHelpCloseBtn" title="Cerrar">✕</button>
+      </div>
+      <div class="shell-status-help-body" id="statusHelpList"></div>
+      <div class="shell-status-help-footer">
+        <button type="button" class="shell-modal-btn shell-modal-btn-primary" id="statusHelpOkBtn">ENTENDIDO</button>
+      </div>
     </div>
   </div>
 
@@ -594,6 +612,7 @@
        looking identical to a real modal. -->
   <div id="targetHintModal" class="shell-target-hint hidden">
     <div class="shell-modal-card">
+      <button type="button" class="shell-modal-close-x" id="targetHintCloseBtn" title="Cancelar selección">✕</button>
       <p class="shell-modal-text" id="targetHintText"></p>
     </div>
   </div>
@@ -735,6 +754,7 @@
   <div id="lassRevealModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-discard-pile-card">
+      <button type="button" class="shell-modal-close-x" id="lassRevealCloseX" title="Cerrar">✕</button>
       <p class="shell-modal-title" id="lassRevealPlayerTitle">TU MANO</p>
       <div id="lassRevealPlayerGrid" class="shell-discard-pile-grid"></div>
       <p class="shell-modal-title" id="lassRevealCpuTitle">MANO DEL RIVAL</p>
@@ -746,6 +766,7 @@
   <div id="discardPileModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-discard-pile-card">
+      <button type="button" class="shell-modal-close-x" id="discardPileCloseX" title="Cerrar">✕</button>
       <p class="shell-modal-title" id="discardPileTitle"></p>
       <div id="discardPileGrid" class="shell-discard-pile-grid"></div>
       <button type="button" id="discardPileClose" class="shell-modal-btn">CERRAR</button>
@@ -755,6 +776,7 @@
   <div id="deckSearchModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-discard-pile-card">
+      <button type="button" class="shell-modal-close-x" id="deckSearchCloseX" title="Cerrar">✕</button>
       <p class="shell-modal-title" id="deckSearchTitle">BUSCA UNA CARTA EN TU MAZO</p>
       <div id="deckSearchGrid" class="shell-discard-pile-grid"></div>
       <button type="button" id="deckSearchCancel" class="shell-modal-btn">CANCELAR</button>
@@ -764,6 +786,7 @@
   <div id="collectionVersionsModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-collection-versions-card">
+      <button type="button" class="shell-modal-close-x" id="collectionVersionsCloseX" title="Cerrar">✕</button>
       <p class="shell-modal-title" id="collectionVersionsTitle"></p>
       <div id="collectionVersionsGrid" class="shell-collection-versions-grid"></div>
       <button type="button" id="collectionVersionsClose" class="shell-modal-btn">CERRAR</button>
@@ -1284,6 +1307,7 @@
   <div id="deckBuilderVersionModal" class="card-modal hidden">
     <div class="card-modal-backdrop"></div>
     <div class="shell-modal-card shell-deck-builder-versions-card">
+      <button type="button" class="shell-modal-close-x" id="deckBuilderVersionCloseX" title="Cerrar">✕</button>
       <p class="shell-modal-title" id="deckBuilderVersionTitle"></p>
       <div id="deckBuilderVersionGrid" class="shell-deck-builder-versions-grid"></div>
       <button type="button" id="deckBuilderVersionClose" class="shell-modal-btn">CANCELAR</button>
@@ -1646,12 +1670,12 @@
 <script src="data-decks.js?v=20260927e"></script>
 <script src="data-cards.js?v=20260927e"></script>
 <script src="data-trainers.js?v=20260927b"></script>
-<script src="rules-engine.js?v=20260927h"></script>
-<script src="card-effects.js?v=20260927f"></script>
+<script src="rules-engine.js?v=20261002a"></script>
+<script src="card-effects.js?v=20261002a"></script>
 <script src="ai.js?v=20260927e"></script>
 <script src="economy.js?v=20260927e"></script>
-<script src="shell-layout.js?v=20260927e"></script>
-<script src="ui.js?v=20260927l"></script>
+<script src="shell-layout.js?v=20261002a"></script>
+<script src="ui.js?v=20261002a"></script>
 <script src="auth-ui.js?v=20260927f"></script>
 </body>
 </html>
