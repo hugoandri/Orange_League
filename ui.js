@@ -505,8 +505,8 @@ function getPlayerCardFoilTier(name) {
     CARD_CATALOG[setKey].forEach(function (c) {
       if (c.n !== name) { return; }
       var key = setKey + '-' + c.num;
-      if ((econState.collectionSecret[key] || 0) > 0) { hasSecret = true; }
-      if ((econState.collectionHolo[key] || 0) > 0) { hasHolo = true; }
+      if (econState.collectionSecret && (econState.collectionSecret[key] || 0) > 0) { hasSecret = true; }
+      if (econState.collectionHolo && (econState.collectionHolo[key] || 0) > 0) { hasHolo = true; }
     });
   });
   if (hasSecret) { return 'secret'; }
@@ -2873,6 +2873,17 @@ function showCpuThinkingIndicator() {
   if (!el) { return; }
   el.innerHTML = 'CPU PENSANDO<span class="shell-cpu-thinking-dots"><span></span><span></span><span></span></span>';
   el.classList.add('cpu');
+}
+
+function hideCpuThinkingIndicator() {
+  var el = document.getElementById('boardTurnValue');
+  if (!el) { return; }
+  el.classList.remove('cpu');
+  if (gameState && gameState.phase === 'setup') {
+    el.textContent = 'PREPARANDO';
+  } else if (gameState && gameState.activePlayerId === 'player') {
+    el.textContent = 'TU TURNO';
+  }
 }
 
 function hasPendingPlayerChoice() {
